@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user data for:', userId);
       
-      // Get user profile with better error handling
+      // Get user profile
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -61,7 +61,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (userError) {
         console.error('Error fetching user profile:', userError);
-        // Don't return early - user might not have profile yet
+        // Set defaults if user profile doesn't exist
+        setUserProfile(null);
+        setCurrentTenant(null);
+        return;
       }
       
       if (userData) {
@@ -78,14 +81,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (tenantError) {
             console.error('Error fetching tenant data:', tenantError);
+            setCurrentTenant(null);
           } else if (tenantData) {
             console.log('Tenant data found:', tenantData);
             setCurrentTenant(tenantData);
+          } else {
+            console.log('No tenant data found');
+            setCurrentTenant(null);
           }
+        } else {
+          console.log('User has no tenant_id');
+          setCurrentTenant(null);
         }
       } else {
-        console.log('No user profile found - user may need to complete registration');
-        // Clear any stale data
+        console.log('No user profile found');
         setUserProfile(null);
         setCurrentTenant(null);
       }
@@ -105,7 +114,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    // Get initial session first
     const initializeAuth = async () => {
       try {
         console.log('Initializing auth...');
@@ -113,7 +121,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Error getting session:', error);
-          setLoading(false);
+          if (mounted) {
+            setLoading(false);
+          }
           return;
         }
         
@@ -128,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await fetchUserData(session.user.id);
         }
         
+        // Always set loading to false after initialization
         setLoading(false);
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -148,22 +159,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user && event === 'SIGNED_IN') {
-          // Use setTimeout to prevent potential conflicts with auth state changes
-          setTimeout(async () => {
-            if (mounted) {
-              await fetchUserData(session.user.id);
-            }
-          }, 100);
+          // Fetch user data when signed in
+          await fetchUserData(session.user.id);
         } else if (!session?.user) {
           // Clear all data when user logs out
           setCurrentTenant(null);
           setUserProfile(null);
         }
         
-        // Only set loading to false after we've processed the auth change
-        if (event !== 'INITIAL_SESSION') {
-          setLoading(false);
-        }
+        // Set loading to false after handling auth change
+        setLoading(false);
       }
     );
 
