@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +31,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     }
   }, [event.form_template_used]);
 
+  // ... keep existing code (form templates query)
+
   const { data: formTemplates } = useSupabaseQuery(
     ['form-templates'],
     async () => {
@@ -52,6 +53,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       return data || [];
     }
   );
+
+  // ... keep existing code (selected form fields query)
 
   const { data: selectedFormFields } = useSupabaseQuery(
     ['form-fields', activeFormId],
@@ -162,8 +165,19 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   };
 
   const calculateFormTotal = () => {
-    return Object.values(formResponses).reduce((total: number, response: any) => {
-      return total + (response?.enabled ? (parseFloat(response?.price) || 0) : 0);
+    if (!selectedFormFields) return 0;
+    
+    return selectedFormFields.reduce((total: number, fieldInstance: any) => {
+      const fieldId = fieldInstance.field_library.id;
+      const response = formResponses[fieldId];
+      
+      // Only include enabled fields in the total
+      if (response?.enabled) {
+        const price = parseFloat(response.price) || 0;
+        return total + price;
+      }
+      
+      return total;
     }, 0);
   };
 
@@ -241,7 +255,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-base font-bold text-green-600">
-                  Total: £{calculateFormTotal().toLocaleString()}
+                  Total: £{calculateFormTotal().toFixed(2)}
                 </div>
                 {hasUnsavedChanges && (
                   <Button 
@@ -332,42 +346,40 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         </Card>
       )}
 
-      {/* Enhanced Form Summary */}
+      {/* Form Summary */}
       {getEnabledFieldsForSummary().length > 0 && (
-        <Card className="bg-gradient-to-br from-slate-50 to-gray-100 border-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xl flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-green-600" />
+        <Card className="border-2 border-green-200">
+          <CardHeader className="pb-3 bg-green-50">
+            <CardTitle className="text-lg flex items-center gap-2 text-green-800">
+              <DollarSign className="h-5 w-5" />
               Form Summary
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="space-y-3">
-                {getEnabledFieldsForSummary().map(({ field, response }) => (
-                  <div key={field.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-800">{field.label}</span>
-                      {response.notes && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {response.notes}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <span className="font-semibold text-gray-900">
-                        £{(response.price || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
+          <CardContent className="p-4">
+            <div className="space-y-3">
+              {getEnabledFieldsForSummary().map(({ field, response }) => (
+                <div key={field.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                  <div className="flex-1">
+                    <span className="font-medium text-gray-800">{field.label}</span>
+                    {response.notes && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {response.notes}
+                      </div>
+                    )}
                   </div>
-                ))}
-                
-                <div className="flex justify-between items-center pt-3 mt-3 border-t-2 border-green-600">
-                  <span className="text-lg font-bold text-gray-900">Total Amount</span>
-                  <span className="text-2xl font-bold text-green-600">
-                    £{calculateFormTotal().toLocaleString('en-GB', { minimumFractionDigits: 2 })}
-                  </span>
+                  <div className="text-right">
+                    <span className="font-semibold text-gray-900">
+                      £{(parseFloat(response.price) || 0).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
+              ))}
+              
+              <div className="flex justify-between items-center pt-3 mt-3 border-t-2 border-green-600">
+                <span className="text-lg font-bold text-gray-900">Total Amount</span>
+                <span className="text-2xl font-bold text-green-600">
+                  £{calculateFormTotal().toFixed(2)}
+                </span>
               </div>
             </div>
           </CardContent>
