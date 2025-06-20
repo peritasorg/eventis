@@ -77,8 +77,8 @@ export const Settings = () => {
     }
   }, [userProfile]);
 
-  // Load tenant settings
-  const { data: settingsData, refetch: refetchSettings } = useSupabaseQuery(
+  // Load tenant settings only if we have a tenant
+  const { data: settingsData, refetch: refetchSettings, isLoading: settingsLoading } = useSupabaseQuery(
     ['tenant_settings', currentTenant?.id],
     async () => {
       if (!currentTenant?.id) return null;
@@ -230,7 +230,8 @@ export const Settings = () => {
 
   const subscriptionInfo = getSubscriptionStatusDisplay();
 
-  if (!user || !currentTenant) {
+  // Show loading if still loading settings or no user/tenant data
+  if (!user || settingsLoading) {
     return (
       <div className="p-8 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -544,7 +545,7 @@ export const Settings = () => {
               {subscriptionInfo.description}
             </p>
             <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              {currentTenant.subscription_status === 'trial' ? 'Upgrade Plan' : 'Manage Subscription'}
+              {currentTenant?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Manage Subscription'}
             </Button>
           </div>
         </div>
