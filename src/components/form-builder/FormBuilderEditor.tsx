@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -60,8 +61,14 @@ export const FormBuilderEditor: React.FC<FormBuilderEditorProps> = ({ form, open
         return [];
       }
       
-      setFormFields(data || []);
-      return data || [];
+      // Filter out auto-created price/notes fields
+      const mainFields = (data || []).filter(field => {
+        const label = field.field_library?.label || '';
+        return !label.toLowerCase().includes(' price') && !label.toLowerCase().includes(' notes');
+      });
+      
+      setFormFields(mainFields);
+      return mainFields;
     }
   );
 
@@ -146,9 +153,7 @@ export const FormBuilderEditor: React.FC<FormBuilderEditorProps> = ({ form, open
                     <div className="flex-1">
                       <div className="font-medium text-sm">{field.label}</div>
                       <div className="text-xs text-gray-600">{field.field_type}</div>
-                      {field.affects_pricing && (
-                        <div className="text-xs text-green-600">£{field.price_modifier}</div>
-                      )}
+                      <div className="text-xs text-blue-600">Default: £{field.price_modifier || 0}</div>
                     </div>
                     <Button
                       size="sm"
@@ -168,6 +173,7 @@ export const FormBuilderEditor: React.FC<FormBuilderEditorProps> = ({ form, open
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Form Fields ({formFields.length})</CardTitle>
+              <p className="text-sm text-gray-600">All fields include price and notes by default</p>
             </CardHeader>
             <CardContent>
               {formFields.length === 0 ? (
@@ -188,11 +194,9 @@ export const FormBuilderEditor: React.FC<FormBuilderEditorProps> = ({ form, open
                               <div className="font-medium text-sm">{field.label}</div>
                               <div className="text-xs text-gray-600">{field.field_type}</div>
                             </div>
-                            {field.affects_pricing && (
-                              <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                £{field.price_modifier}
-                              </div>
-                            )}
+                            <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              Default: £{field.price_modifier || 0}
+                            </div>
                           </div>
                           
                           {field.help_text && (

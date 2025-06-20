@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
           field_library (
             id,
             label,
+            field_type,
             category,
             help_text,
             price_modifier
@@ -79,7 +81,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         return [];
       }
       
-      return data || [];
+      // Filter out auto-created price/notes fields - we only want the main fields
+      const mainFields = (data || []).filter(field => {
+        const label = field.field_library?.label || '';
+        return !label.toLowerCase().includes(' price') && !label.toLowerCase().includes(' notes');
+      });
+      
+      return mainFields;
     }
   );
 
@@ -113,12 +121,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   };
 
   const handleToggleChange = (fieldId: string, enabled: boolean) => {
+    const field = selectedFormFields?.find(f => f.field_library.id === fieldId)?.field_library;
+    
     const updatedResponses = {
       ...formResponses,
       [fieldId]: {
-        ...formResponses[fieldId],
         enabled,
-        price: enabled ? (formResponses[fieldId]?.price || 0) : 0,
+        price: enabled ? (formResponses[fieldId]?.price || field?.price_modifier || 0) : 0,
         notes: enabled ? (formResponses[fieldId]?.notes || '') : ''
       }
     };

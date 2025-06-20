@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,9 +70,9 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
       field_type: formData.get('field_type') as string,
       placeholder: formData.get('placeholder') as string || null,
       price_modifier: parseFloat(formData.get('price_modifier') as string) || 0,
-      affects_pricing: formData.get('affects_pricing') === 'on',
-      auto_add_price_field: false, // No longer auto-creating separate fields
-      auto_add_notes_field: false, // No longer auto-creating separate fields
+      affects_pricing: false, // No longer used - all fields have price/notes
+      auto_add_price_field: false,
+      auto_add_notes_field: false,
       active: true
     });
   };
@@ -100,12 +99,8 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
             <div>
               <div className="font-medium text-sm">{field.label}</div>
               <div className="text-xs text-gray-500 capitalize">{field.field_type}</div>
+              <div className="text-xs text-blue-600">Default: £{field.price_modifier || 0}</div>
             </div>
-            {field.affects_pricing && (
-              <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                £{field.price_modifier}
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -160,11 +155,7 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
                 step="0.01" 
                 placeholder="0.00"
               />
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Switch id="affects_pricing" name="affects_pricing" />
-              <Label htmlFor="affects_pricing">Affects pricing</Label>
+              <p className="text-xs text-gray-500 mt-1">Every field includes price and notes by default</p>
             </div>
             
             <div className="flex justify-end gap-2">
