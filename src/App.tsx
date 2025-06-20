@@ -10,6 +10,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
 import { Events } from "./pages/Events";
+import { EventDetail } from "./pages/EventDetail";
 import { FormBuilder } from "./pages/FormBuilder";
 import { Customers } from "./pages/Customers";
 import { Settings } from "./pages/Settings";
@@ -36,6 +37,7 @@ const App = () => (
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/leads" element={<Leads />} />
                       <Route path="/events" element={<Events />} />
+                      <Route path="/events/:eventId" element={<EventDetail />} />
                       <Route path="/form-builder" element={<FormBuilder />} />
                       <Route path="/customers" element={<Customers />} />
                       <Route path="/settings" element={<Settings />} />

@@ -1,0 +1,370 @@
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus, Calendar, DollarSign, Users, MessageSquare, Receipt } from 'lucide-react';
+import { CommunicationTimeline } from '@/components/events/CommunicationTimeline';
+import { FinanceTimeline } from '@/components/events/FinanceTimeline';
+import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
+import { supabase } from '@/integrations/supabase/client';
+
+interface EventOverviewTabProps {
+  event: any;
+}
+
+export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => {
+  const [isEditing, setIsEditing] = useState(false);
+
+  const updateEventMutation = useSupabaseMutation(
+    async (updates: any) => {
+      const { data, error } = await supabase
+        .from('events')
+        .update(updates)
+        .eq('id', event.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    {
+      successMessage: 'Event updated successfully!',
+      invalidateQueries: [['event', event.id]],
+      onSuccess: () => setIsEditing(false)
+    }
+  );
+
+  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const updates = {
+      ethnicity: formData.get('ethnicity') as string,
+      primary_contact_name: formData.get('primary_contact_name') as string,
+      primary_contact_phone: formData.get('primary_contact_phone') as string,
+      secondary_contact_name: formData.get('secondary_contact_name') as string,
+      secondary_contact_relationship: formData.get('secondary_contact_relationship') as string,
+      secondary_contact_phone: formData.get('secondary_contact_phone') as string,
+      men_count: parseInt(formData.get('men_count') as string) || 0,
+      ladies_count: parseInt(formData.get('ladies_count') as string) || 0,
+      event_mix_type: formData.get('event_mix_type') as string,
+      total_guest_price: parseFloat(formData.get('total_guest_price') as string) || 0,
+      deposit_amount: parseFloat(formData.get('deposit_amount') as string) || 0,
+    };
+
+    updateEventMutation.mutate(updates);
+  };
+
+  const calculateDaysDue = () => {
+    const eventDate = new Date(event.event_date);
+    const today = new Date();
+    const diffTime = eventDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const daysDue = calculateDaysDue();
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={handleSave}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Basic Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Basic Information
+                {!isEditing ? (
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    Edit
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setIsEditing(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit"
+                      size="sm"
+                      disabled={updateEventMutation.isPending}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <div className="text-lg font-medium">{event.event_name}</div>
+              </div>
+              
+              <div>
+                <Label>Customer</Label>
+                <div className="font-medium">
+                  {event.customers?.name || 'No customer assigned'}
+                </div>
+                {event.customers?.company && (
+                  <div className="text-sm text-gray-600">{event.customers.company}</div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="ethnicity">Ethnicity</Label>
+                {isEditing ? (
+                  <Input
+                    id="ethnicity"
+                    name="ethnicity"
+                    defaultValue={event.ethnicity || ''}
+                    placeholder="e.g., Somali, Pakistani, etc."
+                  />
+                ) : (
+                  <div className="text-sm">{event.ethnicity || 'Not specified'}</div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="primary_contact_name">Primary Contact</Label>
+                  {isEditing ? (
+                    <Input
+                      id="primary_contact_name"
+                      name="primary_contact_name"
+                      defaultValue={event.primary_contact_name || ''}
+                      placeholder="Contact name"
+                    />
+                  ) : (
+                    <div className="text-sm">{event.primary_contact_name || 'Not specified'}</div>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="primary_contact_phone">Phone</Label>
+                  {isEditing ? (
+                    <Input
+                      id="primary_contact_phone"
+                      name="primary_contact_phone"
+                      defaultValue={event.primary_contact_phone || ''}
+                      placeholder="Phone number"
+                    />
+                  ) : (
+                    <div className="text-sm">{event.primary_contact_phone || 'Not specified'}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="secondary_contact_name">Secondary Contact</Label>
+                  {isEditing ? (
+                    <Input
+                      id="secondary_contact_name"
+                      name="secondary_contact_name"
+                      defaultValue={event.secondary_contact_name || ''}
+                      placeholder="Contact name"
+                    />
+                  ) : (
+                    <div className="text-sm">{event.secondary_contact_name || 'Not specified'}</div>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="secondary_contact_phone">Phone</Label>
+                  {isEditing ? (
+                    <Input
+                      id="secondary_contact_phone"
+                      name="secondary_contact_phone"
+                      defaultValue={event.secondary_contact_phone || ''}
+                      placeholder="Phone number"
+                    />
+                  ) : (
+                    <div className="text-sm">{event.secondary_contact_phone || 'Not specified'}</div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="secondary_contact_relationship">Relationship to Main Contact</Label>
+                {isEditing ? (
+                  <Input
+                    id="secondary_contact_relationship"
+                    name="secondary_contact_relationship"
+                    defaultValue={event.secondary_contact_relationship || ''}
+                    placeholder="e.g., Spouse, Parent, etc."
+                  />
+                ) : (
+                  <div className="text-sm">{event.secondary_contact_relationship || 'Not specified'}</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Guest Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Guest Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="men_count">Men Count</Label>
+                  {isEditing ? (
+                    <Input
+                      id="men_count"
+                      name="men_count"
+                      type="number"
+                      defaultValue={event.men_count || 0}
+                    />
+                  ) : (
+                    <div className="text-lg font-medium">{event.men_count || 0}</div>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="ladies_count">Ladies Count</Label>
+                  {isEditing ? (
+                    <Input
+                      id="ladies_count"
+                      name="ladies_count"
+                      type="number"
+                      defaultValue={event.ladies_count || 0}
+                    />
+                  ) : (
+                    <div className="text-lg font-medium">{event.ladies_count || 0}</div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="event_mix_type">Event Mix Type</Label>
+                {isEditing ? (
+                  <Select name="event_mix_type" defaultValue={event.event_mix_type || 'mixed'}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mixed">Mixed</SelectItem>
+                      <SelectItem value="men_only">Men Only</SelectItem>
+                      <SelectItem value="ladies_only">Ladies Only</SelectItem>
+                      <SelectItem value="separate_sections">Separate Sections</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="text-sm capitalize">{event.event_mix_type || 'Mixed'}</div>
+                )}
+              </div>
+
+              <div>
+                <Label>Total Guest Count</Label>
+                <div className="text-lg font-medium">
+                  {(event.men_count || 0) + (event.ladies_count || 0)} guests
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="total_guest_price">Total Guest Price</Label>
+                {isEditing ? (
+                  <Input
+                    id="total_guest_price"
+                    name="total_guest_price"
+                    type="number"
+                    step="0.01"
+                    defaultValue={event.total_guest_price || 0}
+                  />
+                ) : (
+                  <div className="text-lg font-medium">£{(event.total_guest_price || 0).toLocaleString()}</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Financial Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Financial Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="deposit_amount">Deposit Amount</Label>
+                {isEditing ? (
+                  <Input
+                    id="deposit_amount"
+                    name="deposit_amount"
+                    type="number"
+                    step="0.01"
+                    defaultValue={event.deposit_amount || 0}
+                  />
+                ) : (
+                  <div className="text-lg font-medium">£{(event.deposit_amount || 0).toLocaleString()}</div>
+                )}
+              </div>
+
+              <div>
+                <Label>Form Total</Label>
+                <div className="text-lg font-medium">£{(event.form_total || 0).toLocaleString()}</div>
+              </div>
+
+              <div>
+                <Label>Balance Due</Label>
+                <div className={`text-lg font-medium ${
+                  (event.balance_due || 0) > 0 ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  £{(event.balance_due || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4" />
+                  <Label>Event Date</Label>
+                </div>
+                <div className="text-lg font-medium">
+                  {new Date(event.event_date).toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </div>
+                <div className={`text-sm mt-1 ${
+                  daysDue < 0 ? 'text-red-600' : daysDue < 7 ? 'text-orange-600' : 'text-green-600'
+                }`}>
+                  {daysDue < 0 ? `${Math.abs(daysDue)} days overdue` : 
+                   daysDue === 0 ? 'Today' : 
+                   `${daysDue} days until event`}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Empty card to maintain grid layout */}
+          <div></div>
+        </div>
+      </form>
+
+      {/* Communication Timeline */}
+      <CommunicationTimeline eventId={event.id} />
+
+      {/* Finance Timeline */}
+      <FinanceTimeline eventId={event.id} />
+    </div>
+  );
+};
