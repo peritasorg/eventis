@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { FileText, DollarSign, MessageSquare } from 'lucide-react';
+import { FileText, DollarSign, MessageSquare, Save } from 'lucide-react';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,6 +21,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   const { currentTenant } = useAuth();
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, any>>(event.form_responses || {});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Set the active form ID based on what's already loaded or selected
   const activeFormId = event.form_template_used || selectedFormId;
@@ -132,15 +134,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     };
     
     setFormResponses(updatedResponses);
-    
-    const formTotal = Object.values(updatedResponses).reduce((total: number, response: any) => {
-      return total + (response?.enabled ? (parseFloat(response?.price) || 0) : 0);
-    }, 0);
-    
-    updateEventMutation.mutate({
-      form_responses: updatedResponses,
-      form_total: formTotal
-    });
+    setHasUnsavedChanges(true);
   };
 
   const handleFieldChange = (fieldId: string, field: string, value: string | number) => {
@@ -153,21 +147,18 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     };
     
     setFormResponses(updatedResponses);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSaveChanges = () => {
+    const formTotal = calculateFormTotal();
     
-    if (field === 'price') {
-      const formTotal = Object.values(updatedResponses).reduce((total: number, response: any) => {
-        return total + (response?.enabled ? (parseFloat(response?.price) || 0) : 0);
-      }, 0);
-      
-      updateEventMutation.mutate({
-        form_responses: updatedResponses,
-        form_total: formTotal
-      });
-    } else {
-      updateEventMutation.mutate({
-        form_responses: updatedResponses
-      });
-    }
+    updateEventMutation.mutate({
+      form_responses: formResponses,
+      form_total: formTotal
+    });
+    
+    setHasUnsavedChanges(false);
   };
 
   const calculateFormTotal = () => {
@@ -248,8 +239,21 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                 <FileText className="h-4 w-4" />
                 Form Responses
               </div>
-              <div className="text-base font-bold text-green-600">
-                Total: £{calculateFormTotal().toLocaleString()}
+              <div className="flex items-center gap-3">
+                <div className="text-base font-bold text-green-600">
+                  Total: £{calculateFormTotal().toLocaleString()}
+                </div>
+                {hasUnsavedChanges && (
+                  <Button 
+                    onClick={handleSaveChanges}
+                    disabled={updateEventMutation.isPending}
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    Save Changes
+                  </Button>
+                )}
               </div>
             </CardTitle>
           </CardHeader>
@@ -328,26 +332,42 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         </Card>
       )}
 
-      {/* Summary - Only show if there are enabled fields from current form */}
+      {/* Enhanced Form Summary */}
       {getEnabledFieldsForSummary().length > 0 && (
-        <Card>
+        <Card className="bg-gradient-to-br from-slate-50 to-gray-100 border-2">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
+            <CardTitle className="text-xl flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
               Form Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              {getEnabledFieldsForSummary().map(({ field, response }) => (
-                <div key={field.id} className="flex justify-between items-center py-1 text-sm border-b">
-                  <span>{field.label}</span>
-                  <span className="font-medium">£{(response.price || 0).toLocaleString()}</span>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="space-y-3">
+                {getEnabledFieldsForSummary().map(({ field, response }) => (
+                  <div key={field.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-800">{field.label}</span>
+                      {response.notes && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {response.notes}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="font-semibold text-gray-900">
+                        £{(response.price || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                
+                <div className="flex justify-between items-center pt-3 mt-3 border-t-2 border-green-600">
+                  <span className="text-lg font-bold text-gray-900">Total Amount</span>
+                  <span className="text-2xl font-bold text-green-600">
+                    £{calculateFormTotal().toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
-              ))}
-              <div className="flex justify-between items-center py-2 text-base font-bold border-t-2">
-                <span>Total</span>
-                <span className="text-green-600">£{calculateFormTotal().toLocaleString()}</span>
               </div>
             </div>
           </CardContent>
