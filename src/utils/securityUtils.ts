@@ -132,6 +132,7 @@ export const logSecurityEvent = async (event: {
   try {
     await supabase.from('activity_logs').insert({
       action: event.action,
+      entity_type: 'security',
       description: event.details,
       security_event: true,
       risk_level: event.severity,
