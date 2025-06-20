@@ -28,14 +28,12 @@ export const useAuth = () => {
 
 // Cleanup function to clear all auth-related storage
 const cleanupAuthState = () => {
-  // Clear all potential auth keys
   Object.keys(localStorage).forEach(key => {
     if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
       localStorage.removeItem(key);
     }
   });
   
-  // Clear session storage too
   Object.keys(sessionStorage || {}).forEach(key => {
     if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
       sessionStorage.removeItem(key);
@@ -54,38 +52,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user data for:', userId);
       
-      // Get user profile
+      // Get user profile with better error handling
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
       if (userError) {
         console.error('Error fetching user profile:', userError);
-        return;
+        // Don't return early - user might not have profile yet
       }
       
-      console.log('User profile data:', userData);
-      setUserProfile(userData);
-      
-      // Get tenant data if user has tenant_id
-      if (userData?.tenant_id) {
-        const { data: tenantData, error: tenantError } = await supabase
-          .from('tenants')
-          .select('*')
-          .eq('id', userData.tenant_id)
-          .single();
+      if (userData) {
+        console.log('User profile found:', userData);
+        setUserProfile(userData);
         
-        if (tenantError) {
-          console.error('Error fetching tenant data:', tenantError);
-        } else {
-          console.log('Tenant data:', tenantData);
-          setCurrentTenant(tenantData);
+        // Get tenant data if user has tenant_id
+        if (userData.tenant_id) {
+          const { data: tenantData, error: tenantError } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('id', userData.tenant_id)
+            .maybeSingle();
+          
+          if (tenantError) {
+            console.error('Error fetching tenant data:', tenantError);
+          } else if (tenantData) {
+            console.log('Tenant data found:', tenantData);
+            setCurrentTenant(tenantData);
+          }
         }
+      } else {
+        console.log('No user profile found - user may need to complete registration');
+        // Clear any stale data
+        setUserProfile(null);
+        setCurrentTenant(null);
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
+      setUserProfile(null);
+      setCurrentTenant(null);
     }
   };
 
@@ -98,36 +105,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        
-        if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user && event === 'SIGNED_IN') {
-          // Defer data fetching to prevent potential deadlocks
-          setTimeout(async () => {
-            if (mounted) {
-              await fetchUserData(session.user.id);
-            }
-          }, 100);
-        } else if (!session?.user) {
-          // Clear all data when user logs out
-          setCurrentTenant(null);
-          setUserProfile(null);
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    // Get initial session
+    // Get initial session first
     const initializeAuth = async () => {
       try {
+        console.log('Initializing auth...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -138,10 +119,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (!mounted) return;
         
+        console.log('Initial session:', session?.user?.email || 'No session');
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          // Fetch user data after setting session
           await fetchUserData(session.user.id);
         }
         
@@ -154,6 +137,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email || 'No user');
+        
+        if (!mounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user && event === 'SIGNED_IN') {
+          // Use setTimeout to prevent potential conflicts with auth state changes
+          setTimeout(async () => {
+            if (mounted) {
+              await fetchUserData(session.user.id);
+            }
+          }, 100);
+        } else if (!session?.user) {
+          // Clear all data when user logs out
+          setCurrentTenant(null);
+          setUserProfile(null);
+        }
+        
+        // Only set loading to false after we've processed the auth change
+        if (event !== 'INITIAL_SESSION') {
+          setLoading(false);
+        }
+      }
+    );
+
+    // Initialize auth
     initializeAuth();
 
     return () => {
@@ -169,14 +183,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clean up any existing state
       cleanupAuthState();
       
-      // Attempt to sign out first to ensure clean state
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
-        console.log('Pre-signin cleanup completed');
-      }
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -190,7 +196,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data.user) {
         toast.success('Signed in successfully!');
-        // Auth state change will handle the rest
         return { error: null };
       }
       
@@ -227,7 +232,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data.user) {
-        toast.success('Account created successfully! Please check your email to verify your account.');
+        if (data.user.email_confirmed_at) {
+          toast.success('Account created successfully!');
+        } else {
+          toast.success('Account created! Please check your email to verify your account.');
+        }
         return { error: null };
       }
       
@@ -245,9 +254,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      // Clean up state first
-      cleanupAuthState();
-      
       const { error } = await supabase.auth.signOut({ scope: 'global' });
       
       if (error) {
@@ -261,6 +267,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(null);
         setCurrentTenant(null);
         setUserProfile(null);
+        
+        // Clean up storage
+        cleanupAuthState();
         
         // Force page reload for clean state
         setTimeout(() => {
