@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, GripVertical, Edit3, Trash2, Eye, Settings } from 'lucide-react';
+import { GripVertical, Edit3, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { QuickFieldLibrary } from './QuickFieldLibrary';
 
 interface DragDropFormBuilderProps {
   form: any;
@@ -26,6 +25,8 @@ interface FieldLibraryItem {
   help_text?: string;
   affects_pricing: boolean;
   price_modifier?: number;
+  auto_add_price_field: boolean;
+  auto_add_notes_field: boolean;
 }
 
 interface FormFieldInstance {
@@ -43,23 +44,6 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
   const { currentTenant } = useAuth();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
-
-  const { data: fieldLibrary } = useSupabaseQuery(
-    ['field-library'],
-    async () => {
-      if (!currentTenant?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('field_library')
-        .select('*')
-        .eq('tenant_id', currentTenant.id)
-        .eq('active', true)
-        .order('name');
-      
-      if (error) throw error;
-      return (data || []) as FieldLibraryItem[];
-    }
-  );
 
   const { data: formFields, refetch: refetchFields } = useSupabaseQuery(
     ['form-fields', form.id],
@@ -82,19 +66,112 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
     async (fieldLibraryId: string) => {
       const maxOrder = Math.max(...(formFields?.map(f => f.field_order) || [0]), 0);
       
+      // Get the field library item to check if we need to add automatic fields
+      const { data: fieldLibraryItem, error: fieldError } = await supabase
+        .from('field_library')
+        .select('*')
+        .eq('id', fieldLibraryId)
+        .single();
+      
+      if (fieldError) throw fieldError;
+
+      const fieldsToAdd = [];
+      let currentOrder = maxOrder + 1;
+
+      // Add the main field
+      fieldsToAdd.push({
+        form_template_id: form.id,
+        field_library_id: fieldLibraryId,
+        field_order: currentOrder,
+        tenant_id: currentTenant?.id
+      });
+      currentOrder++;
+
+      // Auto-add price field for text fields or if field affects pricing
+      if (fieldLibraryItem.field_type === 'text' || fieldLibraryItem.field_type === 'textarea' || fieldLibraryItem.auto_add_price_field) {
+        // Create a price field in the library if it doesn't exist
+        const priceFieldName = `${fieldLibraryItem.label} - Price`;
+        let { data: existingPriceField } = await supabase
+          .from('field_library')
+          .select('id')
+          .eq('tenant_id', currentTenant?.id)
+          .eq('name', priceFieldName)
+          .single();
+
+        if (!existingPriceField) {
+          const { data: newPriceField, error: priceError } = await supabase
+            .from('field_library')
+            .insert([{
+              name: priceFieldName,
+              label: `${fieldLibraryItem.label} Price`,
+              field_type: 'number',
+              placeholder: '0.00',
+              tenant_id: currentTenant?.id,
+              affects_pricing: true,
+              price_modifier: fieldLibraryItem.price_modifier || 0,
+              active: true
+            }])
+            .select()
+            .single();
+          
+          if (priceError) throw priceError;
+          existingPriceField = newPriceField;
+        }
+
+        fieldsToAdd.push({
+          form_template_id: form.id,
+          field_library_id: existingPriceField.id,
+          field_order: currentOrder,
+          tenant_id: currentTenant?.id
+        });
+        currentOrder++;
+      }
+
+      // Auto-add notes field for toggles/checkboxes or if specified
+      if (fieldLibraryItem.field_type === 'checkbox' || fieldLibraryItem.auto_add_notes_field) {
+        const notesFieldName = `${fieldLibraryItem.label} - Notes`;
+        let { data: existingNotesField } = await supabase
+          .from('field_library')
+          .select('id')
+          .eq('tenant_id', currentTenant?.id)
+          .eq('name', notesFieldName)
+          .single();
+
+        if (!existingNotesField) {
+          const { data: newNotesField, error: notesError } = await supabase
+            .from('field_library')
+            .insert([{
+              name: notesFieldName,
+              label: `${fieldLibraryItem.label} Notes`,
+              field_type: 'textarea',
+              placeholder: 'Additional notes...',
+              tenant_id: currentTenant?.id,
+              affects_pricing: false,
+              active: true
+            }])
+            .select()
+            .single();
+          
+          if (notesError) throw notesError;
+          existingNotesField = newNotesField;
+        }
+
+        fieldsToAdd.push({
+          form_template_id: form.id,
+          field_library_id: existingNotesField.id,
+          field_order: currentOrder,
+          tenant_id: currentTenant?.id
+        });
+      }
+
       const { error } = await supabase
         .from('form_field_instances')
-        .insert([{
-          form_template_id: form.id,
-          field_library_id: fieldLibraryId,
-          field_order: maxOrder + 1,
-          tenant_id: currentTenant?.id
-        }]);
+        .insert(fieldsToAdd);
       
       if (error) throw error;
     },
     {
-      successMessage: 'Field added!',
+      successMessage: 'Field(s) added!',
       onSuccess: refetchFields
     }
   );
@@ -209,14 +286,14 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{form.name}</h1>
-              <p className="text-gray-600">{form.description || 'Build your form by dragging fields from the library'}</p>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">{form.name}</h1>
+              <p className="text-gray-600">{form.description || 'Build your form by adding fields'}</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
@@ -237,61 +314,32 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-12 gap-6">
           {/* Field Library Sidebar */}
           <div className="col-span-3">
-            <Card className="h-full shadow-lg border-0 bg-white/80 backdrop-blur">
-              <div className="p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Field Library
-                </h3>
-              </div>
-              <CardContent className="p-4 overflow-y-auto">
-                <div className="space-y-3">
-                  {fieldLibrary?.map((field) => (
-                    <div
-                      key={field.id}
-                      className="group p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 cursor-pointer"
-                      onClick={() => addFieldMutation.mutate(field.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm text-gray-900">{field.label}</div>
-                          <div className="text-xs text-gray-500 capitalize">{field.field_type}</div>
-                        </div>
-                        <Plus className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                      </div>
-                      {field.affects_pricing && (
-                        <div className="mt-2">
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                            £{field.price_modifier}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+            <Card className="h-fit">
+              <CardContent className="p-4">
+                <QuickFieldLibrary onAddField={addFieldMutation.mutate} />
               </CardContent>
             </Card>
           </div>
 
           {/* Form Builder Canvas */}
           <div className="col-span-9">
-            <Card className="h-full shadow-lg border-0 bg-white/80 backdrop-blur">
+            <Card>
               <div className="p-4 border-b">
                 <h3 className="font-semibold text-gray-900">Form Canvas</h3>
               </div>
-              <CardContent className="p-6 overflow-y-auto">
+              <CardContent className="p-6">
                 {!formFields || formFields.length === 0 ? (
                   <div className="flex items-center justify-center h-64 text-center">
                     <div className="space-y-4">
                       <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
-                        <Plus className="h-8 w-8 text-gray-400" />
+                        <Eye className="h-8 w-8 text-gray-400" />
                       </div>
                       <div>
                         <h4 className="text-lg font-medium text-gray-900 mb-2">Start Building Your Form</h4>
-                        <p className="text-gray-500">Drag fields from the library or click to add them to your form</p>
+                        <p className="text-gray-500">Add fields from the library to start building your form</p>
                       </div>
                     </div>
                   </div>
@@ -323,7 +371,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
                                 >
                                   <Card className={`transition-all duration-200 ${
                                     snapshot.isDragging 
-                                      ? 'shadow-xl rotate-2 scale-105' 
+                                      ? 'shadow-xl rotate-1 scale-105' 
                                       : 'hover:shadow-md'
                                   } ${
                                     editingField === fieldInstance.id 
@@ -366,7 +414,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
                                       )}
                                       
                                       {editingField === fieldInstance.id ? (
-                                        <div className="space-y-4 animate-fade-in">
+                                        <div className="space-y-4">
                                           <div className="grid grid-cols-2 gap-4">
                                             <div>
                                               <Label className="text-xs">Custom Label</Label>
@@ -424,7 +472,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
                                           </div>
                                         </div>
                                       ) : (
-                                        <div className="animate-fade-in">
+                                        <div>
                                           {renderFieldPreview(fieldInstance)}
                                         </div>
                                       )}
