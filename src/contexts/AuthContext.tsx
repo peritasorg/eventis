@@ -26,21 +26,6 @@ export const useAuth = () => {
   return context;
 };
 
-// Cleanup function to clear all auth-related storage
-const cleanupAuthState = () => {
-  Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      localStorage.removeItem(key);
-    }
-  });
-  
-  Object.keys(sessionStorage || {}).forEach(key => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      sessionStorage.removeItem(key);
-    }
-  });
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -57,45 +42,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('users')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
       
       if (userError) {
         console.error('Error fetching user profile:', userError);
-        // Set defaults if user profile doesn't exist
         setUserProfile(null);
         setCurrentTenant(null);
         return;
       }
       
-      if (userData) {
-        console.log('User profile found:', userData);
-        setUserProfile(userData);
+      setUserProfile(userData);
+      
+      // Get tenant data if user has tenant_id
+      if (userData?.tenant_id) {
+        const { data: tenantData, error: tenantError } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('id', userData.tenant_id)
+          .single();
         
-        // Get tenant data if user has tenant_id
-        if (userData.tenant_id) {
-          const { data: tenantData, error: tenantError } = await supabase
-            .from('tenants')
-            .select('*')
-            .eq('id', userData.tenant_id)
-            .maybeSingle();
-          
-          if (tenantError) {
-            console.error('Error fetching tenant data:', tenantError);
-            setCurrentTenant(null);
-          } else if (tenantData) {
-            console.log('Tenant data found:', tenantData);
-            setCurrentTenant(tenantData);
-          } else {
-            console.log('No tenant data found');
-            setCurrentTenant(null);
-          }
-        } else {
-          console.log('User has no tenant_id');
+        if (tenantError) {
+          console.error('Error fetching tenant data:', tenantError);
           setCurrentTenant(null);
+        } else {
+          console.log('Tenant data found:', tenantData);
+          setCurrentTenant(tenantData);
         }
       } else {
-        console.log('No user profile found');
-        setUserProfile(null);
         setCurrentTenant(null);
       }
     } catch (error) {
@@ -117,31 +90,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       try {
         console.log('Initializing auth...');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        // Get current session
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
-          }
           return;
         }
         
         if (!mounted) return;
         
-        console.log('Initial session:', session?.user?.email || 'No session');
-        setSession(session);
-        setUser(session?.user ?? null);
+        console.log('Initial session:', currentSession?.user?.email || 'No session');
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         
-        if (session?.user) {
-          // Fetch user data after setting session
-          await fetchUserData(session.user.id);
+        // Fetch user data if we have a session
+        if (currentSession?.user) {
+          await fetchUserData(currentSession.user.id);
         }
-        
-        // Always set loading to false after initialization
-        setLoading(false);
       } catch (error) {
         console.error('Error initializing auth:', error);
+      } finally {
         if (mounted) {
           setLoading(false);
         }
@@ -159,16 +129,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user && event === 'SIGNED_IN') {
-          // Fetch user data when signed in
-          await fetchUserData(session.user.id);
+          // Defer data fetching to avoid blocking auth state change
+          setTimeout(async () => {
+            if (mounted) {
+              await fetchUserData(session.user.id);
+            }
+          }, 0);
         } else if (!session?.user) {
           // Clear all data when user logs out
           setCurrentTenant(null);
           setUserProfile(null);
         }
-        
-        // Set loading to false after handling auth change
-        setLoading(false);
       }
     );
 
@@ -184,9 +155,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      
-      // Clean up any existing state
-      cleanupAuthState();
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -217,9 +185,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, metadata?: any) => {
     try {
       setLoading(true);
-      
-      // Clean up any existing state
-      cleanupAuthState();
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -259,7 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Sign out error:', error);
@@ -273,13 +238,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentTenant(null);
         setUserProfile(null);
         
-        // Clean up storage
-        cleanupAuthState();
-        
-        // Force page reload for clean state
-        setTimeout(() => {
-          window.location.href = '/auth';
-        }, 500);
+        // Force redirect to auth page
+        window.location.href = '/auth';
       }
     } catch (error: any) {
       console.error('Sign out exception:', error);
