@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, FileText, DollarSign, MessageSquare } from 'lucide-react';
+import { FileText, DollarSign, MessageSquare } from 'lucide-react';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,21 +15,6 @@ import { toast } from 'sonner';
 
 interface EventFormTabProps {
   event: any;
-}
-
-interface FieldLibraryItem {
-  id: string;
-  label: string;
-  category?: string;
-  help_text?: string;
-  price_modifier?: number;
-}
-
-interface FormFieldInstance {
-  id: string;
-  field_library_id: string;
-  field_order: number;
-  field_library: FieldLibraryItem;
 }
 
 export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
@@ -59,7 +45,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
 
   const { data: selectedFormFields } = useSupabaseQuery(
     ['form-fields', selectedFormId],
-    async (): Promise<FormFieldInstance[]> => {
+    async () => {
       if (!selectedFormId || !currentTenant?.id) return [];
       
       const { data, error } = await supabase
@@ -85,12 +71,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         return [];
       }
       
-      return (data as any[])?.map(item => ({
-        id: item.id,
-        field_library_id: item.field_library_id,
-        field_order: item.field_order,
-        field_library: item.field_library as FieldLibraryItem
-      })) || [];
+      return data || [];
     }
   );
 
@@ -184,7 +165,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       {/* Form Selection */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle className="text-lg flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Form Template Selection
           </CardTitle>
@@ -226,7 +207,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       {selectedFormFields && selectedFormFields.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-lg">
+            <CardTitle className="text-lg flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Form Responses
@@ -315,7 +296,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       {Object.keys(formResponses).length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
+            <CardTitle className="text-lg flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Form Summary
             </CardTitle>
