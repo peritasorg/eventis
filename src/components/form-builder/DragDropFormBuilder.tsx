@@ -17,6 +17,28 @@ interface DragDropFormBuilderProps {
   onBack: () => void;
 }
 
+interface FieldLibraryItem {
+  id: string;
+  name: string;
+  label: string;
+  field_type: string;
+  placeholder?: string;
+  help_text?: string;
+  affects_pricing: boolean;
+  price_modifier?: number;
+}
+
+interface FormFieldInstance {
+  id: string;
+  field_library_id: string;
+  field_order: number;
+  label_override?: string;
+  placeholder_override?: string;
+  help_text_override?: string;
+  required_override?: boolean;
+  field_library: FieldLibraryItem;
+}
+
 export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, onBack }) => {
   const { currentTenant } = useAuth();
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -35,7 +57,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
         .order('name');
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as FieldLibraryItem[];
     }
   );
 
@@ -52,7 +74,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
         .order('field_order');
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as FormFieldInstance[];
     }
   );
 
@@ -130,7 +152,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
     refetchFields();
   };
 
-  const renderFieldPreview = (fieldInstance: any) => {
+  const renderFieldPreview = (fieldInstance: FormFieldInstance) => {
     const field = fieldInstance.field_library;
     if (!field) return null;
 
