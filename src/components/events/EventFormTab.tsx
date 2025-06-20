@@ -16,17 +16,19 @@ interface EventFormTabProps {
   event: any;
 }
 
+interface FieldLibraryItem {
+  id: string;
+  label: string;
+  category?: string;
+  help_text?: string;
+  price_modifier?: number;
+}
+
 interface FormFieldInstance {
   id: string;
   field_library_id: string;
   field_order: number;
-  field_library: {
-    id: string;
-    label: string;
-    category?: string;
-    help_text?: string;
-    price_modifier?: number;
-  };
+  field_library: FieldLibraryItem;
 }
 
 export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
@@ -83,7 +85,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         return [];
       }
       
-      return data as FormFieldInstance[] || [];
+      return (data as any[])?.map(item => ({
+        id: item.id,
+        field_library_id: item.field_library_id,
+        field_order: item.field_order,
+        field_library: item.field_library as FieldLibraryItem
+      })) || [];
     }
   );
 
