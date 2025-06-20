@@ -196,6 +196,71 @@ export type Database = {
           },
         ]
       }
+      communication_timeline: {
+        Row: {
+          communication_type: string
+          created_at: string | null
+          created_by: string | null
+          event_id: string
+          follow_up_date: string | null
+          follow_up_required: boolean | null
+          id: string
+          summary: string
+          tenant_id: string
+        }
+        Insert: {
+          communication_type: string
+          created_at?: string | null
+          created_by?: string | null
+          event_id: string
+          follow_up_date?: string | null
+          follow_up_required?: boolean | null
+          id?: string
+          summary: string
+          tenant_id: string
+        }
+        Update: {
+          communication_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          event_id?: string
+          follow_up_date?: string | null
+          follow_up_required?: boolean | null
+          id?: string
+          summary?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_timeline_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_timeline_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "event_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_timeline_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_timeline_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           accessibility_requirements: string | null
@@ -475,6 +540,9 @@ export type Database = {
           accessibility_requirements: string | null
           additional_costs: number | null
           av_equipment_required: boolean | null
+          balance_cleared: boolean | null
+          balance_cleared_date: string | null
+          balance_due: number | null
           base_price: number | null
           booking_stage: string | null
           cancellation_fee: number | null
@@ -495,20 +563,32 @@ export type Database = {
           discount_amount: number | null
           end_time: string
           estimated_guests: number
+          ethnicity: string | null
           event_date: string
+          event_finalized: boolean | null
+          event_finalized_date: string | null
+          event_mix_type: string | null
           event_name: string
           event_type: string
           final_payment_due: string | null
           final_payment_paid: boolean | null
           form_responses: Json | null
           form_template_used: string | null
+          form_total: number | null
           id: string
           inquiry_date: string | null
           internal_notes: string | null
+          ladies_count: number | null
           lead_id: string | null
+          men_count: number | null
           parking_required: boolean | null
+          primary_contact_name: string | null
+          primary_contact_phone: string | null
           quote_sent_date: string | null
           room_layout: string | null
+          secondary_contact_name: string | null
+          secondary_contact_phone: string | null
+          secondary_contact_relationship: string | null
           setup_time: string | null
           special_requests: string | null
           start_time: string
@@ -516,6 +596,7 @@ export type Database = {
           tax_amount: number | null
           tenant_id: string | null
           total_amount: number | null
+          total_guest_price: number | null
           updated_at: string | null
           venue_area: string | null
         }
@@ -523,6 +604,9 @@ export type Database = {
           accessibility_requirements?: string | null
           additional_costs?: number | null
           av_equipment_required?: boolean | null
+          balance_cleared?: boolean | null
+          balance_cleared_date?: string | null
+          balance_due?: number | null
           base_price?: number | null
           booking_stage?: string | null
           cancellation_fee?: number | null
@@ -543,20 +627,32 @@ export type Database = {
           discount_amount?: number | null
           end_time: string
           estimated_guests: number
+          ethnicity?: string | null
           event_date: string
+          event_finalized?: boolean | null
+          event_finalized_date?: string | null
+          event_mix_type?: string | null
           event_name: string
           event_type: string
           final_payment_due?: string | null
           final_payment_paid?: boolean | null
           form_responses?: Json | null
           form_template_used?: string | null
+          form_total?: number | null
           id?: string
           inquiry_date?: string | null
           internal_notes?: string | null
+          ladies_count?: number | null
           lead_id?: string | null
+          men_count?: number | null
           parking_required?: boolean | null
+          primary_contact_name?: string | null
+          primary_contact_phone?: string | null
           quote_sent_date?: string | null
           room_layout?: string | null
+          secondary_contact_name?: string | null
+          secondary_contact_phone?: string | null
+          secondary_contact_relationship?: string | null
           setup_time?: string | null
           special_requests?: string | null
           start_time: string
@@ -564,6 +660,7 @@ export type Database = {
           tax_amount?: number | null
           tenant_id?: string | null
           total_amount?: number | null
+          total_guest_price?: number | null
           updated_at?: string | null
           venue_area?: string | null
         }
@@ -571,6 +668,9 @@ export type Database = {
           accessibility_requirements?: string | null
           additional_costs?: number | null
           av_equipment_required?: boolean | null
+          balance_cleared?: boolean | null
+          balance_cleared_date?: string | null
+          balance_due?: number | null
           base_price?: number | null
           booking_stage?: string | null
           cancellation_fee?: number | null
@@ -591,20 +691,32 @@ export type Database = {
           discount_amount?: number | null
           end_time?: string
           estimated_guests?: number
+          ethnicity?: string | null
           event_date?: string
+          event_finalized?: boolean | null
+          event_finalized_date?: string | null
+          event_mix_type?: string | null
           event_name?: string
           event_type?: string
           final_payment_due?: string | null
           final_payment_paid?: boolean | null
           form_responses?: Json | null
           form_template_used?: string | null
+          form_total?: number | null
           id?: string
           inquiry_date?: string | null
           internal_notes?: string | null
+          ladies_count?: number | null
           lead_id?: string | null
+          men_count?: number | null
           parking_required?: boolean | null
+          primary_contact_name?: string | null
+          primary_contact_phone?: string | null
           quote_sent_date?: string | null
           room_layout?: string | null
+          secondary_contact_name?: string | null
+          secondary_contact_phone?: string | null
+          secondary_contact_relationship?: string | null
           setup_time?: string | null
           special_requests?: string | null
           start_time?: string
@@ -612,6 +724,7 @@ export type Database = {
           tax_amount?: number | null
           tenant_id?: string | null
           total_amount?: number | null
+          total_guest_price?: number | null
           updated_at?: string | null
           venue_area?: string | null
         }
@@ -712,6 +825,77 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "field_library_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_timeline: {
+        Row: {
+          amount: number
+          created_at: string | null
+          created_by: string | null
+          event_id: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          payment_type: string
+          reference_number: string | null
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          created_by?: string | null
+          event_id: string
+          id?: string
+          notes?: string | null
+          payment_date: string
+          payment_method?: string | null
+          payment_type: string
+          reference_number?: string | null
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          event_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          payment_type?: string
+          reference_number?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_timeline_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_timeline_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "event_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_timeline_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_timeline_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1579,6 +1763,8 @@ export type Database = {
           subscription_status: string | null
           timezone: string | null
           trial_ends_at: string | null
+          trial_starts_at: string | null
+          trial_used: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -1606,6 +1792,8 @@ export type Database = {
           subscription_status?: string | null
           timezone?: string | null
           trial_ends_at?: string | null
+          trial_starts_at?: string | null
+          trial_used?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -1633,6 +1821,8 @@ export type Database = {
           subscription_status?: string | null
           timezone?: string | null
           trial_ends_at?: string | null
+          trial_starts_at?: string | null
+          trial_used?: boolean | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1781,8 +1971,28 @@ export type Database = {
         Args: { p_tenant_id: string; p_form_responses: Json }
         Returns: number
       }
+      calculate_form_total: {
+        Args: { event_uuid: string }
+        Returns: number
+      }
+      check_subscription_access: {
+        Args: { tenant_uuid: string; feature_name?: string }
+        Returns: boolean
+      }
       check_subscription_limit: {
         Args: { p_tenant_id: string; p_limit_type: string }
+        Returns: boolean
+      }
+      check_trial_status: {
+        Args: { tenant_uuid: string }
+        Returns: string
+      }
+      check_usage_limits: {
+        Args: { tenant_uuid: string; limit_type: string }
+        Returns: boolean
+      }
+      email_has_used_trial: {
+        Args: { email_address: string }
         Returns: boolean
       }
       get_current_tenant_id: {
@@ -1799,6 +2009,10 @@ export type Database = {
           this_month_revenue: number
           upcoming_events: number
         }[]
+      }
+      get_trial_days_remaining: {
+        Args: { tenant_uuid: string }
+        Returns: number
       }
       gtrgm_compress: {
         Args: { "": unknown }
@@ -1820,9 +2034,25 @@ export type Database = {
         Args: { "": unknown }
         Returns: unknown
       }
+      health_check_rls: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          check_name: string
+          status: string
+          details: string
+        }[]
+      }
       is_super_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      monitor_rls_performance: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          table_name: string
+          policy_name: string
+          avg_execution_time_ms: number
+        }[]
       }
       set_limit: {
         Args: { "": number }
@@ -1835,6 +2065,14 @@ export type Database = {
       show_trgm: {
         Args: { "": string }
         Returns: string[]
+      }
+      user_has_valid_access: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      validate_registration_email: {
+        Args: { email_address: string }
+        Returns: Json
       }
     }
     Enums: {
