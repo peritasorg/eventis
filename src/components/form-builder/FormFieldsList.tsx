@@ -54,6 +54,8 @@ export const FormFieldsList: React.FC<FormFieldsListProps> = ({
         <div className="space-y-3">
           {formFields.map((fieldInstance, index) => {
             const field = fieldInstance.field_library;
+            if (!field) return null;
+            
             return (
               <div key={fieldInstance.id} className="flex items-center gap-3 p-4 border rounded-lg">
                 <GripVertical className="h-4 w-4 text-gray-400" />

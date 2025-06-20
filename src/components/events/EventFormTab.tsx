@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +19,7 @@ interface EventFormTabProps {
 export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   const { currentTenant } = useAuth();
   const [selectedFormId, setSelectedFormId] = useState<string>('');
-  const [formResponses, setFormResponses] = useState(event.form_responses || {});
+  const [formResponses, setFormResponses] = useState<Record<string, any>>(event.form_responses || {});
 
   const { data: formTemplates } = useSupabaseQuery(
     ['form-templates'],
@@ -62,7 +61,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
             price_modifier
           )
         `)
-        .eq('form_template_id', selectedFormId)
+        .eq('form_section_id', selectedFormId)
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
       
@@ -76,7 +75,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   );
 
   const updateEventMutation = useSupabaseMutation(
-    async (updates: any) => {
+    async (updates: Record<string, any>) => {
       const { data, error } = await supabase
         .from('events')
         .update(updates)

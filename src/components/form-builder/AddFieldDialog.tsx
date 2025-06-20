@@ -40,21 +40,53 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
       
       if (fieldError) throw fieldError;
 
-      // Then add it to the form
+      // Get the default form section for this form template
+      // First, let's find or create a default section for this form
+      let { data: existingSections, error: sectionsError } = await supabase
+        .from('form_sections')
+        .select('*')
+        .eq('form_page_id', formId) // Assuming formId is actually a page ID
+        .eq('tenant_id', currentTenant?.id)
+        .limit(1);
+
+      if (sectionsError) throw sectionsError;
+
+      let sectionId;
+      if (!existingSections || existingSections.length === 0) {
+        // Create a default section
+        const { data: newSection, error: newSectionError } = await supabase
+          .from('form_sections')
+          .insert([{
+            form_page_id: formId,
+            section_title: 'Main Section',
+            section_order: 1,
+            tenant_id: currentTenant?.id
+          }])
+          .select()
+          .single();
+        
+        if (newSectionError) throw newSectionError;
+        sectionId = newSection.id;
+      } else {
+        sectionId = existingSections[0].id;
+      }
+
+      // Get the next field order
       const { data: maxOrder } = await supabase
         .from('form_field_instances')
         .select('field_order')
-        .eq('form_template_id', formId)
+        .eq('form_section_id', sectionId)
         .order('field_order', { ascending: false })
         .limit(1)
         .single();
 
       const nextOrder = (maxOrder?.field_order || 0) + 1;
 
+      // Add the field to the form section
       const { error: instanceError } = await supabase
         .from('form_field_instances')
         .insert([{
-          form_template_id: formId,
+          form_section_id: sectionId,
           field_library_id: newField.id,
           field_order: nextOrder,
           tenant_id: currentTenant?.id
