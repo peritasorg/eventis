@@ -130,14 +130,14 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
   );
 
   const handleDragEnd = async (result: any) => {
-    if (!result.destination) return;
+    if (!result.destination || !formFields) return;
 
-    const items = Array.from(formFields || []);
+    const items: FormFieldInstance[] = Array.from(formFields);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
     // Update field orders
-    const updates = items.map((item, index) => ({
+    const updates = items.map((item: FormFieldInstance, index: number) => ({
       id: item.id,
       field_order: index + 1
     }));
