@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +20,15 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   const { currentTenant } = useAuth();
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, any>>(event.form_responses || {});
+
+  // Set the active form ID based on what's already loaded or selected
+  const activeFormId = event.form_template_used || selectedFormId;
+
+  useEffect(() => {
+    if (event.form_template_used) {
+      setSelectedFormId(event.form_template_used);
+    }
+  }, [event.form_template_used]);
 
   const { data: formTemplates } = useSupabaseQuery(
     ['form-templates'],
@@ -43,9 +52,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   );
 
   const { data: selectedFormFields } = useSupabaseQuery(
-    ['form-fields', selectedFormId],
+    ['form-fields', activeFormId],
     async () => {
-      if (!selectedFormId || !currentTenant?.id) return [];
+      if (!activeFormId || !currentTenant?.id) return [];
       
       const { data, error } = await supabase
         .from('form_field_instances')
@@ -61,7 +70,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
             price_modifier
           )
         `)
-        .eq('form_section_id', selectedFormId)
+        .eq('form_template_id', activeFormId)
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
       
@@ -189,8 +198,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleLoadForm} disabled={!selectedFormId} size="sm">
-              Load Form
+            <Button 
+              onClick={handleLoadForm} 
+              disabled={!selectedFormId || selectedFormId === event.form_template_used} 
+              size="sm"
+            >
+              {selectedFormId === event.form_template_used ? 'Loaded' : 'Load Form'}
             </Button>
           </div>
           

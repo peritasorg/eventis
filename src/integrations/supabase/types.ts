@@ -2001,6 +2001,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_current_user_tenant_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_tenant_dashboard_stats: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -2043,6 +2047,10 @@ export type Database = {
           status: string
           details: string
         }[]
+      }
+      is_current_user: {
+        Args: { user_uuid: string }
+        Returns: boolean
       }
       is_super_admin: {
         Args: Record<PropertyKey, never>
