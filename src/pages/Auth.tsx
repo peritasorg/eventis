@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Loader2 } from 'lucide-react';
 
 export const Auth = () => {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirect if already authenticated
@@ -22,37 +23,24 @@ export const Auth = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    
-    const { error } = await signIn(email, password);
-    
-    if (!error) {
-      // Redirect will happen automatically via auth state change
-    }
-    
-    setIsSubmitting(false);
+    // Simulate loading for UI testing
+    setTimeout(() => {
+      setIsSubmitting(false);
+      // Just navigate to dashboard without real authentication
+      navigate('/');
+    }, 1000);
   };
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const businessName = formData.get('businessName') as string;
-    const fullName = formData.get('fullName') as string;
-    
-    const { error } = await signUp(email, password, {
-      business_name: businessName,
-      full_name: fullName,
-      first_name: fullName.split(' ')[0] || '',
-      last_name: fullName.split(' ').slice(1).join(' ') || ''
-    });
-    
-    setIsSubmitting(false);
+    // Simulate loading for UI testing
+    setTimeout(() => {
+      setIsSubmitting(false);
+      // Just navigate to dashboard without real authentication
+      navigate('/');
+    }, 1000);
   };
 
   if (loading) {
@@ -94,7 +82,6 @@ export const Auth = () => {
                       name="email"
                       type="email"
                       placeholder="Enter your email"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -104,7 +91,6 @@ export const Auth = () => {
                       name="password"
                       type="password"
                       placeholder="Enter your password"
-                      required
                     />
                   </div>
                   <Button 
@@ -133,7 +119,6 @@ export const Auth = () => {
                       name="fullName"
                       type="text"
                       placeholder="Enter your full name"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -143,7 +128,6 @@ export const Auth = () => {
                       name="businessName"
                       type="text"
                       placeholder="Enter your business name"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -153,7 +137,6 @@ export const Auth = () => {
                       name="email"
                       type="email"
                       placeholder="Enter your email"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -163,7 +146,6 @@ export const Auth = () => {
                       name="password"
                       type="password"
                       placeholder="Create a password"
-                      required
                       minLength={6}
                     />
                   </div>
