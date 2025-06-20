@@ -20,7 +20,7 @@ export const Sidebar = () => {
   const { user, signOut, currentTenant, userProfile } = useAuth();
 
   const getSubscriptionStatus = () => {
-    if (!currentTenant) return 'Trial';
+    if (!currentTenant) return 'Loading...';
     
     const status = currentTenant.subscription_status;
     
@@ -35,12 +35,12 @@ export const Sidebar = () => {
       case 'cancelled':
         return 'Cancelled';
       default:
-        return 'Trial';
+        return 'Free Trial';
     }
   };
 
   const getBusinessName = () => {
-    if (!currentTenant) return 'Business';
+    if (!currentTenant) return 'Loading...';
     return currentTenant.business_name || 'Business';
   };
 

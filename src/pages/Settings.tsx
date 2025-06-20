@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Building2, User, Palette, FileText, Mail, Shield, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,26 +45,6 @@ export const Settings = () => {
     default_event_duration: 240
   });
 
-  // Show early error if no tenant
-  if (!currentTenant) {
-    return (
-      <div className="p-8 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-red-800 mb-2">No Tenant Selected</h2>
-            <p className="text-red-600 mb-4">Unable to load tenant data. Please try signing out and back in.</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Update local state when auth data changes
   useEffect(() => {
     if (currentTenant) {
@@ -96,11 +77,11 @@ export const Settings = () => {
     }
   }, [userProfile]);
 
-  // Load tenant settings - only run if we have a tenant
-  const { data: settingsData, refetch: refetchSettings, isLoading: settingsLoading } = useSupabaseQuery(
-    ['tenant_settings', currentTenant.id],
+  // Load tenant settings
+  const { data: settingsData, refetch: refetchSettings } = useSupabaseQuery(
+    ['tenant_settings', currentTenant?.id],
     async () => {
-      console.log('Loading tenant settings for:', currentTenant.id);
+      if (!currentTenant?.id) return null;
       
       const { data, error } = await supabase
         .from('tenant_settings')
@@ -111,7 +92,6 @@ export const Settings = () => {
       if (error) {
         // If no settings exist, create default ones
         if (error.code === 'PGRST116') {
-          console.log('Creating default tenant settings');
           const { data: newSettings, error: createError } = await supabase
             .from('tenant_settings')
             .insert([{ tenant_id: currentTenant.id }])
@@ -143,8 +123,6 @@ export const Settings = () => {
   const updateTenantMutation = useSupabaseMutation(
     async (data: any) => {
       if (!currentTenant?.id) throw new Error('No tenant selected');
-      
-      console.log('Updating tenant:', currentTenant.id, data);
       
       const { error } = await supabase
         .from('tenants')
@@ -200,7 +178,6 @@ export const Settings = () => {
   );
 
   const handleBusinessSave = () => {
-    console.log('Saving business data for tenant:', currentTenant.id);
     updateTenantMutation.mutate(businessData);
   };
 
@@ -253,8 +230,7 @@ export const Settings = () => {
 
   const subscriptionInfo = getSubscriptionStatusDisplay();
 
-  // Show loading only if settings are still loading
-  if (settingsLoading) {
+  if (!user || !currentTenant) {
     return (
       <div className="p-8 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -270,9 +246,6 @@ export const Settings = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
         <p className="text-gray-600">Manage your business settings and preferences</p>
-        <div className="mt-2 text-sm text-gray-500">
-          Business: {currentTenant.business_name} | User: {userProfile?.email}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -571,7 +544,7 @@ export const Settings = () => {
               {subscriptionInfo.description}
             </p>
             <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              {currentTenant?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Manage Subscription'}
+              {currentTenant.subscription_status === 'trial' ? 'Upgrade Plan' : 'Manage Subscription'}
             </Button>
           </div>
         </div>
