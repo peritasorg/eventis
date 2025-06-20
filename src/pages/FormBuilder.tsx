@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +46,29 @@ export const FormBuilder = () => {
     setViewMode('forms');
   };
 
+  if (viewMode === 'edit-form' && editingForm) {
+    return (
+      <FormEditor 
+        form={editingForm}
+        onBack={handleBackToForms}
+      />
+    );
+  }
+
+  if (viewMode === 'field-library') {
+    return (
+      <div>
+        <div className="p-6 bg-white border-b">
+          <Button variant="outline" onClick={() => setViewMode('forms')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Forms
+          </Button>
+        </div>
+        <FieldLibrary />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-6xl mx-auto">
@@ -56,41 +79,17 @@ export const FormBuilder = () => {
             <p className="text-gray-600 text-sm">Create questionnaire forms for your events</p>
           </div>
           
-          <div className="flex gap-2">
-            {viewMode !== 'forms' && (
-              <Button variant="outline" onClick={handleBackToForms}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Forms
-              </Button>
-            )}
-            
-            {viewMode === 'forms' && (
-              <Button onClick={() => setViewMode('field-library')}>
-                Field Library
-              </Button>
-            )}
-          </div>
+          <Button onClick={() => setViewMode('field-library')}>
+            Field Library
+          </Button>
         </div>
 
         {/* Content */}
-        {viewMode === 'forms' && (
-          <FormList 
-            forms={forms}
-            onEditForm={handleEditForm}
-            refetchForms={refetchForms}
-          />
-        )}
-
-        {viewMode === 'edit-form' && editingForm && (
-          <FormEditor 
-            form={editingForm}
-            onBack={handleBackToForms}
-          />
-        )}
-
-        {viewMode === 'field-library' && (
-          <FieldLibrary />
-        )}
+        <FormList 
+          forms={forms}
+          onEditForm={handleEditForm}
+          refetchForms={refetchForms}
+        />
       </div>
     </div>
   );

@@ -911,6 +911,7 @@ export type Database = {
           field_order: number
           field_width: string | null
           form_section_id: string | null
+          form_template_id: string | null
           help_text_override: string | null
           id: string
           label_override: string | null
@@ -926,6 +927,7 @@ export type Database = {
           field_order: number
           field_width?: string | null
           form_section_id?: string | null
+          form_template_id?: string | null
           help_text_override?: string | null
           id?: string
           label_override?: string | null
@@ -941,6 +943,7 @@ export type Database = {
           field_order?: number
           field_width?: string | null
           form_section_id?: string | null
+          form_template_id?: string | null
           help_text_override?: string | null
           id?: string
           label_override?: string | null
@@ -950,6 +953,13 @@ export type Database = {
           validation_rules_override?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_form_field_instances_template"
+            columns: ["form_template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "form_field_instances_field_library_id_fkey"
             columns: ["field_library_id"]
@@ -1059,13 +1069,6 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "form_sections_form_page_id_fkey"
-            columns: ["form_page_id"]
-            isOneToOne: false
-            referencedRelation: "form_pages"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "form_sections_tenant_id_fkey"
             columns: ["tenant_id"]
