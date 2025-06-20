@@ -88,17 +88,25 @@ export const Leads = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    // Handle date field - convert empty string to null
+    const eventDate = formData.get('event_date') as string;
+    const eventDateValue = eventDate && eventDate.trim() !== '' ? eventDate : null;
+    
+    // Handle numeric fields - convert empty strings to null/0
+    const estimatedGuests = formData.get('estimated_guests') as string;
+    const estimatedBudget = formData.get('estimated_budget') as string;
+    
     const leadData = {
       name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      phone: formData.get('phone') as string,
-      company: formData.get('company') as string,
-      event_type: formData.get('event_type') as string,
-      event_date: formData.get('event_date') as string,
-      estimated_guests: parseInt(formData.get('estimated_guests') as string) || 0,
-      estimated_budget: parseFloat(formData.get('estimated_budget') as string) || 0,
-      source: formData.get('source') as string,
-      notes: formData.get('notes') as string,
+      email: formData.get('email') as string || null,
+      phone: formData.get('phone') as string || null,
+      company: formData.get('company') as string || null,
+      event_type: formData.get('event_type') as string || null,
+      event_date: eventDateValue,
+      estimated_guests: estimatedGuests && estimatedGuests.trim() !== '' ? parseInt(estimatedGuests) : null,
+      estimated_budget: estimatedBudget && estimatedBudget.trim() !== '' ? parseFloat(estimatedBudget) : null,
+      source: formData.get('source') as string || 'website', // Default to 'website' if empty
+      notes: formData.get('notes') as string || null,
       status: 'new'
     };
 
@@ -184,17 +192,17 @@ export const Leads = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="estimated_guests">Estimated Guests</Label>
-                  <Input id="estimated_guests" name="estimated_guests" type="number" />
+                  <Input id="estimated_guests" name="estimated_guests" type="number" min="0" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
-                  <Input id="estimated_budget" name="estimated_budget" type="number" step="0.01" />
+                  <Input id="estimated_budget" name="estimated_budget" type="number" step="0.01" min="0" />
                 </div>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="source">Source</Label>
-                <Select name="source">
+                <Select name="source" defaultValue="website">
                   <SelectTrigger>
                     <SelectValue placeholder="How did they find you?" />
                   </SelectTrigger>
@@ -203,6 +211,8 @@ export const Leads = () => {
                     <SelectItem value="social_media">Social Media</SelectItem>
                     <SelectItem value="referral">Referral</SelectItem>
                     <SelectItem value="google">Google</SelectItem>
+                    <SelectItem value="phone">Phone</SelectItem>
+                    <SelectItem value="walk_in">Walk In</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -293,7 +303,7 @@ export const Leads = () => {
                           {new Date(lead.event_date).toLocaleDateString()}
                         </div>
                       )}
-                      <span>{lead.estimated_guests} guests</span>
+                      {lead.estimated_guests && <span>{lead.estimated_guests} guests</span>}
                       {lead.estimated_budget && <span>£{lead.estimated_budget.toLocaleString()}</span>}
                     </div>
                   </div>
