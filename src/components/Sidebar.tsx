@@ -1,8 +1,10 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2 } from 'lucide-react';
+import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
@@ -15,6 +17,7 @@ const navigation = [
 
 export const Sidebar = () => {
   const location = useLocation();
+  const { user, signOut, currentTenant } = useAuth();
 
   return (
     <div className="flex h-screen w-64 flex-col bg-gray-900 text-white">
@@ -53,14 +56,26 @@ export const Sidebar = () => {
 
       {/* Footer */}
       <div className="border-t border-gray-700 p-4">
-        <div className="flex items-center">
-          <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-medium">
-            JD
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-medium">
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{currentTenant?.business_name || 'Loading...'}</p>
+              <p className="text-xs text-gray-400">
+                {currentTenant?.subscription_status === 'trial' ? 'Free Trial' : 'Premium Plan'}
+              </p>
+            </div>
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium">John Doe</p>
-            <p className="text-xs text-gray-400">Premium Plan</p>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="text-gray-400 hover:text-white hover:bg-gray-800"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>
