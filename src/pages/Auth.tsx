@@ -7,29 +7,79 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Loader2, AlertCircle } from 'lucide-react';
+import { Building2, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { validateEmail, validatePassword, validateBusinessName, sanitizeInput } from '@/utils/securityUtils';
 
 export const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
 
   // Redirect if already authenticated
   if (user && !loading) {
     return <Navigate to="/" replace />;
   }
 
+  const validateSignInForm = (email: string, password: string): boolean => {
+    const errors: { [key: string]: string } = {};
+    
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!validateEmail(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!password) {
+      errors.password = 'Password is required';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateSignUpForm = (email: string, password: string, businessName: string, fullName: string): boolean => {
+    const errors: { [key: string]: string } = {};
+    
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!validateEmail(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      errors.password = passwordValidation.errors[0]; // Show first error
+    }
+    
+    if (!businessName.trim()) {
+      errors.businessName = 'Business name is required';
+    } else if (!validateBusinessName(businessName)) {
+      errors.businessName = 'Business name contains invalid characters';
+    }
+    
+    if (!fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    } else if (fullName.trim().length < 2) {
+      errors.fullName = 'Full name must be at least 2 characters';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    setValidationErrors({});
     
     const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+    const email = sanitizeInput(formData.get('email') as string || '');
+    const password = formData.get('password') as string || '';
     
-    if (!email || !password) {
-      setError('Please fill in all fields');
+    if (!validateSignInForm(email, password)) {
       setIsSubmitting(false);
       return;
     }
@@ -37,7 +87,7 @@ export const Auth = () => {
     const { error } = await signIn(email, password);
     
     if (error) {
-      setError(error.message || 'Failed to sign in');
+      setError('Invalid email or password. Please try again.');
     }
     
     setIsSubmitting(false);
@@ -47,21 +97,15 @@ export const Auth = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    setValidationErrors({});
     
     const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const businessName = formData.get('businessName') as string;
-    const fullName = formData.get('fullName') as string;
+    const email = sanitizeInput(formData.get('email') as string || '');
+    const password = formData.get('password') as string || '';
+    const businessName = sanitizeInput(formData.get('businessName') as string || '');
+    const fullName = sanitizeInput(formData.get('fullName') as string || '');
     
-    if (!email || !password || !businessName || !fullName) {
-      setError('Please fill in all fields');
-      setIsSubmitting(false);
-      return;
-    }
-    
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (!validateSignUpForm(email, password, businessName, fullName)) {
       setIsSubmitting(false);
       return;
     }
@@ -74,7 +118,13 @@ export const Auth = () => {
     });
     
     if (error) {
-      setError(error.message || 'Failed to create account');
+      if (error.message.includes('already registered')) {
+        setError('An account with this email already exists. Please sign in instead.');
+      } else if (error.message.includes('rate limit')) {
+        setError('Too many attempts. Please wait before trying again.');
+      } else {
+        setError('Failed to create account. Please try again.');
+      }
     }
     
     setIsSubmitting(false);
@@ -131,18 +181,36 @@ export const Auth = () => {
                       placeholder="Enter your email"
                       required
                       disabled={isSubmitting}
+                      className={validationErrors.email ? 'border-red-500' : ''}
                     />
+                    {validationErrors.email && (
+                      <p className="text-sm text-red-600">{validationErrors.email}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      name="password"
-                      type="password"
-                      placeholder="Enter your password"
-                      required
-                      disabled={isSubmitting}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="signin-password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Enter your password"
+                        required
+                        disabled={isSubmitting}
+                        className={validationErrors.password ? 'border-red-500 pr-10' : 'pr-10'}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700"
+                        disabled={isSubmitting}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {validationErrors.password && (
+                      <p className="text-sm text-red-600">{validationErrors.password}</p>
+                    )}
                   </div>
                   <Button 
                     type="submit" 
@@ -172,7 +240,11 @@ export const Auth = () => {
                       placeholder="Enter your full name"
                       required
                       disabled={isSubmitting}
+                      className={validationErrors.fullName ? 'border-red-500' : ''}
                     />
+                    {validationErrors.fullName && (
+                      <p className="text-sm text-red-600">{validationErrors.fullName}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-business">Business Name</Label>
@@ -183,7 +255,11 @@ export const Auth = () => {
                       placeholder="Enter your business name"
                       required
                       disabled={isSubmitting}
+                      className={validationErrors.businessName ? 'border-red-500' : ''}
                     />
+                    {validationErrors.businessName && (
+                      <p className="text-sm text-red-600">{validationErrors.businessName}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
@@ -194,19 +270,39 @@ export const Auth = () => {
                       placeholder="Enter your email"
                       required
                       disabled={isSubmitting}
+                      className={validationErrors.email ? 'border-red-500' : ''}
                     />
+                    {validationErrors.email && (
+                      <p className="text-sm text-red-600">{validationErrors.email}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      placeholder="Create a password"
-                      required
-                      minLength={6}
-                      disabled={isSubmitting}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="signup-password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Create a password"
+                        required
+                        disabled={isSubmitting}
+                        className={validationErrors.password ? 'border-red-500 pr-10' : 'pr-10'}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700"
+                        disabled={isSubmitting}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {validationErrors.password && (
+                      <p className="text-sm text-red-600">{validationErrors.password}</p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Password must be at least 8 characters with uppercase, lowercase, and numbers
+                    </p>
                   </div>
                   <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                     🎉 <strong>14-day free trial</strong> - No credit card required

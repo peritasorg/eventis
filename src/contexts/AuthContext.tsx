@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { validateEmail, validatePassword, sanitizeInput, cleanupAuthState, secureSignOut, RateLimiter, logSecurityEvent } from '@/utils/securityUtils';
 
 interface AuthContextType {
   user: User | null;
@@ -17,6 +18,9 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Rate limiter for auth attempts
+const authRateLimiter = new RateLimiter(3, 5 * 60 * 1000); // 3 attempts per 5 minutes
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -46,7 +50,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (profileError) {
         console.error('Failed to load user profile:', profileError);
-        // If user doesn't exist in users table, this might be a new user
+        await logSecurityEvent({
+          action: 'profile_load_failed',
+          details: `Failed to load profile for user ${userId}`,
+          severity: 'medium',
+          metadata: { error: profileError.message }
+        });
+        
         if (profileError.code === 'PGRST116') {
           console.log('User profile not found - might be a new user');
           return false;
@@ -72,6 +82,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (tenantError) {
           console.error('Failed to load tenant:', tenantError);
+          await logSecurityEvent({
+            action: 'tenant_load_failed',
+            details: `Failed to load tenant for user ${userId}`,
+            severity: 'high',
+            metadata: { error: tenantError.message }
+          });
           return false;
         }
         
@@ -86,6 +102,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     } catch (error) {
       console.error('Error loading user data:', error);
+      await logSecurityEvent({
+        action: 'user_data_load_error',
+        details: `Unexpected error loading user data for ${userId}`,
+        severity: 'high',
+        metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
+      });
       return false;
     }
   };
@@ -107,6 +129,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Session error:', error);
+          await logSecurityEvent({
+            action: 'session_error',
+            details: 'Failed to get session during auth initialization',
+            severity: 'medium',
+            metadata: { error: error.message }
+          });
           if (isMounted) setLoading(false);
           return;
         }
@@ -127,6 +155,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
+        await logSecurityEvent({
+          action: 'auth_init_error',
+          details: 'Authentication initialization failed',
+          severity: 'high',
+          metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
+        });
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -156,6 +190,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(newSession);
           setUser(newSession.user);
           
+          await logSecurityEvent({
+            action: 'user_signed_in',
+            details: `User ${newSession.user.email} signed in successfully`,
+            severity: 'low'
+          });
+          
           const success = await loadUserData(newSession.user.id);
           if (!success) {
             console.log('Failed to load user data after sign in');
@@ -176,17 +216,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Input validation
+      if (!validateEmail(email)) {
+        const error = new Error('Please enter a valid email address');
+        await logSecurityEvent({
+          action: 'invalid_signin_email',
+          details: `Invalid email format attempted: ${email}`,
+          severity: 'low'
+        });
+        return { error };
+      }
+
+      const sanitizedEmail = sanitizeInput(email);
+      
+      // Rate limiting
+      if (!authRateLimiter.isAllowed(sanitizedEmail)) {
+        const remainingTime = Math.ceil(authRateLimiter.getRemainingTime(sanitizedEmail) / 1000 / 60);
+        const error = new Error(`Too many failed attempts. Please try again in ${remainingTime} minutes.`);
+        await logSecurityEvent({
+          action: 'signin_rate_limited',
+          details: `Sign in rate limited for email: ${sanitizedEmail}`,
+          severity: 'medium'
+        });
+        toast.error(error.message);
+        return { error };
+      }
+
       setLoading(true);
-      console.log('Signing in:', email);
+      console.log('Signing in:', sanitizedEmail);
+      
+      // Clean up any existing auth state before signing in
+      cleanupAuthState();
       
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: sanitizedEmail,
         password,
       });
       
       if (error) {
         console.error('Sign in error:', error);
-        toast.error(error.message);
+        await logSecurityEvent({
+          action: 'signin_failed',
+          details: `Failed sign in attempt for email: ${sanitizedEmail}`,
+          severity: 'medium',
+          metadata: { error: error.message }
+        });
+        toast.error('Invalid email or password');
         return { error };
       }
       
@@ -198,6 +273,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: new Error('Sign in failed') };
     } catch (error: any) {
       console.error('Sign in exception:', error);
+      await logSecurityEvent({
+        action: 'signin_exception',
+        details: 'Unexpected error during sign in',
+        severity: 'high',
+        metadata: { error: error.message }
+      });
       toast.error('An error occurred during sign in');
       return { error };
     } finally {
@@ -207,25 +288,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     try {
+      // Input validation
+      if (!validateEmail(email)) {
+        const error = new Error('Please enter a valid email address');
+        return { error };
+      }
+
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        const error = new Error(passwordValidation.errors.join('. '));
+        return { error };
+      }
+
+      const sanitizedEmail = sanitizeInput(email);
+      const sanitizedMetadata = metadata ? {
+        business_name: sanitizeInput(metadata.business_name || ''),
+        full_name: sanitizeInput(metadata.full_name || ''),
+        first_name: sanitizeInput(metadata.first_name || ''),
+        last_name: sanitizeInput(metadata.last_name || '')
+      } : {};
+
+      // Rate limiting
+      if (!authRateLimiter.isAllowed(sanitizedEmail)) {
+        const remainingTime = Math.ceil(authRateLimiter.getRemainingTime(sanitizedEmail) / 1000 / 60);
+        const error = new Error(`Too many attempts. Please try again in ${remainingTime} minutes.`);
+        toast.error(error.message);
+        return { error };
+      }
+
       setLoading(true);
-      console.log('Signing up:', email);
+      console.log('Signing up:', sanitizedEmail);
+      
+      // Clean up any existing auth state before signing up
+      cleanupAuthState();
       
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: sanitizedEmail,
         password,
         options: {
-          data: metadata,
+          data: sanitizedMetadata,
           emailRedirectTo: `${window.location.origin}/`
         }
       });
       
       if (error) {
         console.error('Sign up error:', error);
+        await logSecurityEvent({
+          action: 'signup_failed',
+          details: `Failed sign up attempt for email: ${sanitizedEmail}`,
+          severity: 'medium',
+          metadata: { error: error.message }
+        });
         toast.error(error.message);
         return { error };
       }
       
       if (data.user) {
+        await logSecurityEvent({
+          action: 'user_signed_up',
+          details: `New user registered: ${sanitizedEmail}`,
+          severity: 'low'
+        });
+        
         if (data.user.email_confirmed_at) {
           toast.success('Account created successfully!');
         } else {
@@ -237,6 +361,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: new Error('Sign up failed') };
     } catch (error: any) {
       console.error('Sign up exception:', error);
+      await logSecurityEvent({
+        action: 'signup_exception',
+        details: 'Unexpected error during sign up',
+        severity: 'high',
+        metadata: { error: error.message }
+      });
       toast.error('An error occurred during sign up');
       return { error };
     } finally {
@@ -246,29 +376,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      setLoading(true);
       console.log('Signing out...');
       
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Sign out error:', error);
-        toast.error(error.message);
-      } else {
-        toast.success('Signed out successfully!');
-        
-        setUser(null);
-        setSession(null);
-        setCurrentTenant(null);
-        setUserProfile(null);
-        
-        window.location.href = '/auth';
+      if (user?.email) {
+        await logSecurityEvent({
+          action: 'user_signed_out',
+          details: `User ${user.email} signed out`,
+          severity: 'low'
+        });
       }
+      
+      await secureSignOut();
     } catch (error: any) {
       console.error('Sign out exception:', error);
+      await logSecurityEvent({
+        action: 'signout_error',
+        details: 'Error during sign out process',
+        severity: 'medium',
+        metadata: { error: error.message }
+      });
       toast.error('An error occurred during sign out');
-    } finally {
-      setLoading(false);
+      // Still clean up and redirect even on error
+      cleanupAuthState();
+      window.location.href = '/auth';
     }
   };
 
