@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -177,6 +176,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     }, 0);
   };
 
+  // Get enabled fields for the summary - only fields that exist in current form AND are enabled
+  const getEnabledFieldsForSummary = () => {
+    if (!selectedFormFields) return [];
+    
+    return selectedFormFields
+      .filter(fieldInstance => {
+        const fieldId = fieldInstance.field_library.id;
+        const response = formResponses[fieldId];
+        return response?.enabled === true;
+      })
+      .map(fieldInstance => ({
+        field: fieldInstance.field_library,
+        response: formResponses[fieldInstance.field_library.id]
+      }));
+  };
+
   return (
     <div className="space-y-4">
       {/* Form Selection */}
@@ -313,8 +328,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         </Card>
       )}
 
-      {/* Summary */}
-      {Object.keys(formResponses).length > 0 && (
+      {/* Summary - Only show if there are enabled fields from current form */}
+      {getEnabledFieldsForSummary().length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -324,17 +339,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              {Object.entries(formResponses)
-                .filter(([_, response]: [string, any]) => response.enabled)
-                .map(([fieldId, response]: [string, any]) => {
-                  const field = selectedFormFields?.find(f => f.field_library.id === fieldId)?.field_library;
-                  return (
-                    <div key={fieldId} className="flex justify-between items-center py-1 text-sm border-b">
-                      <span>{field?.label}</span>
-                      <span className="font-medium">£{(response.price || 0).toLocaleString()}</span>
-                    </div>
-                  );
-                })}
+              {getEnabledFieldsForSummary().map(({ field, response }) => (
+                <div key={field.id} className="flex justify-between items-center py-1 text-sm border-b">
+                  <span>{field.label}</span>
+                  <span className="font-medium">£{(response.price || 0).toLocaleString()}</span>
+                </div>
+              ))}
               <div className="flex justify-between items-center py-2 text-base font-bold border-t-2">
                 <span>Total</span>
                 <span className="text-green-600">£{calculateFormTotal().toLocaleString()}</span>
