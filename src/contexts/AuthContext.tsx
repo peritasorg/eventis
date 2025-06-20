@@ -33,97 +33,93 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserData = async (userId: string) => {
+  // Simple, synchronous function to load user data
+  const loadUserData = async (userId: string): Promise<boolean> => {
     try {
-      console.log('Fetching user data for:', userId);
+      console.log('Loading user data for:', userId);
       
-      // Get user profile with error handling
-      const { data: userData, error: userError } = await supabase
+      // Load user profile
+      const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
       
-      if (userError) {
-        console.error('Error fetching user profile:', userError);
-        // Don't throw error, just set to null and continue
-        setUserProfile(null);
-        setCurrentTenant(null);
-        return;
+      if (profileError) {
+        console.error('Failed to load user profile:', profileError);
+        return false;
       }
       
-      console.log('User profile loaded:', userData?.email);
-      setUserProfile(userData);
+      setUserProfile(profile);
+      console.log('User profile loaded for:', profile.email);
       
-      // Get tenant data if user has tenant_id
-      if (userData?.tenant_id) {
-        const { data: tenantData, error: tenantError } = await supabase
+      // Load tenant if user has one
+      if (profile.tenant_id) {
+        const { data: tenant, error: tenantError } = await supabase
           .from('tenants')
           .select('*')
-          .eq('id', userData.tenant_id)
+          .eq('id', profile.tenant_id)
           .single();
         
         if (tenantError) {
-          console.error('Error fetching tenant data:', tenantError);
-          setCurrentTenant(null);
-        } else {
-          console.log('Tenant data loaded:', tenantData?.business_name);
-          setCurrentTenant(tenantData);
+          console.error('Failed to load tenant:', tenantError);
+          return false;
         }
-      } else {
-        setCurrentTenant(null);
+        
+        setCurrentTenant(tenant);
+        console.log('Tenant loaded:', tenant.business_name);
       }
+      
+      return true;
     } catch (error) {
-      console.error('Error in fetchUserData:', error);
-      setUserProfile(null);
-      setCurrentTenant(null);
+      console.error('Error loading user data:', error);
+      return false;
     }
   };
 
   const refreshUserData = async () => {
     if (user?.id) {
-      await fetchUserData(user.id);
+      await loadUserData(user.id);
     }
   };
 
+  // Initialize auth on mount
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
-    const initializeAuth = async () => {
+    const initAuth = async () => {
       try {
-        console.log('Initializing auth...');
+        console.log('Initializing authentication...');
         
         // Get current session
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
-          }
+          console.error('Session error:', error);
+          if (isMounted) setLoading(false);
           return;
         }
         
-        if (!mounted) return;
+        if (!isMounted) return;
         
-        console.log('Initial session:', currentSession?.user?.email || 'No session');
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        // Only fetch user data if we have a session and haven't unmounted
-        if (currentSession?.user && mounted) {
-          // Fetch data but don't block the loading state on it
-          fetchUserData(currentSession.user.id).finally(() => {
-            if (mounted) {
-              setLoading(false);
-            }
-          });
+        if (currentSession?.user) {
+          console.log('Found existing session for:', currentSession.user.email);
+          setSession(currentSession);
+          setUser(currentSession.user);
+          
+          // Load user data and wait for it to complete
+          const success = await loadUserData(currentSession.user.id);
+          if (!success) {
+            console.error('Failed to load user data, signing out...');
+            await supabase.auth.signOut();
+          }
         } else {
-          setLoading(false);
+          console.log('No existing session found');
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
-        if (mounted) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        if (isMounted) {
           setLoading(false);
         }
       }
@@ -131,33 +127,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email || 'No user');
+      async (event, newSession) => {
+        console.log('Auth state changed:', event);
         
-        if (!mounted) return;
+        if (!isMounted) return;
         
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user && event === 'SIGNED_IN') {
-          // Fetch user data but don't block on it
-          fetchUserData(session.user.id);
-        } else if (!session?.user) {
-          // Clear all data when user logs out
-          setCurrentTenant(null);
+        if (event === 'SIGNED_OUT' || !newSession?.user) {
+          console.log('User signed out');
+          setSession(null);
+          setUser(null);
           setUserProfile(null);
+          setCurrentTenant(null);
+          setLoading(false);
+          return;
         }
         
-        // Set loading to false after auth state is set
-        setLoading(false);
+        if (event === 'SIGNED_IN' && newSession?.user) {
+          console.log('User signed in:', newSession.user.email);
+          setLoading(true);
+          setSession(newSession);
+          setUser(newSession.user);
+          
+          // Load user data
+          const success = await loadUserData(newSession.user.id);
+          if (!success) {
+            console.error('Failed to load user data after sign in');
+            toast.error('Failed to load user data');
+          }
+          setLoading(false);
+        }
       }
     );
 
-    // Initialize auth
-    initializeAuth();
+    // Initialize
+    initAuth();
 
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -165,6 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      console.log('Signing in:', email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -195,6 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, metadata?: any) => {
     try {
       setLoading(true);
+      console.log('Signing up:', email);
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -233,6 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       setLoading(true);
+      console.log('Signing out...');
       
       const { error } = await supabase.auth.signOut();
       
