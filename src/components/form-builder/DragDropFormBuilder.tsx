@@ -1,11 +1,13 @@
+
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripVertical, Edit3, Trash2, Eye } from 'lucide-react';
+import { GripVertical, Edit3, Trash2, Eye, DollarSign, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,112 +68,19 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
     async (fieldLibraryId: string) => {
       const maxOrder = Math.max(...(formFields?.map(f => f.field_order) || [0]), 0);
       
-      // Get the field library item to check if we need to add automatic fields
-      const { data: fieldLibraryItem, error: fieldError } = await supabase
-        .from('field_library')
-        .select('*')
-        .eq('id', fieldLibraryId)
-        .single();
-      
-      if (fieldError) throw fieldError;
-
-      const fieldsToAdd = [];
-      let currentOrder = maxOrder + 1;
-
-      // Add the main field
-      fieldsToAdd.push({
-        form_template_id: form.id,
-        field_library_id: fieldLibraryId,
-        field_order: currentOrder,
-        tenant_id: currentTenant?.id
-      });
-      currentOrder++;
-
-      // Auto-add price field for text fields or if field affects pricing
-      if (fieldLibraryItem.field_type === 'text' || fieldLibraryItem.field_type === 'textarea' || fieldLibraryItem.auto_add_price_field) {
-        // Create a price field in the library if it doesn't exist
-        const priceFieldName = `${fieldLibraryItem.label} - Price`;
-        let { data: existingPriceField } = await supabase
-          .from('field_library')
-          .select('id')
-          .eq('tenant_id', currentTenant?.id)
-          .eq('name', priceFieldName)
-          .single();
-
-        if (!existingPriceField) {
-          const { data: newPriceField, error: priceError } = await supabase
-            .from('field_library')
-            .insert([{
-              name: priceFieldName,
-              label: `${fieldLibraryItem.label} Price`,
-              field_type: 'number',
-              placeholder: '0.00',
-              tenant_id: currentTenant?.id,
-              affects_pricing: true,
-              price_modifier: fieldLibraryItem.price_modifier || 0,
-              active: true
-            }])
-            .select()
-            .single();
-          
-          if (priceError) throw priceError;
-          existingPriceField = newPriceField;
-        }
-
-        fieldsToAdd.push({
-          form_template_id: form.id,
-          field_library_id: existingPriceField.id,
-          field_order: currentOrder,
-          tenant_id: currentTenant?.id
-        });
-        currentOrder++;
-      }
-
-      // Auto-add notes field for toggles/checkboxes or if specified
-      if (fieldLibraryItem.field_type === 'checkbox' || fieldLibraryItem.auto_add_notes_field) {
-        const notesFieldName = `${fieldLibraryItem.label} - Notes`;
-        let { data: existingNotesField } = await supabase
-          .from('field_library')
-          .select('id')
-          .eq('tenant_id', currentTenant?.id)
-          .eq('name', notesFieldName)
-          .single();
-
-        if (!existingNotesField) {
-          const { data: newNotesField, error: notesError } = await supabase
-            .from('field_library')
-            .insert([{
-              name: notesFieldName,
-              label: `${fieldLibraryItem.label} Notes`,
-              field_type: 'textarea',
-              placeholder: 'Additional notes...',
-              tenant_id: currentTenant?.id,
-              affects_pricing: false,
-              active: true
-            }])
-            .select()
-            .single();
-          
-          if (notesError) throw notesError;
-          existingNotesField = newNotesField;
-        }
-
-        fieldsToAdd.push({
-          form_template_id: form.id,
-          field_library_id: existingNotesField.id,
-          field_order: currentOrder,
-          tenant_id: currentTenant?.id
-        });
-      }
-
       const { error } = await supabase
         .from('form_field_instances')
-        .insert(fieldsToAdd);
+        .insert([{
+          form_template_id: form.id,
+          field_library_id: fieldLibraryId,
+          field_order: maxOrder + 1,
+          tenant_id: currentTenant?.id
+        }]);
       
       if (error) throw error;
     },
     {
-      successMessage: 'Field(s) added!',
+      successMessage: 'Field added!',
       onSuccess: refetchFields
     }
   );
@@ -237,52 +146,71 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
     const placeholder = fieldInstance.placeholder_override || field.placeholder;
     const helpText = fieldInstance.help_text_override || field.help_text;
 
-    switch (field.field_type) {
-      case 'text':
-        return (
-          <div className="space-y-2">
-            <Label>{label}</Label>
-            <Input placeholder={placeholder} disabled />
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
+    return (
+      <div className="space-y-3">
+        {/* Main field */}
+        <div className="space-y-2">
+          {field.field_type === 'checkbox' ? (
+            <div className="flex items-center space-x-2">
+              <Switch disabled />
+              <Label>{label}</Label>
+            </div>
+          ) : field.field_type === 'textarea' ? (
+            <>
+              <Label>{label}</Label>
+              <Textarea 
+                placeholder={placeholder}
+                disabled
+                rows={3}
+              />
+            </>
+          ) : field.field_type === 'number' ? (
+            <>
+              <Label>{label}</Label>
+              <Input type="number" placeholder={placeholder} disabled />
+            </>
+          ) : (
+            <>
+              <Label>{label}</Label>
+              <Input placeholder={placeholder} disabled />
+            </>
+          )}
+          {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
+        </div>
+
+        {/* Price and Notes fields for checkbox/toggle fields */}
+        {field.field_type === 'checkbox' && (
+          <div className="grid grid-cols-2 gap-3 ml-6 p-3 bg-gray-50 rounded">
+            <div>
+              <Label className="flex items-center gap-1 text-xs">
+                <DollarSign className="h-3 w-3" />
+                Price (£)
+              </Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder={field.price_modifier?.toString() || "0.00"}
+                disabled
+                className="h-8"
+              />
+            </div>
+            
+            <div>
+              <Label className="flex items-center gap-1 text-xs">
+                <MessageSquare className="h-3 w-3" />
+                Notes
+              </Label>
+              <Textarea
+                placeholder="Additional notes..."
+                disabled
+                rows={1}
+                className="text-xs"
+              />
+            </div>
           </div>
-        );
-      case 'textarea':
-        return (
-          <div className="space-y-2">
-            <Label>{label}</Label>
-            <textarea 
-              className="w-full p-2 border rounded-md resize-none" 
-              rows={3}
-              placeholder={placeholder}
-              disabled
-            />
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
-          </div>
-        );
-      case 'number':
-        return (
-          <div className="space-y-2">
-            <Label>{label}</Label>
-            <Input type="number" placeholder={placeholder} disabled />
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
-          </div>
-        );
-      case 'checkbox':
-        return (
-          <div className="flex items-center space-x-2">
-            <input type="checkbox" disabled className="rounded" />
-            <Label>{label}</Label>
-          </div>
-        );
-      default:
-        return (
-          <div className="space-y-2">
-            <Label>{label}</Label>
-            <Input placeholder={placeholder} disabled />
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
-          </div>
-        );
-    }
+        )}
+      </div>
+    );
   };
 
   return (

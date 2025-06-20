@@ -72,8 +72,8 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
       placeholder: formData.get('placeholder') as string || null,
       price_modifier: parseFloat(formData.get('price_modifier') as string) || 0,
       affects_pricing: formData.get('affects_pricing') === 'on',
-      auto_add_price_field: true,
-      auto_add_notes_field: formData.get('field_type') === 'checkbox',
+      auto_add_price_field: false, // No longer auto-creating separate fields
+      auto_add_notes_field: false, // No longer auto-creating separate fields
       active: true
     });
   };
