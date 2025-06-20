@@ -1,11 +1,220 @@
 
-import React from 'react';
-import { Building2, User, Palette, FileText, Mail, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2, User, Palette, FileText, Mail, Shield, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export const Settings = () => {
+  const { user, currentTenant } = useAuth();
+  const [businessData, setBusinessData] = useState({
+    business_name: '',
+    contact_email: '',
+    contact_phone: '',
+    address_line1: '',
+    address_line2: '',
+    city: '',
+    postal_code: '',
+    country: 'GB'
+  });
+
+  const [brandingData, setBrandingData] = useState({
+    primary_color: '#2563eb',
+    secondary_color: '#1e40af',
+    logo_url: ''
+  });
+
+  const [userProfile, setUserProfile] = useState({
+    full_name: '',
+    email: '',
+    phone: ''
+  });
+
+  const [tenantSettings, setTenantSettings] = useState({
+    email_notifications: true,
+    sms_notifications: false,
+    require_deposit: true,
+    deposit_percentage: 25,
+    payment_terms_days: 30,
+    late_fee_percentage: 5,
+    minimum_notice_hours: 24,
+    default_event_duration: 240
+  });
+
+  // Load tenant data
+  const { data: tenant, refetch: refetchTenant } = useSupabaseQuery(
+    ['tenant', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', currentTenant.id)
+        .single();
+      
+      if (error) throw error;
+      
+      // Update business data state
+      setBusinessData({
+        business_name: data.business_name || '',
+        contact_email: data.contact_email || '',
+        contact_phone: data.contact_phone || '',
+        address_line1: data.address_line1 || '',
+        address_line2: data.address_line2 || '',
+        city: data.city || '',
+        postal_code: data.postal_code || '',
+        country: data.country || 'GB'
+      });
+      
+      setBrandingData({
+        primary_color: data.primary_color || '#2563eb',
+        secondary_color: data.secondary_color || '#1e40af',
+        logo_url: data.logo_url || ''
+      });
+      
+      return data;
+    }
+  );
+
+  // Load user profile
+  const { data: userProfileData, refetch: refetchUser } = useSupabaseQuery(
+    ['user_profile', user?.id],
+    async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      
+      setUserProfile({
+        full_name: data.full_name || '',
+        email: data.email || '',
+        phone: data.phone || ''
+      });
+      
+      return data;
+    }
+  );
+
+  // Load tenant settings
+  const { data: settingsData, refetch: refetchSettings } = useSupabaseQuery(
+    ['tenant_settings', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('tenant_settings')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .single();
+      
+      if (error) {
+        // If no settings exist, create default ones
+        if (error.code === 'PGRST116') {
+          const { data: newSettings, error: createError } = await supabase
+            .from('tenant_settings')
+            .insert([{ tenant_id: currentTenant.id }])
+            .select()
+            .single();
+          
+          if (createError) throw createError;
+          return newSettings;
+        }
+        throw error;
+      }
+      
+      setTenantSettings({
+        email_notifications: data.email_notifications ?? true,
+        sms_notifications: data.sms_notifications ?? false,
+        require_deposit: data.require_deposit ?? true,
+        deposit_percentage: data.deposit_percentage ?? 25,
+        payment_terms_days: data.payment_terms_days ?? 30,
+        late_fee_percentage: data.late_fee_percentage ?? 5,
+        minimum_notice_hours: data.minimum_notice_hours ?? 24,
+        default_event_duration: data.default_event_duration ?? 240
+      });
+      
+      return data;
+    }
+  );
+
+  // Mutations for updating data
+  const updateTenantMutation = useSupabaseMutation(
+    async (data: any) => {
+      const { error } = await supabase
+        .from('tenants')
+        .update(data)
+        .eq('id', currentTenant?.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Business details updated successfully');
+        refetchTenant();
+      }
+    }
+  );
+
+  const updateUserMutation = useSupabaseMutation(
+    async (data: any) => {
+      const { error } = await supabase
+        .from('users')
+        .update(data)
+        .eq('id', user?.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Profile updated successfully');
+        refetchUser();
+      }
+    }
+  );
+
+  const updateSettingsMutation = useSupabaseMutation(
+    async (data: any) => {
+      const { error } = await supabase
+        .from('tenant_settings')
+        .update(data)
+        .eq('tenant_id', currentTenant?.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Settings updated successfully');
+        refetchSettings();
+      }
+    }
+  );
+
+  const handleBusinessSave = () => {
+    updateTenantMutation.mutate(businessData);
+  };
+
+  const handleBrandingSave = () => {
+    updateTenantMutation.mutate(brandingData);
+  };
+
+  const handleProfileSave = () => {
+    updateUserMutation.mutate(userProfile);
+  };
+
+  const handleSettingsSave = () => {
+    updateSettingsMutation.mutate(tenantSettings);
+  };
+
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
       <div className="mb-8">
@@ -25,31 +234,83 @@ export const Settings = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
-                <Input placeholder="Your Banqueting Hall Name" defaultValue="Elegant Events Hall" />
+                <Input 
+                  placeholder="Your Banqueting Hall Name" 
+                  value={businessData.business_name}
+                  onChange={(e) => setBusinessData({...businessData, business_name: e.target.value})}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
-                <Input placeholder="contact@yourbusiness.com" defaultValue="info@elegantevents.com" />
+                <Input 
+                  placeholder="contact@yourbusiness.com" 
+                  value={businessData.contact_email}
+                  onChange={(e) => setBusinessData({...businessData, contact_email: e.target.value})}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <Input placeholder="+44 20 1234 5678" defaultValue="+44 20 7890 1234" />
+                <Input 
+                  placeholder="+44 20 1234 5678" 
+                  value={businessData.contact_phone}
+                  onChange={(e) => setBusinessData({...businessData, contact_phone: e.target.value})}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <Input placeholder="www.yourbusiness.com" defaultValue="www.elegantevents.com" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <Input 
+                  placeholder="London" 
+                  value={businessData.city}
+                  onChange={(e) => setBusinessData({...businessData, city: e.target.value})}
+                />
               </div>
             </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Business Address</label>
-              <Textarea 
-                placeholder="Full business address" 
-                defaultValue="123 Event Street, London, UK, SW1A 1AA"
-                rows={3}
-              />
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+                <Input 
+                  placeholder="123 Event Street" 
+                  value={businessData.address_line1}
+                  onChange={(e) => setBusinessData({...businessData, address_line1: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+                <Input 
+                  placeholder="Suite 100" 
+                  value={businessData.address_line2}
+                  onChange={(e) => setBusinessData({...businessData, address_line2: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                <Input 
+                  placeholder="SW1A 1AA" 
+                  value={businessData.postal_code}
+                  onChange={(e) => setBusinessData({...businessData, postal_code: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <select
+                  value={businessData.country}
+                  onChange={(e) => setBusinessData({...businessData, country: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="GB">United Kingdom</option>
+                  <option value="US">United States</option>
+                  <option value="CA">Canada</option>
+                  <option value="AU">Australia</option>
+                </select>
+              </div>
             </div>
             <div className="mt-6">
-              <Button>Save Business Details</Button>
+              <Button onClick={handleBusinessSave} disabled={updateTenantMutation.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                {updateTenantMutation.isPending ? 'Saving...' : 'Save Business Details'}
+              </Button>
             </div>
           </div>
 
@@ -60,68 +321,119 @@ export const Settings = () => {
               <h2 className="text-lg font-semibold text-gray-900">Branding</h2>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Logo Upload</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <p className="text-gray-500">Drop your logo here or click to browse</p>
-                  <Button variant="outline" className="mt-2">Upload Logo</Button>
-                </div>
-              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
                   <div className="flex items-center space-x-2">
-                    <div className="w-10 h-10 bg-blue-600 rounded border border-gray-300"></div>
-                    <Input placeholder="#3B82F6" defaultValue="#3B82F6" />
+                    <div 
+                      className="w-10 h-10 rounded border border-gray-300"
+                      style={{ backgroundColor: brandingData.primary_color }}
+                    ></div>
+                    <Input 
+                      placeholder="#3B82F6" 
+                      value={brandingData.primary_color}
+                      onChange={(e) => setBrandingData({...brandingData, primary_color: e.target.value})}
+                    />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Color</label>
                   <div className="flex items-center space-x-2">
-                    <div className="w-10 h-10 bg-gray-600 rounded border border-gray-300"></div>
-                    <Input placeholder="#6B7280" defaultValue="#6B7280" />
+                    <div 
+                      className="w-10 h-10 rounded border border-gray-300"
+                      style={{ backgroundColor: brandingData.secondary_color }}
+                    ></div>
+                    <Input 
+                      placeholder="#1E40AF" 
+                      value={brandingData.secondary_color}
+                      onChange={(e) => setBrandingData({...brandingData, secondary_color: e.target.value})}
+                    />
                   </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                <Input 
+                  placeholder="https://yoursite.com/logo.png" 
+                  value={brandingData.logo_url}
+                  onChange={(e) => setBrandingData({...brandingData, logo_url: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="mt-6">
+              <Button onClick={handleBrandingSave} disabled={updateTenantMutation.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                {updateTenantMutation.isPending ? 'Saving...' : 'Save Branding'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Business Settings */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center mb-6">
+              <FileText className="h-5 w-5 text-green-600 mr-3" />
+              <h2 className="text-lg font-semibold text-gray-900">Business Settings</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Deposit Percentage (%)</label>
+                  <Input 
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={tenantSettings.deposit_percentage}
+                    onChange={(e) => setTenantSettings({...tenantSettings, deposit_percentage: Number(e.target.value)})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms (days)</label>
+                  <Input 
+                    type="number"
+                    min="1"
+                    value={tenantSettings.payment_terms_days}
+                    onChange={(e) => setTenantSettings({...tenantSettings, payment_terms_days: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Late Fee (%)</label>
+                  <Input 
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={tenantSettings.late_fee_percentage}
+                    onChange={(e) => setTenantSettings({...tenantSettings, late_fee_percentage: Number(e.target.value)})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Notice (hours)</label>
+                  <Input 
+                    type="number"
+                    min="1"
+                    value={tenantSettings.minimum_notice_hours}
+                    onChange={(e) => setTenantSettings({...tenantSettings, minimum_notice_hours: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="require_deposit"
+                    checked={tenantSettings.require_deposit}
+                    onChange={(e) => setTenantSettings({...tenantSettings, require_deposit: e.target.checked})}
+                  />
+                  <label htmlFor="require_deposit" className="text-sm font-medium text-gray-700">Require deposit for bookings</label>
                 </div>
               </div>
             </div>
             <div className="mt-6">
-              <Button>Save Branding</Button>
-            </div>
-          </div>
-
-          {/* Quote & Invoice Settings */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center mb-6">
-              <FileText className="h-5 w-5 text-green-600 mr-3" />
-              <h2 className="text-lg font-semibold text-gray-900">Quote & Invoice Settings</h2>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Terms & Conditions</label>
-                <Textarea 
-                  placeholder="Enter your terms and conditions..."
-                  defaultValue="Payment terms: 50% deposit required to confirm booking. Balance due 7 days before event date."
-                  rows={4}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Instructions</label>
-                <Textarea 
-                  placeholder="Enter payment instructions..."
-                  defaultValue="Bank transfers preferred. Account details will be provided with invoice."
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Footer Text</label>
-                <Input 
-                  placeholder="Thank you for your business!"
-                  defaultValue="Thank you for choosing Elegant Events Hall - Making your special day unforgettable"
-                />
-              </div>
-            </div>
-            <div className="mt-6">
-              <Button>Save Settings</Button>
+              <Button onClick={handleSettingsSave} disabled={updateSettingsMutation.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                {updateSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
+              </Button>
             </div>
           </div>
         </div>
@@ -137,16 +449,29 @@ export const Settings = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <Input defaultValue="John Doe" />
+                <Input 
+                  value={userProfile.full_name}
+                  onChange={(e) => setUserProfile({...userProfile, full_name: e.target.value})}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <Input defaultValue="john@elegantevents.com" />
+                <Input 
+                  value={userProfile.email}
+                  onChange={(e) => setUserProfile({...userProfile, email: e.target.value})}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <Button variant="outline" className="w-full">Change Password</Button>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <Input 
+                  value={userProfile.phone}
+                  onChange={(e) => setUserProfile({...userProfile, phone: e.target.value})}
+                />
               </div>
+              <Button onClick={handleProfileSave} className="w-full" disabled={updateUserMutation.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                {updateUserMutation.isPending ? 'Saving...' : 'Save Profile'}
+              </Button>
             </div>
           </div>
 
@@ -157,47 +482,46 @@ export const Settings = () => {
               <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
             </div>
             <div className="space-y-3">
-              {[
-                "New lead notifications",
-                "Payment reminders",
-                "Event reminders",
-                "Form submissions"
-              ].map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">{item}</span>
-                  <input type="checkbox" defaultChecked className="rounded text-blue-600" />
-                </div>
-              ))}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Email notifications</span>
+                <input 
+                  type="checkbox" 
+                  checked={tenantSettings.email_notifications}
+                  onChange={(e) => setTenantSettings({...tenantSettings, email_notifications: e.target.checked})}
+                  className="rounded text-blue-600" 
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">SMS notifications</span>
+                <input 
+                  type="checkbox" 
+                  checked={tenantSettings.sms_notifications}
+                  onChange={(e) => setTenantSettings({...tenantSettings, sms_notifications: e.target.checked})}
+                  className="rounded text-blue-600" 
+                />
+              </div>
             </div>
-          </div>
-
-          {/* Security */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center mb-6">
-              <Shield className="h-5 w-5 text-red-600 mr-3" />
-              <h2 className="text-lg font-semibold text-gray-900">Security</h2>
-            </div>
-            <div className="space-y-3">
-              <Button variant="outline" className="w-full text-left justify-start">
-                Two-Factor Authentication
-              </Button>
-              <Button variant="outline" className="w-full text-left justify-start">
-                Login Activity
-              </Button>
-              <Button variant="outline" className="w-full text-left justify-start text-red-600 hover:text-red-700">
-                Delete Account
+            <div className="mt-4">
+              <Button onClick={handleSettingsSave} className="w-full" disabled={updateSettingsMutation.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                {updateSettingsMutation.isPending ? 'Saving...' : 'Save Notifications'}
               </Button>
             </div>
           </div>
 
           {/* Plan Information */}
           <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border border-blue-200">
-            <h3 className="font-semibold text-gray-900 mb-2">Premium Plan</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">
+              {currentTenant?.subscription_status === 'trial' ? 'Free Trial' : 'Premium Plan'}
+            </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Unlimited forms, customers, and events. Advanced reporting and priority support.
+              {currentTenant?.subscription_status === 'trial' 
+                ? 'You are currently on a free trial. Upgrade for unlimited access.'
+                : 'Unlimited forms, customers, and events. Advanced reporting and priority support.'
+              }
             </p>
             <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              Manage Subscription
+              {currentTenant?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Manage Subscription'}
             </Button>
           </div>
         </div>
