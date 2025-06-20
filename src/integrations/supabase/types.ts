@@ -1904,7 +1904,6 @@ export type Database = {
     Views: {
       event_summary: {
         Row: {
-          created_at: string | null
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null

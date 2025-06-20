@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,19 @@ import { toast } from 'sonner';
 
 interface EventFormTabProps {
   event: any;
+}
+
+interface FormFieldInstance {
+  id: string;
+  field_library_id: string;
+  field_order: number;
+  field_library: {
+    id: string;
+    label: string;
+    category?: string;
+    help_text?: string;
+    price_modifier?: number;
+  };
 }
 
 export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
@@ -45,12 +57,23 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
 
   const { data: selectedFormFields } = useSupabaseQuery(
     ['form-fields', selectedFormId],
-    async () => {
+    async (): Promise<FormFieldInstance[]> => {
       if (!selectedFormId || !currentTenant?.id) return [];
       
       const { data, error } = await supabase
         .from('form_field_instances')
-        .select('*, field_library(*)')
+        .select(`
+          id,
+          field_library_id,
+          field_order,
+          field_library (
+            id,
+            label,
+            category,
+            help_text,
+            price_modifier
+          )
+        `)
         .eq('form_template_id', selectedFormId)
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
@@ -60,7 +83,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         return [];
       }
       
-      return data || [];
+      return data as FormFieldInstance[] || [];
     }
   );
 
