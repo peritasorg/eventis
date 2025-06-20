@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Phone, Mail, Calendar, MapPin } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, Calendar, MapPin, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -45,7 +45,7 @@ export const Leads = () => {
 
   const addLeadMutation = useSupabaseMutation(
     async (newLead: any) => {
-      const { data, error } = await su spabase
+      const { data, error } = await supabase
         .from('leads')
         .insert([{
           ...newLead,
