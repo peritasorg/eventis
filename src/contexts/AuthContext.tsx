@@ -7,11 +7,11 @@ import { toast } from 'sonner';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  currentTenant: any | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  currentTenant: any;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,46 +27,52 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [currentTenant, setCurrentTenant] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentTenant, setCurrentTenant] = useState<any>(null);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
-
+        
         if (session?.user) {
-          // Fetch user's tenant info
+          // Fetch current tenant data
           setTimeout(async () => {
             try {
               const { data: userData } = await supabase
                 .from('users')
-                .select('tenant_id, tenants(*)')
+                .select('tenant_id')
                 .eq('id', session.user.id)
                 .single();
               
-              if (userData) {
-                setCurrentTenant(userData.tenants);
+              if (userData?.tenant_id) {
+                const { data: tenantData } = await supabase
+                  .from('tenants')
+                  .select('*')
+                  .eq('id', userData.tenant_id)
+                  .single();
+                
+                setCurrentTenant(tenantData);
               }
             } catch (error) {
-              console.error('Error fetching tenant:', error);
+              console.error('Error fetching tenant data:', error);
             }
           }, 0);
         } else {
           setCurrentTenant(null);
         }
+        
+        setLoading(false);
       }
     );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -83,10 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
       
-      toast.success('Welcome back!');
+      toast.success('Signed in successfully!');
       return { error: null };
     } catch (error: any) {
-      toast.error('Sign in failed');
+      toast.error('An error occurred during sign in');
       return { error };
     }
   };
@@ -97,8 +103,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: metadata || {}
+          data: metadata,
+          emailRedirectTo: `${window.location.origin}/`
         }
       });
       
@@ -107,37 +113,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
       
-      toast.success('Account created! Please check your email to verify your account.');
+      toast.success('Account created successfully! Please check your email to verify your account.');
       return { error: null };
     } catch (error: any) {
-      toast.error('Sign up failed');
+      toast.error('An error occurred during sign up');
       return { error };
     }
   };
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
-      setCurrentTenant(null);
-      toast.success('Signed out successfully');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Signed out successfully!');
+        setUser(null);
+        setSession(null);
+        setCurrentTenant(null);
+      }
     } catch (error: any) {
-      toast.error('Sign out failed');
+      toast.error('An error occurred during sign out');
     }
   };
 
   const value = {
     user,
     session,
+    currentTenant,
     loading,
     signIn,
     signUp,
     signOut,
-    currentTenant
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
