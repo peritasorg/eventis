@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Users, Mail, Phone, Eye } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface Event {
   id: string;
@@ -43,10 +44,9 @@ export const EventListView: React.FC<EventListViewProps> = ({
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     });
   };
 
@@ -54,7 +54,7 @@ export const EventListView: React.FC<EventListViewProps> = ({
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
-          <Calendar className="h-16 w-16 text-gray-300 mb-4" />
+          <Calendar className="h-12 w-12 text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>
           <p className="text-gray-600 text-center">Create your first event to get started</p>
         </CardContent>
@@ -63,83 +63,95 @@ export const EventListView: React.FC<EventListViewProps> = ({
   }
 
   return (
-    <div className="space-y-4">
-      {events.map((event) => (
-        <Card key={event.id} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-start justify-between mb-4">
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[200px]">Event Details</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Date & Time</TableHead>
+              <TableHead>Guests</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead className="w-[80px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {events.map((event) => (
+              <TableRow key={event.id} className="hover:bg-gray-50">
+                <TableCell>
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-1">
-                      {event.event_name}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-2">{event.event_type}</p>
-                    <Badge className={getStatusColor(event.status)}>
-                      {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
-                    </Badge>
+                    <div className="font-medium text-sm">{event.event_name}</div>
+                    <div className="text-xs text-gray-600">{event.event_type}</div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEventClick(event.id)}
-                    className="flex items-center gap-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    View Details
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="h-4 w-4" />
-                    {formatDate(event.event_date)}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="h-4 w-4" />
-                    {event.start_time} - {event.end_time}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="h-4 w-4" />
-                    {event.estimated_guests} guests
-                  </div>
-
-                  {event.customers && (
-                    <>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Users className="h-4 w-4" />
-                        {event.customers.name}
+                </TableCell>
+                <TableCell>
+                  {event.customers ? (
+                    <div>
+                      <div className="font-medium text-sm">{event.customers.name}</div>
+                      <div className="text-xs text-gray-600 flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {event.customers.email}
                       </div>
-                      
-                      {event.customers.email && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Mail className="h-4 w-4" />
-                          {event.customers.email}
-                        </div>
-                      )}
-                      
                       {event.customers.phone && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Phone className="h-4 w-4" />
+                        <div className="text-xs text-gray-600 flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
                           {event.customers.phone}
                         </div>
                       )}
-                    </>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">No customer assigned</span>
                   )}
-
-                  {event.total_amount && (
-                    <div className="flex items-center gap-2 text-sm font-medium text-green-600">
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <div className="text-sm font-medium flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatDate(event.event_date)}
+                    </div>
+                    <div className="text-xs text-gray-600 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {event.start_time} - {event.end_time}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {event.estimated_guests}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={getStatusColor(event.status)}>
+                    {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {event.total_amount ? (
+                    <div className="text-sm font-medium text-green-600">
                       £{event.total_amount.toLocaleString()}
                     </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">TBD</span>
                   )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEventClick(event.id)}
+                    className="h-7 w-7 p-0"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };

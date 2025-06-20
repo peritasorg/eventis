@@ -50,10 +50,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       
       const { data, error } = await supabase
         .from('form_field_instances')
-        .select(`
-          *,
-          field_library (*)
-        `)
+        .select('*, field_library(*)')
         .eq('form_template_id', selectedFormId)
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
@@ -91,7 +88,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       return;
     }
     
-    // Load the selected form template
     updateEventMutation.mutate({
       form_template_used: selectedFormId
     });
@@ -110,12 +106,10 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     
     setFormResponses(updatedResponses);
     
-    // Calculate new form total
     const formTotal = Object.values(updatedResponses).reduce((total: number, response: any) => {
       return total + (response?.enabled ? (parseFloat(response?.price) || 0) : 0);
     }, 0);
     
-    // Update event with new form responses and total
     updateEventMutation.mutate({
       form_responses: updatedResponses,
       form_total: formTotal
@@ -133,7 +127,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     
     setFormResponses(updatedResponses);
     
-    // If it's a price change, recalculate total
     if (field === 'price') {
       const formTotal = Object.values(updatedResponses).reduce((total: number, response: any) => {
         return total + (response?.enabled ? (parseFloat(response?.price) || 0) : 0);
@@ -144,7 +137,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         form_total: formTotal
       });
     } else {
-      // For notes, just update the responses
       updateEventMutation.mutate({
         form_responses: updatedResponses
       });
@@ -157,25 +149,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     }, 0);
   };
 
-  // Only render form fields if both selectedFormFields exists and has data
-  const shouldShowFormFields = selectedFormFields && selectedFormFields.length > 0;
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Form Selection */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileText className="h-4 w-4" />
             Form Template Selection
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-4">
+          <div className="flex items-end gap-3">
             <div className="flex-1">
-              <Label htmlFor="form_template">Select Form Template</Label>
+              <Label htmlFor="form_template" className="text-sm">Select Form Template</Label>
               <Select value={selectedFormId} onValueChange={setSelectedFormId}>
-                <SelectTrigger>
+                <SelectTrigger className="h-9">
                   <SelectValue placeholder="Choose a form template..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -190,37 +179,35 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleLoadForm} disabled={!selectedFormId}>
+            <Button onClick={handleLoadForm} disabled={!selectedFormId} size="sm">
               Load Form
             </Button>
           </div>
           
           {event.form_template_used && (
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <div className="text-sm text-blue-800">
-                Currently using: {formTemplates?.find(t => t.id === event.form_template_used)?.name || 'Unknown Template'}
-              </div>
+            <div className="mt-3 p-2 bg-blue-50 rounded text-sm text-blue-800">
+              Currently using: {formTemplates?.find(t => t.id === event.form_template_used)?.name || 'Unknown Template'}
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Form Fields */}
-      {shouldShowFormFields && (
+      {selectedFormFields && selectedFormFields.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-lg">
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
+                <FileText className="h-4 w-4" />
                 Form Responses
               </div>
-              <div className="text-lg font-bold text-green-600">
+              <div className="text-base font-bold text-green-600">
                 Total: £{calculateFormTotal().toLocaleString()}
               </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
+            <div className="space-y-4">
               {selectedFormFields.map((fieldInstance) => {
                 const field = fieldInstance.field_library;
                 const fieldId = field.id;
@@ -228,35 +215,33 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                 const isEnabled = response.enabled || false;
                 
                 return (
-                  <div key={fieldId} className="border rounded-lg p-4">
-                    <div className="flex items-start gap-4">
+                  <div key={fieldId} className="border rounded p-3">
+                    <div className="flex items-start gap-3">
                       <Switch
                         checked={isEnabled}
                         onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
-                        className="mt-1"
+                        className="mt-0.5"
                       />
                       
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-gray-900">{field.label}</h4>
-                          <div className="text-sm text-gray-500">
-                            {field.category && (
-                              <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                                {field.category}
-                              </span>
-                            )}
-                          </div>
+                          <h4 className="font-medium text-sm">{field.label}</h4>
+                          {field.category && (
+                            <span className="bg-gray-100 px-2 py-0.5 rounded text-xs">
+                              {field.category}
+                            </span>
+                          )}
                         </div>
                         
                         {field.help_text && (
-                          <p className="text-sm text-gray-600 mb-3">{field.help_text}</p>
+                          <p className="text-xs text-gray-600 mb-2">{field.help_text}</p>
                         )}
                         
                         {isEnabled && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                          <div className="grid grid-cols-2 gap-3 mt-3">
                             <div>
-                              <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-2">
-                                <DollarSign className="h-4 w-4" />
+                              <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs">
+                                <DollarSign className="h-3 w-3" />
                                 Price (£)
                               </Label>
                               <Input
@@ -266,20 +251,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                 value={response.price || field.price_modifier || 0}
                                 onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
                                 placeholder="0.00"
+                                className="h-8"
                               />
                             </div>
                             
                             <div>
-                              <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4" />
+                              <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs">
+                                <MessageSquare className="h-3 w-3" />
                                 Notes
                               </Label>
                               <Textarea
                                 id={`notes-${fieldId}`}
                                 value={response.notes || ''}
                                 onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-                                placeholder="Additional notes or specifications..."
-                                rows={2}
+                                placeholder="Additional notes..."
+                                rows={1}
+                                className="text-xs"
                               />
                             </div>
                           </div>
@@ -297,26 +284,26 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       {/* Summary */}
       {Object.keys(formResponses).length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <DollarSign className="h-4 w-4" />
               Form Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {Object.entries(formResponses)
                 .filter(([_, response]: [string, any]) => response.enabled)
                 .map(([fieldId, response]: [string, any]) => {
                   const field = selectedFormFields?.find(f => f.field_library.id === fieldId)?.field_library;
                   return (
-                    <div key={fieldId} className="flex justify-between items-center py-2 border-b">
-                      <span className="font-medium">{field?.label}</span>
-                      <span className="font-bold">£{(response.price || 0).toLocaleString()}</span>
+                    <div key={fieldId} className="flex justify-between items-center py-1 text-sm border-b">
+                      <span>{field?.label}</span>
+                      <span className="font-medium">£{(response.price || 0).toLocaleString()}</span>
                     </div>
                   );
                 })}
-              <div className="flex justify-between items-center py-2 text-lg font-bold border-t-2">
+              <div className="flex justify-between items-center py-2 text-base font-bold border-t-2">
                 <span>Total</span>
                 <span className="text-green-600">£{calculateFormTotal().toLocaleString()}</span>
               </div>
