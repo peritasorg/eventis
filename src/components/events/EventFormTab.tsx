@@ -64,9 +64,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       }
       
       return data || [];
-    },
-    {
-      enabled: !!selectedFormId
     }
   );
 
@@ -160,6 +157,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     }, 0);
   };
 
+  // Only render form fields if both selectedFormFields exists and has data
+  const shouldShowFormFields = selectedFormFields && selectedFormFields.length > 0;
+
   return (
     <div className="space-y-6">
       {/* Form Selection */}
@@ -206,7 +206,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       </Card>
 
       {/* Form Fields */}
-      {selectedFormFields && selectedFormFields.length > 0 && (
+      {shouldShowFormFields && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
