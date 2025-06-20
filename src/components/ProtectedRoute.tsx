@@ -29,26 +29,44 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  // Show error if user data failed to load
+  // If user exists but no profile, show a helpful message
   if (!userProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-red-800 mb-2">Profile Load Error</h2>
-            <p className="text-red-600 mb-4">Failed to load your profile data.</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-            >
-              Retry
-            </button>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md">
+            <h2 className="text-lg font-semibold text-yellow-800 mb-2">Setup Required</h2>
+            <p className="text-yellow-700 mb-4">
+              Your account needs to be set up. Please contact support or try signing up again.
+            </p>
+            <p className="text-sm text-yellow-600">
+              Email: {user.email}
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // User is authenticated and profile loaded, show protected content
+  // If user has profile but no tenant, show setup message
+  if (!currentTenant) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-md">
+            <h2 className="text-lg font-semibold text-blue-800 mb-2">Business Setup Required</h2>
+            <p className="text-blue-700 mb-4">
+              Your business profile needs to be set up. Please contact support.
+            </p>
+            <p className="text-sm text-blue-600">
+              User: {userProfile.full_name || userProfile.email}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // User is authenticated and has both profile and tenant, show protected content
   return <>{children}</>;
 };

@@ -33,12 +33,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Simple, synchronous function to load user data
   const loadUserData = async (userId: string): Promise<boolean> => {
     try {
       console.log('Loading user data for:', userId);
       
-      // Load user profile
+      // Load user profile with proper error handling
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')
@@ -47,11 +46,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (profileError) {
         console.error('Failed to load user profile:', profileError);
+        // If user doesn't exist in users table, this might be a new user
+        if (profileError.code === 'PGRST116') {
+          console.log('User profile not found - might be a new user');
+          return false;
+        }
+        throw profileError;
+      }
+      
+      if (!profile) {
+        console.error('No user profile found');
         return false;
       }
       
       setUserProfile(profile);
-      console.log('User profile loaded for:', profile.email);
+      console.log('User profile loaded:', profile.email);
       
       // Load tenant if user has one
       if (profile.tenant_id) {
@@ -66,8 +75,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return false;
         }
         
-        setCurrentTenant(tenant);
-        console.log('Tenant loaded:', tenant.business_name);
+        if (tenant) {
+          setCurrentTenant(tenant);
+          console.log('Tenant loaded:', tenant.business_name);
+        }
+      } else {
+        console.log('User has no tenant assigned');
       }
       
       return true;
@@ -83,7 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Initialize auth on mount
   useEffect(() => {
     let isMounted = true;
 
@@ -91,7 +103,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('Initializing authentication...');
         
-        // Get current session
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -107,11 +118,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Load user data and wait for it to complete
           const success = await loadUserData(currentSession.user.id);
           if (!success) {
-            console.error('Failed to load user data, signing out...');
-            await supabase.auth.signOut();
+            console.log('Could not load user data - user may need to complete registration');
           }
         } else {
           console.log('No existing session found');
@@ -125,7 +134,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         console.log('Auth state changed:', event);
@@ -148,18 +156,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(newSession);
           setUser(newSession.user);
           
-          // Load user data
           const success = await loadUserData(newSession.user.id);
           if (!success) {
-            console.error('Failed to load user data after sign in');
-            toast.error('Failed to load user data');
+            console.log('Failed to load user data after sign in');
+            toast.error('Failed to load user profile. Please contact support.');
           }
           setLoading(false);
         }
       }
     );
 
-    // Initialize
     initAuth();
 
     return () => {
@@ -251,13 +257,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         toast.success('Signed out successfully!');
         
-        // Clear all state
         setUser(null);
         setSession(null);
         setCurrentTenant(null);
         setUserProfile(null);
         
-        // Force redirect to auth page
         window.location.href = '/auth';
       }
     } catch (error: any) {
