@@ -122,24 +122,28 @@ export class RateLimiter {
   }
 }
 
-// Security logging
+// Security logging - simplified to prevent auth flow issues
 export const logSecurityEvent = async (event: {
   action: string;
   details: string;
   severity: 'low' | 'medium' | 'high';
   metadata?: any;
 }) => {
-  try {
-    await supabase.from('activity_logs').insert({
-      action: event.action,
-      entity_type: 'security',
-      description: event.details,
-      security_event: true,
-      risk_level: event.severity,
-      metadata: event.metadata || {},
-      created_at: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Failed to log security event:', error);
-  }
+  // Use setTimeout to prevent blocking the auth flow
+  setTimeout(async () => {
+    try {
+      await supabase.from('activity_logs').insert({
+        action: event.action,
+        entity_type: 'security',
+        description: event.details,
+        security_event: true,
+        risk_level: event.severity,
+        metadata: event.metadata || {},
+        created_at: new Date().toISOString()
+      });
+    } catch (error) {
+      // Silently fail to prevent breaking the auth flow
+      console.debug('Security event logging failed:', error);
+    }
+  }, 0);
 };

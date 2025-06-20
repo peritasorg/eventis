@@ -50,12 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (profileError) {
         console.error('Failed to load user profile:', profileError);
-        await logSecurityEvent({
-          action: 'profile_load_failed',
-          details: `Failed to load profile for user ${userId}`,
-          severity: 'medium',
-          metadata: { error: profileError.message }
-        });
+        // Don't log security events during initial load to prevent blocking
         
         if (profileError.code === 'PGRST116') {
           console.log('User profile not found - might be a new user');
@@ -82,12 +77,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (tenantError) {
           console.error('Failed to load tenant:', tenantError);
-          await logSecurityEvent({
-            action: 'tenant_load_failed',
-            details: `Failed to load tenant for user ${userId}`,
-            severity: 'high',
-            metadata: { error: tenantError.message }
-          });
           return false;
         }
         
@@ -102,12 +91,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     } catch (error) {
       console.error('Error loading user data:', error);
-      await logSecurityEvent({
-        action: 'user_data_load_error',
-        details: `Unexpected error loading user data for ${userId}`,
-        severity: 'high',
-        metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
-      });
       return false;
     }
   };
@@ -129,12 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Session error:', error);
-          await logSecurityEvent({
-            action: 'session_error',
-            details: 'Failed to get session during auth initialization',
-            severity: 'medium',
-            metadata: { error: error.message }
-          });
           if (isMounted) setLoading(false);
           return;
         }
@@ -155,12 +132,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        await logSecurityEvent({
-          action: 'auth_init_error',
-          details: 'Authentication initialization failed',
-          severity: 'high',
-          metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
-        });
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -190,11 +161,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(newSession);
           setUser(newSession.user);
           
-          await logSecurityEvent({
-            action: 'user_signed_in',
-            details: `User ${newSession.user.email} signed in successfully`,
-            severity: 'low'
-          });
+          // Log security event after state is set
+          setTimeout(() => {
+            logSecurityEvent({
+              action: 'user_signed_in',
+              details: `User ${newSession.user.email} signed in successfully`,
+              severity: 'low'
+            });
+          }, 100);
           
           const success = await loadUserData(newSession.user.id);
           if (!success) {
@@ -219,11 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Input validation
       if (!validateEmail(email)) {
         const error = new Error('Please enter a valid email address');
-        await logSecurityEvent({
-          action: 'invalid_signin_email',
-          details: `Invalid email format attempted: ${email}`,
-          severity: 'low'
-        });
+        // Don't log during validation
         return { error };
       }
 
@@ -233,11 +203,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!authRateLimiter.isAllowed(sanitizedEmail)) {
         const remainingTime = Math.ceil(authRateLimiter.getRemainingTime(sanitizedEmail) / 1000 / 60);
         const error = new Error(`Too many failed attempts. Please try again in ${remainingTime} minutes.`);
-        await logSecurityEvent({
-          action: 'signin_rate_limited',
-          details: `Sign in rate limited for email: ${sanitizedEmail}`,
-          severity: 'medium'
-        });
         toast.error(error.message);
         return { error };
       }
@@ -255,12 +220,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('Sign in error:', error);
-        await logSecurityEvent({
-          action: 'signin_failed',
-          details: `Failed sign in attempt for email: ${sanitizedEmail}`,
-          severity: 'medium',
-          metadata: { error: error.message }
-        });
+        // Log after the auth attempt
+        setTimeout(() => {
+          logSecurityEvent({
+            action: 'signin_failed',
+            details: `Failed sign in attempt for email: ${sanitizedEmail}`,
+            severity: 'medium',
+            metadata: { error: error.message }
+          });
+        }, 100);
         toast.error('Invalid email or password');
         return { error };
       }
@@ -273,12 +241,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: new Error('Sign in failed') };
     } catch (error: any) {
       console.error('Sign in exception:', error);
-      await logSecurityEvent({
-        action: 'signin_exception',
-        details: 'Unexpected error during sign in',
-        severity: 'high',
-        metadata: { error: error.message }
-      });
       toast.error('An error occurred during sign in');
       return { error };
     } finally {
@@ -333,22 +295,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('Sign up error:', error);
-        await logSecurityEvent({
-          action: 'signup_failed',
-          details: `Failed sign up attempt for email: ${sanitizedEmail}`,
-          severity: 'medium',
-          metadata: { error: error.message }
-        });
         toast.error(error.message);
         return { error };
       }
       
       if (data.user) {
-        await logSecurityEvent({
-          action: 'user_signed_up',
-          details: `New user registered: ${sanitizedEmail}`,
-          severity: 'low'
-        });
+        // Log after successful signup
+        setTimeout(() => {
+          logSecurityEvent({
+            action: 'user_signed_up',
+            details: `New user registered: ${sanitizedEmail}`,
+            severity: 'low'
+          });
+        }, 100);
         
         if (data.user.email_confirmed_at) {
           toast.success('Account created successfully!');
@@ -361,12 +320,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: new Error('Sign up failed') };
     } catch (error: any) {
       console.error('Sign up exception:', error);
-      await logSecurityEvent({
-        action: 'signup_exception',
-        details: 'Unexpected error during sign up',
-        severity: 'high',
-        metadata: { error: error.message }
-      });
       toast.error('An error occurred during sign up');
       return { error };
     } finally {
@@ -379,22 +332,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Signing out...');
       
       if (user?.email) {
-        await logSecurityEvent({
-          action: 'user_signed_out',
-          details: `User ${user.email} signed out`,
-          severity: 'low'
-        });
+        // Log before signing out
+        setTimeout(() => {
+          logSecurityEvent({
+            action: 'user_signed_out',
+            details: `User ${user.email} signed out`,
+            severity: 'low'
+          });
+        }, 100);
       }
       
       await secureSignOut();
     } catch (error: any) {
       console.error('Sign out exception:', error);
-      await logSecurityEvent({
-        action: 'signout_error',
-        details: 'Error during sign out process',
-        severity: 'medium',
-        metadata: { error: error.message }
-      });
       toast.error('An error occurred during sign out');
       // Still clean up and redirect even on error
       cleanupAuthState();
