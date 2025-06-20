@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Loader2 } from 'lucide-react';
+import { Building2, Loader2, AlertCircle } from 'lucide-react';
 
 export const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Redirect if already authenticated
   if (user && !loading) {
@@ -21,15 +22,22 @@ export const Auth = () => {
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      setIsSubmitting(false);
+      return;
+    }
+    
     const { error } = await signIn(email, password);
     
-    if (!error) {
-      // Redirect will happen automatically via auth state change
+    if (error) {
+      setError(error.message || 'Failed to sign in');
     }
     
     setIsSubmitting(false);
@@ -38,12 +46,25 @@ export const Auth = () => {
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const businessName = formData.get('businessName') as string;
     const fullName = formData.get('fullName') as string;
+    
+    if (!email || !password || !businessName || !fullName) {
+      setError('Please fill in all fields');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setIsSubmitting(false);
+      return;
+    }
     
     const { error } = await signUp(email, password, {
       business_name: businessName,
@@ -52,13 +73,20 @@ export const Auth = () => {
       last_name: fullName.split(' ').slice(1).join(' ') || ''
     });
     
+    if (error) {
+      setError(error.message || 'Failed to create account');
+    }
+    
     setIsSubmitting(false);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -79,6 +107,13 @@ export const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+            
             <Tabs defaultValue="signin" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -95,6 +130,7 @@ export const Auth = () => {
                       type="email"
                       placeholder="Enter your email"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="space-y-2">
@@ -105,6 +141,7 @@ export const Auth = () => {
                       type="password"
                       placeholder="Enter your password"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <Button 
@@ -134,6 +171,7 @@ export const Auth = () => {
                       type="text"
                       placeholder="Enter your full name"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="space-y-2">
@@ -144,6 +182,7 @@ export const Auth = () => {
                       type="text"
                       placeholder="Enter your business name"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="space-y-2">
@@ -154,6 +193,7 @@ export const Auth = () => {
                       type="email"
                       placeholder="Enter your email"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="space-y-2">
@@ -165,6 +205,7 @@ export const Auth = () => {
                       placeholder="Create a password"
                       required
                       minLength={6}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
@@ -189,6 +230,10 @@ export const Auth = () => {
             </Tabs>
           </CardContent>
         </Card>
+        
+        <div className="mt-6 text-center text-sm text-gray-600">
+          <p>By signing up, you agree to our Terms of Service and Privacy Policy</p>
+        </div>
       </div>
     </div>
   );

@@ -17,7 +17,42 @@ const navigation = [
 
 export const Sidebar = () => {
   const location = useLocation();
-  const { user, signOut, currentTenant } = useAuth();
+  const { user, signOut, currentTenant, userProfile } = useAuth();
+
+  const getSubscriptionStatus = () => {
+    if (!currentTenant) return 'Loading...';
+    
+    const status = currentTenant.subscription_status;
+    
+    switch (status) {
+      case 'trial':
+        return 'Free Trial';
+      case 'active':
+        return 'Premium Plan';
+      case 'expired':
+      case 'overdue':
+        return 'Expired';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Free Trial';
+    }
+  };
+
+  const getBusinessName = () => {
+    if (!currentTenant) return 'Loading...';
+    return currentTenant.business_name || 'Business';
+  };
+
+  const getUserInitial = () => {
+    if (userProfile?.full_name) {
+      return userProfile.full_name.charAt(0).toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
 
   return (
     <div className="flex h-screen w-64 flex-col bg-gray-900 text-white">
@@ -57,14 +92,16 @@ export const Sidebar = () => {
       {/* Footer */}
       <div className="border-t border-gray-700 p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-medium">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
+          <div className="flex items-center min-w-0 flex-1">
+            <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-medium flex-shrink-0">
+              {getUserInitial()}
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium">{currentTenant?.business_name || 'Loading...'}</p>
-              <p className="text-xs text-gray-400">
-                {currentTenant?.subscription_status === 'trial' ? 'Free Trial' : 'Premium Plan'}
+            <div className="ml-3 min-w-0 flex-1">
+              <p className="text-sm font-medium truncate" title={getBusinessName()}>
+                {getBusinessName()}
+              </p>
+              <p className="text-xs text-gray-400 truncate" title={getSubscriptionStatus()}>
+                {getSubscriptionStatus()}
               </p>
             </div>
           </div>
@@ -72,7 +109,7 @@ export const Sidebar = () => {
             variant="ghost"
             size="sm"
             onClick={signOut}
-            className="text-gray-400 hover:text-white hover:bg-gray-800"
+            className="text-gray-400 hover:text-white hover:bg-gray-800 flex-shrink-0 ml-2"
           >
             <LogOut className="h-4 w-4" />
           </Button>

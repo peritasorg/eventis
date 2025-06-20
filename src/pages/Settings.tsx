@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Building2, User, Palette, FileText, Mail, Shield, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Building2, User, Palette, FileText, Mail, Shield, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export const Settings = () => {
-  const { user, currentTenant } = useAuth();
+  const { user, currentTenant, userProfile, refreshUserData } = useAuth();
   const [businessData, setBusinessData] = useState({
     business_name: '',
     contact_email: '',
@@ -28,7 +28,7 @@ export const Settings = () => {
     logo_url: ''
   });
 
-  const [userProfile, setUserProfile] = useState({
+  const [userProfileData, setUserProfileData] = useState({
     full_name: '',
     email: '',
     phone: ''
@@ -45,65 +45,37 @@ export const Settings = () => {
     default_event_duration: 240
   });
 
-  // Load tenant data
-  const { data: tenant, refetch: refetchTenant } = useSupabaseQuery(
-    ['tenant', currentTenant?.id],
-    async () => {
-      if (!currentTenant?.id) return null;
-      
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('id', currentTenant.id)
-        .single();
-      
-      if (error) throw error;
-      
-      // Update business data state
+  // Update local state when auth data changes
+  useEffect(() => {
+    if (currentTenant) {
       setBusinessData({
-        business_name: data.business_name || '',
-        contact_email: data.contact_email || '',
-        contact_phone: data.contact_phone || '',
-        address_line1: data.address_line1 || '',
-        address_line2: data.address_line2 || '',
-        city: data.city || '',
-        postal_code: data.postal_code || '',
-        country: data.country || 'GB'
+        business_name: currentTenant.business_name || '',
+        contact_email: currentTenant.contact_email || '',
+        contact_phone: currentTenant.contact_phone || '',
+        address_line1: currentTenant.address_line1 || '',
+        address_line2: currentTenant.address_line2 || '',
+        city: currentTenant.city || '',
+        postal_code: currentTenant.postal_code || '',
+        country: currentTenant.country || 'GB'
       });
       
       setBrandingData({
-        primary_color: data.primary_color || '#2563eb',
-        secondary_color: data.secondary_color || '#1e40af',
-        logo_url: data.logo_url || ''
+        primary_color: currentTenant.primary_color || '#2563eb',
+        secondary_color: currentTenant.secondary_color || '#1e40af',
+        logo_url: currentTenant.logo_url || ''
       });
-      
-      return data;
     }
-  );
+  }, [currentTenant]);
 
-  // Load user profile
-  const { data: userProfileData, refetch: refetchUser } = useSupabaseQuery(
-    ['user_profile', user?.id],
-    async () => {
-      if (!user?.id) return null;
-      
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      
-      setUserProfile({
-        full_name: data.full_name || '',
-        email: data.email || '',
-        phone: data.phone || ''
+  useEffect(() => {
+    if (userProfile) {
+      setUserProfileData({
+        full_name: userProfile.full_name || '',
+        email: userProfile.email || '',
+        phone: userProfile.phone || ''
       });
-      
-      return data;
     }
-  );
+  }, [userProfile]);
 
   // Load tenant settings
   const { data: settingsData, refetch: refetchSettings } = useSupabaseQuery(
@@ -150,44 +122,50 @@ export const Settings = () => {
   // Mutations for updating data
   const updateTenantMutation = useSupabaseMutation(
     async (data: any) => {
+      if (!currentTenant?.id) throw new Error('No tenant selected');
+      
       const { error } = await supabase
         .from('tenants')
         .update(data)
-        .eq('id', currentTenant?.id);
+        .eq('id', currentTenant.id);
       
       if (error) throw error;
     },
     {
       onSuccess: () => {
         toast.success('Business details updated successfully');
-        refetchTenant();
+        refreshUserData();
       }
     }
   );
 
   const updateUserMutation = useSupabaseMutation(
     async (data: any) => {
+      if (!user?.id) throw new Error('No user authenticated');
+      
       const { error } = await supabase
         .from('users')
         .update(data)
-        .eq('id', user?.id);
+        .eq('id', user.id);
       
       if (error) throw error;
     },
     {
       onSuccess: () => {
         toast.success('Profile updated successfully');
-        refetchUser();
+        refreshUserData();
       }
     }
   );
 
   const updateSettingsMutation = useSupabaseMutation(
     async (data: any) => {
+      if (!currentTenant?.id) throw new Error('No tenant selected');
+      
       const { error } = await supabase
         .from('tenant_settings')
         .update(data)
-        .eq('tenant_id', currentTenant?.id);
+        .eq('tenant_id', currentTenant.id);
       
       if (error) throw error;
     },
@@ -208,12 +186,60 @@ export const Settings = () => {
   };
 
   const handleProfileSave = () => {
-    updateUserMutation.mutate(userProfile);
+    updateUserMutation.mutate(userProfileData);
   };
 
   const handleSettingsSave = () => {
     updateSettingsMutation.mutate(tenantSettings);
   };
+
+  const getSubscriptionStatusDisplay = () => {
+    if (!currentTenant) return { status: 'Loading...', description: '' };
+    
+    const status = currentTenant.subscription_status;
+    
+    switch (status) {
+      case 'trial':
+        return {
+          status: 'Free Trial',
+          description: 'You are currently on a free trial. Upgrade for unlimited access.'
+        };
+      case 'active':
+        return {
+          status: 'Premium Plan',
+          description: 'Unlimited forms, customers, and events. Advanced reporting and priority support.'
+        };
+      case 'expired':
+      case 'overdue':
+        return {
+          status: 'Expired',
+          description: 'Your subscription has expired. Please renew to continue using all features.'
+        };
+      case 'cancelled':
+        return {
+          status: 'Cancelled',
+          description: 'Your subscription was cancelled. Reactivate to continue using premium features.'
+        };
+      default:
+        return {
+          status: 'Free Trial',
+          description: 'You are currently on a free trial. Upgrade for unlimited access.'
+        };
+    }
+  };
+
+  const subscriptionInfo = getSubscriptionStatusDisplay();
+
+  if (!user || !currentTenant) {
+    return (
+      <div className="p-8 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
@@ -450,22 +476,22 @@ export const Settings = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                 <Input 
-                  value={userProfile.full_name}
-                  onChange={(e) => setUserProfile({...userProfile, full_name: e.target.value})}
+                  value={userProfileData.full_name}
+                  onChange={(e) => setUserProfileData({...userProfileData, full_name: e.target.value})}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <Input 
-                  value={userProfile.email}
-                  onChange={(e) => setUserProfile({...userProfile, email: e.target.value})}
+                  value={userProfileData.email}
+                  onChange={(e) => setUserProfileData({...userProfileData, email: e.target.value})}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                 <Input 
-                  value={userProfile.phone}
-                  onChange={(e) => setUserProfile({...userProfile, phone: e.target.value})}
+                  value={userProfileData.phone}
+                  onChange={(e) => setUserProfileData({...userProfileData, phone: e.target.value})}
                 />
               </div>
               <Button onClick={handleProfileSave} className="w-full" disabled={updateUserMutation.isPending}>
@@ -512,16 +538,13 @@ export const Settings = () => {
           {/* Plan Information */}
           <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border border-blue-200">
             <h3 className="font-semibold text-gray-900 mb-2">
-              {currentTenant?.subscription_status === 'trial' ? 'Free Trial' : 'Premium Plan'}
+              {subscriptionInfo.status}
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              {currentTenant?.subscription_status === 'trial' 
-                ? 'You are currently on a free trial. Upgrade for unlimited access.'
-                : 'Unlimited forms, customers, and events. Advanced reporting and priority support.'
-              }
+              {subscriptionInfo.description}
             </p>
             <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              {currentTenant?.subscription_status === 'trial' ? 'Upgrade Plan' : 'Manage Subscription'}
+              {currentTenant.subscription_status === 'trial' ? 'Upgrade Plan' : 'Manage Subscription'}
             </Button>
           </div>
         </div>
