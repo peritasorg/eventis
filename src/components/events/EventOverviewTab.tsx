@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Calendar, DollarSign, Users, MessageSquare, Receipt } from 'lucide-react';
 import { CommunicationTimeline } from '@/components/events/CommunicationTimeline';
 import { FinanceTimeline } from '@/components/events/FinanceTimeline';
-import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
+import { useSupabaseMutation, useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EventOverviewTabProps {
   event: any;
@@ -18,6 +18,29 @@ interface EventOverviewTabProps {
 
 export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const { currentTenant } = useAuth();
+
+  // Query to get all customers for the dropdown
+  const { data: customers } = useSupabaseQuery(
+    ['customers'],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, email, company')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+      
+      if (error) {
+        console.error('Customers error:', error);
+        return [];
+      }
+      
+      return data || [];
+    }
+  );
 
   const updateEventMutation = useSupabaseMutation(
     async (updates: any) => {
@@ -43,6 +66,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
     const formData = new FormData(e.currentTarget);
     
     const updates = {
+      customer_id: formData.get('customer_id') as string || null,
       ethnicity: formData.get('ethnicity') as string,
       primary_contact_name: formData.get('primary_contact_name') as string,
       primary_contact_phone: formData.get('primary_contact_phone') as string,
@@ -51,6 +75,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
       secondary_contact_phone: formData.get('secondary_contact_phone') as string,
       men_count: parseInt(formData.get('men_count') as string) || 0,
       ladies_count: parseInt(formData.get('ladies_count') as string) || 0,
+      total_guests: parseInt(formData.get('total_guests') as string) || 0,
       event_mix_type: formData.get('event_mix_type') as string,
       total_guest_price: parseFloat(formData.get('total_guest_price') as string) || 0,
       deposit_amount: parseFloat(formData.get('deposit_amount') as string) || 0,
@@ -115,12 +140,31 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               </div>
               
               <div>
-                <Label>Customer</Label>
-                <div className="font-medium">
-                  {event.customers?.name || 'No customer assigned'}
-                </div>
-                {event.customers?.company && (
-                  <div className="text-sm text-gray-600">{event.customers.company}</div>
+                <Label htmlFor="customer_id">Customer</Label>
+                {isEditing ? (
+                  <Select name="customer_id" defaultValue={event.customer_id || ''}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a customer..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No customer assigned</SelectItem>
+                      {customers?.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                          {customer.company && (
+                            <span className="text-gray-500 ml-2">- {customer.company}</span>
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="font-medium">
+                    {event.customers?.name || 'No customer assigned'}
+                    {event.customers?.company && (
+                      <div className="text-sm text-gray-600">{event.customers.company}</div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -270,10 +314,19 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               </div>
 
               <div>
-                <Label>Total Guest Count</Label>
-                <div className="text-lg font-medium">
-                  {(event.men_count || 0) + (event.ladies_count || 0)} guests
-                </div>
+                <Label htmlFor="total_guests">Total Guest Count</Label>
+                {isEditing ? (
+                  <Input
+                    id="total_guests"
+                    name="total_guests"
+                    type="number"
+                    defaultValue={event.total_guests || (event.men_count || 0) + (event.ladies_count || 0)}
+                  />
+                ) : (
+                  <div className="text-lg font-medium">
+                    {event.total_guests || (event.men_count || 0) + (event.ladies_count || 0)} guests
+                  </div>
+                )}
               </div>
 
               <div>

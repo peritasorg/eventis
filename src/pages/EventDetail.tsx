@@ -117,13 +117,17 @@ export const EventDetail = () => {
         </div>
       </div>
 
-      {/* Business Process Flow */}
-      <EventBusinessFlow 
-        depositPaid={event.deposit_paid}
-        balanceCleared={event.balance_cleared}
-        eventFinalized={event.event_finalized}
-        eventId={event.id}
-      />
+      {/* Business Process Flow - Centered */}
+      <div className="flex justify-center mb-6">
+        <div className="w-full max-w-4xl">
+          <EventBusinessFlow 
+            depositPaid={event.deposit_paid}
+            balanceCleared={event.balance_cleared}
+            eventFinalized={event.event_finalized}
+            eventId={event.id}
+          />
+        </div>
+      </div>
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
