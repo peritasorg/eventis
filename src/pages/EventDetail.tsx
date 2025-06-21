@@ -1,16 +1,28 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Receipt } from 'lucide-react';
+import { ArrowLeft, FileText, Receipt, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventBusinessFlow } from '@/components/events/EventBusinessFlow';
 import { EventOverviewTab } from '@/components/events/EventOverviewTab';
 import { EventFormTab } from '@/components/events/EventFormTab';
+import { toast } from 'sonner';
 
 export const EventDetail = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -47,6 +59,33 @@ export const EventDetail = () => {
       return data;
     }
   );
+
+  const deleteEventMutation = useSupabaseMutation(
+    async () => {
+      if (!eventId || !currentTenant?.id) throw new Error('Missing event ID or tenant');
+      
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Event deleted successfully');
+        navigate('/events');
+      },
+      onError: (error) => {
+        toast.error('Failed to delete event: ' + error.message);
+      }
+    }
+  );
+
+  const handleDeleteEvent = () => {
+    deleteEventMutation.mutate();
+  };
 
   if (isLoading) {
     return (
@@ -116,6 +155,33 @@ export const EventDetail = () => {
               <Receipt className="h-4 w-4" />
               Generate Invoice
             </Button>
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="flex items-center justify-center gap-2 font-medium text-sm text-red-600 border-red-200 hover:bg-red-50">
+                  <Trash2 className="h-4 w-4" />
+                  Delete Event
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete "{event.event_name}"? This action cannot be undone and will permanently remove all event data, including form responses and financial records.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeleteEvent}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    disabled={deleteEventMutation.isPending}
+                  >
+                    {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
