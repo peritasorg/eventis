@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Menu, X, Maximize, Minimize, Moon, Sun } from 'lucide-react';
+import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -19,11 +20,8 @@ export const Sidebar = () => {
   const { user, signOut, currentTenant, userProfile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('darkMode') === 'true' || 
-           (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  });
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -47,14 +45,6 @@ export const Sidebar = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-    localStorage.setItem('darkMode', isDarkMode.toString());
-    
-    // Force re-render of the entire app by updating body class
-    document.body.classList.toggle('dark', isDarkMode);
-  }, [isDarkMode]);
-
   const toggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement) {
@@ -65,10 +55,6 @@ export const Sidebar = () => {
     } catch (error) {
       console.error('Fullscreen error:', error);
     }
-  };
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
   };
 
   const getSubscriptionStatus = () => {
@@ -115,10 +101,29 @@ export const Sidebar = () => {
 
   const SidebarContent = () => (
     <>
-      {/* Logo/Brand */}
-      <div className="flex h-16 items-center px-4 lg:px-6 border-b border-gray-700">
-        <Building2 className="h-6 w-6 lg:h-8 lg:w-8 text-blue-400 flex-shrink-0" />
-        <span className="ml-2 lg:ml-3 text-base lg:text-lg font-semibold text-white truncate">BanquetPro</span>
+      {/* Logo/Brand with collapse toggle */}
+      <div className={cn(
+        "flex h-16 items-center border-b border-gray-700 transition-all duration-200",
+        isCollapsed ? "px-3 justify-center" : "px-4 lg:px-6"
+      )}>
+        {!isCollapsed && (
+          <>
+            <Building2 className="h-6 w-6 lg:h-8 lg:w-8 text-blue-400 flex-shrink-0" />
+            <span className="ml-2 lg:ml-3 text-base lg:text-lg font-semibold text-white truncate">BanquetPro</span>
+          </>
+        )}
+        {isCollapsed && <Building2 className="h-6 w-6 text-blue-400" />}
+        
+        {!isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="ml-auto text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8 p-0"
+          >
+            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -132,12 +137,22 @@ export const Sidebar = () => {
             return (
               <div
                 key={item.name}
-                className="flex items-center px-3 py-2 text-sm font-medium text-gray-400 cursor-not-allowed opacity-50"
+                className={cn(
+                  "flex items-center text-sm font-medium text-gray-400 cursor-not-allowed opacity-50 transition-all duration-200",
+                  isCollapsed ? "px-3 py-2 justify-center" : "px-3 py-2"
+                )}
                 title="Form Builder is only available on tablet and desktop devices"
               >
-                <item.icon className="mr-3 h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0" />
-                <span className="truncate">{item.name}</span>
-                <span className="ml-2 text-xs">(Desktop only)</span>
+                <item.icon className={cn(
+                  "h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0",
+                  isCollapsed ? "" : "mr-3"
+                )} />
+                {!isCollapsed && (
+                  <>
+                    <span className="truncate">{item.name}</span>
+                    <span className="ml-2 text-xs">(Desktop only)</span>
+                  </>
+                )}
               </div>
             );
           }
@@ -148,38 +163,34 @@ export const Sidebar = () => {
               to={item.href}
               onClick={() => setIsMobileMenuOpen(false)}
               className={cn(
-                'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
+                'group flex items-center text-sm font-medium rounded-lg transition-all duration-200',
+                isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
                 isActive
                   ? 'bg-blue-600 text-white shadow-lg'
                   : 'text-gray-300 hover:bg-gray-800 hover:text-white hover:scale-105'
               )}
+              title={isCollapsed ? item.name : undefined}
             >
               <item.icon
                 className={cn(
-                  'mr-3 h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
+                  'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
+                  isCollapsed ? '' : 'mr-3',
                   isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
                 )}
               />
-              <span className="truncate">{item.name}</span>
+              {!isCollapsed && <span className="truncate">{item.name}</span>}
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer with User Info and Controls */}
+      {/* Footer with User Info and Fullscreen Button */}
       <div className="border-t border-gray-700 p-3 lg:p-4 space-y-3">
-        {/* App Controls */}
-        <div className="flex gap-2 justify-center">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleDarkMode}
-            className="bg-gray-800/90 backdrop-blur-sm border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white h-8 w-8"
-            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {isDarkMode ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
-          </Button>
-          
+        {/* Fullscreen Button */}
+        <div className={cn(
+          "flex justify-center",
+          isCollapsed ? "" : "mb-3"
+        )}>
           <Button
             variant="outline"
             size="icon"
@@ -192,29 +203,31 @@ export const Sidebar = () => {
         </div>
 
         {/* User Info */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center min-w-0 flex-1">
-            <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-blue-500 flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0">
-              {getUserInitial()}
+        {!isCollapsed && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center min-w-0 flex-1">
+              <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-blue-500 flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0">
+                {getUserInitial()}
+              </div>
+              <div className="ml-2 lg:ml-3 min-w-0 flex-1">
+                <p className="text-xs lg:text-sm font-medium truncate text-white" title={getBusinessName()}>
+                  {getBusinessName()}
+                </p>
+                <p className="text-xs text-gray-400 truncate" title={getSubscriptionStatus()}>
+                  {getSubscriptionStatus()}
+                </p>
+              </div>
             </div>
-            <div className="ml-2 lg:ml-3 min-w-0 flex-1">
-              <p className="text-xs lg:text-sm font-medium truncate text-white" title={getBusinessName()}>
-                {getBusinessName()}
-              </p>
-              <p className="text-xs text-gray-400 truncate" title={getSubscriptionStatus()}>
-                {getSubscriptionStatus()}
-              </p>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="text-gray-400 hover:text-white hover:bg-gray-800 flex-shrink-0 ml-2 h-8 w-8 p-0"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={signOut}
-            className="text-gray-400 hover:text-white hover:bg-gray-800 flex-shrink-0 ml-2 h-8 w-8 p-0"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
+        )}
       </div>
     </>
   );
@@ -234,7 +247,10 @@ export const Sidebar = () => {
       )}
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:bg-gray-900">
+      <div className={cn(
+        "hidden lg:flex lg:flex-col lg:bg-gray-900 transition-all duration-200",
+        isCollapsed ? "lg:w-16" : "lg:w-64"
+      )}>
         <SidebarContent />
       </div>
 
