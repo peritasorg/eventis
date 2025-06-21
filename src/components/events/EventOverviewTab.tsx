@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -66,8 +65,10 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    const customerIdValue = formData.get('customer_id') as string;
+    
     const updates = {
-      customer_id: formData.get('customer_id') as string || null,
+      customer_id: customerIdValue === 'none' ? null : customerIdValue,
       ethnicity: formData.get('ethnicity') as string,
       primary_contact_name: formData.get('primary_contact_name') as string,
       primary_contact_phone: formData.get('primary_contact_phone') as string,
@@ -196,12 +197,12 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               <div>
                 <Label htmlFor="customer_id">Customer</Label>
                 {isEditing ? (
-                  <Select name="customer_id" defaultValue={event.customer_id || ''}>
+                  <Select name="customer_id" defaultValue={event.customer_id || 'none'}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a customer..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No customer assigned</SelectItem>
+                      <SelectItem value="none">No customer assigned</SelectItem>
                       {customers?.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           <div className="truncate">
