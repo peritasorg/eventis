@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Building2, User, Palette, FileText, Mail, Shield, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -232,7 +231,7 @@ export const Settings = () => {
 
   if (!user || !currentTenant) {
     return (
-      <div className="p-8 bg-gray-50 min-h-screen flex items-center justify-center">
+      <div className="p-4 sm:p-8 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600">Loading settings...</p>
@@ -242,23 +241,23 @@ export const Settings = () => {
   }
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
-        <p className="text-gray-600">Manage your business settings and preferences</p>
+    <div className="p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
+      <div className="mb-6 lg:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Settings</h1>
+        <p className="text-gray-600 text-sm sm:text-base">Manage your business settings and preferences</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Main Settings */}
         <div className="lg:col-span-2 space-y-6">
           {/* Business Details */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center mb-6">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center mb-4 sm:mb-6">
               <Building2 className="h-5 w-5 text-blue-600 mr-3" />
-              <h2 className="text-lg font-semibold text-gray-900">Business Details</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Business Details</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2 sm:col-span-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
                 <Input 
                   placeholder="Your Banqueting Hall Name" 
@@ -291,7 +290,7 @@ export const Settings = () => {
                 />
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
                 <Input 
@@ -309,7 +308,7 @@ export const Settings = () => {
                 />
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
                 <Input 
@@ -333,7 +332,7 @@ export const Settings = () => {
               </div>
             </div>
             <div className="mt-6">
-              <Button onClick={handleBusinessSave} disabled={updateTenantMutation.isPending}>
+              <Button onClick={handleBusinessSave} disabled={updateTenantMutation.isPending} className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {updateTenantMutation.isPending ? 'Saving...' : 'Save Business Details'}
               </Button>
@@ -341,24 +340,25 @@ export const Settings = () => {
           </div>
 
           {/* Branding */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center mb-6">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center mb-4 sm:mb-6">
               <Palette className="h-5 w-5 text-purple-600 mr-3" />
-              <h2 className="text-lg font-semibold text-gray-900">Branding</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Branding</h2>
             </div>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
                   <div className="flex items-center space-x-2">
                     <div 
-                      className="w-10 h-10 rounded border border-gray-300"
+                      className="w-10 h-10 rounded border border-gray-300 flex-shrink-0"
                       style={{ backgroundColor: brandingData.primary_color }}
                     ></div>
                     <Input 
                       placeholder="#3B82F6" 
                       value={brandingData.primary_color}
                       onChange={(e) => setBrandingData({...brandingData, primary_color: e.target.value})}
+                      className="flex-1"
                     />
                   </div>
                 </div>
@@ -366,13 +366,14 @@ export const Settings = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Color</label>
                   <div className="flex items-center space-x-2">
                     <div 
-                      className="w-10 h-10 rounded border border-gray-300"
+                      className="w-10 h-10 rounded border border-gray-300 flex-shrink-0"
                       style={{ backgroundColor: brandingData.secondary_color }}
                     ></div>
                     <Input 
                       placeholder="#1E40AF" 
                       value={brandingData.secondary_color}
                       onChange={(e) => setBrandingData({...brandingData, secondary_color: e.target.value})}
+                      className="flex-1"
                     />
                   </div>
                 </div>
@@ -387,7 +388,7 @@ export const Settings = () => {
               </div>
             </div>
             <div className="mt-6">
-              <Button onClick={handleBrandingSave} disabled={updateTenantMutation.isPending}>
+              <Button onClick={handleBrandingSave} disabled={updateTenantMutation.isPending} className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {updateTenantMutation.isPending ? 'Saving...' : 'Save Branding'}
               </Button>
@@ -395,13 +396,13 @@ export const Settings = () => {
           </div>
 
           {/* Business Settings */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center mb-6">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center mb-4 sm:mb-6">
               <FileText className="h-5 w-5 text-green-600 mr-3" />
-              <h2 className="text-lg font-semibold text-gray-900">Business Settings</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Business Settings</h2>
             </div>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Deposit Percentage (%)</label>
                   <Input 
@@ -422,7 +423,7 @@ export const Settings = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Late Fee (%)</label>
                   <Input 
@@ -456,7 +457,7 @@ export const Settings = () => {
               </div>
             </div>
             <div className="mt-6">
-              <Button onClick={handleSettingsSave} disabled={updateSettingsMutation.isPending}>
+              <Button onClick={handleSettingsSave} disabled={updateSettingsMutation.isPending} className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {updateSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
               </Button>
@@ -467,10 +468,10 @@ export const Settings = () => {
         {/* Sidebar Settings */}
         <div className="space-y-6">
           {/* Account Settings */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center mb-6">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center mb-4 sm:mb-6">
               <User className="h-5 w-5 text-blue-600 mr-3" />
-              <h2 className="text-lg font-semibold text-gray-900">Account</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Account</h2>
             </div>
             <div className="space-y-4">
               <div>
@@ -502,10 +503,10 @@ export const Settings = () => {
           </div>
 
           {/* Notifications */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center mb-6">
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center mb-4 sm:mb-6">
               <Mail className="h-5 w-5 text-orange-600 mr-3" />
-              <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Notifications</h2>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -536,7 +537,7 @@ export const Settings = () => {
           </div>
 
           {/* Plan Information */}
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border border-blue-200">
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-4 sm:p-6 rounded-xl border border-blue-200">
             <h3 className="font-semibold text-gray-900 mb-2">
               {subscriptionInfo.status}
             </h3>

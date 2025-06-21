@@ -56,21 +56,22 @@ export const Events = () => {
   };
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
+      <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center mb-6 lg:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Events</h1>
-          <p className="text-gray-600">Manage your events and bookings</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Events</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Manage your events and bookings</p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           <Tabs value={viewMode} onValueChange={(value: 'calendar' | 'list') => setViewMode(value)}>
-            <TabsList>
-              <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <TabsList className="grid w-full grid-cols-2 sm:w-auto">
+              <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm">
                 <Calendar className="h-4 w-4" />
-                Calendar
+                <span className="hidden sm:inline">Calendar</span>
+                <span className="sm:hidden">Cal</span>
               </TabsTrigger>
-              <TabsTrigger value="list" className="flex items-center gap-2">
+              <TabsTrigger value="list" className="flex items-center gap-2 text-sm">
                 <List className="h-4 w-4" />
                 List
               </TabsTrigger>
@@ -78,11 +79,12 @@ export const Events = () => {
           </Tabs>
           
           <Button 
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
             onClick={() => setIsCreateEventOpen(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Create Event
+            <span className="hidden sm:inline">Create Event</span>
+            <span className="sm:hidden">Create</span>
           </Button>
         </div>
       </div>

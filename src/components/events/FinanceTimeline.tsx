@@ -95,27 +95,29 @@ export const FinanceTimeline: React.FC<FinanceTimelineProps> = ({ eventId }) => 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Finance Timeline
-            <span className="text-sm font-normal text-gray-600">
-              (Total Paid: £{totalPaid.toLocaleString()})
-            </span>
+            <DollarSign className="h-5 w-5 flex-shrink-0" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <span className="text-base sm:text-lg">Finance Timeline</span>
+              <span className="text-sm font-normal text-gray-600">
+                (Total Paid: £{totalPaid.toLocaleString()})
+              </span>
+            </div>
           </div>
           <Dialog open={isAddingPayment} onOpenChange={setIsAddingPayment}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Log Payment
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="w-[95vw] max-w-lg mx-auto">
               <DialogHeader>
                 <DialogTitle>Log Payment</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddPayment} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="payment_type">Payment Type</Label>
                     <Select name="payment_type" required>
@@ -142,7 +144,7 @@ export const FinanceTimeline: React.FC<FinanceTimelineProps> = ({ eventId }) => 
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="payment_date">Payment Date</Label>
                     <Input
@@ -186,18 +188,20 @@ export const FinanceTimeline: React.FC<FinanceTimelineProps> = ({ eventId }) => 
                     id="notes"
                     name="notes"
                     placeholder="Additional notes..."
+                    className="min-h-[80px]"
                   />
                 </div>
 
-                <div className="flex justify-end space-x-2">
+                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
                   <Button 
                     type="button" 
                     variant="outline" 
                     onClick={() => setIsAddingPayment(false)}
+                    className="w-full sm:w-auto"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={addPaymentMutation.isPending}>
+                  <Button type="submit" disabled={addPaymentMutation.isPending} className="w-full sm:w-auto">
                     {addPaymentMutation.isPending ? 'Saving...' : 'Log Payment'}
                   </Button>
                 </div>
@@ -212,31 +216,31 @@ export const FinanceTimeline: React.FC<FinanceTimelineProps> = ({ eventId }) => 
             {payments.map((payment) => {
               const Icon = getPaymentIcon(payment.payment_method);
               return (
-                <div key={payment.id} className="border-l-2 border-green-200 pl-4 pb-4">
+                <div key={payment.id} className="border-l-2 border-green-200 pl-3 sm:pl-4 pb-4">
                   <div className="flex items-start gap-3">
-                    <div className="bg-green-100 p-2 rounded-full">
+                    <div className="bg-green-100 p-2 rounded-full flex-shrink-0">
                       <Icon className="h-4 w-4 text-green-600" />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium capitalize">{payment.payment_type.replace('_', ' ')}</span>
-                          <span className="font-bold text-green-600">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1 gap-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                          <span className="font-medium capitalize text-sm sm:text-base">{payment.payment_type.replace('_', ' ')}</span>
+                          <span className="font-bold text-green-600 text-sm sm:text-base">
                             £{payment.amount.toLocaleString()}
                           </span>
                         </div>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-xs sm:text-sm text-gray-500">
                           {new Date(payment.payment_date).toLocaleDateString('en-GB')}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-600 mb-1">
+                      <div className="text-xs sm:text-sm text-gray-600 mb-1">
                         <span className="capitalize">{payment.payment_method.replace('_', ' ')}</span>
                         {payment.reference_number && (
                           <span className="ml-2">• Ref: {payment.reference_number}</span>
                         )}
                       </div>
                       {payment.notes && (
-                        <p className="text-sm text-gray-700">{payment.notes}</p>
+                        <p className="text-xs sm:text-sm text-gray-700 break-words">{payment.notes}</p>
                       )}
                     </div>
                   </div>
@@ -245,9 +249,9 @@ export const FinanceTimeline: React.FC<FinanceTimelineProps> = ({ eventId }) => 
             })}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
-            <p>No payments logged yet</p>
+          <div className="text-center py-6 sm:py-8 text-gray-500">
+            <DollarSign className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
+            <p className="text-sm sm:text-base">No payments logged yet</p>
           </div>
         )}
       </CardContent>

@@ -58,7 +58,7 @@ export const FormBuilder = () => {
   if (viewMode === 'field-library') {
     return (
       <div>
-        <div className="p-6 bg-white border-b">
+        <div className="p-4 sm:p-6 bg-white border-b">
           <Button variant="outline" onClick={() => setViewMode('forms')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Forms
@@ -70,16 +70,16 @@ export const FormBuilder = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Form Builder</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Form Builder</h1>
             <p className="text-gray-600 text-sm">Create questionnaire forms for your events</p>
           </div>
           
-          <Button onClick={() => setViewMode('field-library')}>
+          <Button onClick={() => setViewMode('field-library')} className="w-full sm:w-auto">
             Field Library
           </Button>
         </div>
