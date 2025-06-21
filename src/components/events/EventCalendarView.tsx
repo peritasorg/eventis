@@ -63,6 +63,8 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const getEventsForDate = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
     return events?.filter(event => {
+      if (!event.event_start_date) return false;
+      
       const eventStartDate = event.event_start_date;
       const eventEndDate = event.event_end_date || eventStartDate;
       
@@ -83,6 +85,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
 
   const calendarDays = generateCalendar();
   const today = new Date().toDateString();
+
+  console.log('Events in calendar:', events); // Debug log
+  console.log('Calendar days:', calendarDays.length); // Debug log
 
   return (
     <TooltipProvider>
@@ -152,7 +157,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                             </div>
                             {event.event_multiple_days && event.event_end_date && (
                               <div className="text-sm">
-                                <span className="font-medium">End Date:</span> {new Date(event.event_end_date).toLocaleDateString()}
+                                <span className="font-medium">Start:</span> {new Date(event.event_start_date).toLocaleDateString()}
+                                <br />
+                                <span className="font-medium">End:</span> {new Date(event.event_end_date).toLocaleDateString()}
                               </div>
                             )}
                             <div className="flex items-center gap-2 text-sm">

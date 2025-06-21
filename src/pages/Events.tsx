@@ -42,6 +42,7 @@ export const Events = () => {
         return [];
       }
       
+      console.log('Fetched events:', data); // Debug log
       return data || [];
     }
   );
