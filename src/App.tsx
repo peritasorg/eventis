@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "./components/Sidebar";
+import { AppControls } from "./components/AppControls";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
 import { Events } from "./pages/Events";
@@ -39,9 +40,10 @@ const App: React.FC = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/*" element={
                 <ProtectedRoute>
-                  <div className="flex h-screen bg-gray-50">
+                  <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
                     <Sidebar />
-                    <main className="flex-1 overflow-auto">
+                    <main className="flex-1 overflow-auto relative">
+                      <AppControls />
                       <Routes>
                         <Route path="/" element={<Dashboard />} />
                         <Route path="/leads" element={<Leads />} />
