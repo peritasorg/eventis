@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Receipt, Trash2 } from 'lucide-react';
@@ -84,7 +83,7 @@ export const EventDetail = () => {
   );
 
   const handleDeleteEvent = () => {
-    deleteEventMutation.mutate();
+    deleteEventMutation.mutate({});
   };
 
   if (isLoading) {
