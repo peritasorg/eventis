@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Maximize, Minimize, Moon, Sun } from 'lucide-react';
+import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Maximize, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -33,10 +33,6 @@ export const AppSidebar = () => {
   const { user, signOut, currentTenant, userProfile } = useAuth();
   const { state } = useSidebar();
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('darkMode') === 'true' || 
-           (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  });
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -46,14 +42,6 @@ export const AppSidebar = () => {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-    localStorage.setItem('darkMode', isDarkMode.toString());
-    
-    // Force re-render of the entire app by updating body class
-    document.body.classList.toggle('dark', isDarkMode);
-  }, [isDarkMode]);
 
   const toggleFullscreen = async () => {
     try {
@@ -65,10 +53,6 @@ export const AppSidebar = () => {
     } catch (error) {
       console.error('Fullscreen error:', error);
     }
-  };
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
   };
 
   const getSubscriptionStatus = () => {
@@ -126,30 +110,6 @@ export const AppSidebar = () => {
               </>
             )}
           </div>
-          
-          {state === "expanded" && (
-            <div className="flex gap-1 ml-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleDarkMode}
-                className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8"
-                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleFullscreen}
-                className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8"
-                title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-              >
-                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-              </Button>
-            </div>
-          )}
         </div>
       </SidebarHeader>
 
@@ -219,6 +179,15 @@ export const AppSidebar = () => {
             >
               <LogOut className="h-4 w-4" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleFullscreen}
+              className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8"
+              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            >
+              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            </Button>
           </div>
         ) : (
           <div className="flex items-center justify-between">
@@ -235,14 +204,25 @@ export const AppSidebar = () => {
                 </p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="text-gray-400 hover:text-white hover:bg-gray-800 flex-shrink-0 ml-2 h-8 w-8 p-0"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-1 ml-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="text-gray-400 hover:text-white hover:bg-gray-800 flex-shrink-0 h-8 w-8 p-0"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleFullscreen}
+                className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8"
+                title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              >
+                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
         )}
       </SidebarFooter>
