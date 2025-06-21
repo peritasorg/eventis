@@ -22,6 +22,9 @@ export const AppControls = () => {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
     localStorage.setItem('darkMode', isDarkMode.toString());
+    
+    // Force re-render of the entire app by updating body class
+    document.body.classList.toggle('dark', isDarkMode);
   }, [isDarkMode]);
 
   const toggleFullscreen = async () => {
@@ -46,20 +49,20 @@ export const AppControls = () => {
         variant="outline"
         size="icon"
         onClick={toggleDarkMode}
-        className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm"
+        className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
         title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
       >
-        {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {isDarkMode ? <Sun className="h-4 w-4 text-yellow-500" /> : <Moon className="h-4 w-4 text-gray-700" />}
       </Button>
       
       <Button
         variant="outline"
         size="icon"
         onClick={toggleFullscreen}
-        className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm"
+        className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
         title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
       >
-        {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+        {isFullscreen ? <Minimize className="h-4 w-4 text-gray-700 dark:text-gray-300" /> : <Maximize className="h-4 w-4 text-gray-700 dark:text-gray-300" />}
       </Button>
     </div>
   );

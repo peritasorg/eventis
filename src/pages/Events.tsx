@@ -42,7 +42,7 @@ export const Events = () => {
         return [];
       }
       
-      console.log('Fetched events:', data); // Debug log
+      console.log('Fetched events:', data);
       return data || [];
     }
   );
@@ -57,51 +57,55 @@ export const Events = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
-      <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center mb-6 lg:mb-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Events</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Manage your events and bookings</p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-          <Tabs value={viewMode} onValueChange={(value: 'calendar' | 'list') => setViewMode(value)}>
-            <TabsList className="grid w-full grid-cols-2 sm:w-auto">
-              <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4" />
-                <span className="hidden sm:inline">Calendar</span>
-                <span className="sm:hidden">Cal</span>
-              </TabsTrigger>
-              <TabsTrigger value="list" className="flex items-center gap-2 text-sm">
-                <List className="h-4 w-4" />
-                List
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="flex-shrink-0 p-4 sm:p-6 lg:p-8 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+        <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
+          <div className="ml-12 lg:ml-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Events</h1>
+            <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Manage your events and bookings</p>
+          </div>
           
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-            onClick={() => setIsCreateEventOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Create Event</span>
-            <span className="sm:hidden">Create</span>
-          </Button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+            <Tabs value={viewMode} onValueChange={(value: 'calendar' | 'list') => setViewMode(value)}>
+              <TabsList className="grid w-full grid-cols-2 sm:w-auto">
+                <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4" />
+                  <span className="hidden sm:inline">Calendar</span>
+                  <span className="sm:hidden">Cal</span>
+                </TabsTrigger>
+                <TabsTrigger value="list" className="flex items-center gap-2 text-sm">
+                  <List className="h-4 w-4" />
+                  List
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+              onClick={() => setIsCreateEventOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Create Event</span>
+              <span className="sm:hidden">Create</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      {viewMode === 'calendar' ? (
-        <EventCalendarView 
-          events={events || []}
-          onEventClick={handleEventClick}
-          onDateClick={handleDateClick}
-        />
-      ) : (
-        <EventListView 
-          events={events || []}
-          onEventClick={handleEventClick}
-        />
-      )}
+      <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+        {viewMode === 'calendar' ? (
+          <EventCalendarView 
+            events={events || []}
+            onEventClick={handleEventClick}
+            onDateClick={handleDateClick}
+          />
+        ) : (
+          <EventListView 
+            events={events || []}
+            onEventClick={handleEventClick}
+          />
+        )}
+      </div>
 
       <CreateEventDialog
         open={isCreateEventOpen}

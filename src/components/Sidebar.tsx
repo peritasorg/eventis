@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut } from 'lucide-react';
+import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Leads & Appointments', href: '/leads', icon: UserPlus },
   { name: 'Event Calendar', href: '/events', icon: Calendar },
-  { name: 'Form Builder', href: '/form-builder', icon: FileText },
+  { name: 'Form Builder', href: '/form-builder', icon: FileText, desktopOnly: true },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -18,6 +18,21 @@ const navigation = [
 export const Sidebar = () => {
   const location = useLocation();
   const { user, signOut, currentTenant, userProfile } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 1024);
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const getSubscriptionStatus = () => {
     if (!currentTenant) return 'Loading...';
@@ -54,22 +69,47 @@ export const Sidebar = () => {
     return 'U';
   };
 
-  return (
-    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white">
+  const filteredNavigation = navigation.filter(item => {
+    if (item.desktopOnly && window.innerWidth < 768) {
+      return false;
+    }
+    return true;
+  });
+
+  const SidebarContent = () => (
+    <>
       {/* Logo/Brand */}
-      <div className="flex h-16 items-center px-6 border-b border-gray-700">
-        <Building2 className="h-8 w-8 text-blue-400" />
-        <span className="ml-3 text-lg font-semibold">BanquetPro</span>
+      <div className="flex h-16 items-center px-4 lg:px-6 border-b border-gray-700">
+        <Building2 className="h-6 w-6 lg:h-8 lg:w-8 text-blue-400 flex-shrink-0" />
+        <span className="ml-2 lg:ml-3 text-base lg:text-lg font-semibold text-white truncate">BanquetPro</span>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-4 py-6">
-        {navigation.map((item) => {
+      <nav className="flex-1 space-y-1 px-3 lg:px-4 py-4 lg:py-6 overflow-y-auto">
+        {filteredNavigation.map((item) => {
           const isActive = location.pathname === item.href;
+          const isFormBuilder = item.href === '/form-builder';
+          const shouldShowFormBuilder = !isFormBuilder || window.innerWidth >= 768;
+          
+          if (!shouldShowFormBuilder) {
+            return (
+              <div
+                key={item.name}
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-400 cursor-not-allowed opacity-50"
+                title="Form Builder is only available on tablet and desktop devices"
+              >
+                <item.icon className="mr-3 h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0" />
+                <span className="truncate">{item.name}</span>
+                <span className="ml-2 text-xs">(Desktop only)</span>
+              </div>
+            );
+          }
+
           return (
             <Link
               key={item.name}
               to={item.href}
+              onClick={() => setIsMobileMenuOpen(false)}
               className={cn(
                 'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
                 isActive
@@ -79,25 +119,25 @@ export const Sidebar = () => {
             >
               <item.icon
                 className={cn(
-                  'mr-3 h-5 w-5 transition-colors',
+                  'mr-3 h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
                   isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
                 )}
               />
-              {item.name}
+              <span className="truncate">{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-gray-700 p-4">
+      <div className="border-t border-gray-700 p-3 lg:p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center min-w-0 flex-1">
-            <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-medium flex-shrink-0">
+            <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-blue-500 flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0">
               {getUserInitial()}
             </div>
-            <div className="ml-3 min-w-0 flex-1">
-              <p className="text-sm font-medium truncate" title={getBusinessName()}>
+            <div className="ml-2 lg:ml-3 min-w-0 flex-1">
+              <p className="text-xs lg:text-sm font-medium truncate text-white" title={getBusinessName()}>
                 {getBusinessName()}
               </p>
               <p className="text-xs text-gray-400 truncate" title={getSubscriptionStatus()}>
@@ -109,12 +149,43 @@ export const Sidebar = () => {
             variant="ghost"
             size="sm"
             onClick={signOut}
-            className="text-gray-400 hover:text-white hover:bg-gray-800 flex-shrink-0 ml-2"
+            className="text-gray-400 hover:text-white hover:bg-gray-800 flex-shrink-0 ml-2 h-8 w-8 p-0"
           >
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Menu Button */}
+      {isMobile && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="fixed top-4 left-4 z-50 lg:hidden bg-gray-900 text-white hover:bg-gray-800"
+        >
+          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      )}
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:bg-gray-900">
+        <SidebarContent />
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      {isMobile && isMobileMenuOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 bg-black opacity-50" onClick={() => setIsMobileMenuOpen(false)} />
+          <div className="fixed inset-y-0 left-0 w-64 bg-gray-900 text-white flex flex-col">
+            <SidebarContent />
+          </div>
+        </div>
+      )}
+    </>
   );
 };

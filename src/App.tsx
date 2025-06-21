@@ -40,20 +40,22 @@ const App: React.FC = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/*" element={
                 <ProtectedRoute>
-                  <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+                  <div className="flex h-screen w-full bg-gray-50 dark:bg-gray-900">
                     <Sidebar />
-                    <main className="flex-1 overflow-auto relative">
+                    <main className="flex-1 overflow-auto relative bg-gray-50 dark:bg-gray-900">
                       <AppControls />
-                      <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/leads" element={<Leads />} />
-                        <Route path="/events" element={<Events />} />
-                        <Route path="/events/:eventId" element={<EventDetail />} />
-                        <Route path="/form-builder" element={<FormBuilder />} />
-                        <Route path="/customers" element={<Customers />} />
-                        <Route path="/settings" element={<Settings />} />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
+                      <div className="h-full">
+                        <Routes>
+                          <Route path="/" element={<Dashboard />} />
+                          <Route path="/leads" element={<Leads />} />
+                          <Route path="/events" element={<Events />} />
+                          <Route path="/events/:eventId" element={<EventDetail />} />
+                          <Route path="/form-builder" element={<FormBuilder />} />
+                          <Route path="/customers" element={<Customers />} />
+                          <Route path="/settings" element={<Settings />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </div>
                     </main>
                   </div>
                 </ProtectedRoute>
