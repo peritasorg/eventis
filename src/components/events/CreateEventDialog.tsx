@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useSupabaseMutation, useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +28,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
 }) => {
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
+  const [isMultipleDays, setIsMultipleDays] = useState(false);
 
   const { data: customers } = useSupabaseQuery(
     ['customers'],
@@ -76,10 +78,15 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    const startDate = formData.get('event_start_date') as string;
+    const endDate = isMultipleDays ? (formData.get('event_end_date') as string) : startDate;
+    
     const eventData = {
       event_name: formData.get('event_name') as string,
       event_type: formData.get('event_type') as string,
-      event_date: formData.get('event_date') as string,
+      event_start_date: startDate,
+      event_end_date: endDate,
+      event_multiple_days: isMultipleDays,
       start_time: formData.get('start_time') as string,
       end_time: formData.get('end_time') as string,
       estimated_guests: parseInt(formData.get('estimated_guests') as string) || 0,
@@ -121,17 +128,42 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="event_date">Event Date *</Label>
-              <Input 
-                id="event_date" 
-                name="event_date" 
-                type="date" 
-                defaultValue={selectedDate}
-                required 
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="event_multiple_days"
+                checked={isMultipleDays}
+                onCheckedChange={(checked) => setIsMultipleDays(checked as boolean)}
               />
+              <Label htmlFor="event_multiple_days">Multiple day event</Label>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="event_start_date">Event Start Date *</Label>
+                <Input 
+                  id="event_start_date" 
+                  name="event_start_date" 
+                  type="date" 
+                  defaultValue={selectedDate}
+                  required 
+                />
+              </div>
+              {isMultipleDays && (
+                <div className="space-y-2">
+                  <Label htmlFor="event_end_date">Event End Date *</Label>
+                  <Input 
+                    id="event_end_date" 
+                    name="event_end_date" 
+                    type="date" 
+                    required 
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="start_time">Start Time *</Label>
               <Input id="start_time" name="start_time" type="time" required />

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Calendar, DollarSign, Users, MessageSquare, Receipt, Clock } from 'lucide-react';
 import { CommunicationTimeline } from '@/components/events/CommunicationTimeline';
 import { FinanceTimeline } from '@/components/events/FinanceTimeline';
@@ -65,6 +66,11 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
 
   const updateEventMutation = useSupabaseMutation(
     async (updates: any) => {
+      // If not multiple days, set end date to start date
+      if (!updates.event_multiple_days && updates.event_start_date) {
+        updates.event_end_date = updates.event_start_date;
+      }
+      
       const { data, error } = await supabase
         .from('events')
         .update(updates)
@@ -87,9 +93,13 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
     const formData = new FormData(e.currentTarget);
     
     const customerIdValue = formData.get('customer_id') as string;
+    const isMultipleDays = formData.get('event_multiple_days') === 'on';
     
     const updates = {
       customer_id: customerIdValue === 'none' ? null : customerIdValue,
+      event_multiple_days: isMultipleDays,
+      event_start_date: formData.get('event_start_date') as string,
+      event_end_date: isMultipleDays ? (formData.get('event_end_date') as string) : (formData.get('event_start_date') as string),
       ethnicity: formData.get('ethnicity') as string,
       primary_contact_name: formData.get('primary_contact_name') as string,
       primary_contact_phone: formData.get('primary_contact_phone') as string,
@@ -108,7 +118,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
   };
 
   const calculateDaysDue = () => {
-    const eventDate = new Date(event.event_date);
+    const eventDate = new Date(event.event_start_date);
     const today = new Date();
     const diffTime = eventDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -152,25 +162,71 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                 <div className="text-sm capitalize">{event.event_type || 'Not specified'}</div>
               </div>
 
-              <div>
-                <Label>Event Date</Label>
-                <div className="text-lg font-medium">
-                  {new Date(event.event_date).toLocaleDateString('en-GB', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </div>
+              <div className="space-y-2">
+                <Label>Event Date(s)</Label>
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        name="event_multiple_days"
+                        defaultChecked={event.event_multiple_days}
+                      />
+                      <Label>Multiple day event</Label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="event_start_date">Start Date</Label>
+                        <Input
+                          id="event_start_date"
+                          name="event_start_date"
+                          type="date"
+                          defaultValue={event.event_start_date}
+                        />
+                      </div>
+                      {event.event_multiple_days && (
+                        <div>
+                          <Label htmlFor="event_end_date">End Date</Label>
+                          <Input
+                            id="event_end_date"
+                            name="event_end_date"
+                            type="date"
+                            defaultValue={event.event_end_date}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-lg font-medium">
+                      {new Date(event.event_start_date).toLocaleDateString('en-GB', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </div>
+                    {event.event_multiple_days && event.event_end_date && event.event_end_date !== event.event_start_date && (
+                      <div className="text-sm text-gray-600 mt-1">
+                        Until: {new Date(event.event_end_date).toLocaleDateString('en-GB', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
                 <Label>Event Time</Label>
                 <div className="text-sm">
-                  {event.event_start_time && event.event_end_time ? (
+                  {event.start_time && event.end_time ? (
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4" />
-                      <span>{event.event_start_time} - {event.event_end_time}</span>
+                      <span>{event.start_time} - {event.end_time}</span>
                     </div>
                   ) : (
                     'Time not specified'

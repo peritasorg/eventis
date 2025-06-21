@@ -13,7 +13,9 @@ import {
 interface Event {
   id: string;
   event_name: string;
-  event_date: string;
+  event_start_date: string;
+  event_end_date?: string;
+  event_multiple_days?: boolean;
   start_time: string;
   end_time: string;
   estimated_guests: number;
@@ -60,7 +62,13 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
 
   const getEventsForDate = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    return events?.filter(event => event.event_date === dateString) || [];
+    return events?.filter(event => {
+      const eventStartDate = event.event_start_date;
+      const eventEndDate = event.event_end_date || eventStartDate;
+      
+      // Check if the date falls within the event's date range
+      return dateString >= eventStartDate && dateString <= eventEndDate;
+    }) || [];
   };
 
   const getStatusColor = (status: string) => {
@@ -130,6 +138,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                               <Clock className="h-3 w-3" />
                               <span>{event.start_time}</span>
                             </div>
+                            {event.event_multiple_days && (
+                              <div className="text-xs opacity-75 mt-1">Multi-day</div>
+                            )}
                           </div>
                         </TooltipTrigger>
                         <TooltipContent side="right" className="max-w-xs">
@@ -139,6 +150,11 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                               <Clock className="h-3 w-3" />
                               {event.start_time} - {event.end_time}
                             </div>
+                            {event.event_multiple_days && event.event_end_date && (
+                              <div className="text-sm">
+                                <span className="font-medium">End Date:</span> {new Date(event.event_end_date).toLocaleDateString()}
+                              </div>
+                            )}
                             <div className="flex items-center gap-2 text-sm">
                               <Users className="h-3 w-3" />
                               {event.estimated_guests} guests

@@ -564,11 +564,13 @@ export type Database = {
           end_time: string
           estimated_guests: number
           ethnicity: string | null
-          event_date: string
+          event_end_date: string | null
           event_finalized: boolean | null
           event_finalized_date: string | null
           event_mix_type: string | null
+          event_multiple_days: boolean | null
           event_name: string
+          event_start_date: string | null
           event_type: string
           final_payment_due: string | null
           final_payment_paid: boolean | null
@@ -629,11 +631,13 @@ export type Database = {
           end_time: string
           estimated_guests: number
           ethnicity?: string | null
-          event_date: string
+          event_end_date?: string | null
           event_finalized?: boolean | null
           event_finalized_date?: string | null
           event_mix_type?: string | null
+          event_multiple_days?: boolean | null
           event_name: string
+          event_start_date?: string | null
           event_type: string
           final_payment_due?: string | null
           final_payment_paid?: boolean | null
@@ -694,11 +698,13 @@ export type Database = {
           end_time?: string
           estimated_guests?: number
           ethnicity?: string | null
-          event_date?: string
+          event_end_date?: string | null
           event_finalized?: boolean | null
           event_finalized_date?: string | null
           event_mix_type?: string | null
+          event_multiple_days?: boolean | null
           event_name?: string
+          event_start_date?: string | null
           event_type?: string
           final_payment_due?: string | null
           final_payment_paid?: boolean | null

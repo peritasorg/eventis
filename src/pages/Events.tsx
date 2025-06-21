@@ -35,7 +35,7 @@ export const Events = () => {
           )
         `)
         .eq('tenant_id', currentTenant.id)
-        .order('event_date', { ascending: true });
+        .order('event_start_date', { ascending: true });
       
       if (error) {
         console.error('Events error:', error);
