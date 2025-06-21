@@ -123,7 +123,6 @@ export const FinanceTimeline: React.FC<FinanceTimelineProps> = ({ eventId }) => 
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="deposit">Deposit</SelectItem>
                         <SelectItem value="partial_payment">Partial Payment</SelectItem>
                         <SelectItem value="final_payment">Final Payment</SelectItem>
                         <SelectItem value="refund">Refund</SelectItem>

@@ -597,6 +597,7 @@ export type Database = {
           tenant_id: string | null
           total_amount: number | null
           total_guest_price: number | null
+          total_guests: number | null
           updated_at: string | null
           venue_area: string | null
         }
@@ -661,6 +662,7 @@ export type Database = {
           tenant_id?: string | null
           total_amount?: number | null
           total_guest_price?: number | null
+          total_guests?: number | null
           updated_at?: string | null
           venue_area?: string | null
         }
@@ -725,6 +727,7 @@ export type Database = {
           tenant_id?: string | null
           total_amount?: number | null
           total_guest_price?: number | null
+          total_guests?: number | null
           updated_at?: string | null
           venue_area?: string | null
         }

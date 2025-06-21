@@ -42,6 +42,27 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
     }
   );
 
+  // Query to get finance timeline payments for balance calculation
+  const { data: payments } = useSupabaseQuery(
+    ['finance-timeline', event.id],
+    async () => {
+      if (!event.id || !currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('finance_timeline')
+        .select('amount')
+        .eq('event_id', event.id)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) {
+        console.error('Finance timeline error:', error);
+        return [];
+      }
+      
+      return data || [];
+    }
+  );
+
   const updateEventMutation = useSupabaseMutation(
     async (updates: any) => {
       const { data, error } = await supabase
@@ -93,6 +114,18 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
+
+  // Calculate financial totals
+  const totalGuestPrice = event.total_guest_price || 0;
+  const formTotal = event.form_total || 0;
+  const depositAmount = event.deposit_amount || 0;
+  const totalEventPrice = totalGuestPrice + formTotal;
+  
+  // Calculate total paid from finance timeline
+  const totalPaid = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+  
+  // Calculate balance due: Total Event Price - Deposit - Finance Timeline Payments
+  const balanceDue = totalEventPrice - depositAmount - totalPaid;
 
   const daysDue = calculateDaysDue();
 
@@ -413,6 +446,23 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
+                <Label>Total Event Price</Label>
+                <div className="text-lg font-medium text-blue-600">£{totalEventPrice.toLocaleString()}</div>
+                <div className="text-xs text-gray-500">Guest Price + Form Total</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Guest Price</Label>
+                  <div className="text-sm font-medium">£{totalGuestPrice.toLocaleString()}</div>
+                </div>
+                <div>
+                  <Label>Form Total</Label>
+                  <div className="text-sm font-medium">£{formTotal.toLocaleString()}</div>
+                </div>
+              </div>
+
+              <div>
                 <Label htmlFor="deposit_amount">Deposit Amount</Label>
                 {isEditing ? (
                   <Input
@@ -423,21 +473,25 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                     defaultValue={event.deposit_amount || 0}
                   />
                 ) : (
-                  <div className="text-lg font-medium">£{(event.deposit_amount || 0).toLocaleString()}</div>
+                  <div className="text-lg font-medium">£{depositAmount.toLocaleString()}</div>
                 )}
               </div>
 
               <div>
-                <Label>Form Total</Label>
-                <div className="text-lg font-medium">£{(event.form_total || 0).toLocaleString()}</div>
+                <Label>Total Paid</Label>
+                <div className="text-lg font-medium text-green-600">£{(depositAmount + totalPaid).toLocaleString()}</div>
+                <div className="text-xs text-gray-500">Deposit + Finance Timeline Payments</div>
               </div>
 
               <div>
                 <Label>Balance Due</Label>
                 <div className={`text-lg font-medium ${
-                  (event.balance_due || 0) > 0 ? 'text-red-600' : 'text-green-600'
+                  balanceDue > 0 ? 'text-red-600' : 'text-green-600'
                 }`}>
-                  £{(event.balance_due || 0).toLocaleString()}
+                  £{balanceDue.toLocaleString()}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {balanceDue <= 0 ? 'Fully paid' : 'Amount remaining to be paid'}
                 </div>
               </div>
             </CardContent>
