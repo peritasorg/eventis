@@ -7,7 +7,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Sidebar } from "./components/Sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "./components/AppSidebar";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
 import { Events } from "./pages/Events";
@@ -39,23 +40,25 @@ const App: React.FC = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/*" element={
                 <ProtectedRoute>
-                  <div className="flex h-screen w-full bg-gray-50 dark:bg-gray-900">
-                    <Sidebar />
-                    <main className="flex-1 overflow-auto relative bg-gray-50 dark:bg-gray-900">
-                      <div className="h-full">
-                        <Routes>
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/leads" element={<Leads />} />
-                          <Route path="/events" element={<Events />} />
-                          <Route path="/events/:eventId" element={<EventDetail />} />
-                          <Route path="/form-builder" element={<FormBuilder />} />
-                          <Route path="/customers" element={<Customers />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </div>
-                    </main>
-                  </div>
+                  <SidebarProvider>
+                    <div className="min-h-screen flex w-full bg-gray-50 dark:bg-gray-900">
+                      <AppSidebar />
+                      <main className="flex-1 overflow-auto relative bg-gray-50 dark:bg-gray-900">
+                        <div className="h-full">
+                          <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/leads" element={<Leads />} />
+                            <Route path="/events" element={<Events />} />
+                            <Route path="/events/:eventId" element={<EventDetail />} />
+                            <Route path="/form-builder" element={<FormBuilder />} />
+                            <Route path="/customers" element={<Customers />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </div>
+                      </main>
+                    </div>
+                  </SidebarProvider>
                 </ProtectedRoute>
               } />
             </Routes>
