@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Menu, X } from 'lucide-react';
+import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Menu, X, Maximize, Minimize, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,11 @@ export const Sidebar = () => {
   const { user, signOut, currentTenant, userProfile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true' || 
+           (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -33,6 +37,39 @@ export const Sidebar = () => {
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    localStorage.setItem('darkMode', isDarkMode.toString());
+    
+    // Force re-render of the entire app by updating body class
+    document.body.classList.toggle('dark', isDarkMode);
+  }, [isDarkMode]);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Fullscreen error:', error);
+    }
+  };
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+  };
 
   const getSubscriptionStatus = () => {
     if (!currentTenant) return 'Loading...';
@@ -129,8 +166,32 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="border-t border-gray-700 p-3 lg:p-4">
+      {/* Footer with User Info and Controls */}
+      <div className="border-t border-gray-700 p-3 lg:p-4 space-y-3">
+        {/* App Controls */}
+        <div className="flex gap-2 justify-center">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleDarkMode}
+            className="bg-gray-800/90 backdrop-blur-sm border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white h-8 w-8"
+            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDarkMode ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleFullscreen}
+            className="bg-gray-800/90 backdrop-blur-sm border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white h-8 w-8"
+            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? <Minimize className="h-3 w-3" /> : <Maximize className="h-3 w-3" />}
+          </Button>
+        </div>
+
+        {/* User Info */}
         <div className="flex items-center justify-between">
           <div className="flex items-center min-w-0 flex-1">
             <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-blue-500 flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0">
