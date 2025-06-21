@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Calendar, DollarSign, Users, MessageSquare, Receipt } from 'lucide-react';
+import { Plus, Calendar, DollarSign, Users, MessageSquare, Receipt, Clock } from 'lucide-react';
 import { CommunicationTimeline } from '@/components/events/CommunicationTimeline';
 import { FinanceTimeline } from '@/components/events/FinanceTimeline';
 import { useSupabaseMutation, useSupabaseQuery } from '@/hooks/useSupabaseQuery';
@@ -98,6 +99,64 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
     <div className="space-y-6">
       <form onSubmit={handleSave}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Event Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Event Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Event Title</Label>
+                <div className="text-lg font-medium break-words">{event.event_name}</div>
+              </div>
+              
+              <div>
+                <Label>Event Type</Label>
+                <div className="text-sm capitalize">{event.event_type || 'Not specified'}</div>
+              </div>
+
+              <div>
+                <Label>Event Date</Label>
+                <div className="text-lg font-medium">
+                  {new Date(event.event_date).toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <Label>Event Time</Label>
+                <div className="text-sm">
+                  {event.event_start_time && event.event_end_time ? (
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>{event.event_start_time} - {event.event_end_time}</span>
+                    </div>
+                  ) : (
+                    'Time not specified'
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label>Countdown</Label>
+                <div className={`text-sm font-medium ${
+                  daysDue < 0 ? 'text-red-600' : daysDue < 7 ? 'text-orange-600' : 'text-green-600'
+                }`}>
+                  {daysDue < 0 ? `${Math.abs(daysDue)} days overdue` : 
+                   daysDue === 0 ? 'Today' : 
+                   `${daysDue} days until event`}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -135,11 +194,6 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Title</Label>
-                <div className="text-lg font-medium">{event.event_name}</div>
-              </div>
-              
-              <div>
                 <Label htmlFor="customer_id">Customer</Label>
                 {isEditing ? (
                   <Select name="customer_id" defaultValue={event.customer_id || ''}>
@@ -150,19 +204,21 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                       <SelectItem value="">No customer assigned</SelectItem>
                       {customers?.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                          {customer.company && (
-                            <span className="text-gray-500 ml-2">- {customer.company}</span>
-                          )}
+                          <div className="truncate">
+                            {customer.name}
+                            {customer.company && (
+                              <span className="text-gray-500 ml-2">- {customer.company}</span>
+                            )}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="font-medium">
-                    {event.customers?.name || 'No customer assigned'}
+                  <div className="break-words">
+                    <div className="font-medium">{event.customers?.name || 'No customer assigned'}</div>
                     {event.customers?.company && (
-                      <div className="text-sm text-gray-600">{event.customers.company}</div>
+                      <div className="text-sm text-gray-600 break-words">{event.customers.company}</div>
                     )}
                   </div>
                 )}
@@ -178,11 +234,11 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                     placeholder="e.g., Somali, Pakistani, etc."
                   />
                 ) : (
-                  <div className="text-sm">{event.ethnicity || 'Not specified'}</div>
+                  <div className="text-sm break-words">{event.ethnicity || 'Not specified'}</div>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="primary_contact_name">Primary Contact</Label>
                   {isEditing ? (
@@ -193,7 +249,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                       placeholder="Contact name"
                     />
                   ) : (
-                    <div className="text-sm">{event.primary_contact_name || 'Not specified'}</div>
+                    <div className="text-sm break-words">{event.primary_contact_name || 'Not specified'}</div>
                   )}
                 </div>
                 <div>
@@ -206,12 +262,12 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                       placeholder="Phone number"
                     />
                   ) : (
-                    <div className="text-sm">{event.primary_contact_phone || 'Not specified'}</div>
+                    <div className="text-sm break-words">{event.primary_contact_phone || 'Not specified'}</div>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="secondary_contact_name">Secondary Contact</Label>
                   {isEditing ? (
@@ -222,7 +278,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                       placeholder="Contact name"
                     />
                   ) : (
-                    <div className="text-sm">{event.secondary_contact_name || 'Not specified'}</div>
+                    <div className="text-sm break-words">{event.secondary_contact_name || 'Not specified'}</div>
                   )}
                 </div>
                 <div>
@@ -235,7 +291,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                       placeholder="Phone number"
                     />
                   ) : (
-                    <div className="text-sm">{event.secondary_contact_phone || 'Not specified'}</div>
+                    <div className="text-sm break-words">{event.secondary_contact_phone || 'Not specified'}</div>
                   )}
                 </div>
               </div>
@@ -250,7 +306,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                     placeholder="e.g., Spouse, Parent, etc."
                   />
                 ) : (
-                  <div className="text-sm">{event.secondary_contact_relationship || 'Not specified'}</div>
+                  <div className="text-sm break-words">{event.secondary_contact_relationship || 'Not specified'}</div>
                 )}
               </div>
             </CardContent>
@@ -309,7 +365,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="text-sm capitalize">{event.event_mix_type || 'Mixed'}</div>
+                  <div className="text-sm capitalize break-words">{event.event_mix_type || 'Mixed'}</div>
                 )}
               </div>
 
@@ -383,33 +439,8 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                   £{(event.balance_due || 0).toLocaleString()}
                 </div>
               </div>
-
-              <div className="pt-4 border-t">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-4 w-4" />
-                  <Label>Event Date</Label>
-                </div>
-                <div className="text-lg font-medium">
-                  {new Date(event.event_date).toLocaleDateString('en-GB', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </div>
-                <div className={`text-sm mt-1 ${
-                  daysDue < 0 ? 'text-red-600' : daysDue < 7 ? 'text-orange-600' : 'text-green-600'
-                }`}>
-                  {daysDue < 0 ? `${Math.abs(daysDue)} days overdue` : 
-                   daysDue === 0 ? 'Today' : 
-                   `${daysDue} days until event`}
-                </div>
-              </div>
             </CardContent>
           </Card>
-
-          {/* Empty card to maintain grid layout */}
-          <div></div>
         </div>
       </form>
 
