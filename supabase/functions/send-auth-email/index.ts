@@ -2,8 +2,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -56,7 +54,7 @@ const getEmailTemplate = (type: string, token?: string, redirectTo?: string, use
                 <p>To get started, please confirm your email address by clicking the button below:</p>
                 
                 <div style="text-align: center; margin: 30px 0;">
-                  <a href="${baseUrl}/auth/v1/verify?token=${token}&type=signup&redirect_to=${redirectTo || window.location.origin}" class="button">
+                  <a href="${baseUrl}/auth/v1/verify?token=${token}&type=signup&redirect_to=${encodeURIComponent(redirectTo || 'https://vbowtpkisiabdwwgttry.supabase.co')}" class="button">
                     Confirm Email Address
                   </a>
                 </div>
@@ -107,7 +105,7 @@ const getEmailTemplate = (type: string, token?: string, redirectTo?: string, use
                 <p>To reset your password, click the button below:</p>
                 
                 <div style="text-align: center; margin: 30px 0;">
-                  <a href="${baseUrl}/auth/v1/verify?token=${token}&type=recovery&redirect_to=${redirectTo || window.location.origin}" class="button">
+                  <a href="${baseUrl}/auth/v1/verify?token=${token}&type=recovery&redirect_to=${encodeURIComponent(redirectTo || 'https://vbowtpkisiabdwwgttry.supabase.co/auth')}" class="button">
                     Reset Password
                   </a>
                 </div>
@@ -142,9 +140,22 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { to, type, token, redirectTo, userData }: AuthEmailRequest = await req.json();
     
-    console.log(`Sending ${type} email to ${to}`);
+    console.log(`📧 Attempting to send ${type} email to: ${to}`);
+    console.log(`🔑 Using token: ${token ? 'Token present' : 'No token'}`);
+    console.log(`📍 Redirect to: ${redirectTo}`);
     
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("❌ RESEND_API_KEY not found in environment");
+      throw new Error("RESEND_API_KEY not configured");
+    }
+    
+    console.log(`🔑 Resend API key found: ${resendApiKey.substring(0, 10)}...`);
+    
+    const resend = new Resend(resendApiKey);
     const emailTemplate = getEmailTemplate(type, token, redirectTo, userData);
+    
+    console.log(`📨 Sending email with subject: "${emailTemplate.subject}"`);
     
     const emailResponse = await resend.emails.send({
       from: "BanquetPro <onboarding@resend.dev>",
@@ -153,9 +164,13 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailTemplate.html,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("✅ Email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      emailId: emailResponse.data?.id,
+      response: emailResponse 
+    }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
@@ -163,9 +178,19 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
   } catch (error: any) {
-    console.error("Error sending email:", error);
+    console.error("❌ Error sending email:", error);
+    console.error("❌ Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack,
+        timestamp: new Date().toISOString()
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
