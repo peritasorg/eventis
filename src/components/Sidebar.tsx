@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
@@ -101,7 +100,7 @@ export const Sidebar = () => {
 
   const SidebarContent = () => (
     <>
-      {/* Logo/Brand with collapse toggle */}
+      {/* Logo/Brand with collapse toggle and fullscreen button */}
       <div className={cn(
         "flex h-16 items-center border-b border-gray-700 transition-all duration-200",
         isCollapsed ? "px-3 justify-center" : "px-4 lg:px-6"
@@ -114,16 +113,32 @@ export const Sidebar = () => {
         )}
         {isCollapsed && <Building2 className="h-6 w-6 text-blue-400" />}
         
-        {!isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="ml-auto text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8 p-0"
-          >
-            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-          </Button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {/* Fullscreen Button */}
+          {!isCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleFullscreen}
+              className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8 p-0"
+              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            >
+              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            </Button>
+          )}
+          
+          {/* Collapse Toggle */}
+          {!isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8 p-0"
+            >
+              {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Navigation */}
@@ -184,24 +199,8 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      {/* Footer with User Info and Fullscreen Button */}
-      <div className="border-t border-gray-700 p-3 lg:p-4 space-y-3">
-        {/* Fullscreen Button */}
-        <div className={cn(
-          "flex justify-center",
-          isCollapsed ? "" : "mb-3"
-        )}>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleFullscreen}
-            className="bg-gray-800/90 backdrop-blur-sm border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white h-8 w-8"
-            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          >
-            {isFullscreen ? <Minimize className="h-3 w-3" /> : <Maximize className="h-3 w-3" />}
-          </Button>
-        </div>
-
+      {/* Footer with User Info */}
+      <div className="border-t border-gray-700 p-3 lg:p-4">
         {/* User Info */}
         {!isCollapsed && (
           <div className="flex items-center justify-between">
