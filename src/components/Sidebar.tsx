@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
@@ -185,13 +186,17 @@ export const Sidebar = () => {
         })}
 
         {/* Fullscreen Button in Navigation */}
-        <div
+        <Link
+          to="#"
+          onClick={(e) => {
+            e.preventDefault();
+            toggleFullscreen();
+          }}
           className={cn(
-            'flex items-center text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer',
+            'group flex items-center text-sm font-medium rounded-lg transition-all duration-200',
             isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
             'text-gray-300 hover:bg-gray-800 hover:text-white hover:scale-105'
           )}
-          onClick={toggleFullscreen}
           title={isCollapsed ? (isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen') : undefined}
         >
           {isFullscreen ? (
@@ -199,7 +204,7 @@ export const Sidebar = () => {
               className={cn(
                 'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
                 isCollapsed ? '' : 'mr-3',
-                'text-gray-400 hover:text-white'
+                'text-gray-400 group-hover:text-white'
               )}
             />
           ) : (
@@ -207,12 +212,12 @@ export const Sidebar = () => {
               className={cn(
                 'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
                 isCollapsed ? '' : 'mr-3',
-                'text-gray-400 hover:text-white'
+                'text-gray-400 group-hover:text-white'
               )}
             />
           )}
           {!isCollapsed && <span className="truncate">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>}
-        </div>
+        </Link>
       </nav>
 
       {/* Footer with User Info */}
