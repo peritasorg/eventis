@@ -7,12 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Loader2, AlertCircle } from 'lucide-react';
+import { Building2, Loader2, AlertCircle, Mail } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   // Redirect if already authenticated
   if (user && !loading) {
@@ -80,6 +83,38 @@ export const Auth = () => {
     setIsSubmitting(false);
   };
 
+  const handlePasswordReset = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+    
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('resetEmail') as string;
+    
+    if (!email) {
+      setError('Please enter your email address');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?tab=reset-password`,
+      });
+      
+      if (error) {
+        setError(error.message);
+      } else {
+        setResetSent(true);
+        toast.success('Password reset email sent! Check your inbox.');
+      }
+    } catch (error: any) {
+      setError('Failed to send reset email');
+    }
+    
+    setIsSubmitting(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -115,9 +150,10 @@ export const Auth = () => {
             )}
             
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                <TabsTrigger value="reset">Reset</TabsTrigger>
               </TabsList>
               
               <TabsContent value="signin">
@@ -226,6 +262,49 @@ export const Auth = () => {
                     )}
                   </Button>
                 </form>
+              </TabsContent>
+
+              <TabsContent value="reset">
+                {resetSent ? (
+                  <div className="text-center py-6">
+                    <Mail className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Check your email</h3>
+                    <p className="text-gray-600 text-sm">
+                      We've sent a password reset link to your email address.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handlePasswordReset} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Email Address</Label>
+                      <Input
+                        id="reset-email"
+                        name="resetEmail"
+                        type="email"
+                        placeholder="Enter your email address"
+                        required
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Enter your email address and we'll send you a link to reset your password.
+                    </p>
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending Reset Link...
+                        </>
+                      ) : (
+                        'Send Reset Link'
+                      )}
+                    </Button>
+                  </form>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
