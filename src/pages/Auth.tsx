@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +15,7 @@ export const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  const [testEmailSent, setTestEmailSent] = useState(false);
 
   // Redirect if already authenticated
   if (user && !loading) {
@@ -115,6 +115,28 @@ export const Auth = () => {
     setIsSubmitting(false);
   };
 
+  const handleTestEmail = async () => {
+    const testEmail = prompt("Enter email to test:");
+    if (!testEmail) return;
+    
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('test-email', {
+        body: { email: testEmail }
+      });
+      
+      if (error) {
+        setError(`Test email failed: ${error.message}`);
+      } else {
+        setTestEmailSent(true);
+        toast.success('Test email sent! Check your inbox and function logs.');
+      }
+    } catch (err) {
+      setError(`Test email error: ${err}`);
+    }
+    setIsSubmitting(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -148,6 +170,23 @@ export const Auth = () => {
                 <span className="text-sm">{error}</span>
               </div>
             )}
+            
+            {/* Test Email Button */}
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800 mb-2">🧪 Test Email Functionality:</p>
+              <Button 
+                onClick={handleTestEmail}
+                variant="outline"
+                size="sm"
+                disabled={isSubmitting}
+                className="w-full"
+              >
+                {isSubmitting ? 'Sending...' : 'Send Test Email'}
+              </Button>
+              {testEmailSent && (
+                <p className="text-xs text-green-600 mt-1">Test email sent! Check logs.</p>
+              )}
+            </div>
             
             <Tabs defaultValue="signin" className="w-full">
               <TabsList className="grid w-full grid-cols-3">

@@ -18,36 +18,37 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const payload = await req.json();
-    console.log("🔥 Auth webhook received:", JSON.stringify(payload, null, 2));
-
-    const { type, record } = payload;
-    console.log("📧 Processing event:", type);
-
-    // Handle user signup
-    if (type === "INSERT" && payload.table === "users") {
-      console.log("👤 New user signup detected:", record.email);
-      
-      const welcomeResult = await supabase.functions.invoke("send-auth-email", {
-        body: {
-          to: record.email,
-          type: "confirmation",
-          userData: {
-            full_name: record.raw_user_meta_data?.full_name || "New User",
-            business_name: record.raw_user_meta_data?.business_name || "Your Business",
-          }
-        }
-      });
-      
-      console.log("📤 Welcome email result:", welcomeResult);
+    const { email } = await req.json();
+    
+    if (!email) {
+      throw new Error("Email is required");
     }
 
-    return new Response(JSON.stringify({ success: true, event: type }), {
+    console.log("🧪 Testing email send to:", email);
+    
+    const result = await supabase.functions.invoke("send-auth-email", {
+      body: {
+        to: email,
+        type: "confirmation",
+        userData: {
+          full_name: "Test User",
+          business_name: "Test Business",
+        }
+      }
+    });
+    
+    console.log("📤 Test email result:", result);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: "Test email sent",
+      result: result 
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("❌ Auth webhook error:", error);
+    console.error("❌ Test email error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
