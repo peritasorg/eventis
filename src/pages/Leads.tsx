@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Phone, Mail, Calendar, MapPin, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,12 +10,15 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { ConvertLeadDialog } from '@/components/leads/ConvertLeadDialog';
 
 export const Leads = () => {
   const { currentTenant } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
 
   const { data: leads, refetch } = useSupabaseQuery(
     ['leads'],
@@ -123,6 +125,16 @@ export const Leads = () => {
       case 'lost': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleConvertLead = (lead: any) => {
+    setSelectedLead(lead);
+    setConvertDialogOpen(true);
+  };
+
+  const handleConversionSuccess = () => {
+    refetch();
+    setSelectedLead(null);
   };
 
   return (
@@ -325,6 +337,17 @@ export const Leads = () => {
                         <SelectItem value="lost">Lost</SelectItem>
                       </SelectContent>
                     </Select>
+                    
+                    {lead.status !== 'converted' && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleConvertLead(lead)}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Convert
+                      </Button>
+                    )}
                   </div>
                 </div>
                 
@@ -348,6 +371,14 @@ export const Leads = () => {
           </div>
         </div>
       </div>
+
+      {/* Convert Lead Dialog */}
+      <ConvertLeadDialog
+        open={convertDialogOpen}
+        onOpenChange={setConvertDialogOpen}
+        lead={selectedLead}
+        onSuccess={handleConversionSuccess}
+      />
     </div>
   );
 };

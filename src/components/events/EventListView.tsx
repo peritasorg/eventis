@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +10,7 @@ interface Event {
   event_name: string;
   event_type: string;
   event_date: string;
+  event_start_date?: string;
   start_time: string;
   end_time: string;
   estimated_guests: number;
@@ -43,11 +43,43 @@ export const EventListView: React.FC<EventListViewProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    if (!dateString) return 'No date';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return 'Invalid Date';
+    }
+  };
+
+  const formatTime = (timeString: string) => {
+    if (!timeString) return '';
+    
+    try {
+      // Handle time strings that might be in different formats
+      if (timeString.includes(':')) {
+        const [hours, minutes] = timeString.split(':');
+        const hour = parseInt(hours);
+        const min = parseInt(minutes);
+        if (isNaN(hour) || isNaN(min)) return timeString;
+        
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        return `${displayHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} ${period}`;
+      }
+      return timeString;
+    } catch (error) {
+      console.error('Time formatting error:', error);
+      return timeString;
+    }
   };
 
   if (!events || events.length === 0) {
@@ -109,11 +141,11 @@ export const EventListView: React.FC<EventListViewProps> = ({
                   <div>
                     <div className="text-sm font-medium flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      {formatDate(event.event_date)}
+                      {formatDate(event.event_start_date || event.event_date)}
                     </div>
                     <div className="text-xs text-gray-600 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {event.start_time} - {event.end_time}
+                      {formatTime(event.start_time)} - {formatTime(event.end_time)}
                     </div>
                   </div>
                 </TableCell>
