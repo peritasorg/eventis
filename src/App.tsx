@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -17,7 +18,7 @@ import { Customers } from "./pages/Customers";
 import { Settings } from "./pages/Settings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-import Success from "./pages/Success";
+import { Success } from "./pages/success";
 
 const queryClient = new QueryClient({
   defaultOptions: {
