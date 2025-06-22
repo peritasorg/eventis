@@ -107,8 +107,11 @@ export const Auth = () => {
     }
     
     try {
+      // Use the actual app URL instead of localhost
+      const redirectUrl = window.location.origin + '/auth?tab=reset-password';
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?tab=reset-password`,
+        redirectTo: redirectUrl,
       });
       
       if (error) {

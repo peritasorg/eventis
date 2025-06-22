@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -326,12 +325,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clean up any existing state
       cleanupAuthState();
       
+      // Use the actual app URL instead of localhost
+      const redirectUrl = `${window.location.origin}/auth?verified=true`;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: metadata,
-          emailRedirectTo: `${window.location.origin}/auth?verified=true`
+          emailRedirectTo: redirectUrl
         }
       });
       
