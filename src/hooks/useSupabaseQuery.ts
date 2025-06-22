@@ -34,9 +34,10 @@ export const useSupabaseMutation = (mutationFn: (variables: any) => Promise<any>
     },
     onError: (error: any) => {
       console.error('Mutation error:', error);
-      toast.error(error.message || 'An error occurred');
       if (options?.onError) {
         options.onError(error);
+      } else {
+        toast.error(error.message || 'An error occurred');
       }
     },
   });
