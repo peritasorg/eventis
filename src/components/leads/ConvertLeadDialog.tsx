@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,19 +27,39 @@ export const ConvertLeadDialog: React.FC<ConvertLeadDialogProps> = ({
   const { currentTenant } = useAuth();
   const [isConverting, setIsConverting] = useState(false);
   const [formData, setFormData] = useState({
-    name: lead?.name || '',
-    email: lead?.email || '',
-    phone: lead?.phone || '',
-    company: lead?.company || '',
-    customer_type: lead?.company ? 'corporate' : 'individual',
-    notes: lead?.notes || '',
-    create_event: !!lead?.event_date,
-    event_name: lead?.event_type ? `${lead.event_type} for ${lead.name}` : '',
-    event_type: lead?.event_type || '',
-    event_date: lead?.event_date || '',
-    estimated_guests: lead?.estimated_guests || 50,
-    estimated_budget: lead?.estimated_budget || ''
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    customer_type: 'individual',
+    notes: '',
+    create_event: false,
+    event_name: '',
+    event_type: '',
+    event_date: '',
+    estimated_guests: 50,
+    estimated_budget: ''
   });
+
+  // Pre-fill form data when lead changes
+  useEffect(() => {
+    if (lead) {
+      setFormData({
+        name: lead.name || '',
+        email: lead.email || '',
+        phone: lead.phone || '',
+        company: lead.company || '',
+        customer_type: lead.company ? 'corporate' : 'individual',
+        notes: lead.notes || '',
+        create_event: !!lead.event_date,
+        event_name: lead.event_type ? `${lead.event_type} for ${lead.name}` : '',
+        event_type: lead.event_type || '',
+        event_date: lead.event_date || '',
+        estimated_guests: lead.estimated_guests || 50,
+        estimated_budget: lead.estimated_budget ? lead.estimated_budget.toString() : ''
+      });
+    }
+  }, [lead]);
 
   const handleConvert = async () => {
     if (!currentTenant?.id || !lead) return;
