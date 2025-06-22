@@ -1,11 +1,14 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, User, Mail, Phone, Calendar, DollarSign, Plus, Edit, Eye } from 'lucide-react';
+import { Search, Filter, Plus, Edit, Eye, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,17 +31,13 @@ interface Customer {
   marketing_consent: boolean;
 }
 
-const customerTypeColors = {
-  "individual": "bg-green-100 text-green-800",
-  "corporate": "bg-orange-100 text-orange-800"
-};
-
 export const Customers = () => {
   const { currentTenant } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState("All");
+  const [selectedType, setSelectedType] = useState("all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -122,6 +121,27 @@ export const Customers = () => {
     }
   );
 
+  const deleteCustomerMutation = useSupabaseMutation(
+    async (customerId: string) => {
+      const { error } = await supabase
+        .from('customers')
+        .update({ active: false })
+        .eq('id', customerId);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Customer deleted successfully');
+        refetch();
+      },
+      onError: (error) => {
+        console.error('Error deleting customer:', error);
+        toast.error('Failed to delete customer');
+      }
+    }
+  );
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -155,6 +175,11 @@ export const Customers = () => {
     setIsEditModalOpen(true);
   };
 
+  const handleView = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setIsViewModalOpen(true);
+  };
+
   const handleUpdate = () => {
     if (selectedCustomer) {
       updateCustomerMutation.mutate({
@@ -164,173 +189,127 @@ export const Customers = () => {
     }
   };
 
+  const handleDelete = (customer: Customer) => {
+    if (confirm(`Are you sure you want to delete ${customer.name}?`)) {
+      deleteCustomerMutation.mutate(customer.id);
+    }
+  };
+
   const filteredCustomers = customers.filter((customer: Customer) => {
     const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer.phone?.includes(searchTerm);
-    const matchesType = selectedType === "All" || customer.customer_type === selectedType;
+    const matchesType = selectedType === "all" || customer.customer_type === selectedType;
     return matchesSearch && matchesType;
   });
-
-  const totalCustomers = customers.length;
-  const realCustomers = customers.filter((c: Customer) => c.total_events > 0).length;
-  const totalRevenue = customers.reduce((sum: number, c: Customer) => sum + (c.total_spent || 0), 0);
-  const avgEventValue = realCustomers > 0 ? totalRevenue / realCustomers : 0;
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Management</h1>
-          <p className="text-gray-600">Manage your quoted and confirmed customers</p>
+          <p className="text-gray-600">Manage your customer database</p>
         </div>
-        <div className="flex gap-2">
-          <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Customer
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Customer</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    placeholder="Customer name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    placeholder="customer@email.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    placeholder="+44 7123 456789"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="company">Company</Label>
-                  <Input
-                    id="company"
-                    value={formData.company}
-                    onChange={(e) => setFormData({...formData, company: e.target.value})}
-                    placeholder="Company name (optional)"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="customer_type">Customer Type</Label>
-                  <select
-                    id="customer_type"
-                    value={formData.customer_type}
-                    onChange={(e) => setFormData({...formData, customer_type: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="individual">Individual</option>
-                    <option value="corporate">Corporate</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                    placeholder="Additional notes about the customer"
-                    rows={3}
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="marketing_consent"
-                    checked={formData.marketing_consent}
-                    onChange={(e) => setFormData({...formData, marketing_consent: e.target.checked})}
-                  />
-                  <Label htmlFor="marketing_consent">Marketing consent</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="vip_status"
-                    checked={formData.vip_status}
-                    onChange={(e) => setFormData({...formData, vip_status: e.target.checked})}
-                  />
-                  <Label htmlFor="vip_status">VIP status</Label>
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreate} disabled={!formData.name || createCustomerMutation.isPending}>
-                    {createCustomerMutation.isPending ? 'Creating...' : 'Create Customer'}
-                  </Button>
-                </div>
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Customer
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Customer</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="Customer name"
+                />
               </div>
-            </DialogContent>
-          </Dialog>
-          <Button variant="outline">
-            Export Customers
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Customers</p>
-              <p className="text-2xl font-bold text-gray-900">{totalCustomers}</p>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  placeholder="customer@email.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  placeholder="+44 7123 456789"
+                />
+              </div>
+              <div>
+                <Label htmlFor="company">Company</Label>
+                <Input
+                  id="company"
+                  value={formData.company}
+                  onChange={(e) => setFormData({...formData, company: e.target.value})}
+                  placeholder="Company name (optional)"
+                />
+              </div>
+              <div>
+                <Label htmlFor="customer_type">Customer Type</Label>
+                <Select value={formData.customer_type} onValueChange={(value) => setFormData({...formData, customer_type: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="corporate">Corporate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  placeholder="Additional notes about the customer"
+                  rows={3}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="marketing_consent"
+                  checked={formData.marketing_consent}
+                  onChange={(e) => setFormData({...formData, marketing_consent: e.target.checked})}
+                />
+                <Label htmlFor="marketing_consent">Marketing consent</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="vip_status"
+                  checked={formData.vip_status}
+                  onChange={(e) => setFormData({...formData, vip_status: e.target.checked})}
+                />
+                <Label htmlFor="vip_status">VIP status</Label>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreate} disabled={!formData.name || createCustomerMutation.isPending}>
+                  {createCustomerMutation.isPending ? 'Creating...' : 'Create Customer'}
+                </Button>
+              </div>
             </div>
-            <User className="h-8 w-8 text-blue-600" />
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Active Customers</p>
-              <p className="text-2xl font-bold text-green-600">{realCustomers}</p>
-            </div>
-            <DollarSign className="h-8 w-8 text-green-600" />
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-purple-600">
-                £{totalRevenue.toLocaleString()}
-              </p>
-            </div>
-            <Calendar className="h-8 w-8 text-purple-600" />
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Avg. Customer Value</p>
-              <p className="text-2xl font-bold text-orange-600">£{Math.round(avgEventValue).toLocaleString()}</p>
-            </div>
-            <DollarSign className="h-8 w-8 text-orange-600" />
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filters */}
@@ -346,109 +325,95 @@ export const Customers = () => {
             />
           </div>
           <div className="flex gap-2">
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="All">All Types</option>
-              <option value="individual">Individual</option>
-              <option value="corporate">Corporate</option>
-            </select>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              More Filters
-            </Button>
+            <Select value={selectedType} onValueChange={setSelectedType}>
+              <SelectTrigger className="w-48">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="individual">Individual</SelectItem>
+                <SelectItem value="corporate">Corporate</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
 
-      {/* Customer Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredCustomers.map((customer: Customer) => (
-          <div key={customer.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 hover:scale-105">
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{customer.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    Customer since {new Date(customer.customer_since).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${customerTypeColors[customer.customer_type as keyof typeof customerTypeColors]}`}>
-                  {customer.customer_type}
-                </span>
-                {customer.vip_status && (
-                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-gold-100 text-gold-800">
-                    VIP
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Contact Info */}
-            <div className="space-y-2 mb-4">
-              {customer.email && (
-                <div className="flex items-center text-sm text-gray-600">
-                  <Mail className="h-4 w-4 mr-2" />
-                  {customer.email}
-                </div>
-              )}
-              {customer.phone && (
-                <div className="flex items-center text-sm text-gray-600">
-                  <Phone className="h-4 w-4 mr-2" />
-                  {customer.phone}
-                </div>
-              )}
-            </div>
-
-            {/* Customer Metrics */}
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600">Total Spent</p>
-                  <p className="font-semibold text-lg">£{(customer.total_spent || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Events</p>
-                  <p className="font-semibold text-lg">{customer.total_events || 0}</p>
-                </div>
-              </div>
-              {customer.last_event_date && (
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">Last Event</p>
-                  <p className="text-sm font-medium">{new Date(customer.last_event_date).toLocaleDateString()}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Notes */}
-            {customer.notes && (
-              <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-1">Notes</p>
-                <p className="text-sm text-gray-700">{customer.notes}</p>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              <Button size="sm" className="flex-1" onClick={() => handleEdit(customer)}>
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
-              <Button size="sm" variant="outline">
-                <Eye className="h-4 w-4 mr-1" />
-                View
-              </Button>
-            </div>
+      {/* Customer Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Events</TableHead>
+              <TableHead>Total Spent</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredCustomers.map((customer: Customer) => (
+              <TableRow key={customer.id}>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">{customer.name}</div>
+                    {customer.company && (
+                      <div className="text-sm text-gray-500">{customer.company}</div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    {customer.email && <div>{customer.email}</div>}
+                    {customer.phone && <div className="text-gray-500">{customer.phone}</div>}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={customer.customer_type === 'corporate' ? 'default' : 'secondary'}>
+                    {customer.customer_type}
+                  </Badge>
+                </TableCell>
+                <TableCell>{customer.total_events || 0}</TableCell>
+                <TableCell>£{(customer.total_spent || 0).toLocaleString()}</TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Badge variant="outline">Active</Badge>
+                    {customer.vip_status && (
+                      <Badge className="bg-yellow-100 text-yellow-800">VIP</Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleView(customer)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(customer)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleDelete(customer)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        
+        {filteredCustomers.length === 0 && (
+          <div className="text-center py-12">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No customers found</h3>
+            <p className="text-gray-600 mb-4">Start by adding your first customer</p>
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Your First Customer
+            </Button>
           </div>
-        ))}
+        )}
       </div>
 
       {/* Edit Modal */}
@@ -458,6 +423,7 @@ export const Customers = () => {
             <DialogTitle>Edit Customer</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Same form fields as create modal */}
             <div>
               <Label htmlFor="edit-name">Name *</Label>
               <Input
@@ -497,15 +463,15 @@ export const Customers = () => {
             </div>
             <div>
               <Label htmlFor="edit-customer_type">Customer Type</Label>
-              <select
-                id="edit-customer_type"
-                value={formData.customer_type}
-                onChange={(e) => setFormData({...formData, customer_type: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="individual">Individual</option>
-                <option value="corporate">Corporate</option>
-              </select>
+              <Select value={formData.customer_type} onValueChange={(value) => setFormData({...formData, customer_type: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="individual">Individual</SelectItem>
+                  <SelectItem value="corporate">Corporate</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="edit-notes">Notes</Label>
@@ -544,6 +510,76 @@ export const Customers = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Customer Details</DialogTitle>
+          </DialogHeader>
+          {selectedCustomer && (
+            <div className="space-y-4">
+              <div>
+                <Label>Name</Label>
+                <p className="text-sm text-gray-600">{selectedCustomer.name}</p>
+              </div>
+              {selectedCustomer.email && (
+                <div>
+                  <Label>Email</Label>
+                  <p className="text-sm text-gray-600">{selectedCustomer.email}</p>
+                </div>
+              )}
+              {selectedCustomer.phone && (
+                <div>
+                  <Label>Phone</Label>
+                  <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>
+                </div>
+              )}
+              {selectedCustomer.company && (
+                <div>
+                  <Label>Company</Label>
+                  <p className="text-sm text-gray-600">{selectedCustomer.company}</p>
+                </div>
+              )}
+              <div>
+                <Label>Customer Type</Label>
+                <p className="text-sm text-gray-600">{selectedCustomer.customer_type}</p>
+              </div>
+              <div>
+                <Label>Total Events</Label>
+                <p className="text-sm text-gray-600">{selectedCustomer.total_events || 0}</p>
+              </div>
+              <div>
+                <Label>Total Spent</Label>
+                <p className="text-sm text-gray-600">£{(selectedCustomer.total_spent || 0).toLocaleString()}</p>
+              </div>
+              {selectedCustomer.notes && (
+                <div>
+                  <Label>Notes</Label>
+                  <p className="text-sm text-gray-600">{selectedCustomer.notes}</p>
+                </div>
+              )}
+              <div>
+                <Label>Status</Label>
+                <div className="flex gap-2">
+                  <Badge variant="outline">Active</Badge>
+                  {selectedCustomer.vip_status && (
+                    <Badge className="bg-yellow-100 text-yellow-800">VIP</Badge>
+                  )}
+                  {selectedCustomer.marketing_consent && (
+                    <Badge variant="secondary">Marketing Consent</Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
