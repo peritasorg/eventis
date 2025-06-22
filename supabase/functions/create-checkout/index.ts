@@ -42,29 +42,24 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // Define pricing for each tier
-    const tierPricing = {
-      'Professional': { amount: 9900, name: 'Professional Plan' }, // $99
-      'Business': { amount: 14900, name: 'Business Plan' },        // $149
-      'Enterprise': { amount: 15900, name: 'Enterprise Plan' }     // $159
+    // Define the actual Price IDs from your Stripe dashboard
+    const tierPriceIds = {
+      'Professional': 'price_1Rco5vRekDN8Vqc1cOTMOn5m',
+      'Business': 'price_1RcwmGRekDN8Vqc15V477P1B',
+      'Enterprise': 'price_1RcwmaRekDN8Vqc1Elx4sRij'
     };
 
-    const pricing = tierPricing[tier as keyof typeof tierPricing];
-    if (!pricing) throw new Error("Invalid subscription tier");
+    const priceId = tierPriceIds[tier as keyof typeof tierPriceIds];
+    if (!priceId) throw new Error("Invalid subscription tier");
 
-    logStep("Creating checkout session", { tier, pricing });
+    logStep("Creating checkout session", { tier, priceId });
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price_data: {
-            currency: "usd",
-            product_data: { name: pricing.name },
-            unit_amount: pricing.amount,
-            recurring: { interval: "month" },
-          },
+          price: priceId,
           quantity: 1,
         },
       ],
