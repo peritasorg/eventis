@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -88,16 +89,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Check subscription status
         await checkSubscriptionStatus();
       } else {
-        console.log('No user profile found - user may need to complete registration');
-        setUserProfile(null);
-        setCurrentTenant(null);
-        setSubscriptionData(null);
+        console.log('No user profile found - creating user profile');
+        // Trigger user profile creation
+        await createUserProfile(userId);
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
       setUserProfile(null);
       setCurrentTenant(null);
       setSubscriptionData(null);
+    }
+  };
+
+  const createUserProfile = async (userId: string) => {
+    try {
+      console.log('Creating user profile for:', userId);
+      
+      // Get user info from auth
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) return;
+      
+      // Create tenant first
+      const businessName = authUser.user_metadata?.business_name || 'My Business';
+      const slug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + userId.substring(0, 8);
+      
+      const { data: tenantData, error: tenantError } = await supabase
+        .from('tenants')
+        .insert({
+          business_name: businessName,
+          slug: slug,
+          contact_email: authUser.email,
+          subscription_status: 'trial',
+          trial_starts_at: new Date().toISOString(),
+          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          trial_used: true
+        })
+        .select()
+        .single();
+      
+      if (tenantError) {
+        console.error('Error creating tenant:', tenantError);
+        return;
+      }
+      
+      // Create user profile
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          email: authUser.email,
+          full_name: authUser.user_metadata?.full_name || authUser.email,
+          first_name: authUser.user_metadata?.first_name || '',
+          last_name: authUser.user_metadata?.last_name || '',
+          tenant_id: tenantData.id,
+          role: 'tenant_admin',
+          active: true,
+          email_verified: authUser.email_confirmed_at ? true : false
+        })
+        .select()
+        .single();
+      
+      if (profileError) {
+        console.error('Error creating user profile:', profileError);
+        return;
+      }
+      
+      console.log('User profile created successfully');
+      setUserProfile(userProfile);
+      setCurrentTenant(tenantData);
+      
+    } catch (error) {
+      console.error('Error creating user profile:', error);
     }
   };
 
@@ -145,6 +208,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          // Check if email is verified
+          if (!session.user.email_confirmed_at) {
+            console.warn('User email not confirmed');
+            toast.error('Please verify your email address before using the app');
+            await signOut();
+            return;
+          }
+          
           // Fetch user data after setting session
           await fetchUserData(session.user.id);
         }
@@ -169,6 +240,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user && event === 'SIGNED_IN') {
+          // Check email verification
+          if (!session.user.email_confirmed_at) {
+            console.warn('User email not confirmed on sign in');
+            toast.error('Please verify your email address before accessing your account');
+            setTimeout(async () => {
+              await signOut();
+            }, 2000);
+            return;
+          }
+          
           // Use setTimeout to prevent potential conflicts with auth state changes
           setTimeout(async () => {
             if (mounted) {
@@ -179,6 +260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Clear all data when user logs out
           setCurrentTenant(null);
           setUserProfile(null);
+          setSubscriptionData(null);
         }
         
         // Only set loading to false after we've processed the auth change
@@ -216,6 +298,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data.user) {
+        // Check if email is verified
+        if (!data.user.email_confirmed_at) {
+          toast.error('Please verify your email address before signing in');
+          await supabase.auth.signOut();
+          return { error: new Error('Email not verified') };
+        }
+        
         toast.success('Signed in successfully!');
         return { error: null };
       }
@@ -242,7 +331,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
         options: {
           data: metadata,
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: `${window.location.origin}/auth?verified=true`
         }
       });
       
@@ -256,7 +345,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data.user.email_confirmed_at) {
           toast.success('Account created successfully!');
         } else {
-          toast.success('Account created! Please check your email to verify your account.');
+          toast.success('Account created! Please check your email to verify your account before signing in.');
         }
         return { error: null };
       }

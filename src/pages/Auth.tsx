@@ -1,13 +1,13 @@
 
-import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Loader2, AlertCircle, Mail } from 'lucide-react';
+import { Building2, Loader2, AlertCircle, Mail, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -16,11 +16,20 @@ export const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  const [searchParams] = useSearchParams();
+  const verified = searchParams.get('verified') === 'true';
 
   // Redirect if already authenticated
   if (user && !loading) {
     return <Navigate to="/" replace />;
   }
+
+  // Show verification success message
+  useEffect(() => {
+    if (verified) {
+      toast.success('Email verified successfully! You can now sign in.');
+    }
+  }, [verified]);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -142,6 +151,13 @@ export const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {verified && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center text-green-700">
+                <CheckCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="text-sm">Email verified successfully! You can now sign in.</span>
+              </div>
+            )}
+            
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
                 <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
@@ -246,6 +262,10 @@ export const Auth = () => {
                   </div>
                   <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                     🎉 <strong>14-day free trial</strong> - No credit card required
+                    <br />
+                    <small className="text-xs text-gray-500 mt-1 block">
+                      You'll need to verify your email before accessing your account
+                    </small>
                   </div>
                   <Button 
                     type="submit" 
