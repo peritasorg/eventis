@@ -14,29 +14,62 @@ export const Dashboard = () => {
     async () => {
       if (!currentTenant?.id) return null;
       
-      const { data, error } = await supabase.rpc('get_tenant_dashboard_stats', {
-        p_tenant_id: currentTenant.id
-      });
+      // Get stats manually since the stored procedure might be using old column names
+      const [leadsResult, customersResult, eventsResult, revenueResult, upcomingResult] = await Promise.all([
+        // Total leads
+        supabase
+          .from('leads')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', currentTenant.id),
+        
+        // Total customers
+        supabase
+          .from('customers')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true),
+        
+        // Active events (confirmed or inquiry status)
+        supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', currentTenant.id)
+          .in('status', ['confirmed', 'inquiry']),
+        
+        // This month revenue (completed events)
+        supabase
+          .from('events')
+          .select('total_amount')
+          .eq('tenant_id', currentTenant.id)
+          .eq('status', 'completed')
+          .gte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
+          .lte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]),
+        
+        // Upcoming events
+        supabase
+          .from('events')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', currentTenant.id)
+          .gte('event_start_date', new Date().toISOString().split('T')[0])
+          .in('status', ['confirmed', 'inquiry'])
+      ]);
       
-      if (error) {
-        console.error('Dashboard stats error:', error);
-        return {
-          total_leads: 0,
-          new_leads_this_month: 0,
-          total_customers: 0,
-          active_events: 0,
-          this_month_revenue: 0,
-          upcoming_events: 0
-        };
-      }
+      const thisMonthRevenue = revenueResult.data?.reduce((sum, event) => sum + (event.total_amount || 0), 0) || 0;
       
-      return data?.[0] || {
-        total_leads: 0,
-        new_leads_this_month: 0,
-        total_customers: 0,
-        active_events: 0,
-        this_month_revenue: 0,
-        upcoming_events: 0
+      // New leads this month
+      const newLeadsResult = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', currentTenant.id)
+        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+      
+      return {
+        total_leads: leadsResult.count || 0,
+        new_leads_this_month: newLeadsResult.count || 0,
+        total_customers: customersResult.count || 0,
+        active_events: eventsResult.count || 0,
+        this_month_revenue: thisMonthRevenue,
+        upcoming_events: upcomingResult.count || 0
       };
     }
   );
@@ -71,8 +104,8 @@ export const Dashboard = () => {
         .from('events')
         .select('*')
         .eq('tenant_id', currentTenant.id)
-        .gte('event_date', new Date().toISOString().split('T')[0])
-        .order('event_date', { ascending: true })
+        .gte('event_start_date', new Date().toISOString().split('T')[0])
+        .order('event_start_date', { ascending: true })
         .limit(5);
       
       if (error) {
@@ -192,7 +225,7 @@ export const Dashboard = () => {
                     <p className="text-sm text-gray-600">{event.event_type}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{new Date(event.event_date).toLocaleDateString()}</p>
+                    <p className="text-sm font-medium text-gray-900">{new Date(event.event_start_date).toLocaleDateString()}</p>
                     <p className="text-xs text-gray-600">{event.start_time} - {event.end_time}</p>
                   </div>
                 </div>

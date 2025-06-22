@@ -18,18 +18,11 @@ interface EventFormTabProps {
 
 export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   const { currentTenant } = useAuth();
-  const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, any>>(event.form_responses || {});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Set the active form ID based on what's already loaded or selected
-  const activeFormId = event.form_template_used || selectedFormId;
-
-  useEffect(() => {
-    if (event.form_template_used) {
-      setSelectedFormId(event.form_template_used);
-    }
-  }, [event.form_template_used]);
+  // Use the event's form_template_used as the selected form - this ensures persistence
+  const selectedFormId = event.form_template_used || '';
 
   // ... keep existing code (form templates query)
 
@@ -57,9 +50,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   // ... keep existing code (selected form fields query)
 
   const { data: selectedFormFields } = useSupabaseQuery(
-    ['form-fields', activeFormId],
+    ['form-fields', selectedFormId],
     async () => {
-      if (!activeFormId || !currentTenant?.id) return [];
+      if (!selectedFormId || !currentTenant?.id) return [];
       
       const { data, error } = await supabase
         .from('form_field_instances')
@@ -76,7 +69,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
             price_modifier
           )
         `)
-        .eq('form_template_id', activeFormId)
+        .eq('form_template_id', selectedFormId)
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
       
@@ -113,14 +106,14 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     }
   );
 
-  const handleLoadForm = () => {
-    if (!selectedFormId) {
+  const handleLoadForm = (newFormId: string) => {
+    if (!newFormId) {
       toast.error('Please select a form template');
       return;
     }
     
     updateEventMutation.mutate({
-      form_template_used: selectedFormId
+      form_template_used: newFormId
     });
   };
 
@@ -211,7 +204,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
           <div className="flex items-end gap-3">
             <div className="flex-1">
               <Label htmlFor="form_template" className="text-sm">Select Form Template</Label>
-              <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+              <Select value={selectedFormId} onValueChange={handleLoadForm}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Choose a form template..." />
                 </SelectTrigger>
@@ -227,18 +220,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                 </SelectContent>
               </Select>
             </div>
-            <Button 
-              onClick={handleLoadForm} 
-              disabled={!selectedFormId || selectedFormId === event.form_template_used} 
-              size="sm"
-            >
-              {selectedFormId === event.form_template_used ? 'Loaded' : 'Load Form'}
-            </Button>
           </div>
           
-          {event.form_template_used && (
+          {selectedFormId && (
             <div className="mt-3 p-2 bg-blue-50 rounded text-sm text-blue-800">
-              Currently using: {formTemplates?.find(t => t.id === event.form_template_used)?.name || 'Unknown Template'}
+              Currently using: {formTemplates?.find(t => t.id === selectedFormId)?.name || 'Unknown Template'}
             </div>
           )}
         </CardContent>
