@@ -100,7 +100,7 @@ export const Sidebar = () => {
 
   const SidebarContent = () => (
     <>
-      {/* Logo/Brand with collapse toggle and fullscreen button */}
+      {/* Logo/Brand with collapse toggle */}
       <div className={cn(
         "flex h-16 items-center border-b border-gray-700 transition-all duration-200",
         isCollapsed ? "px-3 justify-center" : "px-4 lg:px-6"
@@ -111,22 +111,8 @@ export const Sidebar = () => {
             <span className="ml-2 lg:ml-3 text-base lg:text-lg font-semibold text-white truncate">BanquetPro</span>
           </>
         )}
-        {isCollapsed && <Building2 className="h-6 w-6 text-blue-400" />}
         
         <div className="ml-auto flex items-center gap-2">
-          {/* Fullscreen Button */}
-          {!isCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleFullscreen}
-              className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8 p-0"
-              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            >
-              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-            </Button>
-          )}
-          
           {/* Collapse Toggle */}
           {!isMobile && (
             <Button
@@ -197,6 +183,36 @@ export const Sidebar = () => {
             </Link>
           );
         })}
+
+        {/* Fullscreen Button in Navigation */}
+        <div
+          className={cn(
+            'flex items-center text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer',
+            isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
+            'text-gray-300 hover:bg-gray-800 hover:text-white hover:scale-105'
+          )}
+          onClick={toggleFullscreen}
+          title={isCollapsed ? (isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen') : undefined}
+        >
+          {isFullscreen ? (
+            <Minimize
+              className={cn(
+                'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
+                isCollapsed ? '' : 'mr-3',
+                'text-gray-400 hover:text-white'
+              )}
+            />
+          ) : (
+            <Maximize
+              className={cn(
+                'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
+                isCollapsed ? '' : 'mr-3',
+                'text-gray-400 hover:text-white'
+              )}
+            />
+          )}
+          {!isCollapsed && <span className="truncate">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>}
+        </div>
       </nav>
 
       {/* Footer with User Info */}
