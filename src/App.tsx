@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -18,6 +17,7 @@ import { Customers } from "./pages/Customers";
 import { Settings } from "./pages/Settings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Success from "./pages/Success";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +38,11 @@ const App: React.FC = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/success" element={
+                <ProtectedRoute>
+                  <Success />
+                </ProtectedRoute>
+              } />
               <Route path="/*" element={
                 <ProtectedRoute>
                   <div className="flex h-screen w-full bg-gray-50">

@@ -46,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [currentTenant, setCurrentTenant] = useState<any | null>(null);
   const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = async (userId: string) => {
@@ -61,7 +62,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (userError) {
         console.error('Error fetching user profile:', userError);
-        // Don't return early - user might not have profile yet
       }
       
       if (userData) {
@@ -83,16 +83,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentTenant(tenantData);
           }
         }
+
+        // Check subscription status
+        await checkSubscriptionStatus();
       } else {
         console.log('No user profile found - user may need to complete registration');
-        // Clear any stale data
         setUserProfile(null);
         setCurrentTenant(null);
+        setSubscriptionData(null);
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
       setUserProfile(null);
       setCurrentTenant(null);
+      setSubscriptionData(null);
+    }
+  };
+
+  const checkSubscriptionStatus = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-subscription');
+      
+      if (error) {
+        console.error('Error checking subscription:', error);
+        return;
+      }
+      
+      console.log('Subscription status:', data);
+      setSubscriptionData(data);
+    } catch (error) {
+      console.error('Error invoking check-subscription:', error);
     }
   };
 
@@ -267,6 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(null);
         setCurrentTenant(null);
         setUserProfile(null);
+        setSubscriptionData(null);
         
         // Clean up storage
         cleanupAuthState();
@@ -289,11 +310,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     currentTenant,
     userProfile,
+    subscriptionData,
     loading,
     signIn,
     signUp,
     signOut,
     refreshUserData,
+    checkSubscriptionStatus,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
