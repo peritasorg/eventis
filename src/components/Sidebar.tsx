@@ -17,7 +17,7 @@ const navigation = [
 
 export const Sidebar = () => {
   const location = useLocation();
-  const { user, signOut, currentTenant, userProfile } = useAuth();
+  const { user, signOut, currentTenant, userProfile, subscriptionData } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -60,6 +60,16 @@ export const Sidebar = () => {
   const getSubscriptionStatus = () => {
     if (!currentTenant) return 'Loading...';
     
+    // Check subscription data from check-subscription function first
+    if (subscriptionData) {
+      if (subscriptionData.subscribed) {
+        return subscriptionData.subscription_tier || 'Active Plan';
+      } else {
+        return 'Free Trial';
+      }
+    }
+    
+    // Fallback to tenant subscription status
     const status = currentTenant.subscription_status;
     
     switch (status) {

@@ -90,22 +90,39 @@ serve(async (req) => {
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       
-      // Determine subscription tier from price
+      // Determine subscription tier from price - updated logic for your specific pricing
       const priceId = subscription.items.data[0].price.id;
       const price = await stripe.prices.retrieve(priceId);
       const amount = price.unit_amount || 0;
-      if (amount === 9900) {
+      
+      // Map based on your actual price amounts (in pence/cents)
+      if (amount === 9900) { // £99
         subscriptionTier = "Professional";
-      } else if (amount === 14900) {
+      } else if (amount === 14900) { // £149
         subscriptionTier = "Business";
-      } else if (amount === 15900) {
+      } else if (amount === 15000) { // £150 - your current subscription
         subscriptionTier = "Enterprise";
+      } else if (amount === 15900) { // £159
+        subscriptionTier = "Enterprise";
+      } else {
+        // Default tier based on amount ranges
+        if (amount <= 5000) {
+          subscriptionTier = "Basic";
+        } else if (amount <= 10000) {
+          subscriptionTier = "Professional";
+        } else if (amount <= 15000) {
+          subscriptionTier = "Business";
+        } else {
+          subscriptionTier = "Enterprise";
+        }
       }
+      
       logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
     } else {
       logStep("No active subscription found");
     }
 
+    // Update both subscribers table and tenant subscription status
     await supabaseClient.from("subscribers").upsert({
       email: user.email,
       user_id: user.id,
@@ -115,6 +132,19 @@ serve(async (req) => {
       subscription_end: subscriptionEnd,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
+
+    // Also update the tenant subscription status
+    if (hasActiveSub) {
+      await supabaseClient
+        .from("tenants")
+        .update({
+          subscription_status: "active",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("contact_email", user.email);
+      
+      logStep("Updated tenant subscription status to active");
+    }
 
     logStep("Updated database with subscription info", { subscribed: hasActiveSub, subscriptionTier });
     return new Response(JSON.stringify({
