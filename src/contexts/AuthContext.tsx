@@ -63,6 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (userError) {
         console.error('Error fetching user profile:', userError);
+        // Try to create profile if fetch failed
+        await createUserProfile(userId);
+        return;
       }
       
       if (userData) {
@@ -89,14 +92,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await checkSubscriptionStatus();
       } else {
         console.log('No user profile found - creating user profile');
-        // Trigger user profile creation
+        // User profile doesn't exist, create it
         await createUserProfile(userId);
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
-      setUserProfile(null);
-      setCurrentTenant(null);
-      setSubscriptionData(null);
+      // Try to create profile as fallback
+      try {
+        await createUserProfile(userId);
+      } catch (createError) {
+        console.error('Failed to create user profile:', createError);
+        setUserProfile(null);
+        setCurrentTenant(null);
+        setSubscriptionData(null);
+      }
     }
   };
 
@@ -107,11 +116,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Get user info from auth
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
-      if (!authUser) return;
+      if (!authUser) {
+        console.error('No auth user found when trying to create profile');
+        return;
+      }
+      
+      // First check if profile already exists (race condition protection)
+      const { data: existingProfile } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (existingProfile) {
+        console.log('Profile already exists, refetching data');
+        await fetchUserData(userId);
+        return;
+      }
       
       // Create tenant first
       const businessName = authUser.user_metadata?.business_name || 'My Business';
-      const slug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + userId.substring(0, 8);
+      const baseSlug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + userId.substring(0, 8);
+      
+      // Ensure unique slug
+      let slug = baseSlug;
+      let counter = 0;
+      while (true) {
+        const { data: existingTenant } = await supabase
+          .from('tenants')
+          .select('id')
+          .eq('slug', slug)
+          .maybeSingle();
+        
+        if (!existingTenant) break;
+        counter++;
+        slug = `${baseSlug}-${counter}`;
+      }
       
       const { data: tenantData, error: tenantError } = await supabase
         .from('tenants')
@@ -129,8 +169,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (tenantError) {
         console.error('Error creating tenant:', tenantError);
-        return;
+        throw tenantError;
       }
+      
+      console.log('Tenant created:', tenantData);
       
       // Create user profile
       const { data: userProfile, error: profileError } = await supabase
@@ -151,15 +193,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (profileError) {
         console.error('Error creating user profile:', profileError);
-        return;
+        throw profileError;
       }
       
-      console.log('User profile created successfully');
+      console.log('User profile created successfully:', userProfile);
       setUserProfile(userProfile);
       setCurrentTenant(tenantData);
       
     } catch (error) {
       console.error('Error creating user profile:', error);
+      throw error;
     }
   };
 
