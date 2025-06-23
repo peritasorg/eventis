@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
@@ -119,7 +120,7 @@ export const Sidebar = () => {
         {!isCollapsed && (
           <>
             <img 
-              src="/lovable-uploads/16cc12a3-a27d-4a10-b056-398569b8dfa5.png" 
+              src="/lovable-uploads/49c7bf41-965b-4ca2-94c4-d45ad86250e9.png" 
               alt="Eventis" 
               className="h-8 w-auto flex-shrink-0"
             />

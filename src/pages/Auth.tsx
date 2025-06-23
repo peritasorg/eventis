@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -192,7 +193,7 @@ export const Auth = () => {
           <img 
             src="/lovable-uploads/a1e4246b-792c-4cc3-a040-31c53413af0d.png" 
             alt="Eventis" 
-            className="h-12 w-auto"
+            className="h-24 w-auto"
           />
         </div>
         
