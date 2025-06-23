@@ -27,8 +27,21 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    // Try multiple possible environment variable names for Stripe key
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || 
+                     Deno.env.get("Stripe Test Key") || 
+                     Deno.env.get("STRIPE_TEST_SECRET_KEY");
+    
+    if (!stripeKey) {
+      logStep("ERROR: No Stripe key found", {
+        available_env_vars: Object.keys(Deno.env.toObject()).filter(key => 
+          key.toLowerCase().includes('stripe')
+        )
+      });
+      throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
+    }
+    
+    logStep("Stripe key found", { keyPrefix: stripeKey.substring(0, 8) + "..." });
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -114,7 +127,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage });
+    logStep("ERROR in check-subscription", { message: errorMessage, stack: error instanceof Error ? error.stack : undefined });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
