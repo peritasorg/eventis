@@ -197,7 +197,7 @@ export const Auth = () => {
           />
         </div>
         
-        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl overflow-hidden">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Eventis</CardTitle>
             <CardDescription className="text-slate-600">
@@ -226,150 +226,33 @@ export const Auth = () => {
                 <TabsTrigger value="reset" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Reset</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email" className="text-slate-700">Email</Label>
-                    <Input
-                      id="signin-email"
-                      name="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      required
-                      disabled={isSubmitting}
-                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password" className="text-slate-700">Password</Label>
-                    <Input
-                      id="signin-password"
-                      name="password"
-                      type="password"
-                      placeholder="Enter your password"
-                      required
-                      disabled={isSubmitting}
-                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing In...
-                      </>
-                    ) : (
-                      'Sign In'
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name" className="text-slate-700">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      name="fullName"
-                      type="text"
-                      placeholder="Enter your full name"
-                      required
-                      disabled={isSubmitting}
-                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-business" className="text-slate-700">Business Name</Label>
-                    <Input
-                      id="signup-business"
-                      name="businessName"
-                      type="text"
-                      placeholder="Enter your business name"
-                      required
-                      disabled={isSubmitting}
-                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-slate-700">Email</Label>
-                    <Input
-                      id="signup-email"
-                      name="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      required
-                      disabled={isSubmitting}
-                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="text-slate-700">Password</Label>
-                    <Input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      placeholder="Create a password"
-                      required
-                      minLength={6}
-                      disabled={isSubmitting}
-                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
-                    />
-                  </div>
-                  <div className="text-sm text-slate-600 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
-                    🎉 <strong>14-day free trial</strong> - No credit card required
-                    <br />
-                    <small className="text-xs text-slate-500 mt-1 block">
-                      You'll need to verify your email before accessing your account
-                    </small>
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating Account...
-                      </>
-                    ) : (
-                      'Start Free Trial'
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="reset">
-                {resetSent ? (
-                  <div className="text-center py-6">
-                    <Mail className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2 text-slate-900">Check your email</h3>
-                    <p className="text-slate-600 text-sm">
-                      We've sent a password reset link to your email address.
-                    </p>
-                  </div>
-                ) : (
-                  <form onSubmit={handlePasswordReset} className="space-y-4">
+              <div className="relative overflow-hidden">
+                <TabsContent value="signin" className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-right-2 data-[state=inactive]:animate-out data-[state=inactive]:fade-out-0 data-[state=inactive]:slide-out-to-left-2 transition-all duration-300">
+                  <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="reset-email" className="text-slate-700">Email Address</Label>
+                      <Label htmlFor="signin-email" className="text-slate-700">Email</Label>
                       <Input
-                        id="reset-email"
-                        name="resetEmail"
+                        id="signin-email"
+                        name="email"
                         type="email"
-                        placeholder="Enter your email address"
+                        placeholder="Enter your email"
                         required
                         disabled={isSubmitting}
                         className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
                       />
                     </div>
-                    <p className="text-sm text-slate-600">
-                      Enter your email address and we'll send you a link to reset your password.
-                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-password" className="text-slate-700">Password</Label>
+                      <Input
+                        id="signin-password"
+                        name="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        required
+                        disabled={isSubmitting}
+                        className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
+                      />
+                    </div>
                     <Button 
                       type="submit" 
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
@@ -378,15 +261,134 @@ export const Auth = () => {
                       {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending Reset Link...
+                          Signing In...
                         </>
                       ) : (
-                        'Send Reset Link'
+                        'Sign In'
                       )}
                     </Button>
                   </form>
-                )}
-              </TabsContent>
+                </TabsContent>
+                
+                <TabsContent value="signup" className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-right-2 data-[state=inactive]:animate-out data-[state=inactive]:fade-out-0 data-[state=inactive]:slide-out-to-left-2 transition-all duration-300">
+                  <form onSubmit={handleSignUp} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-name" className="text-slate-700">Full Name</Label>
+                      <Input
+                        id="signup-name"
+                        name="fullName"
+                        type="text"
+                        placeholder="Enter your full name"
+                        required
+                        disabled={isSubmitting}
+                        className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-business" className="text-slate-700">Business Name</Label>
+                      <Input
+                        id="signup-business"
+                        name="businessName"
+                        type="text"
+                        placeholder="Enter your business name"
+                        required
+                        disabled={isSubmitting}
+                        className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email" className="text-slate-700">Email</Label>
+                      <Input
+                        id="signup-email"
+                        name="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        required
+                        disabled={isSubmitting}
+                        className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password" className="text-slate-700">Password</Label>
+                      <Input
+                        id="signup-password"
+                        name="password"
+                        type="password"
+                        placeholder="Create a password"
+                        required
+                        minLength={6}
+                        disabled={isSubmitting}
+                        className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
+                      />
+                    </div>
+                    <div className="text-sm text-slate-600 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                      🎉 <strong>14-day free trial</strong> - No credit card required
+                      <br />
+                      <small className="text-xs text-slate-500 mt-1 block">
+                        You'll need to verify your email before accessing your account
+                      </small>
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Account...
+                        </>
+                      ) : (
+                        'Start Free Trial'
+                      )}
+                    </Button>
+                  </form>
+                </TabsContent>
+
+                <TabsContent value="reset" className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-right-2 data-[state=inactive]:animate-out data-[state=inactive]:fade-out-0 data-[state=inactive]:slide-out-to-left-2 transition-all duration-300">
+                  {resetSent ? (
+                    <div className="text-center py-6">
+                      <Mail className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-slate-900">Check your email</h3>
+                      <p className="text-slate-600 text-sm">
+                        We've sent a password reset link to your email address.
+                      </p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handlePasswordReset} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-email" className="text-slate-700">Email Address</Label>
+                        <Input
+                          id="reset-email"
+                          name="resetEmail"
+                          type="email"
+                          placeholder="Enter your email address"
+                          required
+                          disabled={isSubmitting}
+                          className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
+                        />
+                      </div>
+                      <p className="text-sm text-slate-600">
+                        Enter your email address and we'll send you a link to reset your password.
+                      </p>
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending Reset Link...
+                          </>
+                        ) : (
+                          'Send Reset Link'
+                        )}
+                      </Button>
+                    </form>
+                  )}
+                </TabsContent>
+              </div>
             </Tabs>
           </CardContent>
         </Card>
