@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,19 +10,46 @@ import { Loader2, AlertCircle, Mail, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const FloatingEmoji = ({ emoji, delay }: { emoji: string; delay: number }) => (
-  <div 
-    className="absolute text-4xl opacity-20 animate-bounce pointer-events-none"
-    style={{
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-      animationDelay: `${delay}s`,
-      animationDuration: `${3 + Math.random() * 2}s`
-    }}
-  >
-    {emoji}
-  </div>
-);
+const FloatingEmoji = ({ emoji, delay }: { emoji: string; delay: number }) => {
+  const randomX = Math.random() * 100;
+  const randomY = Math.random() * 100;
+  const randomDuration = 8 + Math.random() * 4; // 8-12 seconds
+  const randomDirection = Math.random() > 0.5 ? 1 : -1;
+  
+  return (
+    <div 
+      className="absolute text-4xl opacity-20 pointer-events-none"
+      style={{
+        left: `${randomX}%`,
+        top: `${randomY}%`,
+        animation: `floatAround ${randomDuration}s linear infinite`,
+        animationDelay: `${delay}s`,
+        transform: `scale(${0.8 + Math.random() * 0.4})`, // Random size variation
+      }}
+    >
+      <style jsx>{`
+        @keyframes floatAround {
+          0% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+          25% {
+            transform: translate(${20 * randomDirection}px, -30px) rotate(90deg);
+          }
+          50% {
+            transform: translate(${40 * randomDirection}px, 10px) rotate(180deg);
+          }
+          75% {
+            transform: translate(${-10 * randomDirection}px, -20px) rotate(270deg);
+          }
+          100% {
+            transform: translate(0, 0) rotate(360deg);
+          }
+        }
+      `}</style>
+      {emoji}
+    </div>
+  );
+};
 
 export const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
