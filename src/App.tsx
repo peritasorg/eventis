@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "./components/Sidebar";
 import { TrialBanner } from "./components/TrialBanner";
 import { Dashboard } from "./pages/Dashboard";
@@ -31,46 +32,94 @@ const queryClient = new QueryClient({
 
 const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/success" element={
-                <ProtectedRoute>
-                  <Success />
-                </ProtectedRoute>
-              } />
-              <Route path="/*" element={
-                <ProtectedRoute>
-                  <div className="flex h-screen w-full bg-gray-50">
-                    <Sidebar />
-                    <main className="flex-1 overflow-auto relative bg-gray-50">
-                      <TrialBanner />
-                      <div className="h-full">
-                        <Routes>
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/leads" element={<Leads />} />
-                          <Route path="/events" element={<Events />} />
-                          <Route path="/events/:eventId" element={<EventDetail />} />
-                          <Route path="/form-builder" element={<FormBuilder />} />
-                          <Route path="/customers" element={<Customers />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </div>
-                    </main>
-                  </div>
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ErrorBoundary>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/auth" element={
+                    <ErrorBoundary>
+                      <Auth />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/success" element={
+                    <ErrorBoundary>
+                      <ProtectedRoute>
+                        <Success />
+                      </ProtectedRoute>
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/*" element={
+                    <ErrorBoundary>
+                      <ProtectedRoute>
+                        <div className="flex h-screen w-full bg-gray-50">
+                          <ErrorBoundary>
+                            <Sidebar />
+                          </ErrorBoundary>
+                          <main className="flex-1 overflow-auto relative bg-gray-50">
+                            <ErrorBoundary>
+                              <TrialBanner />
+                            </ErrorBoundary>
+                            <div className="h-full">
+                              <Routes>
+                                <Route path="/" element={
+                                  <ErrorBoundary>
+                                    <Dashboard />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/leads" element={
+                                  <ErrorBoundary>
+                                    <Leads />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/events" element={
+                                  <ErrorBoundary>
+                                    <Events />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/events/:eventId" element={
+                                  <ErrorBoundary>
+                                    <EventDetail />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/form-builder" element={
+                                  <ErrorBoundary>
+                                    <FormBuilder />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/customers" element={
+                                  <ErrorBoundary>
+                                    <Customers />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/settings" element={
+                                  <ErrorBoundary>
+                                    <Settings />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="*" element={
+                                  <ErrorBoundary>
+                                    <NotFound />
+                                  </ErrorBoundary>
+                                } />
+                              </Routes>
+                            </div>
+                          </main>
+                        </div>
+                      </ProtectedRoute>
+                    </ErrorBoundary>
+                  } />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </AuthProvider>
+        </ErrorBoundary>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
