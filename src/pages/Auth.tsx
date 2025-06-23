@@ -27,7 +27,7 @@ const FloatingEmoji = ({ emoji, delay }: { emoji: string; delay: number }) => {
         transform: `scale(${0.8 + Math.random() * 0.4})`, // Random size variation
       }}
     >
-      <style jsx>{`
+      <style>{`
         @keyframes floatAround {
           0% {
             transform: translate(0, 0) rotate(0deg);
@@ -190,7 +190,7 @@ export const Auth = () => {
       <div className="w-full max-w-md relative z-10">
         <div className="flex items-center justify-center mb-8">
           <img 
-            src="/lovable-uploads/063d1167-8f33-4536-bd61-8852478390f0.png" 
+            src="/lovable-uploads/a1e4246b-792c-4cc3-a040-31c53413af0d.png" 
             alt="Eventis" 
             className="h-12 w-auto"
           />
