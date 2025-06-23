@@ -11,6 +11,20 @@ import { Loader2, AlertCircle, Mail, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+const FloatingEmoji = ({ emoji, delay }: { emoji: string; delay: number }) => (
+  <div 
+    className="absolute text-4xl opacity-20 animate-bounce pointer-events-none"
+    style={{
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      animationDelay: `${delay}s`,
+      animationDuration: `${3 + Math.random() * 2}s`
+    }}
+  >
+    {emoji}
+  </div>
+);
+
 export const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,6 +32,8 @@ export const Auth = () => {
   const [resetSent, setResetSent] = useState(false);
   const [searchParams] = useSearchParams();
   const verified = searchParams.get('verified') === 'true';
+
+  const eventEmojis = ['🏛️', '🏢', '🎉', '🍽️', '🥂', '💐', '🎪', '🏰', '⛪', '🕌'];
 
   // Show verification success message
   useEffect(() => {
@@ -139,11 +155,16 @@ export const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-emerald-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-emerald-900 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Floating Emojis */}
+      {eventEmojis.map((emoji, index) => (
+        <FloatingEmoji key={index} emoji={emoji} delay={index * 0.5} />
+      ))}
+      
+      <div className="w-full max-w-md relative z-10">
         <div className="flex items-center justify-center mb-8">
           <img 
-            src="/lovable-uploads/16cc12a3-a27d-4a10-b056-398569b8dfa5.png" 
+            src="/lovable-uploads/063d1167-8f33-4536-bd61-8852478390f0.png" 
             alt="Eventis" 
             className="h-12 w-auto"
           />
