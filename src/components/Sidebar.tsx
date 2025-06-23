@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, Building2, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
+import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -118,8 +118,11 @@ export const Sidebar = () => {
       )}>
         {!isCollapsed && (
           <>
-            <Building2 className="h-6 w-6 lg:h-8 lg:w-8 text-blue-400 flex-shrink-0" />
-            <span className="ml-2 lg:ml-3 text-base lg:text-lg font-semibold text-white truncate">BanquetPro</span>
+            <img 
+              src="/lovable-uploads/16cc12a3-a27d-4a10-b056-398569b8dfa5.png" 
+              alt="Eventis" 
+              className="h-8 w-auto flex-shrink-0"
+            />
           </>
         )}
         
@@ -178,7 +181,7 @@ export const Sidebar = () => {
                 'group flex items-center text-sm font-medium rounded-lg transition-all duration-200',
                 isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
                 isActive
-                  ? 'bg-blue-600 text-white shadow-lg'
+                  ? 'bg-emerald-600 text-white shadow-lg'
                   : 'text-gray-300 hover:bg-gray-800 hover:text-white hover:scale-105'
               )}
               title={isCollapsed ? item.name : undefined}
@@ -236,7 +239,7 @@ export const Sidebar = () => {
         {!isCollapsed && (
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-blue-500 flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0">
+              <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-emerald-500 flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0">
                 {getUserInitial()}
               </div>
               <div className="ml-2 lg:ml-3 min-w-0 flex-1">

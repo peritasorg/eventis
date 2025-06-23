@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Loader2, AlertCircle, Mail, CheckCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -128,33 +129,36 @@ export const Auth = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-emerald-900">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-emerald-400" />
+          <p className="text-gray-300">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-emerald-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <Building2 className="h-10 w-10 text-blue-600 mr-3" />
-          <h1 className="text-3xl font-bold text-gray-900">BanquetPro</h1>
+          <img 
+            src="/lovable-uploads/16cc12a3-a27d-4a10-b056-398569b8dfa5.png" 
+            alt="Eventis" 
+            className="h-12 w-auto"
+          />
         </div>
         
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle>Welcome to BanquetPro</CardTitle>
-            <CardDescription>
+        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Eventis</CardTitle>
+            <CardDescription className="text-slate-600">
               The complete solution for managing your banqueting business
             </CardDescription>
           </CardHeader>
           <CardContent>
             {verified && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center text-green-700">
+              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center text-emerald-700">
                 <CheckCircle className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span className="text-sm">Email verified successfully! You can now sign in.</span>
               </div>
@@ -168,16 +172,16 @@ export const Auth = () => {
             )}
             
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                <TabsTrigger value="reset">Reset</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 bg-slate-100">
+                <TabsTrigger value="signin" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Sign In</TabsTrigger>
+                <TabsTrigger value="signup" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Sign Up</TabsTrigger>
+                <TabsTrigger value="reset" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Reset</TabsTrigger>
               </TabsList>
               
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-email" className="text-slate-700">Email</Label>
                     <Input
                       id="signin-email"
                       name="email"
@@ -185,10 +189,11 @@ export const Auth = () => {
                       placeholder="Enter your email"
                       required
                       disabled={isSubmitting}
+                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
+                    <Label htmlFor="signin-password" className="text-slate-700">Password</Label>
                     <Input
                       id="signin-password"
                       name="password"
@@ -196,11 +201,12 @@ export const Auth = () => {
                       placeholder="Enter your password"
                       required
                       disabled={isSubmitting}
+                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full" 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
@@ -218,7 +224,7 @@ export const Auth = () => {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Label htmlFor="signup-name" className="text-slate-700">Full Name</Label>
                     <Input
                       id="signup-name"
                       name="fullName"
@@ -226,10 +232,11 @@ export const Auth = () => {
                       placeholder="Enter your full name"
                       required
                       disabled={isSubmitting}
+                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-business">Business Name</Label>
+                    <Label htmlFor="signup-business" className="text-slate-700">Business Name</Label>
                     <Input
                       id="signup-business"
                       name="businessName"
@@ -237,10 +244,11 @@ export const Auth = () => {
                       placeholder="Enter your business name"
                       required
                       disabled={isSubmitting}
+                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email" className="text-slate-700">Email</Label>
                     <Input
                       id="signup-email"
                       name="email"
@@ -248,10 +256,11 @@ export const Auth = () => {
                       placeholder="Enter your email"
                       required
                       disabled={isSubmitting}
+                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password" className="text-slate-700">Password</Label>
                     <Input
                       id="signup-password"
                       name="password"
@@ -260,18 +269,19 @@ export const Auth = () => {
                       required
                       minLength={6}
                       disabled={isSubmitting}
+                      className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
                     />
                   </div>
-                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                  <div className="text-sm text-slate-600 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
                     🎉 <strong>14-day free trial</strong> - No credit card required
                     <br />
-                    <small className="text-xs text-gray-500 mt-1 block">
+                    <small className="text-xs text-slate-500 mt-1 block">
                       You'll need to verify your email before accessing your account
                     </small>
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full" 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
@@ -289,16 +299,16 @@ export const Auth = () => {
               <TabsContent value="reset">
                 {resetSent ? (
                   <div className="text-center py-6">
-                    <Mail className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Check your email</h3>
-                    <p className="text-gray-600 text-sm">
+                    <Mail className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-slate-900">Check your email</h3>
+                    <p className="text-slate-600 text-sm">
                       We've sent a password reset link to your email address.
                     </p>
                   </div>
                 ) : (
                   <form onSubmit={handlePasswordReset} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="reset-email">Email Address</Label>
+                      <Label htmlFor="reset-email" className="text-slate-700">Email Address</Label>
                       <Input
                         id="reset-email"
                         name="resetEmail"
@@ -306,14 +316,15 @@ export const Auth = () => {
                         placeholder="Enter your email address"
                         required
                         disabled={isSubmitting}
+                        className="border-slate-200 focus:border-emerald-400 focus:ring-emerald-400"
                       />
                     </div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-slate-600">
                       Enter your email address and we'll send you a link to reset your password.
                     </p>
                     <Button 
                       type="submit" 
-                      className="w-full" 
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
                       disabled={isSubmitting}
                     >
                       {isSubmitting ? (
@@ -332,7 +343,7 @@ export const Auth = () => {
           </CardContent>
         </Card>
         
-        <div className="mt-6 text-center text-sm text-gray-600">
+        <div className="mt-6 text-center text-sm text-gray-300">
           <p>By signing up, you agree to our Terms of Service and Privacy Policy</p>
         </div>
       </div>
