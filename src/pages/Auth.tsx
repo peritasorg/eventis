@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,17 +18,17 @@ export const Auth = () => {
   const [searchParams] = useSearchParams();
   const verified = searchParams.get('verified') === 'true';
 
-  // Redirect if already authenticated
-  if (user && !loading) {
-    return <Navigate to="/" replace />;
-  }
-
   // Show verification success message
   useEffect(() => {
     if (verified) {
       toast.success('Email verified successfully! You can now sign in.');
     }
   }, [verified]);
+
+  // Redirect if already authenticated
+  if (user && !loading) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
