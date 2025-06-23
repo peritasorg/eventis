@@ -90,29 +90,25 @@ serve(async (req) => {
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       
-      // Determine subscription tier from price - updated logic for your specific pricing
+      // Determine subscription tier from price - FIXED mapping based on your actual Stripe pricing
       const priceId = subscription.items.data[0].price.id;
       const price = await stripe.prices.retrieve(priceId);
       const amount = price.unit_amount || 0;
       
-      // Map based on your actual price amounts (in pence/cents)
-      if (amount === 9900) { // £99
+      // Map based on your actual Stripe pricing (amounts in pence for GBP)
+      if (amount === 9900) { // £99.00 = Professional
         subscriptionTier = "Professional";
-      } else if (amount === 14900) { // £149
+      } else if (amount === 15000) { // £150.00 = Business (YOUR CURRENT PLAN)
         subscriptionTier = "Business";
-      } else if (amount === 15000) { // £150 - your current subscription
-        subscriptionTier = "Enterprise";
-      } else if (amount === 15900) { // £159
+      } else if (amount === 25000) { // £250.00 = Enterprise
         subscriptionTier = "Enterprise";
       } else {
-        // Default tier based on amount ranges
-        if (amount <= 5000) {
-          subscriptionTier = "Basic";
-        } else if (amount <= 10000) {
+        // Fallback logic for any other amounts - based on price ranges
+        if (amount < 10000) { // Less than £100
           subscriptionTier = "Professional";
-        } else if (amount <= 15000) {
+        } else if (amount < 20000) { // £100-£199
           subscriptionTier = "Business";
-        } else {
+        } else { // £200+
           subscriptionTier = "Enterprise";
         }
       }
