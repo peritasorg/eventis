@@ -1,7 +1,15 @@
 
 import React from 'react';
-import { ModernFieldLibrary } from './ModernFieldLibrary';
+import { FieldLibraryPopup } from './FieldLibraryPopup';
 
-export const FieldLibrary = () => {
-  return <ModernFieldLibrary />;
+interface FieldLibraryProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const FieldLibrary: React.FC<FieldLibraryProps> = ({ 
+  isOpen = true, 
+  onClose = () => {} 
+}) => {
+  return <FieldLibraryPopup isOpen={isOpen} onClose={onClose} />;
 };

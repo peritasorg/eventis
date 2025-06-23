@@ -8,15 +8,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { FormList } from '@/components/form-builder/FormList';
 import { FormEditor } from '@/components/form-builder/FormEditor';
-import { FieldLibrary } from '@/components/form-builder/FieldLibrary';
+import { FieldLibraryPopup } from '@/components/form-builder/FieldLibraryPopup';
 
-type ViewMode = 'forms' | 'edit-form' | 'field-library';
+type ViewMode = 'forms' | 'edit-form';
 
 export const FormBuilder = () => {
   const { currentTenant } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('forms');
   const [editingForm, setEditingForm] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isFieldLibraryOpen, setIsFieldLibraryOpen] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -92,22 +93,6 @@ export const FormBuilder = () => {
     );
   }
 
-  if (viewMode === 'field-library') {
-    return (
-      <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-        <div className="flex-shrink-0 p-4 sm:p-6 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-          <Button variant="outline" onClick={() => setViewMode('forms')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Forms
-          </Button>
-        </div>
-        <div className="flex-1 overflow-auto">
-          <FieldLibrary />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       <div className="flex-shrink-0 p-4 sm:p-6 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
@@ -118,7 +103,7 @@ export const FormBuilder = () => {
               <p className="text-gray-600 dark:text-gray-400 text-sm">Create questionnaire forms for your events</p>
             </div>
             
-            <Button onClick={() => setViewMode('field-library')} className="w-full sm:w-auto">
+            <Button onClick={() => setIsFieldLibraryOpen(true)} className="w-full sm:w-auto">
               Field Library
             </Button>
           </div>
@@ -134,6 +119,11 @@ export const FormBuilder = () => {
           />
         </div>
       </div>
+
+      <FieldLibraryPopup 
+        isOpen={isFieldLibraryOpen}
+        onClose={() => setIsFieldLibraryOpen(false)}
+      />
     </div>
   );
 };
