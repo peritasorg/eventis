@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { ArrowLeft, Plus, Trash2, GripVertical, Save, Eye, Settings, Wand2 } from 'lucide-react';
@@ -484,7 +483,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
                                     </div>
 
                                     {/* Price and Notes fields */}
-                                    <div className="grid grid-cols-2 gap-3 mb-3 p-3 bg-gray-50 border border-gray-200 rounded">
+                                    <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 border border-gray-200 rounded">
                                       <div>
                                         <Label className="text-xs font-medium text-gray-600">
                                           {field.label} Price
@@ -506,27 +505,6 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
                                           rows={1}
                                           disabled
                                         />
-                                      </div>
-                                    </div>
-
-                                    {/* Field Settings */}
-                                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
-                                      <div>
-                                        <Label className="text-xs">Custom Label</Label>
-                                        <Input
-                                          value={fieldInstance.label_override || ''}
-                                          placeholder={field.label}
-                                          className="h-7 text-xs mt-1"
-                                        />
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                          <Switch 
-                                            id={`required-${fieldInstance.id}`}
-                                            checked={fieldInstance.required_override ?? true}
-                                          />
-                                          <Label htmlFor={`required-${fieldInstance.id}`} className="text-xs">Required</Label>
-                                        </div>
                                       </div>
                                     </div>
                                   </div>
