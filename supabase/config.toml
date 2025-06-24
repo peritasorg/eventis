@@ -41,8 +41,8 @@ verify_jwt = false
 
 [auth]
 enabled = true
-site_url = "https://vbowtpkisiabdwwgttry.supabase.co"
-additional_redirect_urls = ["http://localhost:3000"]
+site_url = "https://app.eventis.to"
+additional_redirect_urls = ["https://app.eventis.to", "https://app.eventis.to/auth", "http://localhost:3000", "http://localhost:3000/auth"]
 jwt_expiry = 3600
 refresh_token_rotation_enabled = true
 security_update_password_require_reauthentication = true

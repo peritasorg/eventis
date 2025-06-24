@@ -368,8 +368,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clean up any existing state
       cleanupAuthState();
       
-      // Use the actual app URL instead of localhost
-      const redirectUrl = `${window.location.origin}/auth?verified=true`;
+      // Use the custom domain instead of window.location.origin
+      const redirectUrl = `https://app.eventis.to/auth?verified=true`;
       
       const { data, error } = await supabase.auth.signUp({
         email,

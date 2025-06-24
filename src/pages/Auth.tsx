@@ -150,8 +150,8 @@ export const Auth = () => {
     }
     
     try {
-      // Use the actual app URL instead of localhost
-      const redirectUrl = window.location.origin + '/auth?tab=reset-password';
+      // Use the custom domain instead of window.location.origin
+      const redirectUrl = 'https://app.eventis.to/auth?tab=reset-password';
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
