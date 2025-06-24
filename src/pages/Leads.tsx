@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Phone, Mail, Calendar, UserPlus, List, CalendarIcon, Eye, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,29 +23,15 @@ export const Leads = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
-  const [isEditLeadOpen, setIsEditLeadOpen] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [activeView, setActiveView] = useState('list');
   const [selectedDate, setSelectedDate] = useState('');
-  const [editFormData, setEditFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    event_type: '',
-    event_date: '',
-    estimated_guests: '',
-    estimated_budget: '',
-    source: 'website',
-    notes: '',
-    status: 'new'
-  });
 
-  // Get leads with upcoming appointments priority
+  // Get leads with improved search functionality
   const { data: leads, refetch } = useSupabaseQuery(
-    ['leads'],
+    ['leads', searchTerm, statusFilter],
     async () => {
       if (!currentTenant?.id) return [];
       
@@ -60,7 +47,8 @@ export const Leads = () => {
       }
 
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
+        // Enhanced search to include company name
+        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,company.ilike.%${searchTerm}%`);
       }
 
       const { data, error } = await query;
@@ -95,28 +83,6 @@ export const Leads = () => {
       onSuccess: () => {
         setIsAddLeadOpen(false);
         setSelectedDate('');
-      }
-    }
-  );
-
-  const updateLeadMutation = useSupabaseMutation(
-    async ({ id, ...leadData }: any) => {
-      const { data, error } = await supabase
-        .from('leads')
-        .update(leadData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    {
-      successMessage: 'Lead updated successfully!',
-      invalidateQueries: [['leads']],
-      onSuccess: () => {
-        setIsEditLeadOpen(false);
-        setSelectedLead(null);
       }
     }
   );
@@ -179,45 +145,6 @@ export const Leads = () => {
     };
 
     addLeadMutation.mutate(leadData);
-  };
-
-  const handleEditLead = (lead: any) => {
-    setSelectedLead(lead);
-    setEditFormData({
-      name: lead.name || '',
-      email: lead.email || '',
-      phone: lead.phone || '',
-      company: lead.company || '',
-      event_type: lead.event_type || '',
-      event_date: lead.event_date || '',
-      estimated_guests: lead.estimated_guests ? lead.estimated_guests.toString() : '',
-      estimated_budget: lead.estimated_budget ? lead.estimated_budget.toString() : '',
-      source: lead.source || 'website',
-      notes: lead.notes || '',
-      status: lead.status || 'new'
-    });
-    setIsEditLeadOpen(true);
-  };
-
-  const handleUpdateLead = () => {
-    if (!selectedLead) return;
-
-    const leadData = {
-      id: selectedLead.id,
-      name: editFormData.name,
-      email: editFormData.email || null,
-      phone: editFormData.phone || null,
-      company: editFormData.company || null,
-      event_type: editFormData.event_type || null,
-      event_date: editFormData.event_date || null,
-      estimated_guests: editFormData.estimated_guests ? parseInt(editFormData.estimated_guests) : null,
-      estimated_budget: editFormData.estimated_budget ? parseFloat(editFormData.estimated_budget) : null,
-      source: editFormData.source,
-      notes: editFormData.notes || null,
-      status: editFormData.status
-    };
-
-    updateLeadMutation.mutate(leadData);
   };
 
   const handleDeleteLead = (lead: any) => {
@@ -445,7 +372,7 @@ export const Leads = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search leads..."
+                placeholder="Search leads by name, email, phone, or company..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -506,6 +433,7 @@ export const Leads = () => {
                         </div>
                         
                         <div className="flex items-center gap-4 text-sm text-gray-500">
+                          {lead.company && <span>Company: {lead.company}</span>}
                           {lead.event_type && <span>{lead.event_type}</span>}
                           {lead.event_date && (
                             <div className="flex items-center gap-1">
@@ -522,11 +450,6 @@ export const Leads = () => {
                         <Button size="sm" variant="outline" onClick={() => handleViewLead(lead)}>
                           <Eye className="h-4 w-4 mr-1" />
                           View
-                        </Button>
-                        
-                        <Button size="sm" variant="outline" onClick={() => handleEditLead(lead)}>
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
                         </Button>
                         
                         <Select
@@ -593,161 +516,6 @@ export const Leads = () => {
           />
         </TabsContent>
       </Tabs>
-
-      {/* Edit Lead Dialog */}
-      <Dialog open={isEditLeadOpen} onOpenChange={setIsEditLeadOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Lead</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Name *</Label>
-                <Input 
-                  id="edit-name" 
-                  value={editFormData.name}
-                  onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-                  required 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-email">Email</Label>
-                <Input 
-                  id="edit-email" 
-                  type="email"
-                  value={editFormData.email}
-                  onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-phone">Phone</Label>
-                <Input 
-                  id="edit-phone"
-                  value={editFormData.phone}
-                  onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-company">Company</Label>
-                <Input 
-                  id="edit-company"
-                  value={editFormData.company}
-                  onChange={(e) => setEditFormData({...editFormData, company: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-event_type">Event Type</Label>
-                <Select value={editFormData.event_type} onValueChange={(value) => setEditFormData({...editFormData, event_type: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select event type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="wedding">Wedding</SelectItem>
-                    <SelectItem value="corporate">Corporate Event</SelectItem>
-                    <SelectItem value="birthday">Birthday</SelectItem>
-                    <SelectItem value="anniversary">Anniversary</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-event_date">Event Date</Label>
-                <Input 
-                  id="edit-event_date" 
-                  type="date"
-                  value={editFormData.event_date}
-                  onChange={(e) => setEditFormData({...editFormData, event_date: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-estimated_guests">Estimated Guests</Label>
-                <Input 
-                  id="edit-estimated_guests" 
-                  type="number" 
-                  min="0"
-                  value={editFormData.estimated_guests}
-                  onChange={(e) => setEditFormData({...editFormData, estimated_guests: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-estimated_budget">Estimated Budget (£)</Label>
-                <Input 
-                  id="edit-estimated_budget" 
-                  type="number" 
-                  step="0.01" 
-                  min="0"
-                  value={editFormData.estimated_budget}
-                  onChange={(e) => setEditFormData({...editFormData, estimated_budget: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="edit-source">Source</Label>
-              <Select value={editFormData.source} onValueChange={(value) => setEditFormData({...editFormData, source: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="How did they find you?" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="website">Website</SelectItem>
-                  <SelectItem value="social_media">Social Media</SelectItem>
-                  <SelectItem value="referral">Referral</SelectItem>
-                  <SelectItem value="google">Google</SelectItem>
-                  <SelectItem value="phone">Phone</SelectItem>
-                  <SelectItem value="walk_in">Walk In</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="edit-status">Status</Label>
-              <Select value={editFormData.status} onValueChange={(value) => setEditFormData({...editFormData, status: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="qualified">Qualified</SelectItem>
-                  <SelectItem value="quoted">Quoted</SelectItem>
-                  <SelectItem value="converted">Converted</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="edit-notes">Notes</Label>
-              <Textarea 
-                id="edit-notes"
-                value={editFormData.notes}
-                onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
-                placeholder="Any additional notes..." 
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditLeadOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleUpdateLead} disabled={!editFormData.name || updateLeadMutation.isPending}>
-                {updateLeadMutation.isPending ? 'Updating...' : 'Update Lead'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Dialogs */}
       <ConvertLeadDialog
