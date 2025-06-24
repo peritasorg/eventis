@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Calendar, Users, DollarSign, TrendingUp } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
@@ -88,30 +87,30 @@ export const Dashboard = () => {
               <MetricCard
                 title="Upcoming Events"
                 value={upcomingEvents?.length || 0}
-                icon={Calendar}
-                trend="+12% from last month"
-                trendUp={true}
+                icon={<Calendar className="h-6 w-6 text-blue-600" />}
+                change="+12% from last month"
+                changeType="positive"
               />
               <MetricCard
                 title="Total Customers"
                 value={totalCustomers || 0}
-                icon={Users}
-                trend="+8% from last month"
-                trendUp={true}
+                icon={<Users className="h-6 w-6 text-blue-600" />}
+                change="+8% from last month"
+                changeType="positive"
               />
               <MetricCard
                 title="Total Leads"
                 value={totalLeads || 0}
-                icon={TrendingUp}
-                trend="+15% from last month"
-                trendUp={true}
+                icon={<TrendingUp className="h-6 w-6 text-blue-600" />}
+                change="+15% from last month"
+                changeType="positive"
               />
               <MetricCard
                 title="Revenue"
                 value="£12,345"
-                icon={DollarSign}
-                trend="+5% from last month"
-                trendUp={true}
+                icon={<DollarSign className="h-6 w-6 text-blue-600" />}
+                change="+5% from last month"
+                changeType="positive"
               />
             </div>
 
