@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Phone, Mail, Calendar, UserPlus, List, CalendarIcon, Eye, Edit, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -10,21 +11,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { ConvertLeadDialog } from '@/components/leads/ConvertLeadDialog';
-import { LeadDetailsDialog } from '@/components/leads/LeadDetailsDialog';
 import { LeadsCalendarView } from '@/components/leads/LeadsCalendarView';
 
 export const Leads = () => {
   const { currentTenant } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [activeView, setActiveView] = useState('list');
   const [selectedDate, setSelectedDate] = useState('');
@@ -171,8 +172,7 @@ export const Leads = () => {
   };
 
   const handleViewLead = (lead: any) => {
-    setSelectedLead(lead);
-    setDetailsDialogOpen(true);
+    navigate(`/leads/${lead.id}`);
   };
 
   const handleDateClick = (date: string) => {
@@ -399,112 +399,136 @@ export const Leads = () => {
 
         <TabsContent value="list">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="p-6">
-              <div className="space-y-4">
-                {leads?.length ? leads.map((lead) => (
-                  <div key={lead.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-gray-900">{lead.name}</h3>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(lead.status)}`}>
-                            {lead.status}
-                          </span>
-                          {lead.event_date && new Date(lead.event_date) >= new Date() && (
-                            <Badge variant="outline" className="text-blue-600 border-blue-200">
-                              Upcoming
-                            </Badge>
+            {leads?.length ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Budget</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {leads.map((lead) => (
+                    <TableRow key={lead.id} className="hover:bg-gray-50">
+                      <TableCell>
+                        <div>
+                          <div className="font-medium text-gray-900">{lead.name}</div>
+                          {lead.company && (
+                            <div className="text-sm text-gray-500">{lead.company}</div>
                           )}
                         </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
                           {lead.email && (
-                            <div className="flex items-center gap-1">
-                              <Mail className="h-4 w-4" />
-                              {lead.email}
+                            <div className="flex items-center gap-1 text-sm">
+                              <Mail className="h-3 w-3 text-gray-400" />
+                              <span className="text-gray-600">{lead.email}</span>
                             </div>
                           )}
                           {lead.phone && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-4 w-4" />
-                              {lead.phone}
+                            <div className="flex items-center gap-1 text-sm">
+                              <Phone className="h-3 w-3 text-gray-400" />
+                              <span className="text-gray-600">{lead.phone}</span>
                             </div>
                           )}
                         </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          {lead.company && <span>Company: {lead.company}</span>}
-                          {lead.event_type && <span>{lead.event_type}</span>}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          {lead.event_type && (
+                            <div className="font-medium text-gray-900 capitalize">{lead.event_type}</div>
+                          )}
                           {lead.event_date && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
+                            <div className="text-sm text-gray-500">
                               {new Date(lead.event_date).toLocaleDateString()}
                             </div>
                           )}
-                          {lead.estimated_guests && <span>{lead.estimated_guests} guests</span>}
-                          {lead.estimated_budget && <span>£{lead.estimated_budget.toLocaleString()}</span>}
+                          {lead.estimated_guests && (
+                            <div className="text-sm text-gray-500">
+                              {lead.estimated_guests} guests
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleViewLead(lead)}>
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        
-                        <Select
-                          value={lead.status}
-                          onValueChange={(status) => updateLeadStatus.mutate({ id: lead.id, status })}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="new">New</SelectItem>
-                            <SelectItem value="contacted">Contacted</SelectItem>
-                            <SelectItem value="qualified">Qualified</SelectItem>
-                            <SelectItem value="quoted">Quoted</SelectItem>
-                            <SelectItem value="converted">Converted</SelectItem>
-                            <SelectItem value="lost">Lost</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        {lead.status !== 'converted' && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleConvertLead(lead)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <UserPlus className="h-4 w-4 mr-1" />
-                            Convert
-                          </Button>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(lead.status)}>
+                          {lead.status}
+                        </Badge>
+                        {lead.event_date && new Date(lead.event_date) >= new Date() && (
+                          <Badge variant="outline" className="ml-1 text-blue-600 border-blue-200">
+                            Upcoming
+                          </Badge>
                         )}
-                        
-                        <Button size="sm" variant="outline" onClick={() => handleDeleteLead(lead)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {lead.notes && (
-                      <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        {lead.notes}
-                      </p>
-                    )}
-                  </div>
-                )) : (
-                  <div className="text-center py-12">
-                    <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
-                    <p className="text-gray-600 mb-4">Start by adding your first lead</p>
-                    <Button onClick={() => setIsAddLeadOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Your First Lead
-                    </Button>
-                  </div>
-                )}
+                      </TableCell>
+                      <TableCell>
+                        {lead.estimated_budget && (
+                          <span className="font-medium">£{lead.estimated_budget.toLocaleString()}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-gray-600 capitalize">
+                          {lead.source?.replace('_', ' ')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleViewLead(lead)}>
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          
+                          <Select
+                            value={lead.status}
+                            onValueChange={(status) => updateLeadStatus.mutate({ id: lead.id, status })}
+                          >
+                            <SelectTrigger className="w-24 h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="new">New</SelectItem>
+                              <SelectItem value="contacted">Contacted</SelectItem>
+                              <SelectItem value="qualified">Qualified</SelectItem>
+                              <SelectItem value="quoted">Quoted</SelectItem>
+                              <SelectItem value="converted">Converted</SelectItem>
+                              <SelectItem value="lost">Lost</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          {lead.status !== 'converted' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleConvertLead(lead)}
+                              className="bg-green-600 hover:bg-green-700 text-white h-8"
+                            >
+                              <UserPlus className="h-3 w-3" />
+                            </Button>
+                          )}
+                          
+                          <Button size="sm" variant="outline" onClick={() => handleDeleteLead(lead)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12">
+                <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
+                <p className="text-gray-600 mb-4">Start by adding your first lead</p>
+                <Button onClick={() => setIsAddLeadOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Lead
+                </Button>
               </div>
-            </div>
+            )}
           </div>
         </TabsContent>
 
@@ -523,13 +547,6 @@ export const Leads = () => {
         onOpenChange={setConvertDialogOpen}
         lead={selectedLead}
         onSuccess={handleConversionSuccess}
-      />
-
-      <LeadDetailsDialog
-        open={detailsDialogOpen}
-        onOpenChange={setDetailsDialogOpen}
-        lead={selectedLead}
-        onUpdate={refetch}
       />
     </div>
   );
