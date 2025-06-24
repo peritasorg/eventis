@@ -217,12 +217,12 @@ export const LeadEdit = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="event_type">Event Type</Label>
-                <Select value={formData.event_type} onValueChange={(value) => setFormData({...formData, event_type: value})}>
+                <Select value={formData.event_type || 'none'} onValueChange={(value) => setFormData({...formData, event_type: value === 'none' ? '' : value})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select event type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     <SelectItem value="wedding">Wedding</SelectItem>
                     <SelectItem value="corporate">Corporate Event</SelectItem>
                     <SelectItem value="birthday">Birthday</SelectItem>
