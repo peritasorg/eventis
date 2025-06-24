@@ -60,7 +60,7 @@ export const Events = () => {
   return (
     <div className="min-h-screen flex w-full bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-200">
         <div className="flex-shrink-0 p-4 sm:p-6 lg:p-8 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
           <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
             <div>

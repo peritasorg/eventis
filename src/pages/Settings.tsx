@@ -49,7 +49,7 @@ export const Settings = () => {
   return (
     <div className="min-h-screen flex w-full bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-200">
         <div className="container mx-auto py-8 space-y-8">
           <div>
             <h1 className="text-3xl font-bold">Settings</h1>

@@ -27,7 +27,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex w-full bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-200">
         <Dashboard />
       </div>
     </div>

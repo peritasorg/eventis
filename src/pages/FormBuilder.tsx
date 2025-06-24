@@ -65,7 +65,7 @@ export const FormBuilder = () => {
     return (
       <div className="min-h-screen flex w-full bg-gray-50">
         <Sidebar />
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-200">
           <div className="h-full flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
             <Card className="max-w-md w-full text-center">
               <CardHeader>
@@ -94,7 +94,7 @@ export const FormBuilder = () => {
     return (
       <div className="min-h-screen flex w-full bg-gray-50">
         <Sidebar />
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-200">
           <FormEditor 
             form={editingForm}
             onBack={handleBackToForms}
@@ -107,7 +107,7 @@ export const FormBuilder = () => {
   return (
     <div className="min-h-screen flex w-full bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-0 lg:ml-64 transition-all duration-200">
         <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
           <div className="flex-shrink-0 p-4 sm:p-6 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
             <div className="max-w-6xl mx-auto">
