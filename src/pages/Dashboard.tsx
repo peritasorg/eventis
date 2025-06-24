@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Calendar, Users, DollarSign, TrendingUp } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';

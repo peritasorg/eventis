@@ -151,10 +151,176 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
     updateFieldOrderMutation.mutate(updates);
   };
 
+  if (isPreview) {
+    return (
+      <div className="h-screen flex bg-gray-50">
+        {/* Left Sidebar - Field Library (same as edit mode) */}
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-screen">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center gap-2 mb-4">
+              <Button variant="ghost" size="sm" onClick={onBack}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Forms
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-blue-600" />
+              <h2 className="font-semibold text-gray-900">Field Library</h2>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">Drag fields to add them to your form</p>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="space-y-3">
+              {fieldLibrary?.map((field) => (
+                <div
+                  key={field.id}
+                  className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer bg-white"
+                  onClick={() => handleAddField(field.id)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium text-sm text-gray-900">{field.label}</div>
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0">
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-600 mb-1 capitalize">{field.field_type.replace('_', ' ')}</div>
+                  {field.price_modifier > 0 && (
+                    <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full inline-block">
+                      Default: £{field.price_modifier}
+                    </div>
+                  )}
+                  {field.help_text && (
+                    <div className="text-xs text-gray-500 mt-2 line-clamp-2">{field.help_text}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area - Preview */}
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">{form.name} - Preview</h1>
+                <p className="text-sm text-gray-600">Preview how your form will look to customers</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPreview(false)}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button size="sm">
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Form
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Preview */}
+          <div className="flex-1 overflow-auto p-6 bg-gray-50">
+            <div className="max-w-2xl mx-auto">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{form.name}</CardTitle>
+                  <p className="text-sm text-gray-600">Please fill out this form for your event requirements</p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {formFields.map((fieldInstance) => {
+                    const field = fieldInstance.field_library;
+                    return (
+                      <div key={fieldInstance.id} className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          {fieldInstance.label_override || field.label}
+                          {fieldInstance.required_override && <span className="text-red-500 ml-1">*</span>}
+                        </Label>
+                        {field.field_type === 'text' && (
+                          <Input 
+                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                            readOnly
+                          />
+                        )}
+                        {field.field_type === 'textarea' && (
+                          <textarea 
+                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                            className="w-full p-2 border border-gray-300 rounded-md resize-none"
+                            rows={3}
+                            readOnly
+                          />
+                        )}
+                        {field.field_type === 'number' && (
+                          <Input 
+                            type="number"
+                            placeholder={field.placeholder || "0"}
+                            readOnly
+                          />
+                        )}
+                        {field.field_type === 'select' && (
+                          <Select disabled>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an option" />
+                            </SelectTrigger>
+                          </Select>
+                        )}
+                        {field.help_text && (
+                          <p className="text-xs text-gray-500">{field.help_text}</p>
+                        )}
+                        
+                        {/* Price and Notes fields for each main field */}
+                        <div className="ml-4 space-y-2 border-l-2 border-gray-200 pl-4">
+                          <div>
+                            <Label className="text-xs font-medium text-gray-600">
+                              {field.label} Price
+                            </Label>
+                            <Input 
+                              type="number"
+                              placeholder={`£${field.price_modifier || 0}`}
+                              className="h-8"
+                              readOnly
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium text-gray-600">
+                              {field.label} Notes
+                            </Label>
+                            <textarea 
+                              placeholder={`Additional notes for ${field.label.toLowerCase()}`}
+                              className="w-full p-2 border border-gray-300 rounded-md resize-none text-xs"
+                              rows={2}
+                              readOnly
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {formFields.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No fields added to this form yet.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex bg-gray-50">
       {/* Left Sidebar - Field Library */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-screen">
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-2 mb-4">
             <Button variant="ghost" size="sm" onClick={onBack}>
@@ -315,6 +481,32 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
                                       {field.help_text && (
                                         <p className="text-xs text-gray-500 mt-1">{field.help_text}</p>
                                       )}
+                                    </div>
+
+                                    {/* Price and Notes fields */}
+                                    <div className="grid grid-cols-2 gap-3 mb-3 p-3 bg-gray-50 border border-gray-200 rounded">
+                                      <div>
+                                        <Label className="text-xs font-medium text-gray-600">
+                                          {field.label} Price
+                                        </Label>
+                                        <Input 
+                                          type="number"
+                                          placeholder={`£${field.price_modifier || 0}`}
+                                          className="h-7 text-xs mt-1"
+                                          disabled
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs font-medium text-gray-600">
+                                          {field.label} Notes
+                                        </Label>
+                                        <textarea 
+                                          placeholder={`Notes for ${field.label.toLowerCase()}`}
+                                          className="mt-1 w-full p-1 border border-gray-300 rounded text-xs resize-none"
+                                          rows={1}
+                                          disabled
+                                        />
+                                      </div>
                                     </div>
 
                                     {/* Field Settings */}
