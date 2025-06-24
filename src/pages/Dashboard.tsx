@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Calendar, Users, Clock, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
-import { MetricCard } from '@/components/MetricCard';
+import { Calendar, Users, TrendingUp, DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,236 +9,203 @@ import { useAuth } from '@/contexts/AuthContext';
 export const Dashboard = () => {
   const { currentTenant } = useAuth();
 
-  const { data: dashboardStats, isLoading } = useSupabaseQuery(
-    ['dashboard-stats'],
-    async () => {
-      if (!currentTenant?.id) return null;
-      
-      // Get stats manually since the stored procedure might be using old column names
-      const [leadsResult, customersResult, eventsResult, revenueResult, upcomingResult] = await Promise.all([
-        // Total leads
-        supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', currentTenant.id),
-        
-        // Total customers
-        supabase
-          .from('customers')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', currentTenant.id)
-          .eq('active', true),
-        
-        // Active events (confirmed or inquiry status)
-        supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', currentTenant.id)
-          .in('status', ['confirmed', 'inquiry']),
-        
-        // This month revenue (completed events)
-        supabase
-          .from('events')
-          .select('total_amount')
-          .eq('tenant_id', currentTenant.id)
-          .eq('status', 'completed')
-          .gte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
-          .lte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]),
-        
-        // Upcoming events
-        supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', currentTenant.id)
-          .gte('event_start_date', new Date().toISOString().split('T')[0])
-          .in('status', ['confirmed', 'inquiry'])
-      ]);
-      
-      const thisMonthRevenue = revenueResult.data?.reduce((sum, event) => sum + (event.total_amount || 0), 0) || 0;
-      
-      // New leads this month
-      const newLeadsResult = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', currentTenant.id)
-        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
-      
-      return {
-        total_leads: leadsResult.count || 0,
-        new_leads_this_month: newLeadsResult.count || 0,
-        total_customers: customersResult.count || 0,
-        active_events: eventsResult.count || 0,
-        this_month_revenue: thisMonthRevenue,
-        upcoming_events: upcomingResult.count || 0
-      };
-    }
-  );
-
-  const { data: recentLeads } = useSupabaseQuery(
-    ['recent-leads'],
+  // Get dashboard metrics
+  const { data: leads } = useSupabaseQuery(
+    ['leads-count'],
     async () => {
       if (!currentTenant?.id) return [];
-      
       const { data, error } = await supabase
         .from('leads')
         .select('*')
-        .eq('tenant_id', currentTenant.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      
-      if (error) {
-        console.error('Recent leads error:', error);
-        return [];
-      }
-      
-      return data || [];
+        .eq('tenant_id', currentTenant.id);
+      if (error) throw error;
+      return data;
     }
   );
 
-  const { data: upcomingEvents } = useSupabaseQuery(
-    ['upcoming-events'],
+  const { data: events } = useSupabaseQuery(
+    ['events-count'],
     async () => {
       if (!currentTenant?.id) return [];
-      
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('tenant_id', currentTenant.id)
-        .gte('event_start_date', new Date().toISOString().split('T')[0])
-        .order('event_start_date', { ascending: true })
-        .limit(5);
-      
-      if (error) {
-        console.error('Upcoming events error:', error);
-        return [];
-      }
-      
-      return data || [];
+        .eq('tenant_id', currentTenant.id);
+      if (error) throw error;
+      return data;
     }
   );
 
-  if (isLoading) {
-    return (
-      <div className="p-8 bg-gray-50 min-h-screen">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const { data: customers } = useSupabaseQuery(
+    ['customers-count'],
+    async () => {
+      if (!currentTenant?.id) return [];
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('tenant_id', currentTenant.id);
+      if (error) throw error;
+      return data;
+    }
+  );
 
-  const stats = dashboardStats || {
-    total_leads: 0,
-    new_leads_this_month: 0,
-    total_customers: 0,
-    active_events: 0,
-    this_month_revenue: 0,
-    upcoming_events: 0
-  };
+  const totalLeads = leads?.length || 0;
+  const totalEvents = events?.length || 0;
+  const totalCustomers = customers?.length || 0;
+  const newLeads = leads?.filter(lead => lead.status === 'new').length || 0;
+  const upcomingEvents = events?.filter(event => 
+    event.event_date && new Date(event.event_date) >= new Date()
+  ).length || 0;
+  const convertedLeads = leads?.filter(lead => lead.status === 'converted').length || 0;
+
+  const conversionRate = totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(1) : '0';
+
+  const metrics = [
+    {
+      title: 'Total Leads',
+      value: totalLeads,
+      icon: Users,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100',
+    },
+    {
+      title: 'New Leads',
+      value: newLeads,
+      icon: TrendingUp,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+    },
+    {
+      title: 'Upcoming Events',
+      value: upcomingEvents,
+      icon: Calendar,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100',
+    },
+    {
+      title: 'Total Customers',
+      value: totalCustomers,
+      icon: CheckCircle,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-100',
+    },
+  ];
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
+    <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-600">Welcome back! Here's what's happening with your business.</p>
       </div>
 
+      {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <MetricCard
-          title="Total Leads"
-          value={stats.total_leads?.toString() || '0'}
-          icon={<Users className="h-8 w-8 text-blue-600" />}
-          change={`+${stats.new_leads_this_month || 0} this month`}
-          changeType="positive"
-        />
-        <MetricCard
-          title="Active Events"
-          value={stats.active_events?.toString() || '0'}
-          icon={<Calendar className="h-8 w-8 text-green-600" />}
-          change={`${stats.upcoming_events || 0} upcoming`}
-          changeType="positive"
-        />
-        <MetricCard
-          title="This Month Revenue"
-          value={`£${Number(stats.this_month_revenue || 0).toLocaleString()}`}
-          icon={<DollarSign className="h-8 w-8 text-purple-600" />}
-          change="Revenue for current month"
-          changeType="neutral"
-        />
-        <MetricCard
-          title="Total Customers"
-          value={stats.total_customers?.toString() || '0'}
-          icon={<TrendingUp className="h-8 w-8 text-orange-600" />}
-          change="Active customers"
-          changeType="positive"
-        />
+        {metrics.map((metric) => (
+          <Card key={metric.title} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                {metric.title}
+              </CardTitle>
+              <div className={`h-8 w-8 rounded-full ${metric.bgColor} flex items-center justify-center`}>
+                <metric.icon className={`h-4 w-4 ${metric.color}`} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">{metric.value}</div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Leads</h3>
-          <div className="space-y-3">
-            {recentLeads && recentLeads.length > 0 ? (
-              recentLeads.map((lead) => (
+      {/* Conversion Rate Card */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Conversion Rate
+            </CardTitle>
+            <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+              <TrendingUp className="h-4 w-4 text-orange-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{conversionRate}%</div>
+            <p className="text-xs text-gray-500 mt-1">
+              {convertedLeads} of {totalLeads} leads converted
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Total Events
+            </CardTitle>
+            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
+              <Calendar className="h-4 w-4 text-indigo-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{totalEvents}</div>
+            <p className="text-xs text-gray-500 mt-1">
+              All time events managed
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Response Time
+            </CardTitle>
+            <div className="h-8 w-8 rounded-full bg-teal-100 flex items-center justify-center">
+              <Clock className="h-4 w-4 text-teal-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">< 2h</div>
+            <p className="text-xs text-gray-500 mt-1">
+              Average response time
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Recent Activity
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {leads && leads.length > 0 ? (
+            <div className="space-y-4">
+              {leads.slice(0, 5).map((lead) => (
                 <div key={lead.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{lead.name}</p>
-                    <p className="text-sm text-gray-600">{lead.email}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      lead.status === 'new' ? 'bg-blue-100 text-blue-800' :
-                      lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
-                      lead.status === 'qualified' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <p className="text-sm text-gray-600">
+                      {lead.event_type && `${lead.event_type} • `}
                       {lead.status}
-                    </span>
+                    </p>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {new Date(lead.created_at).toLocaleDateString()}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-6 text-gray-500">
-                <AlertCircle className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                <p>No leads yet</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Events</h3>
-          <div className="space-y-3">
-            {upcomingEvents && upcomingEvents.length > 0 ? (
-              upcomingEvents.map((event) => (
-                <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{event.event_name}</p>
-                    <p className="text-sm text-gray-600">{event.event_type}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{new Date(event.event_start_date).toLocaleDateString()}</p>
-                    <p className="text-xs text-gray-600">{event.start_time} - {event.end_time}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-6 text-gray-500">
-                <Clock className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                <p>No upcoming events</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>No recent activity</p>
+              <p className="text-sm">Start by adding your first lead!</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

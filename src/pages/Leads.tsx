@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Phone, Mail, Calendar, UserPlus, List, CalendarIcon, Eye, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { ConvertLeadDialog } from '@/components/leads/ConvertLeadDialog';
 import { LeadsCalendarView } from '@/components/leads/LeadsCalendarView';
+import { Sidebar } from '@/components/Sidebar';
 
 export const Leads = () => {
   const { currentTenant } = useAuth();
@@ -186,368 +186,371 @@ export const Leads = () => {
   };
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Leads & Appointments</h1>
-          <p className="text-gray-600">Manage your leads and upcoming appointments</p>
-        </div>
-        
-        <Dialog open={isAddLeadOpen} onOpenChange={setIsAddLeadOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Lead
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
+    <div className="min-h-screen flex w-full bg-gray-50">
+      <Sidebar />
+      <div className="flex-1 p-8">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Leads & Appointments</h1>
+            <p className="text-gray-600">Manage your leads and upcoming appointments</p>
+          </div>
+          
+          <Dialog open={isAddLeadOpen} onOpenChange={setIsAddLeadOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
                 Add New Lead
-                {selectedDate && (
-                  <span className="text-sm font-normal text-blue-600 ml-2">
-                    for {new Date(selectedDate).toLocaleDateString()}
-                  </span>
-                )}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddLead} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
-                  <Input id="name" name="name" required />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  Add New Lead
+                  {selectedDate && (
+                    <span className="text-sm font-normal text-blue-600 ml-2">
+                      for {new Date(selectedDate).toLocaleDateString()}
+                    </span>
+                  )}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleAddLead} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name *</Label>
+                    <Input id="name" name="name" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" name="email" type="email" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="email" />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input id="phone" name="phone" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company</Label>
+                    <Input id="company" name="company" />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" name="phone" />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="event_type">Event Type</Label>
+                    <Select name="event_type">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select event type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="wedding">Wedding</SelectItem>
+                        <SelectItem value="corporate">Corporate Event</SelectItem>
+                        <SelectItem value="birthday">Birthday</SelectItem>
+                        <SelectItem value="anniversary">Anniversary</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="event_date">Event Date</Label>
+                    <Input 
+                      id="event_date" 
+                      name="event_date" 
+                      type="date" 
+                      defaultValue={selectedDate}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company">Company</Label>
-                  <Input id="company" name="company" />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="estimated_guests">Estimated Guests</Label>
+                    <Input id="estimated_guests" name="estimated_guests" type="number" min="0" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
+                    <Input id="estimated_budget" name="estimated_budget" type="number" step="0.01" min="0" />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+                
                 <div className="space-y-2">
-                  <Label htmlFor="event_type">Event Type</Label>
-                  <Select name="event_type">
+                  <Label htmlFor="source">Source</Label>
+                  <Select name="source" defaultValue="website">
                     <SelectTrigger>
-                      <SelectValue placeholder="Select event type" />
+                      <SelectValue placeholder="How did they find you?" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="wedding">Wedding</SelectItem>
-                      <SelectItem value="corporate">Corporate Event</SelectItem>
-                      <SelectItem value="birthday">Birthday</SelectItem>
-                      <SelectItem value="anniversary">Anniversary</SelectItem>
+                      <SelectItem value="website">Website</SelectItem>
+                      <SelectItem value="social_media">Social Media</SelectItem>
+                      <SelectItem value="referral">Referral</SelectItem>
+                      <SelectItem value="google">Google</SelectItem>
+                      <SelectItem value="phone">Phone</SelectItem>
+                      <SelectItem value="walk_in">Walk In</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                
                 <div className="space-y-2">
-                  <Label htmlFor="event_date">Event Date</Label>
-                  <Input 
-                    id="event_date" 
-                    name="event_date" 
-                    type="date" 
-                    defaultValue={selectedDate}
-                  />
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea id="notes" name="notes" placeholder="Any additional notes..." />
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="estimated_guests">Estimated Guests</Label>
-                  <Input id="estimated_guests" name="estimated_guests" type="number" min="0" />
+                
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => {
+                    setIsAddLeadOpen(false);
+                    setSelectedDate('');
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={addLeadMutation.isPending}>
+                    {addLeadMutation.isPending ? 'Adding...' : 'Add Lead'}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
-                  <Input id="estimated_budget" name="estimated_budget" type="number" step="0.01" min="0" />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="source">Source</Label>
-                <Select name="source" defaultValue="website">
-                  <SelectTrigger>
-                    <SelectValue placeholder="How did they find you?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="website">Website</SelectItem>
-                    <SelectItem value="social_media">Social Media</SelectItem>
-                    <SelectItem value="referral">Referral</SelectItem>
-                    <SelectItem value="google">Google</SelectItem>
-                    <SelectItem value="phone">Phone</SelectItem>
-                    <SelectItem value="walk_in">Walk In</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea id="notes" name="notes" placeholder="Any additional notes..." />
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => {
-                  setIsAddLeadOpen(false);
-                  setSelectedDate('');
-                }}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={addLeadMutation.isPending}>
-                  {addLeadMutation.isPending ? 'Adding...' : 'Add Lead'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Upcoming Appointments */}
-      {upcomingAppointments.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Upcoming Appointments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {upcomingAppointments.map((appointment) => (
-                <div key={appointment.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border">
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm">
-                      <div className="font-medium">{appointment.name}</div>
-                      <div className="text-gray-600">
-                        {appointment.event_type} • {new Date(appointment.event_date).toLocaleDateString()}
-                      </div>
-                    </div>
-                    {appointment.phone && (
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Phone className="h-3 w-3" />
-                        {appointment.phone}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(appointment.status)}>
-                      {appointment.status}
-                    </Badge>
-                    <Button size="sm" variant="outline" onClick={() => handleViewLead(appointment)}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* View Toggle */}
-      <Tabs value={activeView} onValueChange={setActiveView} className="mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <TabsList>
-            <TabsTrigger value="list" className="flex items-center gap-2">
-              <List className="h-4 w-4" />
-              List View
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4" />
-              Calendar View
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Filters */}
-          <div className="flex gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search leads by name, email, phone, or company..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="qualified">Qualified</SelectItem>
-                <SelectItem value="quoted">Quoted</SelectItem>
-                <SelectItem value="converted">Converted</SelectItem>
-                <SelectItem value="lost">Lost</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        <TabsContent value="list">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            {leads?.length ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Budget</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {leads.map((lead) => (
-                    <TableRow key={lead.id} className="hover:bg-gray-50">
-                      <TableCell>
-                        <div>
-                          <div className="font-medium text-gray-900">{lead.name}</div>
-                          {lead.company && (
-                            <div className="text-sm text-gray-500">{lead.company}</div>
-                          )}
+        {/* Upcoming Appointments */}
+        {upcomingAppointments.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Upcoming Appointments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {upcomingAppointments.map((appointment) => (
+                  <div key={appointment.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border">
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm">
+                        <div className="font-medium">{appointment.name}</div>
+                        <div className="text-gray-600">
+                          {appointment.event_type} • {new Date(appointment.event_date).toLocaleDateString()}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {lead.email && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Mail className="h-3 w-3 text-gray-400" />
-                              <span className="text-gray-600">{lead.email}</span>
-                            </div>
-                          )}
-                          {lead.phone && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Phone className="h-3 w-3 text-gray-400" />
-                              <span className="text-gray-600">{lead.phone}</span>
-                            </div>
-                          )}
+                      </div>
+                      {appointment.phone && (
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Phone className="h-3 w-3" />
+                          {appointment.phone}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          {lead.event_type && (
-                            <div className="font-medium text-gray-900 capitalize">{lead.event_type}</div>
-                          )}
-                          {lead.event_date && (
-                            <div className="text-sm text-gray-500">
-                              {new Date(lead.event_date).toLocaleDateString()}
-                            </div>
-                          )}
-                          {lead.estimated_guests && (
-                            <div className="text-sm text-gray-500">
-                              {lead.estimated_guests} guests
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(lead.status)}>
-                          {lead.status}
-                        </Badge>
-                        {lead.event_date && new Date(lead.event_date) >= new Date() && (
-                          <Badge variant="outline" className="ml-1 text-blue-600 border-blue-200">
-                            Upcoming
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {lead.estimated_budget && (
-                          <span className="font-medium">£{lead.estimated_budget.toLocaleString()}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-gray-600 capitalize">
-                          {lead.source?.replace('_', ' ')}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleViewLead(lead)}>
-                            <Eye className="h-3 w-3" />
-                          </Button>
-                          
-                          <Select
-                            value={lead.status}
-                            onValueChange={(status) => updateLeadStatus.mutate({ id: lead.id, status })}
-                          >
-                            <SelectTrigger className="w-24 h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="new">New</SelectItem>
-                              <SelectItem value="contacted">Contacted</SelectItem>
-                              <SelectItem value="qualified">Qualified</SelectItem>
-                              <SelectItem value="quoted">Quoted</SelectItem>
-                              <SelectItem value="converted">Converted</SelectItem>
-                              <SelectItem value="lost">Lost</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          
-                          {lead.status !== 'converted' && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleConvertLead(lead)}
-                              className="bg-green-600 hover:bg-green-700 text-white h-8"
-                            >
-                              <UserPlus className="h-3 w-3" />
-                            </Button>
-                          )}
-                          
-                          <Button size="sm" variant="outline" onClick={() => handleDeleteLead(lead)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-12">
-                <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
-                <p className="text-gray-600 mb-4">Start by adding your first lead</p>
-                <Button onClick={() => setIsAddLeadOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Lead
-                </Button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={getStatusColor(appointment.status)}>
+                        {appointment.status}
+                      </Badge>
+                      <Button size="sm" variant="outline" onClick={() => handleViewLead(appointment)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* View Toggle */}
+        <Tabs value={activeView} onValueChange={setActiveView} className="mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <TabsList>
+              <TabsTrigger value="list" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                List View
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Calendar View
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Filters */}
+            <div className="flex gap-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search leads by name, email, phone, or company..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="contacted">Contacted</SelectItem>
+                  <SelectItem value="qualified">Qualified</SelectItem>
+                  <SelectItem value="quoted">Quoted</SelectItem>
+                  <SelectItem value="converted">Converted</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </TabsContent>
 
-        <TabsContent value="calendar">
-          <LeadsCalendarView
-            leads={leads || []}
-            onLeadClick={handleViewLead}
-            onDateClick={handleDateClick}
-          />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="list">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              {leads?.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Budget</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leads.map((lead) => (
+                      <TableRow key={lead.id} className="hover:bg-gray-50">
+                        <TableCell>
+                          <div>
+                            <div className="font-medium text-gray-900">{lead.name}</div>
+                            {lead.company && (
+                              <div className="text-sm text-gray-500">{lead.company}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {lead.email && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Mail className="h-3 w-3 text-gray-400" />
+                                <span className="text-gray-600">{lead.email}</span>
+                              </div>
+                            )}
+                            {lead.phone && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Phone className="h-3 w-3 text-gray-400" />
+                                <span className="text-gray-600">{lead.phone}</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            {lead.event_type && (
+                              <div className="font-medium text-gray-900 capitalize">{lead.event_type}</div>
+                            )}
+                            {lead.event_date && (
+                              <div className="text-sm text-gray-500">
+                                {new Date(lead.event_date).toLocaleDateString()}
+                              </div>
+                            )}
+                            {lead.estimated_guests && (
+                              <div className="text-sm text-gray-500">
+                                {lead.estimated_guests} guests
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(lead.status)}>
+                            {lead.status}
+                          </Badge>
+                          {lead.event_date && new Date(lead.event_date) >= new Date() && (
+                            <Badge variant="outline" className="ml-1 text-blue-600 border-blue-200">
+                              Upcoming
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {lead.estimated_budget && (
+                            <span className="font-medium">£{lead.estimated_budget.toLocaleString()}</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-gray-600 capitalize">
+                            {lead.source?.replace('_', ' ')}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleViewLead(lead)}>
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            
+                            <Select
+                              value={lead.status}
+                              onValueChange={(status) => updateLeadStatus.mutate({ id: lead.id, status })}
+                            >
+                              <SelectTrigger className="w-24 h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="new">New</SelectItem>
+                                <SelectItem value="contacted">Contacted</SelectItem>
+                                <SelectItem value="qualified">Qualified</SelectItem>
+                                <SelectItem value="quoted">Quoted</SelectItem>
+                                <SelectItem value="converted">Converted</SelectItem>
+                                <SelectItem value="lost">Lost</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            
+                            {lead.status !== 'converted' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleConvertLead(lead)}
+                                className="bg-green-600 hover:bg-green-700 text-white h-8"
+                              >
+                                <UserPlus className="h-3 w-3" />
+                              </Button>
+                            )}
+                            
+                            <Button size="sm" variant="outline" onClick={() => handleDeleteLead(lead)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-12">
+                  <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
+                  <p className="text-gray-600 mb-4">Start by adding your first lead</p>
+                  <Button onClick={() => setIsAddLeadOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Lead
+                  </Button>
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
-      {/* Dialogs */}
-      <ConvertLeadDialog
-        open={convertDialogOpen}
-        onOpenChange={setConvertDialogOpen}
-        lead={selectedLead}
-        onSuccess={handleConversionSuccess}
-      />
+          <TabsContent value="calendar">
+            <LeadsCalendarView
+              leads={leads || []}
+              onLeadClick={handleViewLead}
+              onDateClick={handleDateClick}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* Dialogs */}
+        <ConvertLeadDialog
+          open={convertDialogOpen}
+          onOpenChange={setConvertDialogOpen}
+          lead={selectedLead}
+          onSuccess={handleConversionSuccess}
+        />
+      </div>
     </div>
   );
 };
