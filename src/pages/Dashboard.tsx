@@ -163,7 +163,7 @@ export const Dashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">< 2h</div>
+            <div className="text-2xl font-bold text-gray-900">&lt; 2h</div>
             <p className="text-xs text-gray-500 mt-1">
               Average response time
             </p>
