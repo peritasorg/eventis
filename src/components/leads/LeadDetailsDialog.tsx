@@ -173,14 +173,15 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="event_type">Event Type</Label>
                 <Select
-                  value={formData.event_type || ''}
-                  onValueChange={(value) => setFormData({...formData, event_type: value})}
+                  value={formData.event_type || 'none'}
+                  onValueChange={(value) => setFormData({...formData, event_type: value === 'none' ? null : value})}
                   disabled={!isEditing}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select event type" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">No event type selected</SelectItem>
                     <SelectItem value="wedding">Wedding</SelectItem>
                     <SelectItem value="corporate">Corporate Event</SelectItem>
                     <SelectItem value="birthday">Birthday</SelectItem>
@@ -234,7 +235,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select
-                  value={formData.status || ''}
+                  value={formData.status || 'new'}
                   onValueChange={(value) => setFormData({...formData, status: value})}
                   disabled={!isEditing}
                 >
@@ -254,14 +255,15 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="source">Source</Label>
                 <Select
-                  value={formData.source || ''}
-                  onValueChange={(value) => setFormData({...formData, source: value})}
+                  value={formData.source || 'none'}
+                  onValueChange={(value) => setFormData({...formData, source: value === 'none' ? null : value})}
                   disabled={!isEditing}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">No source selected</SelectItem>
                     <SelectItem value="website">Website</SelectItem>
                     <SelectItem value="social_media">Social Media</SelectItem>
                     <SelectItem value="referral">Referral</SelectItem>

@@ -5,9 +5,11 @@ import { MetricCard } from '@/components/MetricCard';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
   const { currentTenant } = useAuth();
+  const navigate = useNavigate();
 
   const { data: dashboardStats, isLoading } = useSupabaseQuery(
     ['dashboard-stats'],
@@ -36,12 +38,12 @@ export const Dashboard = () => {
           .eq('tenant_id', currentTenant.id)
           .in('status', ['confirmed', 'inquiry']),
         
-        // This month revenue (completed events)
+        // This month revenue (ALL events with total_amount in current month, regardless of status)
         supabase
           .from('events')
           .select('total_amount')
           .eq('tenant_id', currentTenant.id)
-          .eq('status', 'completed')
+          .not('total_amount', 'is', null)
           .gte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
           .lte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]),
         
@@ -188,7 +190,11 @@ export const Dashboard = () => {
           <div className="space-y-3">
             {recentLeads && recentLeads.length > 0 ? (
               recentLeads.map((lead) => (
-                <div key={lead.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div 
+                  key={lead.id} 
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => navigate(`/leads/${lead.id}`)}
+                >
                   <div>
                     <p className="font-medium text-gray-900">{lead.name}</p>
                     <p className="text-sm text-gray-600">{lead.email}</p>
@@ -219,7 +225,11 @@ export const Dashboard = () => {
           <div className="space-y-3">
             {upcomingEvents && upcomingEvents.length > 0 ? (
               upcomingEvents.map((event) => (
-                <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div 
+                  key={event.id} 
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => navigate(`/events/${event.id}`)}
+                >
                   <div>
                     <p className="font-medium text-gray-900">{event.event_name}</p>
                     <p className="text-sm text-gray-600">{event.event_type}</p>

@@ -16,16 +16,8 @@ export const Settings = () => {
   const handleManageSubscription = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('customer-portal');
-
-      if (error) {
-        toast.error(`Portal error: ${error.message}`);
-        return;
-      }
-
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
+      // Direct redirect to your specific Stripe customer portal
+      window.open('https://billing.stripe.com/p/login/00w9ATbKZ6xzatK51v0oM00', '_blank');
     } catch (error: any) {
       toast.error(`Error: ${error.message}`);
     } finally {
