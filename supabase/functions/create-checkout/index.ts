@@ -35,18 +35,18 @@ serve(async (req) => {
 
     logStep("User authenticated", { userId: user.id, email: user.email, tier });
 
-    const stripe = new Stripe(Deno.env.get("Stripe Test Key") || "", { apiVersion: "2023-10-16" });
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2023-10-16" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
     }
 
-    // Define the actual Price IDs from your Stripe dashboard
+    // Define the actual Price IDs from your production Stripe dashboard
     const tierPriceIds = {
-      'Professional': 'price_1Rco5vRekDN8Vqc1cOTMOn5m',
-      'Business': 'price_1RcwmGRekDN8Vqc15V477P1B',
-      'Enterprise': 'price_1RcwmaRekDN8Vqc1Elx4sRij'
+      'Professional': 'price_1RdTvuDjPYkyTVvULZ9k6ZP5',
+      'Business': 'price_1RdTwvDjPYkyTVvULDFYVMYf',
+      'Enterprise': 'price_1RdTwvDjPYkyTVvULDFYVMYf' // Using Business price for Enterprise, adjust as needed
     };
 
     const priceId = tierPriceIds[tier as keyof typeof tierPriceIds];

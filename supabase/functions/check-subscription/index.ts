@@ -27,10 +27,7 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Try multiple possible environment variable names for Stripe key
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || 
-                     Deno.env.get("Stripe Test Key") || 
-                     Deno.env.get("STRIPE_TEST_SECRET_KEY");
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     
     if (!stripeKey) {
       logStep("ERROR: No Stripe key found", {
@@ -90,30 +87,29 @@ serve(async (req) => {
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       
-      // Determine subscription tier from price - FIXED mapping based on your actual Stripe pricing
+      // Determine subscription tier from price ID - UPDATED for production prices
       const priceId = subscription.items.data[0].price.id;
-      const price = await stripe.prices.retrieve(priceId);
-      const amount = price.unit_amount || 0;
       
-      // Map based on your actual Stripe pricing (amounts in pence for GBP)
-      if (amount === 9900) { // £99.00 = Professional
+      // Map based on your actual production Stripe price IDs
+      if (priceId === 'price_1RdTvuDjPYkyTVvULZ9k6ZP5') {
         subscriptionTier = "Professional";
-      } else if (amount === 15000) { // £150.00 = Business (YOUR CURRENT PLAN)
+      } else if (priceId === 'price_1RdTwvDjPYkyTVvULDFYVMYf') {
         subscriptionTier = "Business";
-      } else if (amount === 25000) { // £250.00 = Enterprise
-        subscriptionTier = "Enterprise";
       } else {
-        // Fallback logic for any other amounts - based on price ranges
-        if (amount < 10000) { // Less than £100
+        // Fallback: determine by amount for any other prices
+        const price = await stripe.prices.retrieve(priceId);
+        const amount = price.unit_amount || 0;
+        
+        if (amount === 19900) { // £199.00 in pence
           subscriptionTier = "Professional";
-        } else if (amount < 20000) { // £100-£199
+        } else if (amount === 24900) { // £249.00 in pence
           subscriptionTier = "Business";
-        } else { // £200+
+        } else {
           subscriptionTier = "Enterprise";
         }
       }
       
-      logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
+      logStep("Determined subscription tier", { priceId, subscriptionTier });
     } else {
       logStep("No active subscription found");
     }
