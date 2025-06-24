@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Auth } from '@/pages/Auth';
@@ -8,9 +9,9 @@ import { Events } from '@/pages/Events';
 import { EventDetail } from '@/pages/EventDetail';
 import { FormBuilder } from '@/pages/FormBuilder';
 import { Settings } from '@/pages/Settings';
-import { Index } from '@/pages/Index';
-import { NotFound } from '@/pages/NotFound';
-import { SuccessPage } from '@/pages/SuccessPage';
+import Index from '@/pages/Index';
+import NotFound from '@/pages/NotFound';
+import { Success } from '@/pages/success';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LeadRecord } from '@/pages/LeadRecord';
 
@@ -21,7 +22,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/success" element={<SuccessPage />} />
+          <Route path="/success" element={<Success />} />
           <Route
             path="/dashboard"
             element={
