@@ -12,6 +12,8 @@ import { Sidebar } from "./components/Sidebar";
 import { TrialBanner } from "./components/TrialBanner";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
+import { LeadView } from "./pages/LeadView";
+import { LeadEdit } from "./pages/LeadEdit";
 import { Events } from "./pages/Events";
 import { EventDetail } from "./pages/EventDetail";
 import { FormBuilder } from "./pages/FormBuilder";
@@ -74,6 +76,16 @@ const App: React.FC = () => {
                                 <Route path="/leads" element={
                                   <ErrorBoundary>
                                     <Leads />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/leads/:leadId/view" element={
+                                  <ErrorBoundary>
+                                    <LeadView />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/leads/:leadId/edit" element={
+                                  <ErrorBoundary>
+                                    <LeadEdit />
                                   </ErrorBoundary>
                                 } />
                                 <Route path="/events" element={
