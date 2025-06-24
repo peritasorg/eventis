@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
@@ -278,9 +279,9 @@ export const Sidebar = () => {
         </Button>
       )}
 
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar - Now Fixed */}
       <div className={cn(
-        "hidden lg:flex lg:flex-col lg:bg-gray-900 transition-all duration-200 h-screen",
+        "hidden lg:flex lg:flex-col lg:bg-gray-900 transition-all duration-200 fixed top-0 left-0 h-screen z-40",
         isCollapsed ? "lg:w-16" : "lg:w-64"
       )}>
         <SidebarContent />
