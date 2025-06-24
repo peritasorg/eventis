@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
@@ -110,10 +111,10 @@ export const Sidebar = () => {
   });
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+    <>
       {/* Logo/Brand with collapse toggle */}
       <div className={cn(
-        "flex h-16 items-center border-b border-gray-700 transition-all duration-200 flex-shrink-0",
+        "flex h-16 items-center border-b border-gray-700 transition-all duration-200",
         isCollapsed ? "px-3 justify-center" : "px-4 lg:px-6"
       )}>
         {!isCollapsed && (
@@ -141,8 +142,8 @@ export const Sidebar = () => {
         </div>
       </div>
 
-      {/* Navigation - Scrollable */}
-      <nav className="flex-1 space-y-1 px-3 lg:px-4 py-4 lg:py-6 overflow-y-auto min-h-0">
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 px-3 lg:px-4 py-4 lg:py-6 overflow-y-auto">
         {filteredNavigation.map((item) => {
           const isActive = location.pathname === item.href;
           const isFormBuilder = item.href === '/form-builder';
@@ -233,8 +234,8 @@ export const Sidebar = () => {
         </Link>
       </nav>
 
-      {/* Footer with User Info - Fixed at bottom */}
-      <div className="border-t border-gray-700 p-3 lg:p-4 flex-shrink-0">
+      {/* Footer with User Info */}
+      <div className="border-t border-gray-700 p-3 lg:p-4">
         {/* User Info */}
         {!isCollapsed && (
           <div className="flex items-center justify-between">
@@ -262,7 +263,7 @@ export const Sidebar = () => {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 
   return (
@@ -279,9 +280,9 @@ export const Sidebar = () => {
         </Button>
       )}
 
-      {/* Desktop Sidebar - Now Fixed */}
+      {/* Desktop Sidebar */}
       <div className={cn(
-        "hidden lg:flex lg:flex-col lg:bg-gray-900 transition-all duration-200 fixed top-0 left-0 h-screen z-40",
+        "hidden lg:flex lg:flex-col lg:bg-gray-900 transition-all duration-200",
         isCollapsed ? "lg:w-16" : "lg:w-64"
       )}>
         <SidebarContent />
@@ -291,7 +292,7 @@ export const Sidebar = () => {
       {isMobile && isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="fixed inset-0 bg-black opacity-50" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="fixed inset-y-0 left-0 w-64 bg-gray-900 text-white flex flex-col h-screen">
+          <div className="fixed inset-y-0 left-0 w-64 bg-gray-900 text-white flex flex-col">
             <SidebarContent />
           </div>
         </div>

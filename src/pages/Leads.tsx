@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Phone, Mail, Calendar, UserPlus, List, CalendarIcon, Eye, Edit, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -10,29 +9,42 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { ConvertLeadDialog } from '@/components/leads/ConvertLeadDialog';
+import { LeadDetailsDialog } from '@/components/leads/LeadDetailsDialog';
 import { LeadsCalendarView } from '@/components/leads/LeadsCalendarView';
-import { Sidebar } from '@/components/Sidebar';
 
 export const Leads = () => {
   const { currentTenant } = useAuth();
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
+  const [isEditLeadOpen, setIsEditLeadOpen] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [activeView, setActiveView] = useState('list');
   const [selectedDate, setSelectedDate] = useState('');
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    event_type: '',
+    event_date: '',
+    estimated_guests: '',
+    estimated_budget: '',
+    source: 'website',
+    notes: '',
+    status: 'new'
+  });
 
-  // Get leads with improved search functionality
+  // Get leads with upcoming appointments priority
   const { data: leads, refetch } = useSupabaseQuery(
-    ['leads', searchTerm, statusFilter],
+    ['leads'],
     async () => {
       if (!currentTenant?.id) return [];
       
@@ -48,8 +60,7 @@ export const Leads = () => {
       }
 
       if (searchTerm) {
-        // Enhanced search to include company name
-        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,company.ilike.%${searchTerm}%`);
+        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
       }
 
       const { data, error } = await query;
@@ -84,6 +95,28 @@ export const Leads = () => {
       onSuccess: () => {
         setIsAddLeadOpen(false);
         setSelectedDate('');
+      }
+    }
+  );
+
+  const updateLeadMutation = useSupabaseMutation(
+    async ({ id, ...leadData }: any) => {
+      const { data, error } = await supabase
+        .from('leads')
+        .update(leadData)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    {
+      successMessage: 'Lead updated successfully!',
+      invalidateQueries: [['leads']],
+      onSuccess: () => {
+        setIsEditLeadOpen(false);
+        setSelectedLead(null);
       }
     }
   );
@@ -148,6 +181,45 @@ export const Leads = () => {
     addLeadMutation.mutate(leadData);
   };
 
+  const handleEditLead = (lead: any) => {
+    setSelectedLead(lead);
+    setEditFormData({
+      name: lead.name || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      company: lead.company || '',
+      event_type: lead.event_type || '',
+      event_date: lead.event_date || '',
+      estimated_guests: lead.estimated_guests ? lead.estimated_guests.toString() : '',
+      estimated_budget: lead.estimated_budget ? lead.estimated_budget.toString() : '',
+      source: lead.source || 'website',
+      notes: lead.notes || '',
+      status: lead.status || 'new'
+    });
+    setIsEditLeadOpen(true);
+  };
+
+  const handleUpdateLead = () => {
+    if (!selectedLead) return;
+
+    const leadData = {
+      id: selectedLead.id,
+      name: editFormData.name,
+      email: editFormData.email || null,
+      phone: editFormData.phone || null,
+      company: editFormData.company || null,
+      event_type: editFormData.event_type || null,
+      event_date: editFormData.event_date || null,
+      estimated_guests: editFormData.estimated_guests ? parseInt(editFormData.estimated_guests) : null,
+      estimated_budget: editFormData.estimated_budget ? parseFloat(editFormData.estimated_budget) : null,
+      source: editFormData.source,
+      notes: editFormData.notes || null,
+      status: editFormData.status
+    };
+
+    updateLeadMutation.mutate(leadData);
+  };
+
   const handleDeleteLead = (lead: any) => {
     if (confirm(`Are you sure you want to delete the lead for ${lead.name}?`)) {
       deleteLeadMutation.mutate(lead.id);
@@ -172,7 +244,8 @@ export const Leads = () => {
   };
 
   const handleViewLead = (lead: any) => {
-    navigate(`/leads/${lead.id}`);
+    setSelectedLead(lead);
+    setDetailsDialogOpen(true);
   };
 
   const handleDateClick = (date: string) => {
@@ -186,208 +259,464 @@ export const Leads = () => {
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 p-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Leads & Appointments</h1>
-            <p className="text-gray-600">Manage your leads and upcoming appointments</p>
-          </div>
-          
-          <Dialog open={isAddLeadOpen} onOpenChange={setIsAddLeadOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
+    <div className="p-8 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Leads & Appointments</h1>
+          <p className="text-gray-600">Manage your leads and upcoming appointments</p>
+        </div>
+        
+        <Dialog open={isAddLeadOpen} onOpenChange={setIsAddLeadOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Lead
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
                 Add New Lead
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  Add New Lead
-                  {selectedDate && (
-                    <span className="text-sm font-normal text-blue-600 ml-2">
-                      for {new Date(selectedDate).toLocaleDateString()}
-                    </span>
-                  )}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddLead} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Name *</Label>
-                    <Input id="name" name="name" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" name="email" type="email" />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" name="phone" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company">Company</Label>
-                    <Input id="company" name="company" />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="event_type">Event Type</Label>
-                    <Select name="event_type">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select event type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="wedding">Wedding</SelectItem>
-                        <SelectItem value="corporate">Corporate Event</SelectItem>
-                        <SelectItem value="birthday">Birthday</SelectItem>
-                        <SelectItem value="anniversary">Anniversary</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="event_date">Event Date</Label>
-                    <Input 
-                      id="event_date" 
-                      name="event_date" 
-                      type="date" 
-                      defaultValue={selectedDate}
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="estimated_guests">Estimated Guests</Label>
-                    <Input id="estimated_guests" name="estimated_guests" type="number" min="0" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
-                    <Input id="estimated_budget" name="estimated_budget" type="number" step="0.01" min="0" />
-                  </div>
-                </div>
-                
+                {selectedDate && (
+                  <span className="text-sm font-normal text-blue-600 ml-2">
+                    for {new Date(selectedDate).toLocaleDateString()}
+                  </span>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleAddLead} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="source">Source</Label>
-                  <Select name="source" defaultValue="website">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input id="name" name="name" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" name="email" type="email" />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input id="phone" name="phone" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input id="company" name="company" />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="event_type">Event Type</Label>
+                  <Select name="event_type">
                     <SelectTrigger>
-                      <SelectValue placeholder="How did they find you?" />
+                      <SelectValue placeholder="Select event type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="website">Website</SelectItem>
-                      <SelectItem value="social_media">Social Media</SelectItem>
-                      <SelectItem value="referral">Referral</SelectItem>
-                      <SelectItem value="google">Google</SelectItem>
-                      <SelectItem value="phone">Phone</SelectItem>
-                      <SelectItem value="walk_in">Walk In</SelectItem>
+                      <SelectItem value="wedding">Wedding</SelectItem>
+                      <SelectItem value="corporate">Corporate Event</SelectItem>
+                      <SelectItem value="birthday">Birthday</SelectItem>
+                      <SelectItem value="anniversary">Anniversary</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" name="notes" placeholder="Any additional notes..." />
+                  <Label htmlFor="event_date">Event Date</Label>
+                  <Input 
+                    id="event_date" 
+                    name="event_date" 
+                    type="date" 
+                    defaultValue={selectedDate}
+                  />
                 </div>
-                
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => {
-                    setIsAddLeadOpen(false);
-                    setSelectedDate('');
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={addLeadMutation.isPending}>
-                    {addLeadMutation.isPending ? 'Adding...' : 'Add Lead'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Upcoming Appointments */}
-        {upcomingAppointments.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Upcoming Appointments
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {upcomingAppointments.map((appointment) => (
-                  <div key={appointment.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border">
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm">
-                        <div className="font-medium">{appointment.name}</div>
-                        <div className="text-gray-600">
-                          {appointment.event_type} • {new Date(appointment.event_date).toLocaleDateString()}
-                        </div>
-                      </div>
-                      {appointment.phone && (
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                          <Phone className="h-3 w-3" />
-                          {appointment.phone}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={getStatusColor(appointment.status)}>
-                        {appointment.status}
-                      </Badge>
-                      <Button size="sm" variant="outline" onClick={() => handleViewLead(appointment)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* View Toggle */}
-        <Tabs value={activeView} onValueChange={setActiveView} className="mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <TabsList>
-              <TabsTrigger value="list" className="flex items-center gap-2">
-                <List className="h-4 w-4" />
-                List View
-              </TabsTrigger>
-              <TabsTrigger value="calendar" className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                Calendar View
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Filters */}
-            <div className="flex gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search leads by name, email, phone, or company..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
               </div>
               
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48">
-                  <Filter className="h-4 w-4 mr-2" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="estimated_guests">Estimated Guests</Label>
+                  <Input id="estimated_guests" name="estimated_guests" type="number" min="0" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
+                  <Input id="estimated_budget" name="estimated_budget" type="number" step="0.01" min="0" />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="source">Source</Label>
+                <Select name="source" defaultValue="website">
+                  <SelectTrigger>
+                    <SelectValue placeholder="How did they find you?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="website">Website</SelectItem>
+                    <SelectItem value="social_media">Social Media</SelectItem>
+                    <SelectItem value="referral">Referral</SelectItem>
+                    <SelectItem value="google">Google</SelectItem>
+                    <SelectItem value="phone">Phone</SelectItem>
+                    <SelectItem value="walk_in">Walk In</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea id="notes" name="notes" placeholder="Any additional notes..." />
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => {
+                  setIsAddLeadOpen(false);
+                  setSelectedDate('');
+                }}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={addLeadMutation.isPending}>
+                  {addLeadMutation.isPending ? 'Adding...' : 'Add Lead'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Upcoming Appointments */}
+      {upcomingAppointments.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Upcoming Appointments
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {upcomingAppointments.map((appointment) => (
+                <div key={appointment.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border">
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm">
+                      <div className="font-medium">{appointment.name}</div>
+                      <div className="text-gray-600">
+                        {appointment.event_type} • {new Date(appointment.event_date).toLocaleDateString()}
+                      </div>
+                    </div>
+                    {appointment.phone && (
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <Phone className="h-3 w-3" />
+                        {appointment.phone}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={getStatusColor(appointment.status)}>
+                      {appointment.status}
+                    </Badge>
+                    <Button size="sm" variant="outline" onClick={() => handleViewLead(appointment)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* View Toggle */}
+      <Tabs value={activeView} onValueChange={setActiveView} className="mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <TabsList>
+            <TabsTrigger value="list" className="flex items-center gap-2">
+              <List className="h-4 w-4" />
+              List View
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              Calendar View
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Filters */}
+          <div className="flex gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search leads..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="contacted">Contacted</SelectItem>
+                <SelectItem value="qualified">Qualified</SelectItem>
+                <SelectItem value="quoted">Quoted</SelectItem>
+                <SelectItem value="converted">Converted</SelectItem>
+                <SelectItem value="lost">Lost</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <TabsContent value="list">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="p-6">
+              <div className="space-y-4">
+                {leads?.length ? leads.map((lead) => (
+                  <div key={lead.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-gray-900">{lead.name}</h3>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(lead.status)}`}>
+                            {lead.status}
+                          </span>
+                          {lead.event_date && new Date(lead.event_date) >= new Date() && (
+                            <Badge variant="outline" className="text-blue-600 border-blue-200">
+                              Upcoming
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                          {lead.email && (
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-4 w-4" />
+                              {lead.email}
+                            </div>
+                          )}
+                          {lead.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-4 w-4" />
+                              {lead.phone}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          {lead.event_type && <span>{lead.event_type}</span>}
+                          {lead.event_date && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {new Date(lead.event_date).toLocaleDateString()}
+                            </div>
+                          )}
+                          {lead.estimated_guests && <span>{lead.estimated_guests} guests</span>}
+                          {lead.estimated_budget && <span>£{lead.estimated_budget.toLocaleString()}</span>}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleViewLead(lead)}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        
+                        <Button size="sm" variant="outline" onClick={() => handleEditLead(lead)}>
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        
+                        <Select
+                          value={lead.status}
+                          onValueChange={(status) => updateLeadStatus.mutate({ id: lead.id, status })}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="new">New</SelectItem>
+                            <SelectItem value="contacted">Contacted</SelectItem>
+                            <SelectItem value="qualified">Qualified</SelectItem>
+                            <SelectItem value="quoted">Quoted</SelectItem>
+                            <SelectItem value="converted">Converted</SelectItem>
+                            <SelectItem value="lost">Lost</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        {lead.status !== 'converted' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleConvertLead(lead)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <UserPlus className="h-4 w-4 mr-1" />
+                            Convert
+                          </Button>
+                        )}
+                        
+                        <Button size="sm" variant="outline" onClick={() => handleDeleteLead(lead)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {lead.notes && (
+                      <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                        {lead.notes}
+                      </p>
+                    )}
+                  </div>
+                )) : (
+                  <div className="text-center py-12">
+                    <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
+                    <p className="text-gray-600 mb-4">Start by adding your first lead</p>
+                    <Button onClick={() => setIsAddLeadOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Lead
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          <LeadsCalendarView
+            leads={leads || []}
+            onLeadClick={handleViewLead}
+            onDateClick={handleDateClick}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit Lead Dialog */}
+      <Dialog open={isEditLeadOpen} onOpenChange={setIsEditLeadOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Lead</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Name *</Label>
+                <Input 
+                  id="edit-name" 
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input 
+                  id="edit-email" 
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input 
+                  id="edit-phone"
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-company">Company</Label>
+                <Input 
+                  id="edit-company"
+                  value={editFormData.company}
+                  onChange={(e) => setEditFormData({...editFormData, company: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-event_type">Event Type</Label>
+                <Select value={editFormData.event_type} onValueChange={(value) => setEditFormData({...editFormData, event_type: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select event type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="wedding">Wedding</SelectItem>
+                    <SelectItem value="corporate">Corporate Event</SelectItem>
+                    <SelectItem value="birthday">Birthday</SelectItem>
+                    <SelectItem value="anniversary">Anniversary</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-event_date">Event Date</Label>
+                <Input 
+                  id="edit-event_date" 
+                  type="date"
+                  value={editFormData.event_date}
+                  onChange={(e) => setEditFormData({...editFormData, event_date: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-estimated_guests">Estimated Guests</Label>
+                <Input 
+                  id="edit-estimated_guests" 
+                  type="number" 
+                  min="0"
+                  value={editFormData.estimated_guests}
+                  onChange={(e) => setEditFormData({...editFormData, estimated_guests: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-estimated_budget">Estimated Budget (£)</Label>
+                <Input 
+                  id="edit-estimated_budget" 
+                  type="number" 
+                  step="0.01" 
+                  min="0"
+                  value={editFormData.estimated_budget}
+                  onChange={(e) => setEditFormData({...editFormData, estimated_budget: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-source">Source</Label>
+              <Select value={editFormData.source} onValueChange={(value) => setEditFormData({...editFormData, source: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="How did they find you?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="website">Website</SelectItem>
+                  <SelectItem value="social_media">Social Media</SelectItem>
+                  <SelectItem value="referral">Referral</SelectItem>
+                  <SelectItem value="google">Google</SelectItem>
+                  <SelectItem value="phone">Phone</SelectItem>
+                  <SelectItem value="walk_in">Walk In</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={editFormData.status} onValueChange={(value) => setEditFormData({...editFormData, status: value})}>
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="new">New</SelectItem>
                   <SelectItem value="contacted">Contacted</SelectItem>
                   <SelectItem value="qualified">Qualified</SelectItem>
@@ -397,160 +726,43 @@ export const Leads = () => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <TabsContent value="list">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              {leads?.length ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Budget</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {leads.map((lead) => (
-                      <TableRow key={lead.id} className="hover:bg-gray-50">
-                        <TableCell>
-                          <div>
-                            <div className="font-medium text-gray-900">{lead.name}</div>
-                            {lead.company && (
-                              <div className="text-sm text-gray-500">{lead.company}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {lead.email && (
-                              <div className="flex items-center gap-1 text-sm">
-                                <Mail className="h-3 w-3 text-gray-400" />
-                                <span className="text-gray-600">{lead.email}</span>
-                              </div>
-                            )}
-                            {lead.phone && (
-                              <div className="flex items-center gap-1 text-sm">
-                                <Phone className="h-3 w-3 text-gray-400" />
-                                <span className="text-gray-600">{lead.phone}</span>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            {lead.event_type && (
-                              <div className="font-medium text-gray-900 capitalize">{lead.event_type}</div>
-                            )}
-                            {lead.event_date && (
-                              <div className="text-sm text-gray-500">
-                                {new Date(lead.event_date).toLocaleDateString()}
-                              </div>
-                            )}
-                            {lead.estimated_guests && (
-                              <div className="text-sm text-gray-500">
-                                {lead.estimated_guests} guests
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(lead.status)}>
-                            {lead.status}
-                          </Badge>
-                          {lead.event_date && new Date(lead.event_date) >= new Date() && (
-                            <Badge variant="outline" className="ml-1 text-blue-600 border-blue-200">
-                              Upcoming
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {lead.estimated_budget && (
-                            <span className="font-medium">£{lead.estimated_budget.toLocaleString()}</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-gray-600 capitalize">
-                            {lead.source?.replace('_', ' ')}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleViewLead(lead)}>
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                            
-                            <Select
-                              value={lead.status}
-                              onValueChange={(status) => updateLeadStatus.mutate({ id: lead.id, status })}
-                            >
-                              <SelectTrigger className="w-24 h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="contacted">Contacted</SelectItem>
-                                <SelectItem value="qualified">Qualified</SelectItem>
-                                <SelectItem value="quoted">Quoted</SelectItem>
-                                <SelectItem value="converted">Converted</SelectItem>
-                                <SelectItem value="lost">Lost</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            
-                            {lead.status !== 'converted' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleConvertLead(lead)}
-                                className="bg-green-600 hover:bg-green-700 text-white h-8"
-                              >
-                                <UserPlus className="h-3 w-3" />
-                              </Button>
-                            )}
-                            
-                            <Button size="sm" variant="outline" onClick={() => handleDeleteLead(lead)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-12">
-                  <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
-                  <p className="text-gray-600 mb-4">Start by adding your first lead</p>
-                  <Button onClick={() => setIsAddLeadOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Your First Lead
-                  </Button>
-                </div>
-              )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <Textarea 
+                id="edit-notes"
+                value={editFormData.notes}
+                onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
+                placeholder="Any additional notes..." 
+              />
             </div>
-          </TabsContent>
+            
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditLeadOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateLead} disabled={!editFormData.name || updateLeadMutation.isPending}>
+                {updateLeadMutation.isPending ? 'Updating...' : 'Update Lead'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-          <TabsContent value="calendar">
-            <LeadsCalendarView
-              leads={leads || []}
-              onLeadClick={handleViewLead}
-              onDateClick={handleDateClick}
-            />
-          </TabsContent>
-        </Tabs>
+      {/* Dialogs */}
+      <ConvertLeadDialog
+        open={convertDialogOpen}
+        onOpenChange={setConvertDialogOpen}
+        lead={selectedLead}
+        onSuccess={handleConversionSuccess}
+      />
 
-        {/* Dialogs */}
-        <ConvertLeadDialog
-          open={convertDialogOpen}
-          onOpenChange={setConvertDialogOpen}
-          lead={selectedLead}
-          onSuccess={handleConversionSuccess}
-        />
-      </div>
+      <LeadDetailsDialog
+        open={detailsDialogOpen}
+        onOpenChange={setDetailsDialogOpen}
+        lead={selectedLead}
+        onUpdate={refetch}
+      />
     </div>
   );
 };

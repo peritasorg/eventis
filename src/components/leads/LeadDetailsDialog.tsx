@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,20 +12,6 @@ import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-
-interface LeadFormData {
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
-  event_type: string;
-  event_date: string;
-  estimated_guests: string | number;
-  estimated_budget: string | number;
-  status: string;
-  source: string;
-  notes: string;
-}
 
 interface LeadDetailsDialogProps {
   open: boolean;
@@ -42,39 +28,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
 }) => {
   const { currentTenant } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<LeadFormData>({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    event_type: '',
-    event_date: '',
-    estimated_guests: '',
-    estimated_budget: '',
-    status: 'new',
-    source: 'website',
-    notes: ''
-  });
-
-  // Initialize form data when lead changes or dialog opens
-  useEffect(() => {
-    if (lead && open) {
-      console.log('Lead data received:', lead);
-      setFormData({
-        name: lead.name || '',
-        email: lead.email || '',
-        phone: lead.phone || '',
-        company: lead.company || '',
-        event_type: lead.event_type || '',
-        event_date: lead.event_date || '',
-        estimated_guests: lead.estimated_guests || '',
-        estimated_budget: lead.estimated_budget || '',
-        status: lead.status || 'new',
-        source: lead.source || 'website',
-        notes: lead.notes || ''
-      });
-    }
-  }, [lead, open]);
+  const [formData, setFormData] = useState(lead || {});
 
   const updateLeadMutation = useSupabaseMutation(
     async (updatedData: any) => {
@@ -101,8 +55,8 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
     const updateData = {
       ...formData,
       event_date: formData.event_date || null,
-      estimated_guests: formData.estimated_guests ? parseInt(formData.estimated_guests.toString()) : null,
-      estimated_budget: formData.estimated_budget ? parseFloat(formData.estimated_budget.toString()) : null,
+      estimated_guests: formData.estimated_guests ? parseInt(formData.estimated_guests) : null,
+      estimated_budget: formData.estimated_budget ? parseFloat(formData.estimated_budget) : null,
     };
     
     updateLeadMutation.mutate(updateData);
@@ -126,40 +80,28 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between pr-12">
+          <DialogTitle className="flex items-center justify-between">
             <span>Lead Details</span>
-            <div className="flex items-center gap-3">
-              <Badge className={getStatusColor(formData.status)}>
-                {formData.status?.charAt(0).toUpperCase() + formData.status?.slice(1)}
+            <div className="flex items-center gap-2">
+              <Badge className={getStatusColor(formData.status || lead.status)}>
+                {(formData.status || lead.status)?.charAt(0).toUpperCase() + (formData.status || lead.status)?.slice(1)}
               </Badge>
               {!isEditing ? (
-                <Button size="sm" onClick={() => setIsEditing(true)} className="flex items-center gap-1">
-                  <Edit className="h-4 w-4" />
+                <Button size="sm" onClick={() => setIsEditing(true)}>
+                  <Edit className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSave} disabled={updateLeadMutation.isPending} className="flex items-center gap-1">
-                    <Save className="h-4 w-4" />
+                  <Button size="sm" onClick={handleSave} disabled={updateLeadMutation.isPending}>
+                    <Save className="h-4 w-4 mr-1" />
                     Save
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => {
                     setIsEditing(false);
-                    setFormData({
-                      name: lead.name || '',
-                      email: lead.email || '',
-                      phone: lead.phone || '',
-                      company: lead.company || '',
-                      event_type: lead.event_type || '',
-                      event_date: lead.event_date || '',
-                      estimated_guests: lead.estimated_guests || '',
-                      estimated_budget: lead.estimated_budget || '',
-                      status: lead.status || 'new',
-                      source: lead.source || 'website',
-                      notes: lead.notes || ''
-                    });
-                  }} className="flex items-center gap-1">
-                    <X className="h-4 w-4" />
+                    setFormData(lead);
+                  }}>
+                    <X className="h-4 w-4 mr-1" />
                     Cancel
                   </Button>
                 </div>
@@ -181,7 +123,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
                 <Label htmlFor="name">Name *</Label>
                 <Input
                   id="name"
-                  value={formData.name}
+                  value={formData.name || ''}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   disabled={!isEditing}
                 />
@@ -191,7 +133,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
                 <Input
                   id="email"
                   type="email"
-                  value={formData.email}
+                  value={formData.email || ''}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   disabled={!isEditing}
                 />
@@ -203,7 +145,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
-                  value={formData.phone}
+                  value={formData.phone || ''}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
                   disabled={!isEditing}
                 />
@@ -212,7 +154,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
                 <Label htmlFor="company">Company</Label>
                 <Input
                   id="company"
-                  value={formData.company}
+                  value={formData.company || ''}
                   onChange={(e) => setFormData({...formData, company: e.target.value})}
                   disabled={!isEditing}
                 />
@@ -231,7 +173,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="event_type">Event Type</Label>
                 <Select
-                  value={formData.event_type}
+                  value={formData.event_type || ''}
                   onValueChange={(value) => setFormData({...formData, event_type: value})}
                   disabled={!isEditing}
                 >
@@ -252,7 +194,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
                 <Input
                   id="event_date"
                   type="date"
-                  value={formData.event_date}
+                  value={formData.event_date || ''}
                   onChange={(e) => setFormData({...formData, event_date: e.target.value})}
                   disabled={!isEditing}
                 />
@@ -265,7 +207,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
                 <Input
                   id="estimated_guests"
                   type="number"
-                  value={formData.estimated_guests}
+                  value={formData.estimated_guests || ''}
                   onChange={(e) => setFormData({...formData, estimated_guests: e.target.value})}
                   disabled={!isEditing}
                 />
@@ -276,7 +218,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
                   id="estimated_budget"
                   type="number"
                   step="0.01"
-                  value={formData.estimated_budget}
+                  value={formData.estimated_budget || ''}
                   onChange={(e) => setFormData({...formData, estimated_budget: e.target.value})}
                   disabled={!isEditing}
                 />
@@ -292,7 +234,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select
-                  value={formData.status}
+                  value={formData.status || ''}
                   onValueChange={(value) => setFormData({...formData, status: value})}
                   disabled={!isEditing}
                 >
@@ -312,7 +254,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="source">Source</Label>
                 <Select
-                  value={formData.source}
+                  value={formData.source || ''}
                   onValueChange={(value) => setFormData({...formData, source: value})}
                   disabled={!isEditing}
                 >
@@ -336,7 +278,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
               <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
-                value={formData.notes}
+                value={formData.notes || ''}
                 onChange={(e) => setFormData({...formData, notes: e.target.value})}
                 disabled={!isEditing}
                 rows={4}
