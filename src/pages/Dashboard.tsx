@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Calendar, Users, Clock, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
@@ -16,7 +15,7 @@ export const Dashboard = () => {
     async () => {
       if (!currentTenant?.id) return null;
       
-      // Get stats manually since the stored procedure might be using old column names
+      // Get stats with corrected logic - no longer filtering by status for revenue calculation
       const [leadsResult, customersResult, eventsResult, revenueResult, upcomingResult] = await Promise.all([
         // Total leads
         supabase
@@ -31,29 +30,30 @@ export const Dashboard = () => {
           .eq('tenant_id', currentTenant.id)
           .eq('active', true),
         
-        // Active events (confirmed or inquiry status)
+        // Active events (any event with an amount > 0, regardless of status)
         supabase
           .from('events')
           .select('*', { count: 'exact', head: true })
           .eq('tenant_id', currentTenant.id)
-          .in('status', ['confirmed', 'inquiry']),
+          .gt('total_amount', 0),
         
-        // This month revenue (ALL events with total_amount in current month, regardless of status)
+        // This month revenue - ALL events with total_amount in current month
         supabase
           .from('events')
           .select('total_amount')
           .eq('tenant_id', currentTenant.id)
           .not('total_amount', 'is', null)
+          .gt('total_amount', 0)
           .gte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
           .lte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]),
         
-        // Upcoming events
+        // Upcoming events with amounts
         supabase
           .from('events')
           .select('*', { count: 'exact', head: true })
           .eq('tenant_id', currentTenant.id)
           .gte('event_start_date', new Date().toISOString().split('T')[0])
-          .in('status', ['confirmed', 'inquiry'])
+          .gt('total_amount', 0)
       ]);
       
       const thisMonthRevenue = revenueResult.data?.reduce((sum, event) => sum + (event.total_amount || 0), 0) || 0;
