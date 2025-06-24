@@ -10,6 +10,10 @@ export const Dashboard = () => {
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
 
+  const handleViewLead = (lead: any) => {
+    navigate(`/leads/${lead.id}/view`);
+  };
+
   const { data: dashboardStats, isLoading } = useSupabaseQuery(
     ['dashboard-stats'],
     async () => {
@@ -193,7 +197,7 @@ export const Dashboard = () => {
                 <div 
                   key={lead.id} 
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                  onClick={() => navigate(`/leads/${lead.id}`)}
+                  onClick={() => handleViewLead(lead)}
                 >
                   <div>
                     <p className="font-medium text-gray-900">{lead.name}</p>
