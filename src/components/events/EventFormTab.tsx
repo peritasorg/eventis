@@ -24,8 +24,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   // Use the event's form_template_used as the selected form - this ensures persistence
   const selectedFormId = event.form_template_used || '';
 
-  // ... keep existing code (form templates query)
-
   const { data: formTemplates } = useSupabaseQuery(
     ['form-templates'],
     async () => {
@@ -46,8 +44,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       return data || [];
     }
   );
-
-  // ... keep existing code (selected form fields query)
 
   const { data: selectedFormFields } = useSupabaseQuery(
     ['form-fields', selectedFormId],
@@ -125,7 +121,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       [fieldId]: {
         enabled,
         price: enabled ? (formResponses[fieldId]?.price || field?.price_modifier || 0) : 0,
-        notes: enabled ? (formResponses[fieldId]?.notes || '') : ''
+        notes: enabled ? (formResponses[fieldId]?.notes || '') : '',
+        label: field?.label || '' // Store the field label for PDF generation
       }
     };
     
@@ -134,11 +131,15 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   };
 
   const handleFieldChange = (fieldId: string, field: string, value: string | number) => {
+    const fieldInstance = selectedFormFields?.find(f => f.field_library.id === fieldId);
+    const fieldLabel = fieldInstance?.field_library?.label || '';
+    
     const updatedResponses = {
       ...formResponses,
       [fieldId]: {
         ...formResponses[fieldId],
-        [field]: value
+        [field]: value,
+        label: fieldLabel // Ensure label is always stored
       }
     };
     
