@@ -12,6 +12,7 @@ interface EventData {
   total_amount: number;
   deposit_amount: number;
   form_responses: any;
+  form_total: number;
   customers: {
     name: string;
     email: string;
