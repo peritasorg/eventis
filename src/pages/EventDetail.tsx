@@ -22,6 +22,7 @@ import { EventBusinessFlow } from '@/components/events/EventBusinessFlow';
 import { EventOverviewTab } from '@/components/events/EventOverviewTab';
 import { EventFormTab } from '@/components/events/EventFormTab';
 import { toast } from 'sonner';
+import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
 
 export const EventDetail = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -59,6 +60,27 @@ export const EventDetail = () => {
     }
   );
 
+  // Fetch tenant details for PDF generation
+  const { data: tenantDetails } = useSupabaseQuery(
+    ['tenant-details', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', currentTenant.id)
+        .single();
+      
+      if (error) {
+        console.error('Tenant details error:', error);
+        return null;
+      }
+      
+      return data;
+    }
+  );
+
   const deleteEventMutation = useSupabaseMutation(
     async () => {
       if (!eventId || !currentTenant?.id) throw new Error('Missing event ID or tenant');
@@ -84,6 +106,36 @@ export const EventDetail = () => {
 
   const handleDeleteEvent = () => {
     deleteEventMutation.mutate({});
+  };
+
+  const handleGenerateQuote = () => {
+    if (!event || !tenantDetails) {
+      toast.error('Missing event or tenant information');
+      return;
+    }
+
+    try {
+      generateQuotePDF(event, tenantDetails);
+      toast.success('Quote PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating quote PDF:', error);
+      toast.error('Failed to generate quote PDF');
+    }
+  };
+
+  const handleGenerateInvoice = () => {
+    if (!event || !tenantDetails) {
+      toast.error('Missing event or tenant information');
+      return;
+    }
+
+    try {
+      generateInvoicePDF(event, tenantDetails);
+      toast.success('Invoice PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating invoice PDF:', error);
+      toast.error('Failed to generate invoice PDF');
+    }
   };
 
   if (isLoading) {
@@ -146,11 +198,19 @@ export const EventDetail = () => {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-            <Button variant="outline" className="flex items-center justify-center gap-2 font-medium text-sm">
+            <Button 
+              variant="outline" 
+              className="flex items-center justify-center gap-2 font-medium text-sm"
+              onClick={handleGenerateQuote}
+            >
               <FileText className="h-4 w-4" />
               Generate Quote
             </Button>
-            <Button variant="outline" className="flex items-center justify-center gap-2 font-medium text-sm">
+            <Button 
+              variant="outline" 
+              className="flex items-center justify-center gap-2 font-medium text-sm"
+              onClick={handleGenerateInvoice}
+            >
               <Receipt className="h-4 w-4" />
               Generate Invoice
             </Button>
