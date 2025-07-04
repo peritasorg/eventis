@@ -19,7 +19,7 @@ export const TrialExpiredModal = () => {
     navigate('/settings');
   };
 
-  // Only show modal if trial is expired AND user is not on settings page
+  // Don't show modal if trial is not expired OR if user is already on settings page
   const shouldShowModal = isTrialExpired && location.pathname !== '/settings';
 
   return (
