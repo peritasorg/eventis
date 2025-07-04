@@ -10,8 +10,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "./components/Sidebar";
 import { TrialBanner } from "./components/TrialBanner";
-import { TrialLockOverlay } from "./components/TrialLockOverlay";
-import { TrialExpiredModal } from "./components/TrialExpiredModal";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
 import { LeadView } from "./pages/LeadView";
@@ -68,63 +66,60 @@ const App: React.FC = () => {
                             <ErrorBoundary>
                               <TrialBanner />
                             </ErrorBoundary>
-                            <TrialLockOverlay>
-                              <div className="h-full">
-                                <Routes>
-                                  <Route path="/" element={
-                                    <ErrorBoundary>
-                                      <Dashboard />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="/leads" element={
-                                    <ErrorBoundary>
-                                      <Leads />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="/leads/:leadId/view" element={
-                                    <ErrorBoundary>
-                                      <LeadView />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="/leads/:leadId/edit" element={
-                                    <ErrorBoundary>
-                                      <LeadEdit />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="/events" element={
-                                    <ErrorBoundary>
-                                      <Events />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="/events/:eventId" element={
-                                    <ErrorBoundary>
-                                      <EventDetail />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="/form-builder" element={
-                                    <ErrorBoundary>
-                                      <FormBuilder />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="/customers" element={
-                                    <ErrorBoundary>
-                                      <Customers />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="/settings" element={
-                                    <ErrorBoundary>
-                                      <Settings />
-                                    </ErrorBoundary>
-                                  } />
-                                  <Route path="*" element={
-                                    <ErrorBoundary>
-                                      <NotFound />
-                                    </ErrorBoundary>
-                                  } />
-                                </Routes>
-                              </div>
-                            </TrialLockOverlay>
-                            <TrialExpiredModal />
+                            <div className="h-full">
+                              <Routes>
+                                <Route path="/" element={
+                                  <ErrorBoundary>
+                                    <Dashboard />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/leads" element={
+                                  <ErrorBoundary>
+                                    <Leads />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/leads/:leadId/view" element={
+                                  <ErrorBoundary>
+                                    <LeadView />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/leads/:leadId/edit" element={
+                                  <ErrorBoundary>
+                                    <LeadEdit />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/events" element={
+                                  <ErrorBoundary>
+                                    <Events />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/events/:eventId" element={
+                                  <ErrorBoundary>
+                                    <EventDetail />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/form-builder" element={
+                                  <ErrorBoundary>
+                                    <FormBuilder />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/customers" element={
+                                  <ErrorBoundary>
+                                    <Customers />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/settings" element={
+                                  <ErrorBoundary>
+                                    <Settings />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="*" element={
+                                  <ErrorBoundary>
+                                    <NotFound />
+                                  </ErrorBoundary>
+                                } />
+                              </Routes>
+                            </div>
                           </main>
                         </div>
                       </ProtectedRoute>
