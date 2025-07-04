@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripVertical, Edit3, Trash2, Eye, DollarSign, MessageSquare } from 'lucide-react';
+import { GripVertical, Edit3, Trash2, Eye, DollarSign, MessageSquare, Plus, FolderPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +11,7 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { QuickFieldLibrary } from './QuickFieldLibrary';
+import { FormSection } from './FormSection';
 
 interface DragDropFormBuilderProps {
   form: any;
@@ -35,6 +35,7 @@ interface FormFieldInstance {
   id: string;
   field_library_id: string;
   field_order: number;
+  section_id?: string;
   label_override?: string;
   placeholder_override?: string;
   help_text_override?: string;
@@ -42,10 +43,21 @@ interface FormFieldInstance {
   field_library: FieldLibraryItem;
 }
 
+interface FormSectionData {
+  id: string;
+  title: string;
+  description?: string;
+  collapsed?: boolean;
+  order: number;
+}
+
 export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, onBack }) => {
   const { currentTenant } = useAuth();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [sections, setSections] = useState<FormSectionData[]>([
+    { id: 'default', title: 'Form Fields', order: 0 }
+  ]);
 
   const { data: formFields, refetch: refetchFields } = useSupabaseQuery(
     ['form-fields', form.id],
@@ -65,7 +77,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
   );
 
   const addFieldMutation = useSupabaseMutation(
-    async (fieldLibraryId: string) => {
+    async ({ fieldLibraryId, sectionId }: { fieldLibraryId: string; sectionId?: string }) => {
       const maxOrder = Math.max(...(formFields?.map(f => f.field_order) || [0]), 0);
       
       const { error } = await supabase
@@ -74,6 +86,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
           form_template_id: form.id,
           field_library_id: fieldLibraryId,
           field_order: maxOrder + 1,
+          section_id: sectionId || 'default',
           tenant_id: currentTenant?.id
         }]);
       
@@ -115,27 +128,80 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
     }
   );
 
+  const addSection = () => {
+    const newSection: FormSectionData = {
+      id: `section-${Date.now()}`,
+      title: 'New Section',
+      order: sections.length
+    };
+    setSections([...sections, newSection]);
+  };
+
+  const updateSection = (sectionId: string, updates: Partial<FormSectionData>) => {
+    setSections(sections.map(section => 
+      section.id === sectionId ? { ...section, ...updates } : section
+    ));
+  };
+
+  const removeSection = (sectionId: string) => {
+    if (sectionId === 'default') return; // Can't remove default section
+    
+    // Move fields from this section to default
+    const fieldsInSection = formFields?.filter(f => f.section_id === sectionId) || [];
+    fieldsInSection.forEach(field => {
+      updateFieldMutation.mutate({
+        fieldId: field.id,
+        updates: { section_id: 'default' }
+      });
+    });
+    
+    setSections(sections.filter(section => section.id !== sectionId));
+  };
+
   const handleDragEnd = async (result: any) => {
     if (!result.destination || !formFields) return;
 
-    const items: FormFieldInstance[] = Array.from(formFields);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+    const { source, destination, type } = result;
 
-    // Update field orders
-    const updates = items.map((item: FormFieldInstance, index: number) => ({
-      id: item.id,
-      field_order: index + 1
-    }));
+    if (type === 'FIELD') {
+      const sourceSection = source.droppableId.replace('section-', '');
+      const destSection = destination.droppableId.replace('section-', '');
+      
+      // Get fields for the source section
+      const sourceSectionFields = formFields.filter(f => (f.section_id || 'default') === sourceSection);
+      const [reorderedItem] = sourceSectionFields.splice(source.index, 1);
+      
+      // Update the field's section if it changed
+      if (sourceSection !== destSection) {
+        await supabase
+          .from('form_field_instances')
+          .update({ section_id: destSection })
+          .eq('id', reorderedItem.id);
+      }
+      
+      // Get destination section fields and insert
+      const destSectionFields = formFields.filter(f => (f.section_id || 'default') === destSection);
+      if (sourceSection !== destSection) {
+        destSectionFields.splice(destination.index, 0, reorderedItem);
+      } else {
+        destSectionFields.splice(destination.index, 0, reorderedItem);
+      }
+      
+      // Update field orders for destination section
+      const updates = destSectionFields.map((item: FormFieldInstance, index: number) => ({
+        id: item.id,
+        field_order: index + 1
+      }));
 
-    for (const update of updates) {
-      await supabase
-        .from('form_field_instances')
-        .update({ field_order: update.field_order })
-        .eq('id', update.id);
+      for (const update of updates) {
+        await supabase
+          .from('form_field_instances')
+          .update({ field_order: update.field_order })
+          .eq('id', update.id);
+      }
+
+      refetchFields();
     }
-
-    refetchFields();
   };
 
   const renderFieldPreview = (fieldInstance: FormFieldInstance) => {
@@ -213,6 +279,10 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
     );
   };
 
+  const getFieldsForSection = (sectionId: string) => {
+    return formFields?.filter(field => (field.section_id || 'default') === sectionId) || [];
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -243,11 +313,17 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
         </div>
 
         <div className="grid grid-cols-12 gap-6">
-          {/* Field Library Sidebar */}
+          {/* Field Library Sidebar - Improved height usage */}
           <div className="col-span-3">
-            <Card className="h-fit">
-              <CardContent className="p-4">
-                <QuickFieldLibrary onAddField={addFieldMutation.mutate} />
+            <Card className="sticky top-6 max-h-[calc(100vh-6rem)]">
+              <CardContent className="p-4 h-full flex flex-col">
+                <div className="flex-1 min-h-0">
+                  <QuickFieldLibrary 
+                    onAddField={(fieldLibraryId: string) => 
+                      addFieldMutation.mutate({ fieldLibraryId, sectionId: 'default' })
+                    } 
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -256,7 +332,20 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
           <div className="col-span-9">
             <Card>
               <div className="p-4 border-b">
-                <h3 className="font-semibold text-gray-900">Form Canvas</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">Form Canvas</h3>
+                  {!previewMode && (
+                    <Button
+                      onClick={addSection}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <FolderPlus className="h-4 w-4" />
+                      Add Section
+                    </Button>
+                  )}
+                </div>
               </div>
               <CardContent className="p-6">
                 {!formFields || formFields.length === 0 ? (
@@ -273,147 +362,24 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
                   </div>
                 ) : (
                   <DragDropContext onDragEnd={handleDragEnd}>
-                    <Droppable droppableId="form-fields">
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={`space-y-4 min-h-32 p-4 rounded-lg transition-colors ${
-                            snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-dashed border-blue-300' : ''
-                          }`}
-                        >
-                          {formFields.map((fieldInstance, index) => (
-                            <Draggable
-                              key={fieldInstance.id}
-                              draggableId={fieldInstance.id}
-                              index={index}
-                              isDragDisabled={previewMode}
-                            >
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  className={`group relative ${
-                                    snapshot.isDragging ? 'z-50' : ''
-                                  }`}
-                                >
-                                  <Card className={`transition-all duration-200 ${
-                                    snapshot.isDragging 
-                                      ? 'shadow-xl rotate-1 scale-105' 
-                                      : 'hover:shadow-md'
-                                  } ${
-                                    editingField === fieldInstance.id 
-                                      ? 'ring-2 ring-blue-500 bg-blue-50' 
-                                      : 'bg-white'
-                                  }`}>
-                                    <CardContent className="p-4">
-                                      {!previewMode && (
-                                        <div className="flex items-center justify-between mb-3">
-                                          <div 
-                                            {...provided.dragHandleProps}
-                                            className="flex items-center gap-2 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
-                                          >
-                                            <GripVertical className="h-4 w-4" />
-                                            <span className="text-xs font-medium">
-                                              {fieldInstance.field_library?.label}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => setEditingField(
-                                                editingField === fieldInstance.id ? null : fieldInstance.id
-                                              )}
-                                              className="h-7 w-7 p-0"
-                                            >
-                                              <Edit3 className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => removeFieldMutation.mutate(fieldInstance.id)}
-                                              className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
-                                            >
-                                              <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      )}
-                                      
-                                      {editingField === fieldInstance.id ? (
-                                        <div className="space-y-4">
-                                          <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                              <Label className="text-xs">Custom Label</Label>
-                                              <Input
-                                                defaultValue={fieldInstance.label_override || ''}
-                                                placeholder={fieldInstance.field_library?.label}
-                                                className="h-8 text-sm"
-                                                onBlur={(e) => {
-                                                  if (e.target.value !== fieldInstance.label_override) {
-                                                    updateFieldMutation.mutate({
-                                                      fieldId: fieldInstance.id,
-                                                      updates: { label_override: e.target.value || null }
-                                                    });
-                                                  }
-                                                }}
-                                              />
-                                            </div>
-                                            <div>
-                                              <Label className="text-xs">Placeholder</Label>
-                                              <Input
-                                                defaultValue={fieldInstance.placeholder_override || ''}
-                                                placeholder={fieldInstance.field_library?.placeholder}
-                                                className="h-8 text-sm"
-                                                onBlur={(e) => {
-                                                  if (e.target.value !== fieldInstance.placeholder_override) {
-                                                    updateFieldMutation.mutate({
-                                                      fieldId: fieldInstance.id,
-                                                      updates: { placeholder_override: e.target.value || null }
-                                                    });
-                                                  }
-                                                }}
-                                              />
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center space-x-2">
-                                              <Switch
-                                                checked={fieldInstance.required_override ?? true}
-                                                onCheckedChange={(checked) => {
-                                                  updateFieldMutation.mutate({
-                                                    fieldId: fieldInstance.id,
-                                                    updates: { required_override: checked }
-                                                  });
-                                                }}
-                                              />
-                                              <Label className="text-xs">Required</Label>
-                                            </div>
-                                            <Button
-                                              size="sm"
-                                              onClick={() => setEditingField(null)}
-                                              className="h-7"
-                                            >
-                                              Done
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div>
-                                          {renderFieldPreview(fieldInstance)}
-                                        </div>
-                                      )}
-                                    </CardContent>
-                                  </Card>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
+                    <div className="space-y-6">
+                      {sections.map((section) => (
+                        <FormSection
+                          key={section.id}
+                          section={section}
+                          fields={getFieldsForSection(section.id)}
+                          editingField={editingField}
+                          previewMode={previewMode}
+                          onEditField={setEditingField}
+                          onRemoveField={removeFieldMutation.mutate}
+                          onUpdateField={(fieldId, updates) => updateFieldMutation.mutate({ fieldId, updates })}
+                          onUpdateSection={updateSection}
+                          onRemoveSection={removeSection}
+                          renderFieldPreview={renderFieldPreview}
+                          sectionIndex={0}
+                        />
+                      ))}
+                    </div>
                   </DragDropContext>
                 )}
               </CardContent>
