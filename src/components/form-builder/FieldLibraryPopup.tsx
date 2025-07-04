@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Plus, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Edit3, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -180,211 +179,252 @@ export const FieldLibraryPopup: React.FC<FieldLibraryPopupProps> = ({ isOpen, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            Field Library
-            <Button onClick={() => setIsCreating(true)} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              New Field
-            </Button>
-          </DialogTitle>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        {/* Header with better spacing */}
+        <DialogHeader className="pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-semibold">Field Library Management</DialogTitle>
+            <div className="flex items-center gap-3">
+              <Button 
+                onClick={() => setIsCreating(true)} 
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Field
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
-        {isCreating ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="label">Field Label *</Label>
-                <Input 
-                  id="label" 
-                  name="label" 
-                  defaultValue={editingField?.label || ''}
-                  required 
-                />
-              </div>
-              <div>
-                <Label htmlFor="field_type">Field Type *</Label>
-                <Select value={fieldType} onValueChange={handleFieldTypeChange} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose field type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text">Text Input</SelectItem>
-                    <SelectItem value="textarea">Text Area</SelectItem>
-                    <SelectItem value="number">Number</SelectItem>
-                    <SelectItem value="select">Dropdown</SelectItem>
-                    <SelectItem value="checkbox">Checkbox</SelectItem>
-                    <SelectItem value="radio">Radio Buttons</SelectItem>
-                    <SelectItem value="date">Date Picker</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="placeholder">Placeholder Text</Label>
-                <Input 
-                  id="placeholder" 
-                  name="placeholder" 
-                  placeholder="example placeholder text"
-                  defaultValue={editingField?.placeholder || ''}
-                />
-              </div>
-              <div>
-                <Label htmlFor="category">Category</Label>
-                <Input 
-                  id="category" 
-                  name="category" 
-                  defaultValue={editingField?.category || ''}
-                />
-              </div>
-            </div>
-
-            {/* Dropdown Options - Show only for select/radio fields */}
-            {(fieldType === 'select' || fieldType === 'radio') && (
-              <div className="space-y-2">
-                <Label>Dropdown/Radio Options</Label>
-                <div className="space-y-3 max-h-48 overflow-y-auto border rounded-md p-3 bg-gray-50">
-                  {dropdownOptions.map((option, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
-                      <div className="col-span-5">
-                        <Input
-                          value={option.option}
-                          onChange={(e) => handleOptionChange(index, 'option', e.target.value)}
-                          placeholder={`Option ${index + 1}`}
-                          className="text-sm"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Input
-                          value={option.price}
-                          onChange={(e) => handleOptionChange(index, 'price', e.target.value)}
-                          placeholder="Price"
-                          type="number"
-                          step="0.01"
-                          className="text-sm"
-                        />
-                      </div>
-                      <div className="col-span-4">
-                        <Input
-                          value={option.notes}
-                          onChange={(e) => handleOptionChange(index, 'notes', e.target.value)}
-                          placeholder="Notes"
-                          className="text-sm"
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        {dropdownOptions.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeOption(index)}
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
+        {/* Content area with proper scrolling */}
+        <div className="flex-1 overflow-hidden">
+          {isCreating ? (
+            <div className="h-full overflow-y-auto p-1">
+              <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl mx-auto">
+                <div className="bg-blue-50 p-4 rounded-lg border">
+                  <h3 className="text-lg font-medium text-blue-900 mb-4">
+                    {editingField ? 'Edit Field' : 'Create New Field'}
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="label" className="text-sm font-medium text-gray-700">Field Label *</Label>
+                      <Input 
+                        id="label" 
+                        name="label" 
+                        defaultValue={editingField?.label || ''}
+                        placeholder="e.g., Cake Selection"
+                        required 
+                        className="mt-1"
+                      />
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={resetForm}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createFieldMutation.isPending || updateFieldMutation.isPending}
-              >
-                {editingField ? 'Update' : 'Create'} Field
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            {(!fields || fields.length === 0) ? (
-              <div className="text-center py-12">
-                <Plus className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No fields yet</h3>
-                <p className="text-gray-600 mb-4">Create your first field to get started</p>
-                <Button onClick={() => setIsCreating(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Field
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                {fields.map((field) => (
-                  <Card key={field.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h4 className="font-medium">{field.label}</h4>
-                          <p className="text-sm text-gray-600 capitalize">{field.field_type}</p>
-                          {field.category && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-1 inline-block">
-                              {field.category}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                          Pricing
-                        </span>
-                      </div>
+                    <div>
+                      <Label htmlFor="field_type" className="text-sm font-medium text-gray-700">Field Type *</Label>
+                      <Select value={fieldType} onValueChange={handleFieldTypeChange} required>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Choose field type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text">Text Input</SelectItem>
+                          <SelectItem value="textarea">Text Area</SelectItem>
+                          <SelectItem value="number">Number</SelectItem>
+                          <SelectItem value="select">Dropdown</SelectItem>
+                          <SelectItem value="checkbox">Checkbox</SelectItem>
+                          <SelectItem value="radio">Radio Buttons</SelectItem>
+                          <SelectItem value="date">Date Picker</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-6 mt-4">
+                    <div>
+                      <Label htmlFor="placeholder" className="text-sm font-medium text-gray-700">Placeholder Text</Label>
+                      <Input 
+                        id="placeholder" 
+                        name="placeholder" 
+                        placeholder="Enter placeholder text"
+                        defaultValue={editingField?.placeholder || ''}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="category" className="text-sm font-medium text-gray-700">Category</Label>
+                      <Input 
+                        id="category" 
+                        name="category" 
+                        placeholder="e.g., Catering, Decoration"
+                        defaultValue={editingField?.category || ''}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
 
-                      {field.options?.values && (
-                        <div className="mb-3">
-                          <p className="text-xs text-gray-600 mb-1">Options:</p>
-                          <div className="space-y-1">
-                            {field.options.values.slice(0, 2).map((option: any, idx: number) => (
-                              <div key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded flex justify-between">
-                                <span>{typeof option === 'string' ? option : option.option}</span>
-                                {typeof option === 'object' && option.price && (
-                                  <span className="text-green-600">£{option.price}</span>
+                  {/* Dropdown Options */}
+                  {(fieldType === 'select' || fieldType === 'radio') && (
+                    <div className="mt-6">
+                      <Label className="text-sm font-medium text-gray-700 mb-3 block">Options & Pricing</Label>
+                      <div className="bg-white rounded-lg border p-4 max-h-64 overflow-y-auto">
+                        <div className="space-y-3">
+                          {dropdownOptions.map((option, index) => (
+                            <div key={index} className="grid grid-cols-12 gap-3 items-center p-3 bg-gray-50 rounded-lg">
+                              <div className="col-span-5">
+                                <Input
+                                  value={option.option}
+                                  onChange={(e) => handleOptionChange(index, 'option', e.target.value)}
+                                  placeholder={`Option ${index + 1}`}
+                                  className="text-sm"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <Input
+                                  value={option.price}
+                                  onChange={(e) => handleOptionChange(index, 'price', e.target.value)}
+                                  placeholder="Price (£)"
+                                  type="number"
+                                  step="0.01"
+                                  className="text-sm"
+                                />
+                              </div>
+                              <div className="col-span-4">
+                                <Input
+                                  value={option.notes}
+                                  onChange={(e) => handleOptionChange(index, 'notes', e.target.value)}
+                                  placeholder="Notes (optional)"
+                                  className="text-sm"
+                                />
+                              </div>
+                              <div className="col-span-1 flex justify-center">
+                                {dropdownOptions.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeOption(index)}
+                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 )}
                               </div>
-                            ))}
-                            {field.options.values.length > 2 && (
-                              <span className="text-xs text-gray-500">
-                                +{field.options.values.length - 2} more
-                              </span>
-                            )}
-                          </div>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                      
-                      <div className="flex justify-end gap-1 pt-2 border-t">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => startEdit(field)}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => deleteFieldMutation.mutate(field.id)}
-                          disabled={deleteFieldMutation.isPending}
-                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                    </div>
+                  )}
+                  
+                  {/* Action buttons */}
+                  <div className="flex justify-end gap-3 pt-6 border-t mt-6">
+                    <Button type="button" variant="outline" onClick={resetForm}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={createFieldMutation.isPending || updateFieldMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {editingField ? 'Update Field' : 'Create Field'}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="h-full overflow-y-auto p-1">
+              {(!fields || fields.length === 0) ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                    <Plus className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No fields created yet</h3>
+                  <p className="text-gray-600 mb-6 max-w-md">
+                    Create reusable form fields that you can use across multiple event questionnaires.
+                  </p>
+                  <Button onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Field
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {fields.map((field) => (
+                      <Card key={field.id} className="hover:shadow-md transition-all duration-200 border border-gray-200">
+                        <CardContent className="p-5">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-semibold text-gray-900 truncate">{field.label}</h4>
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  Pricing
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 capitalize mb-2">{field.field_type.replace('_', ' ')}</p>
+                              {field.category && (
+                                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                                  {field.category}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Options preview */}
+                          {field.options?.values && field.options.values.length > 0 && (
+                            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                              <p className="text-xs font-medium text-gray-700 mb-2">Options:</p>
+                              <div className="space-y-1">
+                                {field.options.values.slice(0, 3).map((option: any, idx: number) => (
+                                  <div key={idx} className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-700">
+                                      {typeof option === 'string' ? option : option.option}
+                                    </span>
+                                    {typeof option === 'object' && option.price && (
+                                      <span className="text-green-600 font-medium">£{option.price}</span>
+                                    )}
+                                  </div>
+                                ))}
+                                {field.options.values.length > 3 && (
+                                  <p className="text-xs text-gray-500 italic">
+                                    +{field.options.values.length - 3} more options
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Action buttons */}
+                          <div className="flex justify-end gap-2 pt-3 border-t">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => startEdit(field)}
+                              className="h-8 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <Edit3 className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => deleteFieldMutation.mutate(field.id)}
+                              disabled={deleteFieldMutation.isPending}
+                              className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
