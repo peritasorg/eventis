@@ -50,13 +50,13 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b">
+      <div className="flex items-center gap-2 p-4 pb-3 border-b bg-white">
         <Sparkles className="h-4 w-4 text-blue-600" />
         <h3 className="font-semibold text-gray-900">Field Library</h3>
       </div>
       
-      <ScrollArea className="flex-1 -mx-4 px-4">
-        <div className="space-y-2">
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-2">
           {fieldLibrary?.map((field) => (
             <div
               key={field.id}
@@ -90,7 +90,7 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 ml-2"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 ml-2 flex-shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
                     onAddField(field.id);

@@ -86,7 +86,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
           form_template_id: form.id,
           field_library_id: fieldLibraryId,
           field_order: maxOrder + 1,
-          section_id: sectionId || 'default',
+          form_section_id: sectionId || 'default',
           tenant_id: currentTenant?.id
         }]);
       
@@ -147,11 +147,11 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
     if (sectionId === 'default') return; // Can't remove default section
     
     // Move fields from this section to default
-    const fieldsInSection = formFields?.filter(f => f.section_id === sectionId) || [];
+    const fieldsInSection = formFields?.filter(f => f.form_section_id === sectionId) || [];
     fieldsInSection.forEach(field => {
       updateFieldMutation.mutate({
         fieldId: field.id,
-        updates: { section_id: 'default' }
+        updates: { form_section_id: 'default' }
       });
     });
     
@@ -168,19 +168,19 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
       const destSection = destination.droppableId.replace('section-', '');
       
       // Get fields for the source section
-      const sourceSectionFields = formFields.filter(f => (f.section_id || 'default') === sourceSection);
+      const sourceSectionFields = formFields.filter(f => (f.form_section_id || 'default') === sourceSection);
       const [reorderedItem] = sourceSectionFields.splice(source.index, 1);
       
       // Update the field's section if it changed
       if (sourceSection !== destSection) {
         await supabase
           .from('form_field_instances')
-          .update({ section_id: destSection })
+          .update({ form_section_id: destSection })
           .eq('id', reorderedItem.id);
       }
       
       // Get destination section fields and insert
-      const destSectionFields = formFields.filter(f => (f.section_id || 'default') === destSection);
+      const destSectionFields = formFields.filter(f => (f.form_section_id || 'default') === destSection);
       if (sourceSection !== destSection) {
         destSectionFields.splice(destination.index, 0, reorderedItem);
       } else {
@@ -280,7 +280,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
   };
 
   const getFieldsForSection = (sectionId: string) => {
-    return formFields?.filter(field => (field.section_id || 'default') === sectionId) || [];
+    return formFields?.filter(field => (field.form_section_id || 'default') === sectionId) || [];
   };
 
   return (
@@ -313,17 +313,15 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
         </div>
 
         <div className="grid grid-cols-12 gap-6">
-          {/* Field Library Sidebar - Improved height usage */}
+          {/* Field Library Sidebar - Fixed height and scrolling */}
           <div className="col-span-3">
-            <Card className="sticky top-6 max-h-[calc(100vh-6rem)]">
-              <CardContent className="p-4 h-full flex flex-col">
-                <div className="flex-1 min-h-0">
-                  <QuickFieldLibrary 
-                    onAddField={(fieldLibraryId: string) => 
-                      addFieldMutation.mutate({ fieldLibraryId, sectionId: 'default' })
-                    } 
-                  />
-                </div>
+            <Card className="sticky top-6" style={{ height: 'calc(100vh - 8rem)' }}>
+              <CardContent className="p-0 h-full">
+                <QuickFieldLibrary 
+                  onAddField={(fieldLibraryId: string) => 
+                    addFieldMutation.mutate({ fieldLibraryId, sectionId: 'default' })
+                  } 
+                />
               </CardContent>
             </Card>
           </div>
