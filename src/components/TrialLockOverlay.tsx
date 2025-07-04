@@ -76,3 +76,4 @@ export const TrialLockOverlay: React.FC<TrialLockOverlayProps> = ({ children }) 
     </div>
   );
 };
+</TrialLockOverlay>

@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -12,7 +12,6 @@ import { Sidebar } from "./components/Sidebar";
 import { TrialBanner } from "./components/TrialBanner";
 import { TrialLockOverlay } from "./components/TrialLockOverlay";
 import { TrialExpiredModal } from "./components/TrialExpiredModal";
-import { useTrialStatus } from "./hooks/useTrialStatus";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
 import { LeadView } from "./pages/LeadView";
@@ -34,17 +33,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-// Component to handle trial expiration redirects
-const TrialRedirectHandler = ({ children }: { children: React.ReactNode }) => {
-  const { isTrialExpired } = useTrialStatus();
-
-  if (isTrialExpired) {
-    return <Navigate to="/settings" replace />;
-  }
-
-  return <>{children}</>;
-};
 
 const App: React.FC = () => {
   return (
@@ -85,58 +73,42 @@ const App: React.FC = () => {
                                 <Routes>
                                   <Route path="/" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <Dashboard />
-                                      </TrialRedirectHandler>
+                                      <Dashboard />
                                     </ErrorBoundary>
                                   } />
                                   <Route path="/leads" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <Leads />
-                                      </TrialRedirectHandler>
+                                      <Leads />
                                     </ErrorBoundary>
                                   } />
                                   <Route path="/leads/:leadId/view" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <LeadView />
-                                      </TrialRedirectHandler>
+                                      <LeadView />
                                     </ErrorBoundary>
                                   } />
                                   <Route path="/leads/:leadId/edit" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <LeadEdit />
-                                      </TrialRedirectHandler>
+                                      <LeadEdit />
                                     </ErrorBoundary>
                                   } />
                                   <Route path="/events" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <Events />
-                                      </TrialRedirectHandler>
+                                      <Events />
                                     </ErrorBoundary>
                                   } />
                                   <Route path="/events/:eventId" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <EventDetail />
-                                      </TrialRedirectHandler>
+                                      <EventDetail />
                                     </ErrorBoundary>
                                   } />
                                   <Route path="/form-builder" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <FormBuilder />
-                                      </TrialRedirectHandler>
+                                      <FormBuilder />
                                     </ErrorBoundary>
                                   } />
                                   <Route path="/customers" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <Customers />
-                                      </TrialRedirectHandler>
+                                      <Customers />
                                     </ErrorBoundary>
                                   } />
                                   <Route path="/settings" element={
@@ -146,9 +118,7 @@ const App: React.FC = () => {
                                   } />
                                   <Route path="*" element={
                                     <ErrorBoundary>
-                                      <TrialRedirectHandler>
-                                        <NotFound />
-                                      </TrialRedirectHandler>
+                                      <NotFound />
                                     </ErrorBoundary>
                                   } />
                                 </Routes>
