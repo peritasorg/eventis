@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,17 +10,26 @@ export const TrialExpiredModal = () => {
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [hasClickedSubscribe, setHasClickedSubscribe] = useState(false);
 
   const isTrialExpired = currentTenant?.subscription_status === 'trial' && 
     currentTenant?.trial_ends_at && 
     new Date(currentTenant.trial_ends_at) < new Date();
 
   const handleSubscribe = () => {
+    setHasClickedSubscribe(true);
     navigate('/settings');
   };
 
-  // Don't show modal if trial is not expired OR if user is already on settings page
-  const shouldShowModal = isTrialExpired && location.pathname !== '/settings';
+  // Reset the clicked state when navigating away from settings
+  useEffect(() => {
+    if (location.pathname !== '/settings') {
+      setHasClickedSubscribe(false);
+    }
+  }, [location.pathname]);
+
+  // Show modal if trial is expired AND user hasn't clicked subscribe (OR they're not on settings page)
+  const shouldShowModal = isTrialExpired && !hasClickedSubscribe;
 
   return (
     <Dialog open={shouldShowModal} onOpenChange={() => {}}>
