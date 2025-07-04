@@ -1,7 +1,8 @@
 
-import React from 'react';
-import { Plus, Sparkles } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Sparkles, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +14,7 @@ interface QuickFieldLibraryProps {
 
 export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField }) => {
   const { currentTenant } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { data: fieldLibrary } = useSupabaseQuery(
     ['field-library'],
@@ -35,6 +37,18 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
     }
   );
 
+  // Filter fields based on search term
+  const filteredFields = useMemo(() => {
+    if (!fieldLibrary) return [];
+    if (!searchTerm.trim()) return fieldLibrary;
+    
+    return fieldLibrary.filter(field =>
+      field.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      field.field_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (field.category && field.category.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [fieldLibrary, searchTerm]);
+
   const getFieldIcon = (fieldType: string) => {
     switch (fieldType) {
       case 'text': return '📝';
@@ -55,9 +69,22 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
         <h3 className="font-semibold text-gray-900">Field Library</h3>
       </div>
       
+      {/* Search Bar */}
+      <div className="p-4 border-b">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search fields..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-9 text-sm"
+          />
+        </div>
+      </div>
+      
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-2">
-          {fieldLibrary?.map((field) => (
+          {filteredFields?.map((field) => (
             <div
               key={field.id}
               className="group p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 cursor-pointer"
@@ -107,11 +134,15 @@ export const QuickFieldLibrary: React.FC<QuickFieldLibraryProps> = ({ onAddField
             </div>
           ))}
           
-          {(!fieldLibrary || fieldLibrary.length === 0) && (
+          {(!filteredFields || filteredFields.length === 0) && (
             <div className="text-center py-8 text-gray-500">
               <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No fields available</p>
-              <p className="text-xs">Create fields in the Field Library</p>
+              <p className="text-sm">
+                {searchTerm ? 'No fields found' : 'No fields available'}
+              </p>
+              <p className="text-xs">
+                {searchTerm ? 'Try a different search term' : 'Create fields in the Field Library'}
+              </p>
             </div>
           )}
         </div>
