@@ -4,11 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CreditCard } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export const TrialExpiredModal = () => {
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const isTrialExpired = currentTenant?.subscription_status === 'trial' && 
     currentTenant?.trial_ends_at && 
@@ -18,8 +19,11 @@ export const TrialExpiredModal = () => {
     navigate('/settings');
   };
 
+  // Only show modal if trial is expired AND user is not on settings page
+  const shouldShowModal = isTrialExpired && location.pathname !== '/settings';
+
   return (
-    <Dialog open={isTrialExpired} onOpenChange={() => {}}>
+    <Dialog open={shouldShowModal} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md [&>button]:hidden">
         <DialogHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
