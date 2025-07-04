@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Plus, Edit3, Trash2, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -207,7 +206,7 @@ export const FieldLibraryPopup: React.FC<FieldLibraryPopupProps> = ({ isOpen, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <DialogHeader className="pb-4 border-b">
           <DialogTitle className="text-2xl font-bold text-center">Field Library Management</DialogTitle>
@@ -363,7 +362,7 @@ export const FieldLibraryPopup: React.FC<FieldLibraryPopupProps> = ({ isOpen, on
               </div>
 
               {/* Fields Grid */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 overflow-y-auto p-6 pb-24">
                 {(!filteredFields || filteredFields.length === 0) ? (
                   <div className="flex flex-col items-center justify-center h-full text-center py-12">
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -380,21 +379,21 @@ export const FieldLibraryPopup: React.FC<FieldLibraryPopupProps> = ({ isOpen, on
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                     {filteredFields.map((field) => (
-                      <Card key={field.id} className="hover:shadow-lg transition-all duration-200 border border-gray-200">
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1 min-w-0">
+                      <Card key={field.id} className="hover:shadow-md transition-all duration-200 border border-gray-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0 pr-2">
                               <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-semibold text-gray-900 truncate text-lg">{field.label}</h4>
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <h4 className="font-semibold text-gray-900 truncate text-base">{field.label}</h4>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 flex-shrink-0">
                                   Pricing
                                 </span>
                               </div>
-                              <p className="text-sm text-gray-600 capitalize mb-3">{field.field_type.replace('_', ' ')}</p>
+                              <p className="text-sm text-gray-600 capitalize mb-2">{field.field_type.replace('_', ' ')}</p>
                               {field.category && (
-                                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">
+                                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                                   {field.category}
                                 </span>
                               )}
@@ -403,35 +402,35 @@ export const FieldLibraryPopup: React.FC<FieldLibraryPopupProps> = ({ isOpen, on
 
                           {/* Options preview */}
                           {field.options?.values && field.options.values.length > 0 && (
-                            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                              <p className="text-xs font-medium text-gray-700 mb-2">Options:</p>
+                            <div className="mb-3 p-2 bg-gray-50 rounded-md">
+                              <p className="text-xs font-medium text-gray-700 mb-1">Options:</p>
                               <div className="space-y-1">
-                                {field.options.values.slice(0, 3).map((option: any, idx: number) => (
+                                {field.options.values.slice(0, 2).map((option: any, idx: number) => (
                                   <div key={idx} className="flex justify-between items-center text-xs">
-                                    <span className="text-gray-700">
+                                    <span className="text-gray-700 truncate">
                                       {typeof option === 'string' ? option : option.option}
                                     </span>
                                     {typeof option === 'object' && option.price && (
-                                      <span className="text-green-600 font-medium">£{option.price}</span>
+                                      <span className="text-green-600 font-medium ml-2 flex-shrink-0">£{option.price}</span>
                                     )}
                                   </div>
                                 ))}
-                                {field.options.values.length > 3 && (
+                                {field.options.values.length > 2 && (
                                   <p className="text-xs text-gray-500 italic">
-                                    +{field.options.values.length - 3} more options
+                                    +{field.options.values.length - 2} more
                                   </p>
                                 )}
                               </div>
                             </div>
                           )}
                           
-                          {/* Action buttons */}
-                          <div className="flex justify-end gap-2 pt-3 border-t">
+                          {/* Action buttons - Fixed layout */}
+                          <div className="flex justify-end gap-2 pt-2 border-t">
                             <Button 
                               variant="ghost" 
                               size="sm" 
                               onClick={() => startEdit(field)}
-                              className="h-8 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
                               <Edit3 className="h-3 w-3 mr-1" />
                               Edit
@@ -441,7 +440,7 @@ export const FieldLibraryPopup: React.FC<FieldLibraryPopupProps> = ({ isOpen, on
                               size="sm" 
                               onClick={() => deleteFieldMutation.mutate(field.id)}
                               disabled={deleteFieldMutation.isPending}
-                              className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
                               <Trash2 className="h-3 w-3 mr-1" />
                               Delete
@@ -454,14 +453,14 @@ export const FieldLibraryPopup: React.FC<FieldLibraryPopupProps> = ({ isOpen, on
                 )}
               </div>
 
-              {/* Floating New Field Button */}
+              {/* Fixed New Field Button */}
               <div className="absolute bottom-6 right-6">
                 <Button 
                   onClick={() => setIsCreating(true)} 
                   size="lg"
-                  className="bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0"
+                  className="bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-12 w-12 p-0"
                 >
-                  <Plus className="h-6 w-6" />
+                  <Plus className="h-5 w-5" />
                 </Button>
               </div>
             </div>
