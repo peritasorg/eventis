@@ -10,6 +10,7 @@ import { convertLeadToCustomer } from '@/utils/leadConversion';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { UserPlus, Calendar, Users } from 'lucide-react';
+import { sanitizeInput, validateEmail, validatePhone, validateTextLength } from '@/utils/security';
 
 interface ConvertLeadDialogProps {
   open: boolean;
@@ -64,21 +65,49 @@ export const ConvertLeadDialog: React.FC<ConvertLeadDialogProps> = ({
   const handleConvert = async () => {
     if (!currentTenant?.id || !lead) return;
 
+    // Validate and sanitize inputs before conversion
+    const errors: string[] = [];
+    
+    if (!formData.name?.trim()) {
+      errors.push('Name is required');
+    }
+    
+    if (formData.email && !validateEmail(formData.email)) {
+      errors.push('Please enter a valid email address');
+    }
+    
+    if (formData.phone && !validatePhone(formData.phone)) {
+      errors.push('Please enter a valid phone number');
+    }
+    
+    if (formData.notes && !validateTextLength(formData.notes, 2000)) {
+      errors.push('Notes are too long (max 2000 characters)');
+    }
+    
+    if (formData.create_event && !formData.event_name?.trim()) {
+      errors.push('Event name is required when creating an event');
+    }
+    
+    if (errors.length > 0) {
+      toast.error(errors.join(', '));
+      return;
+    }
+
     setIsConverting(true);
     try {
       const result = await convertLeadToCustomer({
         leadId: lead.id,
         tenantId: currentTenant.id,
         leadData: {
-          name: formData.name,
-          email: formData.email || undefined,
-          phone: formData.phone || undefined,
-          company: formData.company || undefined,
+          name: sanitizeInput(formData.name),
+          email: formData.email ? sanitizeInput(formData.email) : undefined,
+          phone: formData.phone ? sanitizeInput(formData.phone) : undefined,
+          company: formData.company ? sanitizeInput(formData.company) : undefined,
           event_type: formData.create_event ? formData.event_type : undefined,
           event_date: formData.create_event ? formData.event_date : undefined,
           estimated_guests: formData.create_event ? formData.estimated_guests : undefined,
           estimated_budget: formData.create_event ? parseFloat(formData.estimated_budget) || undefined : undefined,
-          notes: formData.notes || undefined
+          notes: formData.notes ? sanitizeInput(formData.notes) : undefined
         }
       });
 

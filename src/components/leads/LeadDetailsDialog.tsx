@@ -12,6 +12,7 @@ import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { sanitizeInput, validateEmail, validatePhone, validateTextLength } from '@/utils/security';
 
 interface LeadDetailsDialogProps {
   open: boolean;
@@ -52,8 +53,37 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
   );
 
   const handleSave = () => {
+    // Validate and sanitize inputs before saving
+    const errors: string[] = [];
+    
+    if (!formData.name?.trim()) {
+      errors.push('Name is required');
+    }
+    
+    if (formData.email && !validateEmail(formData.email)) {
+      errors.push('Please enter a valid email address');
+    }
+    
+    if (formData.phone && !validatePhone(formData.phone)) {
+      errors.push('Please enter a valid phone number');
+    }
+    
+    if (formData.notes && !validateTextLength(formData.notes, 2000)) {
+      errors.push('Notes are too long (max 2000 characters)');
+    }
+    
+    if (errors.length > 0) {
+      toast.error(errors.join(', '));
+      return;
+    }
+    
     const updateData = {
       ...formData,
+      name: sanitizeInput(formData.name),
+      email: formData.email ? sanitizeInput(formData.email) : null,
+      phone: formData.phone ? sanitizeInput(formData.phone) : null,
+      company: formData.company ? sanitizeInput(formData.company) : null,
+      notes: formData.notes ? sanitizeInput(formData.notes) : null,
       event_date: formData.event_date || null,
       estimated_guests: formData.estimated_guests ? parseInt(formData.estimated_guests) : null,
       estimated_budget: formData.estimated_budget ? parseFloat(formData.estimated_budget) : null,

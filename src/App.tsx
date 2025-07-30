@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SecurityProvider } from "@/components/SecurityProvider";
 import { Sidebar } from "./components/Sidebar";
 import { TrialBanner } from "./components/TrialBanner";
 import { Dashboard } from "./pages/Dashboard";
@@ -38,7 +39,8 @@ const App: React.FC = () => {
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary>
           <AuthProvider>
-            <TooltipProvider>
+            <SecurityProvider>
+              <TooltipProvider>
               <Toaster />
               <Sonner />
               <BrowserRouter>
@@ -127,7 +129,8 @@ const App: React.FC = () => {
                   } />
                 </Routes>
               </BrowserRouter>
-            </TooltipProvider>
+              </TooltipProvider>
+            </SecurityProvider>
           </AuthProvider>
         </ErrorBoundary>
       </QueryClientProvider>
