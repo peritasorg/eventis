@@ -130,6 +130,8 @@ export const EventDetail = () => {
 
   const updateEventMutation = useSupabaseMutation(
     async (updates: any) => {
+      if (!event?.id) throw new Error('Event not found');
+      
       // If not multiple days, set end date to start date
       if (!updates.event_multiple_days && updates.event_start_date) {
         updates.event_end_date = updates.event_start_date;
@@ -147,7 +149,7 @@ export const EventDetail = () => {
     },
     {
       successMessage: 'Event updated successfully!',
-      invalidateQueries: [['event', event.id]]
+      invalidateQueries: [['event', event?.id]]
     }
   );
 
@@ -175,6 +177,7 @@ export const EventDetail = () => {
   );
 
   const handleUpdateField = (field: string, value: any) => {
+    if (!event?.id) return;
     updateEventMutation.mutate({ [field]: value });
   };
 
@@ -268,6 +271,7 @@ export const EventDetail = () => {
   };
 
   const customerOptions = customers?.map(c => ({ value: c.id, label: `${c.name}${c.company ? ` - ${c.company}` : ''}` })) || [];
+  const customerSelectOptions = [{ value: 'none', label: 'No customer assigned' }, ...customerOptions];
 
   return (
     <div className="min-h-screen bg-background">
@@ -370,9 +374,9 @@ export const EventDetail = () => {
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer</label>
                     <InlineSelect
-                      value={event.customer_id || ''}
-                      options={[{ value: '', label: 'No customer assigned' }, ...customerOptions]}
-                      onSave={(value) => handleUpdateField('customer_id', value || null)}
+                      value={event.customer_id || 'none'}
+                      options={customerSelectOptions}
+                      onSave={(value) => handleUpdateField('customer_id', value === 'none' ? null : value)}
                       placeholder="Select customer"
                     />
                   </div>
@@ -523,15 +527,15 @@ export const EventDetail = () => {
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Event Mix Type</label>
                   <InlineSelect
-                    value={event.event_mix_type || ''}
+                    value={event.event_mix_type || 'none'}
                     options={[
-                      { value: '', label: 'Select mix type' },
+                      { value: 'none', label: 'Select mix type' },
                       { value: 'men_only', label: 'Men Only' },
                       { value: 'ladies_only', label: 'Ladies Only' },
                       { value: 'mixed', label: 'Mixed' },
                       { value: 'family', label: 'Family' }
                     ]}
-                    onSave={(value) => handleUpdateField('event_mix_type', value)}
+                    onSave={(value) => handleUpdateField('event_mix_type', value === 'none' ? null : value)}
                     placeholder="Select event mix type"
                   />
                 </div>
