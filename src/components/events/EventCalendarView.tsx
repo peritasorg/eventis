@@ -215,9 +215,13 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                      {dayEvents.slice(0, 2).map((event) => (
                        <Tooltip key={event.id}>
                          <TooltipTrigger asChild>
-                           <div
-                             className={`text-xs p-2 rounded border cursor-pointer transition-all hover:scale-105 ${getStatusColor(event.status)}`}
-                           >
+                            <div
+                              className={`text-xs p-2 rounded border cursor-pointer transition-all hover:scale-105 ${getStatusColor(event.status)}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEventClick(event.id);
+                              }}
+                            >
                              <div className="font-medium truncate">{event.event_name}</div>
                               <div className="flex items-center justify-between gap-1 mt-1">
                                 <div className="flex items-center gap-1">
