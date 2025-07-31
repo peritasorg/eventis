@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Receipt, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, Receipt, Trash2, Calendar, Users, DollarSign, Clock, Phone, Mail, User, Building, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -19,16 +18,21 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventBusinessFlow } from '@/components/events/EventBusinessFlow';
-import { EventOverviewTab } from '@/components/events/EventOverviewTab';
-import { EventFormTab } from '@/components/events/EventFormTab';
+import { CommunicationTimeline } from '@/components/events/CommunicationTimeline';
+import { FinanceTimeline } from '@/components/events/FinanceTimeline';
 import { toast } from 'sonner';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
+import { EventFormSection } from '@/components/events/EventFormSection';
+import { InlineInput } from '@/components/events/InlineInput';
+import { InlineSelect } from '@/components/events/InlineSelect';
+import { InlineTextarea } from '@/components/events/InlineTextarea';
+import { InlineNumber } from '@/components/events/InlineNumber';
+import { InlineDate } from '@/components/events/InlineDate';
 
 export const EventDetail = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
 
   const { data: event, isLoading } = useSupabaseQuery(
     ['event', eventId],
@@ -60,6 +64,49 @@ export const EventDetail = () => {
     }
   );
 
+  // Query to get all customers for the dropdown
+  const { data: customers } = useSupabaseQuery(
+    ['customers'],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, email, company')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+      
+      if (error) {
+        console.error('Customers error:', error);
+        return [];
+      }
+      
+      return data || [];
+    }
+  );
+
+  // Query to get finance timeline payments for balance calculation
+  const { data: payments } = useSupabaseQuery(
+    ['finance-timeline', event?.id],
+    async () => {
+      if (!event?.id || !currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('finance_timeline')
+        .select('amount')
+        .eq('event_id', event.id)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) {
+        console.error('Finance timeline error:', error);
+        return [];
+      }
+      
+      return data || [];
+    }
+  );
+
   // Fetch tenant details for PDF generation
   const { data: tenantDetails } = useSupabaseQuery(
     ['tenant-details', currentTenant?.id],
@@ -78,6 +125,29 @@ export const EventDetail = () => {
       }
       
       return data;
+    }
+  );
+
+  const updateEventMutation = useSupabaseMutation(
+    async (updates: any) => {
+      // If not multiple days, set end date to start date
+      if (!updates.event_multiple_days && updates.event_start_date) {
+        updates.event_end_date = updates.event_start_date;
+      }
+      
+      const { data, error } = await supabase
+        .from('events')
+        .update(updates)
+        .eq('id', event.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    {
+      successMessage: 'Event updated successfully!',
+      invalidateQueries: [['event', event.id]]
     }
   );
 
@@ -103,6 +173,10 @@ export const EventDetail = () => {
       }
     }
   );
+
+  const handleUpdateField = (field: string, value: any) => {
+    updateEventMutation.mutate({ [field]: value });
+  };
 
   const handleDeleteEvent = () => {
     deleteEventMutation.mutate({});
@@ -138,20 +212,43 @@ export const EventDetail = () => {
     }
   };
 
+  const calculateDaysDue = () => {
+    if (!event?.event_start_date) return 0;
+    const eventDate = new Date(event.event_start_date);
+    const today = new Date();
+    const diffTime = eventDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  // Calculate financial totals
+  const totalGuestPrice = event?.total_guest_price || 0;
+  const formTotal = event?.form_total || 0;
+  const depositAmount = event?.deposit_amount || 0;
+  const totalEventPrice = totalGuestPrice + formTotal;
+  
+  // Calculate total paid from finance timeline
+  const totalPaid = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+  
+  // Calculate balance due: Total Event Price - Deposit - Finance Timeline Payments
+  const balanceDue = totalEventPrice - depositAmount - totalPaid;
+
+  const daysDue = calculateDaysDue();
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
       </div>
     );
   }
 
   if (!event) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Event not found</h2>
-          <Button onClick={() => navigate('/events')}>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">Event not found</h2>
+          <Button onClick={() => navigate('/events')} size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Events
           </Button>
@@ -162,71 +259,71 @@ export const EventDetail = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'inquiry': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'confirmed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'completed': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'inquiry': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'confirmed': return 'bg-green-50 text-green-700 border-green-200';
+      case 'completed': return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'cancelled': return 'bg-red-50 text-red-700 border-red-200';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 
+  const customerOptions = customers?.map(c => ({ value: c.id, label: `${c.name}${c.company ? ` - ${c.company}` : ''}` })) || [];
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-4 space-y-4">
-        {/* Compact Header */}
-        <div className="bg-card rounded-lg border shadow-sm p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-background border-b border-border">
+        <div className="max-w-7xl mx-auto px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={() => navigate('/events')}
-                className="shrink-0 h-8 w-8 p-0"
+                className="h-8 w-8 p-0"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-lg font-semibold text-foreground mb-1 truncate">{event.event_name}</h1>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-muted-foreground">{event.event_type}</span>
-                  <Badge variant="secondary" className="text-xs">
+              <div>
+                <h1 className="text-lg font-semibold text-foreground">{event.event_name}</h1>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>{event.event_type}</span>
+                  <Badge variant="outline" className={`text-xs ${getStatusColor(event.status)}`}>
                     {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
                   </Badge>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
-                className="text-xs"
                 onClick={handleGenerateQuote}
               >
-                <FileText className="h-3 w-3 mr-1" />
+                <FileText className="h-4 w-4 mr-2" />
                 Quote
               </Button>
               <Button 
                 variant="outline" 
                 size="sm"
-                className="text-xs"
                 onClick={handleGenerateInvoice}
               >
-                <Receipt className="h-3 w-3 mr-1" />
+                <Receipt className="h-4 w-4 mr-2" />
                 Invoice
               </Button>
               
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
-                    <Trash2 className="h-3 w-3" />
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Event</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to delete "{event.event_name}"? This action cannot be undone and will permanently remove all event data, including form responses and financial records.
+                      Are you sure you want to delete "{event.event_name}"? This action cannot be undone and will permanently remove all event data.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -244,9 +341,11 @@ export const EventDetail = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Business Process Flow - Compact */}
-        <div className="bg-card rounded-lg border shadow-sm p-4">
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Business Flow */}
+        <div className="mb-6 bg-card rounded-lg border border-border p-4">
           <EventBusinessFlow 
             depositPaid={event.deposit_paid}
             balanceCleared={event.balance_cleared}
@@ -255,23 +354,299 @@ export const EventDetail = () => {
           />
         </div>
 
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="flex justify-center">
-            <TabsList className="grid w-full max-w-sm grid-cols-2 h-9 bg-muted">
-              <TabsTrigger value="overview" className="text-sm">Overview</TabsTrigger>
-              <TabsTrigger value="form" className="text-sm">Form</TabsTrigger>
-            </TabsList>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Event Details */}
+            <div className="bg-card rounded-lg border border-border">
+              <div className="p-4 border-b border-border">
+                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Event Details
+                </h2>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer</label>
+                    <InlineSelect
+                      value={event.customer_id || ''}
+                      options={[{ value: '', label: 'No customer assigned' }, ...customerOptions]}
+                      onSave={(value) => handleUpdateField('customer_id', value || null)}
+                      placeholder="Select customer"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Event Type</label>
+                    <div className="text-sm text-foreground py-1">{event.event_type || 'Not specified'}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Start Date</label>
+                    <InlineDate
+                      value={event.event_start_date}
+                      onSave={(value) => handleUpdateField('event_start_date', value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">End Date</label>
+                    <InlineDate
+                      value={event.event_end_date}
+                      onSave={(value) => handleUpdateField('event_end_date', value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Start Time</label>
+                    <InlineInput
+                      value={event.start_time || ''}
+                      onSave={(value) => handleUpdateField('start_time', value)}
+                      placeholder="e.g., 18:00"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">End Time</label>
+                    <InlineInput
+                      value={event.end_time || ''}
+                      onSave={(value) => handleUpdateField('end_time', value)}
+                      placeholder="e.g., 23:00"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Ethnicity</label>
+                  <InlineInput
+                    value={event.ethnicity || ''}
+                    onSave={(value) => handleUpdateField('ethnicity', value)}
+                    placeholder="e.g., Somali, Pakistani, etc."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="bg-card rounded-lg border border-border">
+              <div className="p-4 border-b border-border">
+                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Contact Information
+                </h2>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Primary Contact Name</label>
+                    <InlineInput
+                      value={event.primary_contact_name || ''}
+                      onSave={(value) => handleUpdateField('primary_contact_name', value)}
+                      placeholder="Contact name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Primary Contact Phone</label>
+                    <InlineInput
+                      value={event.primary_contact_phone || ''}
+                      onSave={(value) => handleUpdateField('primary_contact_phone', value)}
+                      placeholder="Phone number"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Secondary Contact Name</label>
+                    <InlineInput
+                      value={event.secondary_contact_name || ''}
+                      onSave={(value) => handleUpdateField('secondary_contact_name', value)}
+                      placeholder="Contact name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Secondary Contact Phone</label>
+                    <InlineInput
+                      value={event.secondary_contact_phone || ''}
+                      onSave={(value) => handleUpdateField('secondary_contact_phone', value)}
+                      placeholder="Phone number"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Relationship to Main Contact</label>
+                  <InlineInput
+                    value={event.secondary_contact_relationship || ''}
+                    onSave={(value) => handleUpdateField('secondary_contact_relationship', value)}
+                    placeholder="e.g., Spouse, Parent, etc."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Guest Information */}
+            <div className="bg-card rounded-lg border border-border">
+              <div className="p-4 border-b border-border">
+                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Guest Information
+                </h2>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Men Count</label>
+                    <InlineNumber
+                      value={event.men_count || 0}
+                      onSave={(value) => handleUpdateField('men_count', value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Ladies Count</label>
+                    <InlineNumber
+                      value={event.ladies_count || 0}
+                      onSave={(value) => handleUpdateField('ladies_count', value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Total Guests</label>
+                    <InlineNumber
+                      value={event.total_guests || 0}
+                      onSave={(value) => handleUpdateField('total_guests', value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Event Mix Type</label>
+                  <InlineSelect
+                    value={event.event_mix_type || ''}
+                    options={[
+                      { value: '', label: 'Select mix type' },
+                      { value: 'men_only', label: 'Men Only' },
+                      { value: 'ladies_only', label: 'Ladies Only' },
+                      { value: 'mixed', label: 'Mixed' },
+                      { value: 'family', label: 'Family' }
+                    ]}
+                    onSave={(value) => handleUpdateField('event_mix_type', value)}
+                    placeholder="Select event mix type"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Form Template */}
+            <EventFormSection event={event} />
+
+            {/* Communication Timeline */}
+            <div className="bg-card rounded-lg border border-border">
+              <div className="p-4 border-b border-border">
+                <h2 className="text-base font-semibold text-foreground">Communication Timeline</h2>
+              </div>
+              <div className="p-4">
+                <CommunicationTimeline eventId={event.id} />
+              </div>
+            </div>
           </div>
-          
-          <TabsContent value="overview">
-            <EventOverviewTab event={event} />
-          </TabsContent>
-          
-          <TabsContent value="form">
-            <EventFormTab event={event} />
-          </TabsContent>
-        </Tabs>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Financial Summary */}
+            <div className="bg-card rounded-lg border border-border">
+              <div className="p-4 border-b border-border">
+                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Financial Summary
+                </h2>
+              </div>
+              <div className="p-4 space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Guest Price (£)</label>
+                  <InlineNumber
+                    value={totalGuestPrice}
+                    onSave={(value) => handleUpdateField('total_guest_price', value)}
+                    step={0.01}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Form Total</label>
+                  <div className="text-sm font-medium text-foreground">£{formTotal.toFixed(2)}</div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Deposit Amount (£)</label>
+                  <InlineNumber
+                    value={depositAmount}
+                    onSave={(value) => handleUpdateField('deposit_amount', value)}
+                    step={0.01}
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-border">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-foreground">Total Event Price</span>
+                    <span className="text-lg font-bold text-foreground">£{totalEventPrice.toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-muted-foreground">Total Paid</span>
+                    <span className="text-sm text-green-600">£{totalPaid.toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Balance Due</span>
+                    <span className={`text-sm font-medium ${
+                      balanceDue > 0 ? 'text-red-600' : 'text-green-600'
+                    }`}>
+                      £{balanceDue.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Event Countdown */}
+            <div className="bg-card rounded-lg border border-border">
+              <div className="p-4 border-b border-border">
+                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Event Countdown
+                </h2>
+              </div>
+              <div className="p-4">
+                <div className={`text-center text-lg font-bold ${
+                  daysDue < 0 ? 'text-red-600' : daysDue < 7 ? 'text-orange-600' : 'text-green-600'
+                }`}>
+                  {daysDue < 0 ? `${Math.abs(daysDue)} days overdue` : 
+                   daysDue === 0 ? 'Today' : 
+                   `${daysDue} days to go`}
+                </div>
+                <div className="text-xs text-muted-foreground text-center mt-1">
+                  {new Date(event.event_start_date).toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Finance Timeline */}
+            <div className="bg-card rounded-lg border border-border">
+              <div className="p-4 border-b border-border">
+                <h2 className="text-base font-semibold text-foreground">Finance Timeline</h2>
+              </div>
+              <div className="p-4">
+                <FinanceTimeline eventId={event.id} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
