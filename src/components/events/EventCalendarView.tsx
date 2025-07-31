@@ -1,8 +1,10 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, Users, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Users, ChevronLeft, ChevronRight, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useManualEventSync } from '@/hooks/useCalendarSync';
+import { toast } from 'sonner';
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +41,26 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   onDateClick
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { syncEvent } = useManualEventSync();
+
+  const handleSyncToCalendar = async (eventId: string, eventName: string) => {
+    try {
+      toast.loading('Syncing event to calendar...', { id: eventId });
+      const results = await syncEvent(eventId, 'create');
+      
+      // Check if any integration was successful
+      const successful = results.some(result => result.success);
+      
+      if (successful) {
+        toast.success(`"${eventName}" synced to calendar!`, { id: eventId });
+      } else {
+        toast.error('Failed to sync event to calendar', { id: eventId });
+      }
+    } catch (error) {
+      console.error('Error syncing event:', error);
+      toast.error('Failed to sync event to calendar', { id: eventId });
+    }
+  };
 
   const generateCalendar = () => {
     const currentMonth = currentDate.getMonth();
@@ -167,26 +189,36 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   </div>
                   
                   <div className="space-y-1">
-                    {dayEvents.slice(0, 2).map((event) => (
-                      <Tooltip key={event.id}>
-                        <TooltipTrigger asChild>
-                          <div
-                            className={`text-xs p-2 rounded border cursor-pointer transition-all hover:scale-105 ${getStatusColor(event.status)}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEventClick(event.id);
-                            }}
-                          >
-                            <div className="font-medium truncate">{event.event_name}</div>
-                            <div className="flex items-center gap-1 mt-1">
-                              <Clock className="h-3 w-3" />
-                              <span>{event.start_time}</span>
-                            </div>
-                            {event.event_multiple_days && (
-                              <div className="text-xs opacity-75 mt-1">Multi-day</div>
-                            )}
-                          </div>
-                        </TooltipTrigger>
+                     {dayEvents.slice(0, 2).map((event) => (
+                       <Tooltip key={event.id}>
+                         <TooltipTrigger asChild>
+                           <div
+                             className={`text-xs p-2 rounded border cursor-pointer transition-all hover:scale-105 ${getStatusColor(event.status)}`}
+                           >
+                             <div className="font-medium truncate">{event.event_name}</div>
+                             <div className="flex items-center justify-between gap-1 mt-1">
+                               <div className="flex items-center gap-1">
+                                 <Clock className="h-3 w-3" />
+                                 <span>{event.start_time}</span>
+                               </div>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   handleSyncToCalendar(event.id, event.event_name);
+                                 }}
+                                 className="h-4 w-4 p-0 hover:bg-white/20"
+                                 title="Sync to Calendar"
+                               >
+                                 <CalendarPlus className="h-3 w-3" />
+                               </Button>
+                             </div>
+                             {event.event_multiple_days && (
+                               <div className="text-xs opacity-75 mt-1">Multi-day</div>
+                             )}
+                           </div>
+                         </TooltipTrigger>
                         <TooltipContent side="right" className="max-w-xs">
                           <div className="space-y-2">
                             <div className="font-semibold">{event.event_name}</div>

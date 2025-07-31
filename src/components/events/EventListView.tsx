@@ -2,8 +2,10 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, Users, Mail, Phone, Eye } from 'lucide-react';
+import { Calendar, Clock, Users, Mail, Phone, Eye, CalendarPlus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useManualEventSync } from '@/hooks/useCalendarSync';
+import { toast } from 'sonner';
 
 interface Event {
   id: string;
@@ -32,6 +34,26 @@ export const EventListView: React.FC<EventListViewProps> = ({
   events,
   onEventClick
 }) => {
+  const { syncEvent } = useManualEventSync();
+
+  const handleSyncToCalendar = async (eventId: string, eventName: string) => {
+    try {
+      toast.loading('Syncing event to calendar...', { id: eventId });
+      const results = await syncEvent(eventId, 'create');
+      
+      // Check if any integration was successful
+      const successful = results.some(result => result.success);
+      
+      if (successful) {
+        toast.success(`"${eventName}" synced to calendar!`, { id: eventId });
+      } else {
+        toast.error('Failed to sync event to calendar', { id: eventId });
+      }
+    } catch (error) {
+      console.error('Error syncing event:', error);
+      toast.error('Failed to sync event to calendar', { id: eventId });
+    }
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'inquiry': return 'bg-blue-100 text-blue-800';
@@ -170,14 +192,25 @@ export const EventListView: React.FC<EventListViewProps> = ({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEventClick(event.id)}
-                    className="h-7 w-7 p-0"
-                  >
-                    <Eye className="h-3 w-3" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEventClick(event.id)}
+                      className="h-7 w-7 p-0"
+                    >
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSyncToCalendar(event.id, event.event_name)}
+                      className="h-7 w-7 p-0"
+                      title="Sync to Calendar"
+                    >
+                      <CalendarPlus className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
