@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SubscriptionTiers } from '@/components/SubscriptionTiers';
+import { CalendarSyncSettings } from '@/components/calendar-sync/CalendarSyncSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ExternalLink, Loader2 } from 'lucide-react';
@@ -141,6 +142,17 @@ export const Settings = () => {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Calendar Sync Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Calendar Integration</CardTitle>
+          <CardDescription>Connect and manage your calendar synchronization</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CalendarSyncSettings />
         </CardContent>
       </Card>
 

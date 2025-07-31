@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SecurityProvider } from "@/components/SecurityProvider";
+import { useCalendarSync } from "./hooks/useCalendarSync";
 import { Sidebar } from "./components/Sidebar";
 import { TrialBanner } from "./components/TrialBanner";
 import { Dashboard } from "./pages/Dashboard";
