@@ -400,9 +400,23 @@ export const EventDetail = () => {
                         <Sparkles className="h-4 w-4 text-purple-500" />
                         Event Type
                       </label>
-                      <div className="text-sm text-foreground py-2 px-3 bg-muted/30 rounded-md">
-                        {event.event_type || 'Not specified'}
-                      </div>
+                      <InlineSelect 
+                        value={event.event_type || ''} 
+                        options={[
+                          { value: 'wedding', label: 'Wedding' },
+                          { value: 'birthday', label: 'Birthday' },
+                          { value: 'corporate', label: 'Corporate Event' },
+                          { value: 'anniversary', label: 'Anniversary' },
+                          { value: 'engagement', label: 'Engagement' },
+                          { value: 'graduation', label: 'Graduation' },
+                          { value: 'baby_shower', label: 'Baby Shower' },
+                          { value: 'conference', label: 'Conference' },
+                          { value: 'seminar', label: 'Seminar' },
+                          { value: 'other', label: 'Other' }
+                        ]} 
+                        onSave={value => handleUpdateField('event_type', value)} 
+                        placeholder="Select event type" 
+                      />
                     </div>
 
                     <div>

@@ -159,9 +159,10 @@ class CalendarService {
       description += `\nForm Details:\n`;
       Object.entries(eventData.form_responses).forEach(([key, value]) => {
         if (value && typeof value === 'object' && 'enabled' in value && value.enabled) {
-          description += `- ${key}: ${value.value || 'Yes'}\n`;
-        } else if (value && typeof value === 'string') {
-          description += `- ${key}: ${value}\n`;
+          // Use the stored label from the response, fallback to formatting the key
+          const fieldLabel = value.label || key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+          const notes = value.notes ? ` - ${value.notes}` : '';
+          description += `- ${fieldLabel}${notes}\n`;
         }
       });
     }
