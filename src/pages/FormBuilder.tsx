@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { FormList } from '@/components/form-builder/FormList';
 import { FormEditor } from '@/components/form-builder/FormEditor';
-import { FieldLibraryPopup } from '@/components/form-builder/FieldLibraryPopup';
+
 
 type ViewMode = 'forms' | 'edit-form';
 
@@ -17,7 +17,6 @@ export const FormBuilder = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('forms');
   const [editingForm, setEditingForm] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [isFieldLibraryOpen, setIsFieldLibraryOpen] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -99,13 +98,9 @@ export const FormBuilder = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Form Builder</h1>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">Create questionnaire forms for your events</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Form Builder</h1>
+              <p className="text-muted-foreground text-sm">Create questionnaire forms for your events</p>
             </div>
-            
-            <Button onClick={() => setIsFieldLibraryOpen(true)} className="w-full sm:w-auto">
-              Field Library
-            </Button>
           </div>
         </div>
       </div>
@@ -120,10 +115,6 @@ export const FormBuilder = () => {
         </div>
       </div>
 
-      <FieldLibraryPopup 
-        isOpen={isFieldLibraryOpen}
-        onClose={() => setIsFieldLibraryOpen(false)}
-      />
     </div>
   );
 };

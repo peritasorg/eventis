@@ -1,12 +1,14 @@
 
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Copy, FileText, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,9 +68,14 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
     createFormMutation.mutate({
       name: formData.get('name') as string,
       description: formData.get('description') as string,
+      form_type: formData.get('form_type') as string || 'general',
       active: true
     });
   };
+
+  // Filter forms by type
+  const generalForms = forms?.filter(form => form.form_type === 'general' || !form.form_type) || [];
+  const menuForms = forms?.filter(form => form.form_type === 'menu') || [];
 
   return (
     <div className="space-y-6">
@@ -97,6 +104,29 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
               </div>
               
               <div>
+                <Label htmlFor="form_type">Form Type</Label>
+                <Select name="form_type" defaultValue="general">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select form type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        General Form
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="menu">
+                      <div className="flex items-center gap-2">
+                        <Menu className="h-4 w-4" />
+                        Menu Form
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea 
                   id="description" 
@@ -119,55 +149,127 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
         </Dialog>
       </div>
 
-      {/* Forms Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {forms?.map((form) => (
-          <Card key={form.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">{form.name}</CardTitle>
-              {form.description && (
-                <p className="text-sm text-gray-600">{form.description}</p>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between items-center">
-                <div className="text-xs text-gray-500">
-                  Used {form.usage_count || 0} times
-                </div>
-                <div className="flex gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => onEditForm(form)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => deleteFormMutation.mutate(form.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Forms Tabs */}
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="general" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            General Forms ({generalForms.length})
+          </TabsTrigger>
+          <TabsTrigger value="menu" className="flex items-center gap-2">
+            <Menu className="h-4 w-4" />
+            Menu Forms ({menuForms.length})
+          </TabsTrigger>
+        </TabsList>
         
-        {(!forms || forms.length === 0) && (
-          <div className="col-span-full text-center py-12">
-            <Plus className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No forms yet</h3>
-            <p className="text-gray-600 mb-4">Create your first questionnaire form</p>
-            <Button onClick={() => setIsCreateOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Form
-            </Button>
+        <TabsContent value="general" className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {generalForms.map((form) => (
+              <Card key={form.id} className="card-elegant hover:shadow-elevated transition-all duration-200">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-lg">{form.name}</CardTitle>
+                  </div>
+                  {form.description && (
+                    <p className="text-sm text-muted-foreground">{form.description}</p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-between items-center">
+                    <div className="text-xs text-muted-foreground">
+                      Used {form.usage_count || 0} times
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => onEditForm(form)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => deleteFormMutation.mutate(form.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {generalForms.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No general forms yet</h3>
+                <p className="text-muted-foreground mb-4">Create your first general questionnaire form</p>
+                <Button onClick={() => setIsCreateOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create General Form
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </TabsContent>
+        
+        <TabsContent value="menu" className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {menuForms.map((form) => (
+              <Card key={form.id} className="card-elegant hover:shadow-elevated transition-all duration-200">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Menu className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-lg">{form.name}</CardTitle>
+                  </div>
+                  {form.description && (
+                    <p className="text-sm text-muted-foreground">{form.description}</p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-between items-center">
+                    <div className="text-xs text-muted-foreground">
+                      Used {form.usage_count || 0} times
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => onEditForm(form)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => deleteFormMutation.mutate(form.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {menuForms.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <Menu className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No menu forms yet</h3>
+                <p className="text-muted-foreground mb-4">Create your first menu selection form</p>
+                <Button onClick={() => setIsCreateOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Menu Form
+                </Button>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
