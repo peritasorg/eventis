@@ -173,24 +173,28 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
   const columnWidths = [30, 80, 30, 30];
   const tableRows: string[][] = [];
 
-  // Add base event as first row
+  // Add guest count and base price as first row
+  const basePrice = event.total_amount - (event.form_total || 0);
   tableRows.push([
-    '1',
-    `${event.event_name} - ${event.event_type}`,
-    `£${(event.total_amount - (event.form_total || 0)).toFixed(2)}`,
-    `£${(event.total_amount - (event.form_total || 0)).toFixed(2)}`
+    event.estimated_guests.toString(),
+    `Guests for ${event.event_name} - ${event.event_type}`,
+    `£${(basePrice / event.estimated_guests).toFixed(2)}`,
+    `£${basePrice.toFixed(2)}`
   ]);
 
-  // Add form responses as line items
+  // Add form responses as line items with proper labels
   if (event.form_responses && Object.keys(event.form_responses).length > 0) {
     Object.entries(event.form_responses).forEach(([fieldId, response]: [string, any]) => {
       if (response?.enabled && response?.price > 0) {
-        // Use the field label if available, otherwise use fieldId
+        // Use the stored label from the response, fallback to formatting fieldId
         const description = response.label || fieldId.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        const quantity = response.quantity || 1;
+        const unitPrice = parseFloat(response.price) / quantity;
+        
         tableRows.push([
-          '1',
+          quantity.toString(),
           description + (response.notes ? ` - ${response.notes}` : ''),
-          `£${parseFloat(response.price).toFixed(2)}`,
+          `£${unitPrice.toFixed(2)}`,
           `£${parseFloat(response.price).toFixed(2)}`
         ]);
       }
@@ -342,24 +346,28 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
   const columnWidths = [30, 80, 30, 30];
   const tableRows: string[][] = [];
 
-  // Add base event as first row
+  // Add guest count and base price as first row
+  const basePrice = event.total_amount - (event.form_total || 0);
   tableRows.push([
-    '1',
-    `${event.event_name} - ${event.event_type}`,
-    `£${(event.total_amount - (event.form_total || 0)).toFixed(2)}`,
-    `£${(event.total_amount - (event.form_total || 0)).toFixed(2)}`
+    event.estimated_guests.toString(),
+    `Guests for ${event.event_name} - ${event.event_type}`,
+    `£${(basePrice / event.estimated_guests).toFixed(2)}`,
+    `£${basePrice.toFixed(2)}`
   ]);
 
-  // Add form responses as line items
+  // Add form responses as line items with proper labels
   if (event.form_responses && Object.keys(event.form_responses).length > 0) {
     Object.entries(event.form_responses).forEach(([fieldId, response]: [string, any]) => {
       if (response?.enabled && response?.price > 0) {
-        // Use the field label if available, otherwise use fieldId
+        // Use the stored label from the response, fallback to formatting fieldId
         const description = response.label || fieldId.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        const quantity = response.quantity || 1;
+        const unitPrice = parseFloat(response.price) / quantity;
+        
         tableRows.push([
-          '1',
+          quantity.toString(),
           description + (response.notes ? ` - ${response.notes}` : ''),
-          `£${parseFloat(response.price).toFixed(2)}`,
+          `£${unitPrice.toFixed(2)}`,
           `£${parseFloat(response.price).toFixed(2)}`
         ]);
       }

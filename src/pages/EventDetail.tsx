@@ -584,6 +584,19 @@ export const EventDetail = () => {
                 <CommunicationTimeline eventId={event.id} />
               </div>
             </div>
+
+            {/* Finance Timeline */}
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-rose-500" />
+                  Finance Timeline
+                </h2>
+              </div>
+              <div className="p-6">
+                <FinanceTimeline eventId={event.id} />
+              </div>
+            </div>
           </div>
 
           {/* Sidebar */}
@@ -669,18 +682,6 @@ export const EventDetail = () => {
               </div>
             </div>
 
-            {/* Finance Timeline */}
-            <div className="card-elegant">
-              <div className="px-6 py-4 border-b border-border/50">
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-rose-500" />
-                  Finance Timeline
-                </h2>
-              </div>
-              <div className="p-6">
-                <FinanceTimeline eventId={event.id} />
-              </div>
-            </div>
           </div>
         </div>
       </div>

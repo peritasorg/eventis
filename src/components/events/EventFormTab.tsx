@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { FileText, DollarSign, MessageSquare, Save } from 'lucide-react';
+import { FileText, DollarSign, MessageSquare, Save, Users, TrendingUp } from 'lucide-react';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -290,22 +290,94 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                         )}
                         
                         {isEnabled && (
-                          <div className="grid grid-cols-2 gap-3 mt-3">
+                          <div className="space-y-3 mt-3">
+                            {/* Pricing Type Selection */}
                             <div>
-                              <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                <DollarSign className="h-3 w-3" />
-                                Price (£)
+                              <Label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                Pricing Type
                               </Label>
-                              <Input
-                                id={`price-${fieldId}`}
-                                type="number"
-                                step="0.01"
-                                value={response.price || field.price_modifier || 0}
-                                onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                                placeholder="0.00"
-                                className="h-8 text-sm"
-                              />
+                              <Select
+                                value={response.pricing_type || 'fixed'}
+                                onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
+                              >
+                                <SelectTrigger className="h-8 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="fixed">Fixed Price</SelectItem>
+                                  <SelectItem value="per_person">Per Person</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
+
+                            {response.pricing_type === 'per_person' ? (
+                              <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                  <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                    <Users className="h-3 w-3" />
+                                    Quantity
+                                  </Label>
+                                  <Input
+                                    id={`quantity-${fieldId}`}
+                                    type="number"
+                                    value={response.quantity || 1}
+                                    onChange={(e) => {
+                                      const qty = parseInt(e.target.value) || 1;
+                                      const unitPrice = parseFloat(response.unit_price) || 0;
+                                      handleFieldChange(fieldId, 'quantity', qty);
+                                      handleFieldChange(fieldId, 'price', qty * unitPrice);
+                                    }}
+                                    placeholder="1"
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor={`unit-price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                    <DollarSign className="h-3 w-3" />
+                                    Per Unit
+                                  </Label>
+                                  <Input
+                                    id={`unit-price-${fieldId}`}
+                                    type="number"
+                                    step="0.01"
+                                    value={response.unit_price || field.price_modifier || 0}
+                                    onChange={(e) => {
+                                      const unitPrice = parseFloat(e.target.value) || 0;
+                                      const qty = parseInt(response.quantity) || 1;
+                                      handleFieldChange(fieldId, 'unit_price', unitPrice);
+                                      handleFieldChange(fieldId, 'price', qty * unitPrice);
+                                    }}
+                                    placeholder="0.00"
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                    <TrendingUp className="h-3 w-3" />
+                                    Total
+                                  </Label>
+                                  <div className="h-8 text-sm bg-muted/30 rounded border flex items-center px-2 font-medium">
+                                    £{((parseInt(response.quantity) || 1) * (parseFloat(response.unit_price) || 0)).toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                  <DollarSign className="h-3 w-3" />
+                                  Fixed Price (£)
+                                </Label>
+                                <Input
+                                  id={`price-${fieldId}`}
+                                  type="number"
+                                  step="0.01"
+                                  value={response.price || field.price_modifier || 0}
+                                  onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                                  placeholder="0.00"
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                            )}
                             
                             <div>
                               <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -318,7 +390,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                 onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
                                 placeholder="Additional notes..."
                                 rows={1}
-                                className="text-xs resize-none"
+                                className="h-8 text-sm resize-none"
                               />
                             </div>
                           </div>
