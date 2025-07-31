@@ -46,11 +46,11 @@ serve(async (req) => {
       const token = authHeader.replace('Bearer ', '');
       const { data: userData, error: authError } = await supabase.auth.getUser(token);
       
-      if (authError || !userData) {
+      if (authError || !userData.user) {
         throw new Error('Invalid authorization token');
       }
       
-      user = userData;
+      user = userData.user;
     }
 
     if (action === 'authorize') {
