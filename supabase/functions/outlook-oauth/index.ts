@@ -49,7 +49,7 @@ serve(async (req) => {
 
     if (action === 'authorize') {
       // Step 1: Generate OAuth URL
-      const redirectUri = `${url.origin}/outlook-oauth?action=callback`;
+      const redirectUri = `${url.origin}/outlook-oauth-callback`;
       const scopes = 'https://graph.microsoft.com/calendars.readwrite offline_access';
       
       const microsoftAuthUrl = new URL('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
