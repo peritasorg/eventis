@@ -55,8 +55,8 @@ class CalendarSyncService {
 
   async connectGoogle(): Promise<string> {
     const { data, error } = await supabase.functions.invoke('google-oauth', {
-      method: 'GET',
-      body: JSON.stringify({ action: 'authorize' }),
+      method: 'POST',
+      body: { action: 'authorize' },
     });
 
     if (error) {
@@ -68,8 +68,8 @@ class CalendarSyncService {
 
   async connectOutlook(): Promise<string> {
     const { data, error } = await supabase.functions.invoke('outlook-oauth', {
-      method: 'GET',
-      body: JSON.stringify({ action: 'authorize' }),
+      method: 'POST',
+      body: { action: 'authorize' },
     });
 
     if (error) {

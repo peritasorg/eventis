@@ -38,7 +38,14 @@ serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    let action;
+    
+    if (req.method === 'GET') {
+      action = url.searchParams.get('action');
+    } else {
+      const body = await req.json();
+      action = body.action || url.searchParams.get('action');
+    }
 
     if (action === 'authorize') {
       // Step 1: Generate OAuth URL
