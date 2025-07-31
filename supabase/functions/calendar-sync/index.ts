@@ -26,6 +26,7 @@ interface EventData {
   event_name: string;
   event_type: string;
   event_start_date: string;
+  event_end_date?: string;
   start_time: string;
   end_time: string;
   estimated_guests: number;
@@ -130,8 +131,15 @@ class CalendarService {
   }
 
   private formatEventForCalendar(eventData: EventData): CalendarEvent {
-    const startDateTime = `${eventData.event_start_date}T${eventData.start_time}`;
-    const endDateTime = `${eventData.event_start_date}T${eventData.end_time}`;
+    // Handle multi-day events
+    const startDate = eventData.event_start_date;
+    const endDate = eventData.event_end_date || eventData.event_start_date;
+    
+    const startDateTime = `${startDate}T${eventData.start_time}`;
+    const endDateTime = `${endDate}T${eventData.end_time}`;
+    
+    // Default timezone - this should be configurable per tenant in future
+    const timeZone = 'Europe/London';
     
     let description = `Event Type: ${eventData.event_type}\n`;
     description += `Guests: ${eventData.estimated_guests}\n`;
@@ -161,8 +169,14 @@ class CalendarService {
     return {
       summary: eventData.event_name,
       description,
-      start: { dateTime: startDateTime },
-      end: { dateTime: endDateTime },
+      start: { 
+        dateTime: startDateTime,
+        timeZone: timeZone
+      },
+      end: { 
+        dateTime: endDateTime,
+        timeZone: timeZone
+      },
       location: eventData.venue_area,
     };
   }

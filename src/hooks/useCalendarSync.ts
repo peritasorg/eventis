@@ -182,7 +182,7 @@ export const useManualEventSync = () => {
       
       const results = await Promise.all(
         integrations.map(async (integration) => {
-          // For manual sync, we don't check auto_sync preferences - user explicitly requested it
+          // For manual sync, we don't check preferences - user explicitly requested it
           const preferences = await calendarSyncService.getPreferences(integration.id);
 
           // Get existing external event ID if updating/deleting
