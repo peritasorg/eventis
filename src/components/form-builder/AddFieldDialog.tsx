@@ -10,6 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { sanitizeInput, validateTextLength } from '@/utils/security';
+import { toast } from 'sonner';
 
 interface AddFieldDialogProps {
   isOpen: boolean;
@@ -109,12 +111,41 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    // Sanitize and validate inputs
+    const label = sanitizeInput(formData.get('label') as string);
+    const helpText = sanitizeInput(formData.get('help_text') as string);
+    const fieldType = sanitizeInput(formData.get('field_type') as string);
+    const priceModifier = formData.get('price_modifier') as string;
+    
+    // Validation
+    if (!label || !validateTextLength(label, 100)) {
+      toast.error('Field label is required and must be less than 100 characters');
+      return;
+    }
+    
+    if (helpText && !validateTextLength(helpText, 500)) {
+      toast.error('Help text must be less than 500 characters');
+      return;
+    }
+    
+    if (!['text', 'toggle', 'number', 'date'].includes(fieldType)) {
+      toast.error('Invalid field type selected');
+      return;
+    }
+    
+    // Validate price modifier
+    const parsedPrice = parseFloat(priceModifier);
+    if (priceModifier && (isNaN(parsedPrice) || parsedPrice < 0 || parsedPrice > 10000)) {
+      toast.error('Price must be a valid number between 0 and 10,000');
+      return;
+    }
+    
     createFieldMutation.mutate({
-      name: formData.get('label') as string,
-      label: formData.get('label') as string,
-      field_type: formData.get('field_type') as string,
-      help_text: formData.get('help_text') as string || null,
-      price_modifier: parseFloat(formData.get('price_modifier') as string) || 0,
+      name: label,
+      label: label,
+      field_type: fieldType,
+      help_text: helpText || null,
+      price_modifier: parsedPrice || 0,
       affects_pricing: formData.get('affects_pricing') === 'on',
       auto_add_price_field: formData.get('auto_add_price_field') === 'on',
       auto_add_notes_field: formData.get('auto_add_notes_field') === 'on',

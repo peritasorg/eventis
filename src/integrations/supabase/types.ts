@@ -2019,6 +2019,15 @@ export type Database = {
       }
     }
     Functions: {
+      audit_security_event: {
+        Args: {
+          p_event_type: string
+          p_description: string
+          p_metadata?: Json
+          p_risk_level?: string
+        }
+        Returns: undefined
+      }
       calculate_event_pricing: {
         Args: { p_tenant_id: string; p_form_responses: Json }
         Returns: number

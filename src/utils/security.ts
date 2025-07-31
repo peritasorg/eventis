@@ -44,11 +44,29 @@ export const getSecurityHeaders = () => ({
   'Referrer-Policy': 'strict-origin-when-cross-origin'
 });
 
-// Safe navigation helper
+// Enhanced safe navigation helper
 export const safeNavigate = (navigate: (path: string) => void, path: string) => {
   // Prevent XSS through navigation
-  if (path.startsWith('/') && !path.includes('javascript:') && !path.includes('data:')) {
-    navigate(path);
+  if (!path || typeof path !== 'string') {
+    console.warn('Invalid navigation path provided');
+    return;
+  }
+  
+  // Sanitize the path
+  const sanitizedPath = path.trim();
+  
+  // Only allow relative paths starting with / and no suspicious content
+  if (sanitizedPath.startsWith('/') && 
+      !sanitizedPath.includes('javascript:') && 
+      !sanitizedPath.includes('data:') &&
+      !sanitizedPath.includes('<script') &&
+      !sanitizedPath.includes('vbscript:') &&
+      !/on\w+\s*=/i.test(sanitizedPath)) {
+    navigate(sanitizedPath);
+  } else {
+    console.warn('Potentially unsafe navigation blocked:', path);
+    // Fallback to safe default
+    navigate('/');
   }
 };
 

@@ -32,7 +32,7 @@ const isRateLimited = (identifier: string, maxRequests = 10, windowMs = 60000): 
   return false;
 };
 
-// Input validation and security
+// Enhanced input validation and security
 const validateWebhookPayload = (payload: any): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
   
@@ -49,9 +49,50 @@ const validateWebhookPayload = (payload: any): { isValid: boolean; errors: strin
     errors.push('Missing or invalid record data');
   }
   
-  // Check for suspicious patterns
-  if (payload.record?.email && payload.record.email.length > 254) {
-    errors.push('Email address too long');
+  // Enhanced security checks
+  if (payload.record?.email) {
+    const email = payload.record.email;
+    if (email.length > 254) {
+      errors.push('Email address too long');
+    }
+    // Basic email format validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.push('Invalid email format');
+    }
+    // Check for suspicious characters
+    if (/[<>\"\'%;()&+]/.test(email)) {
+      errors.push('Email contains suspicious characters');
+    }
+  }
+  
+  // Check for XSS attempts in text fields
+  const textFields = ['full_name', 'business_name'];
+  textFields.forEach(field => {
+    if (payload.record?.raw_user_meta_data?.[field]) {
+      const value = payload.record.raw_user_meta_data[field];
+      if (typeof value === 'string') {
+        // Check for script tags and suspicious content
+        if (/<script|javascript:|on\w+\s*=|<iframe/i.test(value)) {
+          errors.push(`Suspicious content detected in ${field}`);
+        }
+        if (value.length > 200) {
+          errors.push(`${field} too long (max 200 characters)`);
+        }
+      }
+    }
+  });
+  
+  // Validate event type against allowed values
+  const allowedTypes = ['INSERT', 'UPDATE', 'DELETE'];
+  if (payload.type && !allowedTypes.includes(payload.type)) {
+    errors.push('Invalid event type');
+  }
+  
+  // Validate table name if present
+  if (payload.table && typeof payload.table === 'string') {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(payload.table)) {
+      errors.push('Invalid table name format');
+    }
   }
   
   return { isValid: errors.length === 0, errors };

@@ -1,6 +1,7 @@
 import React, { useEffect, ReactNode } from 'react';
 import { useSecurity } from '@/hooks/useSecurity';
 import { useAuth } from '@/contexts/AuthContext';
+import { SECURITY_HEADERS, getCSPString } from '@/utils/securityConfig';
 
 interface SecurityProviderProps {
   children: ReactNode;
@@ -13,29 +14,27 @@ export const SecurityProvider: React.FC<SecurityProviderProps> = ({ children }) 
   useEffect(() => {
     // Set security headers via meta tags (for additional protection)
     const setSecurityHeaders = () => {
-      // Content Security Policy
-      const cspMeta = document.createElement('meta');
-      cspMeta.httpEquiv = 'Content-Security-Policy';
-      cspMeta.content = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com;";
-      document.head.appendChild(cspMeta);
+      // Remove any existing security meta tags first
+      const existingMeta = document.querySelectorAll('meta[http-equiv*="Security"], meta[http-equiv*="Content-Security"], meta[http-equiv*="X-"]');
+      existingMeta.forEach(meta => meta.remove());
 
-      // X-Content-Type-Options
-      const noSniffMeta = document.createElement('meta');
-      noSniffMeta.httpEquiv = 'X-Content-Type-Options';
-      noSniffMeta.content = 'nosniff';
-      document.head.appendChild(noSniffMeta);
+      // Apply all security headers from configuration
+      Object.entries(SECURITY_HEADERS).forEach(([name, content]) => {
+        const meta = document.createElement('meta');
+        if (name.startsWith('X-') || name === 'Content-Security-Policy') {
+          meta.httpEquiv = name;
+        } else {
+          meta.name = name.toLowerCase();
+        }
+        meta.content = content;
+        document.head.appendChild(meta);
+      });
 
-      // X-Frame-Options
-      const frameMeta = document.createElement('meta');
-      frameMeta.httpEquiv = 'X-Frame-Options';
-      frameMeta.content = 'DENY';
-      document.head.appendChild(frameMeta);
-
-      // Referrer Policy
-      const referrerMeta = document.createElement('meta');
-      referrerMeta.name = 'referrer';
-      referrerMeta.content = 'strict-origin-when-cross-origin';
-      document.head.appendChild(referrerMeta);
+      // Add Permissions Policy
+      const permissionsMeta = document.createElement('meta');
+      permissionsMeta.httpEquiv = 'Permissions-Policy';
+      permissionsMeta.content = 'camera=(), microphone=(), geolocation=(), payment=()';
+      document.head.appendChild(permissionsMeta);
     };
 
     setSecurityHeaders();
