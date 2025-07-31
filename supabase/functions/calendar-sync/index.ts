@@ -36,7 +36,7 @@ interface EventData {
     name: string;
     email?: string;
     phone?: string;
-  };
+  } | null;
 }
 
 class CalendarService {

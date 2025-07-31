@@ -147,7 +147,7 @@ export const useCalendarSync = () => {
 export const useManualEventSync = () => {
   const syncEvent = async (eventId: string, action: 'create' | 'update' | 'delete') => {
     try {
-      // Get event data with customer info
+      // Get event data with customer info - use maybeSingle to handle null customers
       const { data: eventData, error } = await supabase
         .from('events')
         .select(`
@@ -159,7 +159,7 @@ export const useManualEventSync = () => {
           )
         `)
         .eq('id', eventId)
-        .single();
+        .maybeSingle();
 
       if (error || !eventData) {
         throw new Error('Event not found');

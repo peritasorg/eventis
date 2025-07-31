@@ -18,7 +18,7 @@ interface EventData {
     email: string;
     phone: string;
     company?: string;
-  };
+  } | null;
 }
 
 interface TenantData {
@@ -136,15 +136,21 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(event.customers.name, 20, yPosition);
-  yPosition += 5;
-  if (event.customers.company) {
-    doc.text(event.customers.company, 20, yPosition);
+  
+  if (event.customers) {
+    doc.text(event.customers.name, 20, yPosition);
+    yPosition += 5;
+    if (event.customers.company) {
+      doc.text(event.customers.company, 20, yPosition);
+      yPosition += 5;
+    }
+    doc.text(event.customers.email, 20, yPosition);
+    yPosition += 5;
+    doc.text(event.customers.phone, 20, yPosition);
+  } else {
+    doc.text('No customer assigned', 20, yPosition);
     yPosition += 5;
   }
-  doc.text(event.customers.email, 20, yPosition);
-  yPosition += 5;
-  doc.text(event.customers.phone, 20, yPosition);
 
   yPosition += 20;
 
@@ -309,15 +315,21 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(event.customers.name, 20, yPosition);
-  yPosition += 5;
-  if (event.customers.company) {
-    doc.text(event.customers.company, 20, yPosition);
+  
+  if (event.customers) {
+    doc.text(event.customers.name, 20, yPosition);
+    yPosition += 5;
+    if (event.customers.company) {
+      doc.text(event.customers.company, 20, yPosition);
+      yPosition += 5;
+    }
+    doc.text(event.customers.email, 20, yPosition);
+    yPosition += 5;
+    doc.text(event.customers.phone, 20, yPosition);
+  } else {
+    doc.text('No customer assigned', 20, yPosition);
     yPosition += 5;
   }
-  doc.text(event.customers.email, 20, yPosition);
-  yPosition += 5;
-  doc.text(event.customers.phone, 20, yPosition);
 
   yPosition += 20;
 
