@@ -336,102 +336,72 @@ export const EventDetail = () => {
   const StatusIcon = getStatusIcon(event.status);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Modern Header with Gradient */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-white/20 shadow-sm">
+    <div className="min-h-screen bg-background">
+      {/* Clean Header */}
+      <div className="sticky top-0 z-10 bg-white border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={() => navigate('/events')}
-                className="h-10 w-10 p-0 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 rounded-xl transition-all duration-300"
+                className="h-9 w-9 p-0 hover:bg-accent rounded-lg"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4" />
               </Button>
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-2xl bg-gradient-to-r ${getStatusGradient(event.status)} shadow-lg`}>
-                  <PartyPopper className="h-6 w-6 text-white" />
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg bg-gradient-to-r ${getStatusGradient(event.status)}`}>
+                  <StatusIcon className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{event.event_name}</h1>
-                  <div className="flex items-center gap-4 mt-2">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-indigo-500" />
-                      <span className="text-sm font-medium text-gray-600">{event.event_type}</span>
-                    </div>
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r ${getStatusGradient(event.status)} shadow-md`}>
-                      <StatusIcon className="h-4 w-4 text-white" />
-                      <span className="text-sm font-semibold text-white capitalize">
-                        {event.status}
-                      </span>
-                    </div>
+                  <h1 className="text-xl font-semibold text-foreground">{event.event_name}</h1>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-sm text-muted-foreground">{event.event_type}</span>
+                    <Badge variant="outline" className={`text-xs font-medium border-0 ${getStatusColor(event.status)}`}>
+                      {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                    </Badge>
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => navigate(`/events/${eventId}/form`)}
-                className="h-10 border-blue-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:border-blue-300 transition-all duration-300"
-              >
-                <FileText className="h-4 w-4 mr-2 text-blue-600" />
-                <span className="font-medium">Form</span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate(`/events/${eventId}/form`)}>
+                <FileText className="h-4 w-4 mr-2" />
+                Form
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleSyncToCalendar}
-                className="h-10 border-emerald-200 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-green-50 hover:border-emerald-300 transition-all duration-300"
-              >
-                <Calendar className="h-4 w-4 mr-2 text-emerald-600" />
-                <span className="font-medium">Sync</span>
+              <Button variant="outline" size="sm" onClick={handleSyncToCalendar}>
+                <Calendar className="h-4 w-4 mr-2" />
+                Sync
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleGenerateQuote}
-                className="h-10 border-violet-200 hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 hover:border-violet-300 transition-all duration-300"
-              >
-                <FileText className="h-4 w-4 mr-2 text-violet-600" />
-                <span className="font-medium">Quote</span>
+              <Button variant="outline" size="sm" onClick={handleGenerateQuote}>
+                <FileText className="h-4 w-4 mr-2" />
+                Quote
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleGenerateInvoice}
-                className="h-10 border-amber-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-yellow-50 hover:border-amber-300 transition-all duration-300"
-              >
-                <Receipt className="h-4 w-4 mr-2 text-amber-600" />
-                <span className="font-medium">Invoice</span>
+              <Button variant="outline" size="sm" onClick={handleGenerateInvoice}>
+                <Receipt className="h-4 w-4 mr-2" />
+                Invoice
               </Button>
               
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
-                  >
+                  <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="bg-white shadow-xl border-0 rounded-2xl">
+                <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Event</AlertDialogTitle>
-                    <AlertDialogDescription className="text-gray-600">
-                      Are you sure you want to delete "{event.event_name}"? This action cannot be undone and will permanently remove all event data.
+                    <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{event.event_name}"? This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction 
                       onClick={handleDeleteEvent}
-                      className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl"
+                      className="bg-destructive hover:bg-destructive/90"
                       disabled={deleteEventMutation.isPending}
                     >
                       {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
@@ -444,10 +414,10 @@ export const EventDetail = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Business Flow */}
-        <div className="mb-8">
-          <div className="bg-white/60 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg p-8">
+        <div className="mb-6">
+          <div className="card-elegant p-4">
             <EventBusinessFlow 
               depositPaid={event.deposit_paid}
               balanceCleared={event.balance_cleared}
@@ -457,29 +427,25 @@ export const EventDetail = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-          {/* Main Content - Takes 3 columns */}
-          <div className="xl:col-span-3 space-y-8">
-            {/* Event Details Card */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-8 py-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Calendar className="h-6 w-6 text-white" />
-                  </div>
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* Main Content */}
+          <div className="xl:col-span-3 space-y-6">
+            {/* Event Details */}
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
                   Event Details
                 </h2>
               </div>
-              <div className="p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-blue-500 rounded-xl">
-                          <User className="h-5 w-5 text-white" />
-                        </div>
-                        <label className="text-sm font-semibold text-blue-900">Customer</label>
-                      </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                        <User className="h-4 w-4 text-blue-500" />
+                        Customer
+                      </label>
                       <InlineSelect
                         value={event.customer_id || 'none'}
                         options={customerSelectOptions}
@@ -488,25 +454,21 @@ export const EventDetail = () => {
                       />
                     </div>
                     
-                    <div className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border border-emerald-100">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-emerald-500 rounded-xl">
-                          <Sparkles className="h-5 w-5 text-white" />
-                        </div>
-                        <label className="text-sm font-semibold text-emerald-900">Event Type</label>
-                      </div>
-                      <div className="text-sm font-medium text-emerald-800 py-3 px-4 bg-white/50 rounded-xl border border-emerald-200">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-purple-500" />
+                        Event Type
+                      </label>
+                      <div className="text-sm text-foreground py-2 px-3 bg-muted/30 rounded-md">
                         {event.event_type || 'Not specified'}
                       </div>
                     </div>
 
-                    <div className="p-6 bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl border border-violet-100">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-violet-500 rounded-xl">
-                          <Globe className="h-5 w-5 text-white" />
-                        </div>
-                        <label className="text-sm font-semibold text-violet-900">Ethnicity</label>
-                      </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-green-500" />
+                        Ethnicity
+                      </label>
                       <InlineInput
                         value={event.ethnicity || ''}
                         onSave={(value) => handleUpdateField('ethnicity', value)}
@@ -515,28 +477,24 @@ export const EventDetail = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6">
-                      <div className="p-6 bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border border-rose-100">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-rose-500 rounded-xl">
-                            <Calendar className="h-5 w-5 text-white" />
-                          </div>
-                          <label className="text-sm font-semibold text-rose-900">Start Date</label>
-                        </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-rose-500" />
+                          Start Date
+                        </label>
                         <InlineDate
                           value={event.event_start_date}
                           onSave={(value) => handleUpdateField('event_start_date', value)}
                         />
                       </div>
                       
-                      <div className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-amber-500 rounded-xl">
-                            <Calendar className="h-5 w-5 text-white" />
-                          </div>
-                          <label className="text-sm font-semibold text-amber-900">End Date</label>
-                        </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-amber-500" />
+                          End Date
+                        </label>
                         <InlineDate
                           value={event.event_end_date}
                           onSave={(value) => handleUpdateField('event_end_date', value)}
@@ -545,13 +503,11 @@ export const EventDetail = () => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="p-6 bg-gradient-to-br from-cyan-50 to-blue-50 rounded-2xl border border-cyan-100">
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="p-1.5 bg-cyan-500 rounded-lg">
-                            <Clock className="h-4 w-4 text-white" />
-                          </div>
-                          <label className="text-xs font-semibold text-cyan-900">Start Time</label>
-                        </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-cyan-500" />
+                          Start Time
+                        </label>
                         <InlineInput
                           value={event.start_time || ''}
                           onSave={(value) => handleUpdateField('start_time', value)}
@@ -559,13 +515,11 @@ export const EventDetail = () => {
                         />
                       </div>
                       
-                      <div className="p-6 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl border border-teal-100">
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="p-1.5 bg-teal-500 rounded-lg">
-                            <Clock className="h-4 w-4 text-white" />
-                          </div>
-                          <label className="text-xs font-semibold text-teal-900">End Time</label>
-                        </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-teal-500" />
+                          End Time
+                        </label>
                         <InlineInput
                           value={event.end_time || ''}
                           onSave={(value) => handleUpdateField('end_time', value)}
@@ -578,26 +532,22 @@ export const EventDetail = () => {
               </div>
             </div>
 
-            {/* Contact Information Card */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-500 to-green-600 px-8 py-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Phone className="h-6 w-6 text-white" />
-                  </div>
+            {/* Contact Information */}
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Phone className="h-5 w-5 text-emerald-500" />
                   Contact Information
                 </h2>
               </div>
-              <div className="p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-blue-500 rounded-xl">
-                          <User className="h-5 w-5 text-white" />
-                        </div>
-                        <label className="text-sm font-semibold text-blue-900">Primary Contact</label>
-                      </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                        <User className="h-4 w-4 text-blue-500" />
+                        Primary Contact
+                      </label>
                       <InlineInput
                         value={event.primary_contact_name || ''}
                         onSave={(value) => handleUpdateField('primary_contact_name', value)}
@@ -605,13 +555,11 @@ export const EventDetail = () => {
                       />
                     </div>
                     
-                    <div className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border border-emerald-100">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-emerald-500 rounded-xl">
-                          <Phone className="h-5 w-5 text-white" />
-                        </div>
-                        <label className="text-sm font-semibold text-emerald-900">Primary Phone</label>
-                      </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-emerald-500" />
+                        Primary Phone
+                      </label>
                       <InlineInput
                         value={event.primary_contact_phone || ''}
                         onSave={(value) => handleUpdateField('primary_contact_phone', value)}
@@ -620,14 +568,12 @@ export const EventDetail = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="p-6 bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl border border-violet-100">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-violet-500 rounded-xl">
-                          <User className="h-5 w-5 text-white" />
-                        </div>
-                        <label className="text-sm font-semibold text-violet-900">Secondary Contact</label>
-                      </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                        <User className="h-4 w-4 text-purple-500" />
+                        Secondary Contact
+                      </label>
                       <InlineInput
                         value={event.secondary_contact_name || ''}
                         onSave={(value) => handleUpdateField('secondary_contact_name', value)}
@@ -635,13 +581,11 @@ export const EventDetail = () => {
                       />
                     </div>
                     
-                    <div className="p-6 bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border border-rose-100">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-rose-500 rounded-xl">
-                          <Phone className="h-5 w-5 text-white" />
-                        </div>
-                        <label className="text-sm font-semibold text-rose-900">Secondary Phone</label>
-                      </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-rose-500" />
+                        Secondary Phone
+                      </label>
                       <InlineInput
                         value={event.secondary_contact_phone || ''}
                         onSave={(value) => handleUpdateField('secondary_contact_phone', value)}
@@ -651,13 +595,11 @@ export const EventDetail = () => {
                   </div>
                 </div>
 
-                <div className="mt-6 p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-amber-500 rounded-xl">
-                      <Heart className="h-5 w-5 text-white" />
-                    </div>
-                    <label className="text-sm font-semibold text-amber-900">Relationship to Main Contact</label>
-                  </div>
+                <div className="mt-4">
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                    <Heart className="h-4 w-4 text-amber-500" />
+                    Relationship to Main Contact
+                  </label>
                   <InlineInput
                     value={event.secondary_contact_relationship || ''}
                     onSave={(value) => handleUpdateField('secondary_contact_relationship', value)}
@@ -667,51 +609,43 @@ export const EventDetail = () => {
               </div>
             </div>
 
-            {/* Guest Information Card */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-violet-500 to-purple-600 px-8 py-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Users className="h-6 w-6 text-white" />
-                  </div>
+            {/* Guest Information */}
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Users className="h-5 w-5 text-violet-500" />
                   Guest Information
                 </h2>
               </div>
-              <div className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-blue-500 rounded-xl">
-                        <User className="h-5 w-5 text-white" />
-                      </div>
-                      <label className="text-sm font-semibold text-blue-900">Men Count</label>
-                    </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                      <User className="h-4 w-4 text-blue-500" />
+                      Men Count
+                    </label>
                     <InlineNumber
                       value={event.men_count || 0}
                       onSave={(value) => handleUpdateField('men_count', value)}
                     />
                   </div>
                   
-                  <div className="p-6 bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border border-rose-100">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-rose-500 rounded-xl">
-                        <User className="h-5 w-5 text-white" />
-                      </div>
-                      <label className="text-sm font-semibold text-rose-900">Ladies Count</label>
-                    </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                      <User className="h-4 w-4 text-rose-500" />
+                      Ladies Count
+                    </label>
                     <InlineNumber
                       value={event.ladies_count || 0}
                       onSave={(value) => handleUpdateField('ladies_count', value)}
                     />
                   </div>
                   
-                  <div className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border border-emerald-100">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-emerald-500 rounded-xl">
-                        <Users className="h-5 w-5 text-white" />
-                      </div>
-                      <label className="text-sm font-semibold text-emerald-900">Total Guests</label>
-                    </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                      <Users className="h-4 w-4 text-emerald-500" />
+                      Total Guests
+                    </label>
                     <InlineNumber
                       value={event.total_guests || 0}
                       onSave={(value) => handleUpdateField('total_guests', value)}
@@ -719,13 +653,11 @@ export const EventDetail = () => {
                   </div>
                 </div>
 
-                <div className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-amber-500 rounded-xl">
-                      <Crown className="h-5 w-5 text-white" />
-                    </div>
-                    <label className="text-sm font-semibold text-amber-900">Event Mix Type</label>
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                    <Crown className="h-4 w-4 text-amber-500" />
+                    Event Mix Type
+                  </label>
                   <InlineSelect
                     value={event.event_mix_type || 'none'}
                     options={[
@@ -743,41 +675,35 @@ export const EventDetail = () => {
             </div>
 
             {/* Communication Timeline */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Mail className="h-6 w-6 text-white" />
-                  </div>
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-cyan-500" />
                   Communication Timeline
                 </h2>
               </div>
-              <div className="p-8">
+              <div className="p-6">
                 <CommunicationTimeline eventId={event.id} />
               </div>
             </div>
           </div>
 
-          {/* Sidebar - Takes 1 column */}
-          <div className="xl:col-span-1 space-y-8">
+          {/* Sidebar */}
+          <div className="xl:col-span-1 space-y-6">
             {/* Financial Summary */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-5">
-                <h2 className="text-lg font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <CreditCard className="h-5 w-5 text-white" />
-                  </div>
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-emerald-500" />
                   Financial Summary
                 </h2>
               </div>
-              <div className="p-6 space-y-6">
-                <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border border-emerald-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="p-1.5 bg-emerald-500 rounded-lg">
-                      <DollarSign className="h-4 w-4 text-white" />
-                    </div>
-                    <label className="text-sm font-semibold text-emerald-900">Guest Price (£)</label>
-                  </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-emerald-500" />
+                    Guest Price (£)
+                  </label>
                   <InlineNumber
                     value={totalGuestPrice}
                     onSave={(value) => handleUpdateField('total_guest_price', value)}
@@ -785,25 +711,21 @@ export const EventDetail = () => {
                   />
                 </div>
 
-                <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="p-1.5 bg-blue-500 rounded-lg">
-                      <TrendingUp className="h-4 w-4 text-white" />
-                    </div>
-                    <label className="text-sm font-semibold text-blue-900">Form Total</label>
-                  </div>
-                  <div className="text-lg font-bold text-blue-800 py-2 px-3 bg-white/50 rounded-xl">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-blue-500" />
+                    Form Total
+                  </label>
+                  <div className="text-lg font-semibold text-foreground py-2 px-3 bg-muted/30 rounded-md">
                     £{formTotal.toFixed(2)}
                   </div>
                 </div>
 
-                <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="p-1.5 bg-amber-500 rounded-lg">
-                      <Gift className="h-4 w-4 text-white" />
-                    </div>
-                    <label className="text-sm font-semibold text-amber-900">Deposit (£)</label>
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+                    <Gift className="h-4 w-4 text-amber-500" />
+                    Deposit (£)
+                  </label>
                   <InlineNumber
                     value={depositAmount}
                     onSave={(value) => handleUpdateField('deposit_amount', value)}
@@ -811,22 +733,22 @@ export const EventDetail = () => {
                   />
                 </div>
 
-                <div className="p-4 bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl border border-slate-200">
-                  <div className="space-y-3">
+                <div className="pt-4 border-t border-border/50">
+                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-gray-900">Total Price</span>
-                      <span className="text-2xl font-bold text-gray-900">£{totalEventPrice.toFixed(2)}</span>
+                      <span className="font-semibold text-foreground">Total Price</span>
+                      <span className="text-lg font-bold text-foreground">£{totalEventPrice.toFixed(2)}</span>
                     </div>
                     
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Total Paid</span>
-                      <span className="font-semibold text-green-600">£{totalPaid.toFixed(2)}</span>
+                      <span className="text-muted-foreground">Total Paid</span>
+                      <span className="font-semibold text-emerald-600">£{totalPaid.toFixed(2)}</span>
                     </div>
                     
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Balance Due</span>
+                      <span className="text-muted-foreground">Balance Due</span>
                       <span className={`font-bold ${
-                        balanceDue > 0 ? 'text-red-600' : 'text-green-600'
+                        balanceDue > 0 ? 'text-destructive' : 'text-emerald-600'
                       }`}>
                         £{balanceDue.toFixed(2)}
                       </span>
@@ -837,24 +759,22 @@ export const EventDetail = () => {
             </div>
 
             {/* Event Countdown */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-violet-500 to-purple-600 px-6 py-5">
-                <h2 className="text-lg font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Timer className="h-5 w-5 text-white" />
-                  </div>
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Timer className="h-5 w-5 text-violet-500" />
                   Event Countdown
                 </h2>
               </div>
               <div className="p-6 text-center">
-                <div className={`text-3xl font-bold mb-3 ${
-                  daysDue < 0 ? 'text-red-600' : daysDue < 7 ? 'text-amber-600' : 'text-emerald-600'
+                <div className={`text-2xl font-bold mb-3 ${
+                  daysDue < 0 ? 'text-destructive' : daysDue < 7 ? 'text-amber-600' : 'text-emerald-600'
                 }`}>
                   {daysDue < 0 ? `${Math.abs(daysDue)} days overdue` : 
                    daysDue === 0 ? 'Today' : 
                    `${daysDue} days to go`}
                 </div>
-                <div className="text-sm text-gray-600 bg-gray-50 rounded-xl py-2 px-3">
+                <div className="text-sm text-muted-foreground bg-muted/30 rounded-lg py-2 px-3">
                   {new Date(event.event_start_date).toLocaleDateString('en-GB', {
                     weekday: 'long',
                     year: 'numeric',
@@ -866,12 +786,10 @@ export const EventDetail = () => {
             </div>
 
             {/* Finance Timeline */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-rose-500 to-pink-600 px-6 py-5">
-                <h2 className="text-lg font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Zap className="h-5 w-5 text-white" />
-                  </div>
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-rose-500" />
                   Finance Timeline
                 </h2>
               </div>
