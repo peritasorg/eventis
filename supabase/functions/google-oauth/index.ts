@@ -24,19 +24,6 @@ serve(async (req) => {
       }
     );
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
-
-    // Verify JWT token
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      throw new Error('Invalid authorization token');
-    }
-
     const url = new URL(req.url);
     let action;
     
@@ -45,6 +32,25 @@ serve(async (req) => {
     } else {
       const body = await req.json();
       action = body.action || url.searchParams.get('action');
+    }
+
+    // Skip authorization for callback action (comes from Google redirect)
+    let user = null;
+    if (action !== 'callback') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        throw new Error('Missing authorization header');
+      }
+
+      // Verify JWT token
+      const token = authHeader.replace('Bearer ', '');
+      const { data: userData, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !userData) {
+        throw new Error('Invalid authorization token');
+      }
+      
+      user = userData;
     }
 
     if (action === 'authorize') {
@@ -76,6 +82,12 @@ serve(async (req) => {
       
       if (!code || !state) {
         throw new Error('Missing authorization code or state');
+      }
+
+      // Validate state parameter is a valid UUID (security check)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(state)) {
+        throw new Error('Invalid state parameter');
       }
 
       // Exchange code for tokens
