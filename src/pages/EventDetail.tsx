@@ -230,14 +230,13 @@ export const EventDetail = () => {
       
       const successful = results.filter(r => r.success).length;
       const failed = results.filter(r => r.error).length;
-      const skipped = results.filter(r => r.skipped).length;
       
       if (successful > 0) {
         toast.success(`Event synced to ${successful} calendar(s) successfully!`, { id: 'calendar-sync' });
-      } else if (skipped > 0) {
-        toast.info('No calendar integrations available to sync to', { id: 'calendar-sync' });
-      } else {
+      } else if (failed > 0) {
         toast.error('Failed to sync to any calendars', { id: 'calendar-sync' });
+      } else {
+        toast.info('No calendar integrations available to sync to', { id: 'calendar-sync' });
       }
     } catch (error) {
       console.error('Error syncing to calendar:', error);

@@ -182,11 +182,8 @@ export const useManualEventSync = () => {
       
       const results = await Promise.all(
         integrations.map(async (integration) => {
+          // For manual sync, we don't check auto_sync preferences - user explicitly requested it
           const preferences = await calendarSyncService.getPreferences(integration.id);
-          
-          if (!preferences?.auto_sync) {
-            return { integration: integration.calendar_name, skipped: true };
-          }
 
           // Get existing external event ID if updating/deleting
           const { data: existingLog } = await supabase
@@ -216,7 +213,6 @@ export const useManualEventSync = () => {
 
       const successful = results.filter(r => r.success).length;
       const failed = results.filter(r => r.error).length;
-      const skipped = results.filter(r => r.skipped).length;
 
       if (successful > 0) {
         toast.success(`Event synced to ${successful} calendar${successful > 1 ? 's' : ''}`);
@@ -224,8 +220,8 @@ export const useManualEventSync = () => {
       if (failed > 0) {
         toast.error(`Failed to sync to ${failed} calendar${failed > 1 ? 's' : ''}`);
       }
-      if (skipped > 0 && successful === 0 && failed === 0) {
-        toast.info('Auto-sync is disabled for all connected calendars');
+      if (successful === 0 && failed === 0) {
+        toast.info('No calendar integrations available to sync to');
       }
 
       return results;
