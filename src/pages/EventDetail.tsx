@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { EventBusinessFlow } from '@/components/events/EventBusinessFlow';
 import { CommunicationTimeline } from '@/components/events/CommunicationTimeline';
 import { FinanceTimeline } from '@/components/events/FinanceTimeline';
+import { useManualEventSync } from '@/hooks/useCalendarSync';
 import { toast } from 'sonner';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
 import { EventFormSection } from '@/components/events/EventFormSection';
@@ -33,6 +34,7 @@ export const EventDetail = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
+  const { syncEvent } = useManualEventSync();
 
   const { data: event, isLoading } = useSupabaseQuery(
     ['event', eventId],
@@ -215,6 +217,34 @@ export const EventDetail = () => {
     }
   };
 
+  const handleSyncToCalendar = async () => {
+    if (!eventId) {
+      toast.error('Event ID is required');
+      return;
+    }
+
+    toast.loading('Syncing to calendar...', { id: 'calendar-sync' });
+    
+    try {
+      const results = await syncEvent(eventId, 'create');
+      
+      const successful = results.filter(r => r.success).length;
+      const failed = results.filter(r => r.error).length;
+      const skipped = results.filter(r => r.skipped).length;
+      
+      if (successful > 0) {
+        toast.success(`Event synced to ${successful} calendar(s) successfully!`, { id: 'calendar-sync' });
+      } else if (skipped > 0) {
+        toast.info('No calendar integrations available to sync to', { id: 'calendar-sync' });
+      } else {
+        toast.error('Failed to sync to any calendars', { id: 'calendar-sync' });
+      }
+    } catch (error) {
+      console.error('Error syncing to calendar:', error);
+      toast.error('Failed to sync to calendar', { id: 'calendar-sync' });
+    }
+  };
+
   const calculateDaysDue = () => {
     if (!event?.event_start_date) return 0;
     const eventDate = new Date(event.event_start_date);
@@ -300,6 +330,14 @@ export const EventDetail = () => {
             </div>
             
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSyncToCalendar}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Sync to Calendar
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm"
