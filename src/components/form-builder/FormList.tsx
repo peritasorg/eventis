@@ -68,14 +68,12 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
     createFormMutation.mutate({
       name: formData.get('name') as string,
       description: formData.get('description') as string,
-      form_type: formData.get('form_type') as string || 'general',
       active: true
     });
   };
 
-  // Filter forms by type
-  const generalForms = forms?.filter(form => form.form_type === 'general' || !form.form_type) || [];
-  const menuForms = forms?.filter(form => form.form_type === 'menu') || [];
+  // Show all forms (removed form_type filtering since column doesn't exist)
+  const allForms = forms || [];
 
   return (
     <div className="space-y-6">
@@ -104,29 +102,6 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
               </div>
               
               <div>
-                <Label htmlFor="form_type">Form Type</Label>
-                <Select name="form_type" defaultValue="general">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select form type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        General Form
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="menu">
-                      <div className="flex items-center gap-2">
-                        <Menu className="h-4 w-4" />
-                        Menu Form
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea 
                   id="description" 
@@ -135,6 +110,7 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
                   rows={3}
                 />
               </div>
+              
               
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
@@ -149,127 +125,58 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
         </Dialog>
       </div>
 
-      {/* Forms Tabs */}
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="general" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            General Forms ({generalForms.length})
-          </TabsTrigger>
-          <TabsTrigger value="menu" className="flex items-center gap-2">
-            <Menu className="h-4 w-4" />
-            Menu Forms ({menuForms.length})
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="general" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {generalForms.map((form) => (
-              <Card key={form.id} className="card-elegant hover:shadow-elevated transition-all duration-200">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{form.name}</CardTitle>
-                  </div>
-                  {form.description && (
-                    <p className="text-sm text-muted-foreground">{form.description}</p>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-center">
-                    <div className="text-xs text-muted-foreground">
-                      Used {form.usage_count || 0} times
-                    </div>
-                    <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => onEditForm(form)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => deleteFormMutation.mutate(form.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            
-            {generalForms.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">No general forms yet</h3>
-                <p className="text-muted-foreground mb-4">Create your first general questionnaire form</p>
-                <Button onClick={() => setIsCreateOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create General Form
-                </Button>
+      {/* Forms List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {allForms.map((form) => (
+          <Card key={form.id} className="card-elegant hover:shadow-elevated transition-all duration-200">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">{form.name}</CardTitle>
               </div>
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="menu" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {menuForms.map((form) => (
-              <Card key={form.id} className="card-elegant hover:shadow-elevated transition-all duration-200">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Menu className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{form.name}</CardTitle>
-                  </div>
-                  {form.description && (
-                    <p className="text-sm text-muted-foreground">{form.description}</p>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-center">
-                    <div className="text-xs text-muted-foreground">
-                      Used {form.usage_count || 0} times
-                    </div>
-                    <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => onEditForm(form)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => deleteFormMutation.mutate(form.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            
-            {menuForms.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <Menu className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">No menu forms yet</h3>
-                <p className="text-muted-foreground mb-4">Create your first menu selection form</p>
-                <Button onClick={() => setIsCreateOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Menu Form
-                </Button>
+              {form.description && (
+                <p className="text-sm text-muted-foreground">{form.description}</p>
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-between items-center">
+                <div className="text-xs text-muted-foreground">
+                  Used {form.usage_count || 0} times
+                </div>
+                <div className="flex gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => onEditForm(form)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => deleteFormMutation.mutate(form.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            )}
+            </CardContent>
+          </Card>
+        ))}
+        
+        {allForms.length === 0 && (
+          <div className="col-span-full text-center py-12">
+            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No forms yet</h3>
+            <p className="text-muted-foreground mb-4">Create your first questionnaire form</p>
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Form
+            </Button>
           </div>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 };
