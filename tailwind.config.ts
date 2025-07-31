@@ -85,7 +85,8 @@ export default {
 			boxShadow: {
 				'sm': 'var(--shadow-sm)',
 				'md': 'var(--shadow-md)',
-				'lg': 'var(--shadow-lg)'
+				'lg': 'var(--shadow-lg)',
+				'elegant': 'var(--shadow-elegant)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

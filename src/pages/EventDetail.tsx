@@ -311,24 +311,24 @@ export const EventDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-3">
+      {/* Elegant Header */}
+      <div className="sticky top-0 z-10 header-elegant">
+        <div className="max-w-7xl mx-auto px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={() => navigate('/events')}
-                className="h-8 w-8 p-0"
+                className="h-9 w-9 p-0 hover:bg-accent rounded-lg"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">{event.event_name}</h1>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{event.event_type}</span>
-                  <Badge variant="outline" className={`text-xs ${getStatusColor(event.status)}`}>
+                <h1 className="text-xl font-semibold text-foreground tracking-tight">{event.event_name}</h1>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-sm text-muted-foreground">{event.event_type}</span>
+                  <Badge variant="outline" className={`text-xs font-medium border-0 ${getStatusColor(event.status)}`}>
                     {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
                   </Badge>
                 </div>
@@ -340,6 +340,7 @@ export const EventDetail = () => {
                 variant="outline" 
                 size="sm"
                 onClick={() => navigate(`/events/${eventId}/form`)}
+                className="h-9 border-border/60 hover:bg-accent"
               >
                 <FileText className="h-4 w-4 mr-2" />
                 Form
@@ -348,6 +349,7 @@ export const EventDetail = () => {
                 variant="outline" 
                 size="sm"
                 onClick={handleSyncToCalendar}
+                className="h-9 border-border/60 hover:bg-accent"
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Sync to Calendar
@@ -356,6 +358,7 @@ export const EventDetail = () => {
                 variant="outline" 
                 size="sm"
                 onClick={handleGenerateQuote}
+                className="h-9 border-border/60 hover:bg-accent"
               >
                 <FileText className="h-4 w-4 mr-2" />
                 Quote
@@ -364,6 +367,7 @@ export const EventDetail = () => {
                 variant="outline" 
                 size="sm"
                 onClick={handleGenerateInvoice}
+                className="h-9 border-border/60 hover:bg-accent"
               >
                 <Receipt className="h-4 w-4 mr-2" />
                 Invoice
@@ -371,11 +375,11 @@ export const EventDetail = () => {
               
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="card-elegant">
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Event</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -399,32 +403,34 @@ export const EventDetail = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-8 py-8">
         {/* Business Flow */}
-        <div className="mb-6 bg-card rounded-lg border border-border p-4">
-          <EventBusinessFlow 
-            depositPaid={event.deposit_paid}
-            balanceCleared={event.balance_cleared}
-            eventFinalized={event.event_finalized}
-            eventId={event.id}
-          />
+        <div className="mb-8">
+          <div className="card-elegant p-6">
+            <EventBusinessFlow 
+              depositPaid={event.deposit_paid}
+              balanceCleared={event.balance_cleared}
+              eventFinalized={event.event_finalized}
+              eventId={event.id}
+            />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-8">
             {/* Event Details */}
-            <div className="bg-card rounded-lg border border-border">
-              <div className="p-4 border-b border-border">
-                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 tracking-tight">
+                  <Calendar className="h-5 w-5 text-primary" />
                   Event Details
                 </h2>
               </div>
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Customer</label>
                     <InlineSelect
                       value={event.customer_id || 'none'}
                       options={customerSelectOptions}
@@ -433,21 +439,21 @@ export const EventDetail = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Event Type</label>
-                    <div className="text-sm text-foreground py-1">{event.event_type || 'Not specified'}</div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Event Type</label>
+                    <div className="text-sm text-foreground py-2 px-3 bg-muted/30 rounded-md">{event.event_type || 'Not specified'}</div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Start Date</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Start Date</label>
                     <InlineDate
                       value={event.event_start_date}
                       onSave={(value) => handleUpdateField('event_start_date', value)}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">End Date</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">End Date</label>
                     <InlineDate
                       value={event.event_end_date}
                       onSave={(value) => handleUpdateField('event_end_date', value)}
@@ -455,9 +461,9 @@ export const EventDetail = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Start Time</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Start Time</label>
                     <InlineInput
                       value={event.start_time || ''}
                       onSave={(value) => handleUpdateField('start_time', value)}
@@ -465,7 +471,7 @@ export const EventDetail = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">End Time</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">End Time</label>
                     <InlineInput
                       value={event.end_time || ''}
                       onSave={(value) => handleUpdateField('end_time', value)}
@@ -475,7 +481,7 @@ export const EventDetail = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Ethnicity</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Ethnicity</label>
                   <InlineInput
                     value={event.ethnicity || ''}
                     onSave={(value) => handleUpdateField('ethnicity', value)}
@@ -486,17 +492,17 @@ export const EventDetail = () => {
             </div>
 
             {/* Contact Information */}
-            <div className="bg-card rounded-lg border border-border">
-              <div className="p-4 border-b border-border">
-                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 tracking-tight">
+                  <Phone className="h-5 w-5 text-primary" />
                   Contact Information
                 </h2>
               </div>
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Primary Contact Name</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Primary Contact Name</label>
                     <InlineInput
                       value={event.primary_contact_name || ''}
                       onSave={(value) => handleUpdateField('primary_contact_name', value)}
@@ -504,7 +510,7 @@ export const EventDetail = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Primary Contact Phone</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Primary Contact Phone</label>
                     <InlineInput
                       value={event.primary_contact_phone || ''}
                       onSave={(value) => handleUpdateField('primary_contact_phone', value)}
@@ -513,9 +519,9 @@ export const EventDetail = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Secondary Contact Name</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Secondary Contact Name</label>
                     <InlineInput
                       value={event.secondary_contact_name || ''}
                       onSave={(value) => handleUpdateField('secondary_contact_name', value)}
@@ -523,7 +529,7 @@ export const EventDetail = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Secondary Contact Phone</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Secondary Contact Phone</label>
                     <InlineInput
                       value={event.secondary_contact_phone || ''}
                       onSave={(value) => handleUpdateField('secondary_contact_phone', value)}
@@ -533,7 +539,7 @@ export const EventDetail = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Relationship to Main Contact</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Relationship to Main Contact</label>
                   <InlineInput
                     value={event.secondary_contact_relationship || ''}
                     onSave={(value) => handleUpdateField('secondary_contact_relationship', value)}
@@ -544,31 +550,31 @@ export const EventDetail = () => {
             </div>
 
             {/* Guest Information */}
-            <div className="bg-card rounded-lg border border-border">
-              <div className="p-4 border-b border-border">
-                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-                  <Users className="h-4 w-4" />
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 tracking-tight">
+                  <Users className="h-5 w-5 text-primary" />
                   Guest Information
                 </h2>
               </div>
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-3 gap-6">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Men Count</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Men Count</label>
                     <InlineNumber
                       value={event.men_count || 0}
                       onSave={(value) => handleUpdateField('men_count', value)}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Ladies Count</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Ladies Count</label>
                     <InlineNumber
                       value={event.ladies_count || 0}
                       onSave={(value) => handleUpdateField('ladies_count', value)}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Total Guests</label>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Total Guests</label>
                     <InlineNumber
                       value={event.total_guests || 0}
                       onSave={(value) => handleUpdateField('total_guests', value)}
@@ -577,7 +583,7 @@ export const EventDetail = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Event Mix Type</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Event Mix Type</label>
                   <InlineSelect
                     value={event.event_mix_type || 'none'}
                     options={[
@@ -594,31 +600,30 @@ export const EventDetail = () => {
               </div>
             </div>
 
-
             {/* Communication Timeline */}
-            <div className="bg-card rounded-lg border border-border">
-              <div className="p-4 border-b border-border">
-                <h2 className="text-base font-semibold text-foreground">Communication Timeline</h2>
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground tracking-tight">Communication Timeline</h2>
               </div>
-              <div className="p-4">
+              <div className="p-6">
                 <CommunicationTimeline eventId={event.id} />
               </div>
             </div>
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Financial Summary */}
-            <div className="bg-card rounded-lg border border-border">
-              <div className="p-4 border-b border-border">
-                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 tracking-tight">
+                  <DollarSign className="h-5 w-5 text-primary" />
                   Financial Summary
                 </h2>
               </div>
-              <div className="p-4 space-y-3">
+              <div className="p-6 space-y-6">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Guest Price (£)</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Guest Price (£)</label>
                   <InlineNumber
                     value={totalGuestPrice}
                     onSave={(value) => handleUpdateField('total_guest_price', value)}
@@ -627,12 +632,12 @@ export const EventDetail = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Form Total</label>
-                  <div className="text-sm font-medium text-foreground">£{formTotal.toFixed(2)}</div>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Form Total</label>
+                  <div className="text-sm font-medium text-foreground py-2 px-3 bg-muted/30 rounded-md">£{formTotal.toFixed(2)}</div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Deposit Amount (£)</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Deposit Amount (£)</label>
                   <InlineNumber
                     value={depositAmount}
                     onSave={(value) => handleUpdateField('deposit_amount', value)}
@@ -640,20 +645,20 @@ export const EventDetail = () => {
                   />
                 </div>
 
-                <div className="pt-2 border-t border-border">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-foreground">Total Event Price</span>
-                    <span className="text-lg font-bold text-foreground">£{totalEventPrice.toFixed(2)}</span>
+                <div className="pt-4 border-t border-border/50">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-base font-semibold text-foreground">Total Event Price</span>
+                    <span className="text-xl font-bold text-foreground">£{totalEventPrice.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-muted-foreground">Total Paid</span>
-                    <span className="text-sm text-green-600">£{totalPaid.toFixed(2)}</span>
+                    <span className="text-sm text-muted-foreground">Total Paid</span>
+                    <span className="text-sm font-medium text-green-600">£{totalPaid.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Balance Due</span>
-                    <span className={`text-sm font-medium ${
+                    <span className="text-sm text-muted-foreground">Balance Due</span>
+                    <span className={`text-sm font-semibold ${
                       balanceDue > 0 ? 'text-red-600' : 'text-green-600'
                     }`}>
                       £{balanceDue.toFixed(2)}
@@ -664,22 +669,22 @@ export const EventDetail = () => {
             </div>
 
             {/* Event Countdown */}
-            <div className="bg-card rounded-lg border border-border">
-              <div className="p-4 border-b border-border">
-                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 tracking-tight">
+                  <Clock className="h-5 w-5 text-primary" />
                   Event Countdown
                 </h2>
               </div>
-              <div className="p-4">
-                <div className={`text-center text-lg font-bold ${
+              <div className="p-6 text-center">
+                <div className={`text-2xl font-bold mb-2 ${
                   daysDue < 0 ? 'text-red-600' : daysDue < 7 ? 'text-orange-600' : 'text-green-600'
                 }`}>
                   {daysDue < 0 ? `${Math.abs(daysDue)} days overdue` : 
                    daysDue === 0 ? 'Today' : 
                    `${daysDue} days to go`}
                 </div>
-                <div className="text-xs text-muted-foreground text-center mt-1">
+                <div className="text-sm text-muted-foreground">
                   {new Date(event.event_start_date).toLocaleDateString('en-GB', {
                     weekday: 'long',
                     year: 'numeric',
@@ -691,11 +696,11 @@ export const EventDetail = () => {
             </div>
 
             {/* Finance Timeline */}
-            <div className="bg-card rounded-lg border border-border">
-              <div className="p-4 border-b border-border">
-                <h2 className="text-base font-semibold text-foreground">Finance Timeline</h2>
+            <div className="card-elegant">
+              <div className="px-6 py-4 border-b border-border/50">
+                <h2 className="text-lg font-semibold text-foreground tracking-tight">Finance Timeline</h2>
               </div>
-              <div className="p-4">
+              <div className="p-6">
                 <FinanceTimeline eventId={event.id} />
               </div>
             </div>

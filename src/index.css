@@ -3,36 +3,36 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system - Monday.com inspired color palette */
+/* Modern, professional design system inspired by the image */
 
 @layer base {
   :root {
-    /* Modern workspace color scheme */
+    /* Premium workspace color scheme - inspired by modern financial interfaces */
     --background: 0 0% 98%;
-    --foreground: 216 13% 15%;
+    --foreground: 225 10% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 216 13% 15%;
+    --card-foreground: 225 10% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 216 13% 15%;
+    --popover-foreground: 225 10% 12%;
 
-    /* Primary brand colors - Monday.com blue */
-    --primary: 202 100% 46%;
+    /* Primary brand colors - modern blue */
+    --primary: 215 85% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 202 100% 42%;
+    --primary-hover: 215 85% 50%;
 
-    /* Secondary colors - subtle grays */
-    --secondary: 210 11% 96%;
-    --secondary-foreground: 216 13% 15%;
+    /* Secondary colors - sophisticated grays */
+    --secondary: 215 14% 96%;
+    --secondary-foreground: 225 10% 12%;
 
     /* Muted colors for subtle elements */
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 215 17% 95%;
+    --muted-foreground: 225 8% 50%;
 
     /* Accent colors */
-    --accent: 210 11% 96%;
-    --accent-foreground: 216 13% 15%;
+    --accent: 215 14% 96%;
+    --accent-foreground: 225 10% 12%;
 
     /* Status colors - inspired by Monday.com status badges */
     --status-discovery: 217 91% 60%;
@@ -74,10 +74,11 @@
     --sidebar-border: 214 32% 91%;
     --sidebar-ring: 202 100% 46%;
 
-    /* Shadow system */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    /* Professional shadow system */
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px 0 rgb(0 0 0 / 0.02);
+    --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+    --shadow-elegant: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
   }
 }
 
@@ -89,6 +90,29 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+  }
+
+  /* Professional card styling */
+  .card-elegant {
+    @apply bg-card border border-border/50 rounded-lg shadow-sm;
+  }
+
+  .card-elegant-hover {
+    @apply bg-card border border-border/50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  /* Modern input styling */
+  .input-elegant {
+    @apply bg-background border border-border/60 rounded-md px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors;
+  }
+
+  /* Header styling */
+  .header-elegant {
+    @apply bg-card/95 backdrop-blur-sm border-b border-border/50;
   }
 }
 

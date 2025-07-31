@@ -114,7 +114,7 @@ export const Sidebar = () => {
     <>
       {/* Logo/Brand with collapse toggle */}
       <div className={cn(
-        "flex h-16 items-center border-b border-gray-700 transition-all duration-200",
+        "flex h-16 items-center border-b border-sidebar-border/50 transition-all duration-200",
         isCollapsed ? "px-3 justify-center" : "px-4 lg:px-6"
       )}>
         {!isCollapsed && (
@@ -134,7 +134,7 @@ export const Sidebar = () => {
               variant="ghost"
               size="icon"
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8 p-0"
+              className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8 p-0 rounded-lg"
             >
               {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
             </Button>
@@ -182,8 +182,8 @@ export const Sidebar = () => {
                 'group flex items-center text-sm font-medium rounded-lg transition-all duration-200',
                 isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
                 isActive
-                  ? 'bg-emerald-600 text-white shadow-lg'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white hover:scale-105'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               )}
               title={isCollapsed ? item.name : undefined}
             >
@@ -191,7 +191,7 @@ export const Sidebar = () => {
                 className={cn(
                   'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
                   isCollapsed ? '' : 'mr-3',
-                  isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
+                  isActive ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
                 )}
               />
               {!isCollapsed && <span className="truncate">{item.name}</span>}
@@ -209,7 +209,7 @@ export const Sidebar = () => {
           className={cn(
             'group flex items-center text-sm font-medium rounded-lg transition-all duration-200',
             isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
-            'text-gray-300 hover:bg-gray-800 hover:text-white hover:scale-105'
+            'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
           )}
           title={isCollapsed ? (isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen') : undefined}
         >
@@ -218,7 +218,7 @@ export const Sidebar = () => {
               className={cn(
                 'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
                 isCollapsed ? '' : 'mr-3',
-                'text-gray-400 group-hover:text-white'
+                'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
               )}
             />
           ) : (
@@ -226,7 +226,7 @@ export const Sidebar = () => {
               className={cn(
                 'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
                 isCollapsed ? '' : 'mr-3',
-                'text-gray-400 group-hover:text-white'
+                'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
               )}
             />
           )}
@@ -235,19 +235,19 @@ export const Sidebar = () => {
       </nav>
 
       {/* Footer with User Info */}
-      <div className="border-t border-gray-700 p-3 lg:p-4">
+      <div className="border-t border-sidebar-border/50 p-3 lg:p-4">
         {/* User Info */}
         {!isCollapsed && (
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-emerald-500 flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0">
+              <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-primary flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0 text-primary-foreground">
                 {getUserInitial()}
               </div>
               <div className="ml-2 lg:ml-3 min-w-0 flex-1">
-                <p className="text-xs lg:text-sm font-medium truncate text-white" title={getBusinessName()}>
+                <p className="text-xs lg:text-sm font-medium truncate text-sidebar-foreground" title={getBusinessName()}>
                   {getBusinessName()}
                 </p>
-                <p className="text-xs text-gray-400 truncate" title={getSubscriptionStatus()}>
+                <p className="text-xs text-sidebar-foreground/60 truncate" title={getSubscriptionStatus()}>
                   {getSubscriptionStatus()}
                 </p>
               </div>
@@ -256,7 +256,7 @@ export const Sidebar = () => {
               variant="ghost"
               size="sm"
               onClick={signOut}
-              className="text-gray-400 hover:text-white hover:bg-gray-800 flex-shrink-0 ml-2 h-8 w-8 p-0"
+              className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent flex-shrink-0 ml-2 h-8 w-8 p-0 rounded-lg"
             >
               <LogOut className="h-4 w-4" />
             </Button>
@@ -274,7 +274,7 @@ export const Sidebar = () => {
           variant="ghost"
           size="icon"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="fixed top-4 left-4 z-50 lg:hidden bg-gray-900 text-white hover:bg-gray-800"
+          className="fixed top-4 left-4 z-50 lg:hidden bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent border border-sidebar-border/50 shadow-md"
         >
           {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
@@ -282,7 +282,7 @@ export const Sidebar = () => {
 
       {/* Desktop Sidebar */}
       <div className={cn(
-        "hidden lg:flex lg:flex-col lg:bg-gray-900 transition-all duration-200",
+        "hidden lg:flex lg:flex-col bg-sidebar border-r border-sidebar-border/50 transition-all duration-200",
         isCollapsed ? "lg:w-16" : "lg:w-64"
       )}>
         <SidebarContent />
@@ -291,8 +291,8 @@ export const Sidebar = () => {
       {/* Mobile Sidebar Overlay */}
       {isMobile && isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="fixed inset-0 bg-black opacity-50" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="fixed inset-y-0 left-0 w-64 bg-gray-900 text-white flex flex-col">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)} />
+          <div className="fixed inset-y-0 left-0 w-64 bg-sidebar text-sidebar-foreground flex flex-col shadow-elegant">
             <SidebarContent />
           </div>
         </div>
