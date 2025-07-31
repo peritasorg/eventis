@@ -49,7 +49,7 @@ serve(async (req) => {
 
     if (action === 'authorize') {
       // Step 1: Generate OAuth URL
-      const redirectUri = `${url.origin}/google-oauth?action=callback`;
+      const redirectUri = 'https://vbowtpkisiabdwwgttry.supabase.co/functions/v1/google-oauth?action=callback';
       const scopes = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
       
       const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/auth');
@@ -89,7 +89,7 @@ serve(async (req) => {
           client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '',
           code,
           grant_type: 'authorization_code',
-          redirect_uri: `${url.origin}/google-oauth?action=callback`,
+          redirect_uri: 'https://vbowtpkisiabdwwgttry.supabase.co/functions/v1/google-oauth?action=callback',
         }),
       });
 
