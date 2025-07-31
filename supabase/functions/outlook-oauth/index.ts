@@ -88,7 +88,7 @@ serve(async (req) => {
           client_secret: Deno.env.get('MICROSOFT_CLIENT_SECRET') ?? '',
           code,
           grant_type: 'authorization_code',
-          redirect_uri: `${url.origin}/outlook-oauth?action=callback`,
+          redirect_uri: `${url.origin}/outlook-oauth-callback`,
         }),
       });
 
