@@ -201,6 +201,218 @@ export type Database = {
           },
         ]
       }
+      calendar_field_mappings: {
+        Row: {
+          calendar_field: string
+          created_at: string
+          event_field: string
+          id: string
+          integration_id: string
+          is_active: boolean
+          mapping_type: string
+          template_format: string | null
+          tenant_id: string
+        }
+        Insert: {
+          calendar_field: string
+          created_at?: string
+          event_field: string
+          id?: string
+          integration_id: string
+          is_active?: boolean
+          mapping_type?: string
+          template_format?: string | null
+          tenant_id: string
+        }
+        Update: {
+          calendar_field?: string
+          created_at?: string
+          event_field?: string
+          id?: string
+          integration_id?: string
+          is_active?: boolean
+          mapping_type?: string
+          template_format?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_field_mappings_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_integrations: {
+        Row: {
+          access_token: string
+          calendar_id: string
+          calendar_name: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          provider: string
+          refresh_token: string | null
+          sync_direction: string
+          tenant_id: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          calendar_id: string
+          calendar_name?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          provider: string
+          refresh_token?: string | null
+          sync_direction?: string
+          tenant_id: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          calendar_id?: string
+          calendar_name?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          sync_direction?: string
+          tenant_id?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      calendar_sync_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_id: string | null
+          external_event_id: string | null
+          id: string
+          integration_id: string
+          operation: string
+          status: string
+          sync_data: Json | null
+          sync_direction: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_id?: string | null
+          external_event_id?: string | null
+          id?: string
+          integration_id: string
+          operation: string
+          status: string
+          sync_data?: Json | null
+          sync_direction: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_id?: string | null
+          external_event_id?: string | null
+          id?: string
+          integration_id?: string
+          operation?: string
+          status?: string
+          sync_data?: Json | null
+          sync_direction?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_sync_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "event_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_sync_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_sync_logs_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_sync_preferences: {
+        Row: {
+          auto_sync: boolean
+          created_at: string
+          description_template: string | null
+          id: string
+          include_form_data: boolean
+          integration_id: string
+          sync_event_statuses: string[] | null
+          sync_event_types: string[] | null
+          sync_frequency: number
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_sync?: boolean
+          created_at?: string
+          description_template?: string | null
+          id?: string
+          include_form_data?: boolean
+          integration_id: string
+          sync_event_statuses?: string[] | null
+          sync_event_types?: string[] | null
+          sync_frequency?: number
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_sync?: boolean
+          created_at?: string
+          description_template?: string | null
+          id?: string
+          include_form_data?: boolean
+          integration_id?: string
+          sync_event_statuses?: string[] | null
+          sync_event_types?: string[] | null
+          sync_frequency?: number
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_sync_preferences_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communication_timeline: {
         Row: {
           communication_type: string
@@ -2062,6 +2274,10 @@ export type Database = {
       }
       get_current_user_tenant_id: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_decrypted_token: {
+        Args: { encrypted_token: string }
         Returns: string
       }
       get_tenant_dashboard_stats: {
