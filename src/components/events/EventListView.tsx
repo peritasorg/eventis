@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Users, Mail, Phone, Eye, CalendarPlus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useManualEventSync } from '@/hooks/useCalendarSync';
+import { calendarSyncService } from '@/services/calendarSync';
 import { toast } from 'sonner';
 
 interface Event {
@@ -34,7 +35,29 @@ export const EventListView: React.FC<EventListViewProps> = ({
   events,
   onEventClick
 }) => {
+  const [showSyncButtons, setShowSyncButtons] = useState(false);
   const { syncEvent } = useManualEventSync();
+
+  // Check if manual sync buttons should be shown
+  useEffect(() => {
+    const checkSyncPreferences = async () => {
+      try {
+        const integrations = await calendarSyncService.getIntegrations();
+        for (const integration of integrations) {
+          const preferences = await calendarSyncService.getPreferences(integration.id);
+          if (preferences && !preferences.auto_sync) {
+            setShowSyncButtons(true);
+            return;
+          }
+        }
+        setShowSyncButtons(false);
+      } catch (error) {
+        console.error('Failed to check sync preferences:', error);
+      }
+    };
+    
+    checkSyncPreferences();
+  }, []);
 
   const handleSyncToCalendar = async (eventId: string, eventName: string) => {
     try {
@@ -201,15 +224,17 @@ export const EventListView: React.FC<EventListViewProps> = ({
                     >
                       <Eye className="h-3 w-3" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSyncToCalendar(event.id, event.event_name)}
-                      className="h-7 w-7 p-0"
-                      title="Sync to Calendar"
-                    >
-                      <CalendarPlus className="h-3 w-3" />
-                    </Button>
+                    {showSyncButtons && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSyncToCalendar(event.id, event.event_name)}
+                        className="h-7 w-7 p-0"
+                        title="Sync to Calendar"
+                      >
+                        <CalendarPlus className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

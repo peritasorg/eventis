@@ -237,6 +237,45 @@ class CalendarSyncService {
       return false;
     }
   }
+
+  async syncAllEventsToNewCalendar(): Promise<void> {
+    try {
+      // Get all events for the current tenant
+      const { data: events, error } = await supabase
+        .from('events')
+        .select('id, event_name')
+        .order('created_at', { ascending: false });
+
+      if (error || !events) {
+        console.error('Failed to fetch events for sync:', error);
+        return;
+      }
+
+      // Get the latest integration (newly connected)
+      const integrations = await this.getIntegrations();
+      const latestIntegration = integrations[0];
+      
+      if (!latestIntegration) return;
+
+      let synced = 0;
+      for (const event of events) {
+        try {
+          const result = await this.syncEventToCalendar(
+            event.id,
+            latestIntegration.id,
+            'create'
+          );
+          if (result.success) synced++;
+        } catch (error) {
+          console.error(`Failed to sync event ${event.event_name}:`, error);
+        }
+      }
+
+      console.log(`Synced ${synced} out of ${events.length} events to ${latestIntegration.calendar_name}`);
+    } catch (error) {
+      console.error('Failed to sync all events:', error);
+    }
+  }
 }
 
 export const calendarSyncService = new CalendarSyncService();

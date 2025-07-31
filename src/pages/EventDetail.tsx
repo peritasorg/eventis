@@ -29,12 +29,17 @@ import { InlineSelect } from '@/components/events/InlineSelect';
 import { InlineTextarea } from '@/components/events/InlineTextarea';
 import { InlineNumber } from '@/components/events/InlineNumber';
 import { InlineDate } from '@/components/events/InlineDate';
+import { useEventAutoSync } from '@/hooks/useEventAutoSync';
 
 export const EventDetail = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
   const { syncEvent } = useManualEventSync();
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Enable auto-sync when editing and navigating away
+  useEventAutoSync(eventId || '', isEditing);
 
   const { data: event, isLoading } = useSupabaseQuery(
     ['event', eventId],
@@ -180,7 +185,10 @@ export const EventDetail = () => {
 
   const handleUpdateField = (field: string, value: any) => {
     if (!event?.id) return;
+    setIsEditing(true);
     updateEventMutation.mutate({ [field]: value });
+    // Reset editing state after a delay
+    setTimeout(() => setIsEditing(false), 1000);
   };
 
   const handleDeleteEvent = () => {

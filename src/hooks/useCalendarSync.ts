@@ -37,26 +37,14 @@ export const useCalendarSync = () => {
       }
 
       for (const integration of integrations) {
-        // Check if this event type and status should be synced
+        // Check if auto sync is enabled
         const preferences = await calendarSyncService.getPreferences(integration.id);
         
         if (!preferences || !preferences.auto_sync) {
           continue; // Auto sync disabled for this integration
         }
 
-        // Check if event type should be synced
-        if (preferences.sync_event_types && preferences.sync_event_types.length > 0) {
-          if (!preferences.sync_event_types.includes(eventData.event_type)) {
-            continue;
-          }
-        }
-
-        // Check if event status should be synced
-        if (preferences.sync_event_statuses && preferences.sync_event_statuses.length > 0) {
-          if (!preferences.sync_event_statuses.includes(eventData.status)) {
-            continue;
-          }
-        }
+        // All events are eligible for syncing - no filtering by type or status
 
         // Get existing sync log to check if event was already synced
         const { data: existingLog } = await supabase

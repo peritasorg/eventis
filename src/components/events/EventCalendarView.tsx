@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, Users, ChevronLeft, ChevronRight, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useManualEventSync } from '@/hooks/useCalendarSync';
+import { calendarSyncService } from '@/services/calendarSync';
 import { toast } from 'sonner';
 import {
   Tooltip,
@@ -41,7 +42,29 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   onDateClick
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showSyncButtons, setShowSyncButtons] = useState(false);
   const { syncEvent } = useManualEventSync();
+
+  // Check if manual sync buttons should be shown
+  useEffect(() => {
+    const checkSyncPreferences = async () => {
+      try {
+        const integrations = await calendarSyncService.getIntegrations();
+        for (const integration of integrations) {
+          const preferences = await calendarSyncService.getPreferences(integration.id);
+          if (preferences && !preferences.auto_sync) {
+            setShowSyncButtons(true);
+            return;
+          }
+        }
+        setShowSyncButtons(false);
+      } catch (error) {
+        console.error('Failed to check sync preferences:', error);
+      }
+    };
+    
+    checkSyncPreferences();
+  }, []);
 
   const handleSyncToCalendar = async (eventId: string, eventName: string) => {
     try {
@@ -196,24 +219,26 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                              className={`text-xs p-2 rounded border cursor-pointer transition-all hover:scale-105 ${getStatusColor(event.status)}`}
                            >
                              <div className="font-medium truncate">{event.event_name}</div>
-                             <div className="flex items-center justify-between gap-1 mt-1">
-                               <div className="flex items-center gap-1">
-                                 <Clock className="h-3 w-3" />
-                                 <span>{event.start_time}</span>
-                               </div>
-                               <Button
-                                 variant="ghost"
-                                 size="sm"
-                                 onClick={(e) => {
-                                   e.stopPropagation();
-                                   handleSyncToCalendar(event.id, event.event_name);
-                                 }}
-                                 className="h-4 w-4 p-0 hover:bg-white/20"
-                                 title="Sync to Calendar"
-                               >
-                                 <CalendarPlus className="h-3 w-3" />
-                               </Button>
-                             </div>
+                              <div className="flex items-center justify-between gap-1 mt-1">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{event.start_time}</span>
+                                </div>
+                                {showSyncButtons && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSyncToCalendar(event.id, event.event_name);
+                                    }}
+                                    className="h-4 w-4 p-0 hover:bg-white/20"
+                                    title="Sync to Calendar"
+                                  >
+                                    <CalendarPlus className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                              {event.event_multiple_days && (
                                <div className="text-xs opacity-75 mt-1">Multi-day</div>
                              )}

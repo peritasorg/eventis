@@ -96,7 +96,7 @@ export const CalendarSyncSettings = () => {
         auto_sync: true,
         sync_frequency: 15,
         sync_event_types: [],
-        sync_event_statuses: ['confirmed', 'inquiry'],
+        sync_event_statuses: [],
         include_form_data: true,
         description_template: null,
       });
@@ -122,7 +122,10 @@ export const CalendarSyncSettings = () => {
           setIntegrations(updated);
           setSelectedIntegration(updated[0]);
           clearInterval(checkConnection);
-          toast.success(`${provider} calendar connected successfully!`);
+          
+          // Auto-sync all existing events to the new calendar
+          await calendarSyncService.syncAllEventsToNewCalendar();
+          toast.success(`${provider} calendar connected and all events synced!`);
         }
       }, 2000);
 
@@ -374,68 +377,12 @@ export const CalendarSyncSettings = () => {
 
                 <Separator />
 
-                {/* Sync Frequency */}
-                <div className="space-y-2">
-                  <Label>Sync Frequency (minutes)</Label>
-                  <Input
-                    type="number"
-                    value={preferences.sync_frequency}
-                    onChange={(e) => 
-                      handleUpdatePreferences({ sync_frequency: parseInt(e.target.value) })
-                    }
-                    min="5"
-                    max="1440"
-                  />
-                </div>
-
-                {/* Event Types */}
-                <div className="space-y-2">
-                  <Label>Sync Event Types</Label>
-                  <Select
-                    value={preferences.sync_event_types?.join(',')}
-                    onValueChange={(value) => 
-                      handleUpdatePreferences({ sync_event_types: value ? value.split(',') : [] })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select event types to sync" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="wedding">Wedding</SelectItem>
-                      <SelectItem value="corporate">Corporate</SelectItem>
-                      <SelectItem value="birthday">Birthday</SelectItem>
-                      <SelectItem value="anniversary">Anniversary</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Event Statuses */}
-                <div className="space-y-2">
-                  <Label>Sync Event Statuses</Label>
-                  <Select
-                    value={preferences.sync_event_statuses?.join(',')}
-                    onValueChange={(value) => 
-                      handleUpdatePreferences({ sync_event_statuses: value ? value.split(',') : [] })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select statuses to sync" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="inquiry,confirmed">Inquiry & Confirmed</SelectItem>
-                      <SelectItem value="confirmed">Confirmed Only</SelectItem>
-                      <SelectItem value="inquiry">Inquiry Only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Include Form Data */}
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Include Form Data</Label>
                     <p className="text-sm text-muted-foreground">
-                      Add form responses to calendar event description
+                      Include form responses in calendar event description
                     </p>
                   </div>
                   <Switch
@@ -446,20 +393,14 @@ export const CalendarSyncSettings = () => {
                   />
                 </div>
 
-                {/* Description Template */}
-                <div className="space-y-2">
-                  <Label>Custom Description Template</Label>
-                  <Textarea
-                    placeholder="Optional: Custom template for event descriptions..."
-                    value={preferences.description_template || ''}
-                    onChange={(e) => 
-                      handleUpdatePreferences({ description_template: e.target.value || null })
-                    }
-                    rows={3}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Leave empty to use the default template
-                  </p>
+                <Separator />
+
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    <p><strong>Auto Sync:</strong> Events sync automatically when you exit the event record</p>
+                    <p><strong>Manual Sync:</strong> Use the sync button on each event to sync manually</p>
+                    <p><strong>All Events:</strong> All events are eligible for syncing regardless of type or status</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
