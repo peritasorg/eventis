@@ -15,10 +15,12 @@ import { calendarSyncService, CalendarIntegration, CalendarSyncPreferences } fro
 
 export const CalendarSyncSettings = () => {
   const [integrations, setIntegrations] = useState<CalendarIntegration[]>([]);
+  const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<CalendarIntegration | null>(null);
   const [preferences, setPreferences] = useState<CalendarSyncPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [loadingCalendars, setLoadingCalendars] = useState(false);
 
   useEffect(() => {
     loadIntegrations();
@@ -29,6 +31,49 @@ export const CalendarSyncSettings = () => {
       loadPreferences(selectedIntegration.id);
     }
   }, [selectedIntegration]);
+
+  useEffect(() => {
+    if (selectedIntegration && selectedIntegration.provider === 'google') {
+      loadAvailableCalendars();
+    }
+  }, [selectedIntegration]);
+
+  const loadAvailableCalendars = async () => {
+    if (!selectedIntegration) return;
+    
+    setLoadingCalendars(true);
+    try {
+      const calendars = await calendarSyncService.getAvailableCalendars();
+      setAvailableCalendars(calendars);
+    } catch (error) {
+      toast.error('Failed to load available calendars');
+    } finally {
+      setLoadingCalendars(false);
+    }
+  };
+
+  const handleSwitchCalendar = async (calendarId: string, calendarName: string) => {
+    if (!selectedIntegration) return;
+
+    try {
+      await calendarSyncService.switchCalendar(selectedIntegration.id, calendarId, calendarName);
+      
+      // Update the local state
+      const updatedIntegration = { ...selectedIntegration, calendar_id: calendarId, calendar_name: calendarName };
+      setSelectedIntegration(updatedIntegration);
+      
+      // Update integrations list
+      setIntegrations(prev => prev.map(integration => 
+        integration.id === selectedIntegration.id 
+          ? updatedIntegration 
+          : integration
+      ));
+      
+      toast.success(`Switched to ${calendarName} calendar`);
+    } catch (error) {
+      toast.error('Failed to switch calendar');
+    }
+  };
 
   const loadIntegrations = async () => {
     try {
@@ -248,6 +293,56 @@ export const CalendarSyncSettings = () => {
                   )}
                 </div>
               ))}
+              
+              {/* Available Calendars for Google Integration */}
+              {selectedIntegration && selectedIntegration.provider === 'google' && (
+                <div className="mt-6 pt-4 border-t">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-sm font-medium">Available Calendars</Label>
+                    <Button
+                      onClick={loadAvailableCalendars}
+                      variant="ghost"
+                      size="sm"
+                      disabled={loadingCalendars}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${loadingCalendars ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                  {loadingCalendars ? (
+                    <div className="text-sm text-muted-foreground">Loading calendars...</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {availableCalendars.map((calendar) => (
+                        <div
+                          key={calendar.id}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedIntegration.calendar_id === calendar.id
+                              ? 'border-primary bg-primary/5'
+                              : 'border-muted hover:border-muted-foreground/20'
+                          }`}
+                          onClick={() => handleSwitchCalendar(calendar.id, calendar.name)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-medium">{calendar.name}</div>
+                              {calendar.primary && (
+                                <Badge variant="secondary" className="text-xs">Primary</Badge>
+                              )}
+                            </div>
+                            {selectedIntegration.calendar_id === calendar.id && (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Access: {calendar.accessRole}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 

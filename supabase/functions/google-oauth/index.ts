@@ -111,18 +111,25 @@ serve(async (req) => {
 
       const tokenData = await tokenResponse.json();
 
-      // Get user's primary calendar
-      const calendarResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList/primary', {
+      // Get user's calendar list (all calendars, not just primary)
+      const calendarListResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
         headers: {
           'Authorization': `Bearer ${tokenData.access_token}`,
         },
       });
 
-      if (!calendarResponse.ok) {
-        throw new Error('Failed to fetch calendar information');
+      if (!calendarListResponse.ok) {
+        throw new Error('Failed to fetch calendar list');
       }
 
-      const calendarData = await calendarResponse.json();
+      const calendarListData = await calendarListResponse.json();
+      
+      // Use primary calendar by default, but we'll store info about all calendars
+      const primaryCalendar = calendarListData.items?.find((cal: any) => cal.primary) || calendarListData.items?.[0];
+      
+      if (!primaryCalendar) {
+        throw new Error('No calendars found');
+      }
 
       // Get user's tenant ID
       const { data: userData, error: userError } = await supabase
@@ -135,15 +142,15 @@ serve(async (req) => {
         throw new Error('Failed to fetch user data');
       }
 
-      // Store calendar integration
+      // Store calendar integration for the primary calendar
       const { error: insertError } = await supabase
         .from('calendar_integrations')
         .insert({
           tenant_id: userData.tenant_id,
           user_id: state,
           provider: 'google',
-          calendar_id: calendarData.id,
-          calendar_name: calendarData.summary,
+          calendar_id: primaryCalendar.id,
+          calendar_name: primaryCalendar.summary,
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
           token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
@@ -154,14 +161,24 @@ serve(async (req) => {
         throw new Error('Failed to save calendar integration');
       }
 
-      // Return success response
+      // Store all available calendars as metadata for future use
+      const availableCalendars = calendarListData.items?.map((cal: any) => ({
+        id: cal.id,
+        name: cal.summary,
+        primary: cal.primary || false,
+        accessRole: cal.accessRole,
+        backgroundColor: cal.backgroundColor,
+      })) || [];
+
+      // Return success response with calendar info
       return new Response(
         JSON.stringify({ 
           success: true, 
           calendar: {
-            id: calendarData.id,
-            name: calendarData.summary
-          }
+            id: primaryCalendar.id,
+            name: primaryCalendar.summary
+          },
+          availableCalendars
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -201,6 +218,85 @@ serve(async (req) => {
           access_token: refreshData.access_token,
           expires_in: refreshData.expires_in,
         }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      );
+
+    } else if (action === 'list-calendars') {
+      // Get user's calendar integrations to find access token
+      const { data: integration, error: integrationError } = await supabase
+        .from('calendar_integrations')
+        .select('access_token, refresh_token, token_expires_at')
+        .eq('user_id', user.id)
+        .eq('provider', 'google')
+        .eq('is_active', true)
+        .single();
+
+      if (integrationError || !integration) {
+        throw new Error('No active Google calendar integration found');
+      }
+
+      // Check if token needs refresh
+      let accessToken = integration.access_token;
+      const expiresAt = new Date(integration.token_expires_at);
+      const now = new Date();
+      
+      if (expiresAt <= now) {
+        // Refresh token
+        const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: Deno.env.get('GOOGLE_CLIENT_ID') ?? '',
+            client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '',
+            refresh_token: integration.refresh_token,
+            grant_type: 'refresh_token',
+          }),
+        });
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          accessToken = refreshData.access_token;
+          
+          // Update token in database
+          await supabase
+            .from('calendar_integrations')
+            .update({
+              access_token: accessToken,
+              token_expires_at: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
+            })
+            .eq('user_id', user.id)
+            .eq('provider', 'google');
+        }
+      }
+
+      // Get user's calendar list
+      const calendarListResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!calendarListResponse.ok) {
+        throw new Error('Failed to fetch calendar list');
+      }
+
+      const calendarListData = await calendarListResponse.json();
+      
+      const availableCalendars = calendarListData.items?.map((cal: any) => ({
+        id: cal.id,
+        name: cal.summary,
+        primary: cal.primary || false,
+        accessRole: cal.accessRole,
+        backgroundColor: cal.backgroundColor,
+      })) || [];
+
+      return new Response(
+        JSON.stringify({ calendars: availableCalendars }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200 

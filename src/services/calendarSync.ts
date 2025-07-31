@@ -196,6 +196,34 @@ class CalendarSyncService {
     return data || [];
   }
 
+  async getAvailableCalendars(): Promise<any[]> {
+    const { data, error } = await supabase.functions.invoke('google-oauth', {
+      method: 'POST',
+      body: { action: 'list-calendars' },
+    });
+
+    if (error) {
+      console.error('Failed to fetch available calendars:', error);
+      return [];
+    }
+
+    return data?.calendars || [];
+  }
+
+  async switchCalendar(integrationId: string, newCalendarId: string, newCalendarName: string): Promise<void> {
+    const { error } = await supabase
+      .from('calendar_integrations')
+      .update({ 
+        calendar_id: newCalendarId,
+        calendar_name: newCalendarName
+      })
+      .eq('id', integrationId);
+
+    if (error) {
+      throw new Error('Failed to switch calendar');
+    }
+  }
+
   async testSync(integrationId: string): Promise<boolean> {
     try {
       // Try to sync a dummy event to test the connection
