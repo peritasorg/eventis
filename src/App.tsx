@@ -18,6 +18,7 @@ import { LeadView } from "./pages/LeadView";
 import { LeadEdit } from "./pages/LeadEdit";
 import { Events } from "./pages/Events";
 import { EventDetail } from "./pages/EventDetail";
+import { EventForm } from "./pages/EventForm";
 import { FormBuilder } from "./pages/FormBuilder";
 import { Customers } from "./pages/Customers";
 import { Settings } from "./pages/Settings";
@@ -99,6 +100,11 @@ const App: React.FC = () => {
                                 <Route path="/events/:eventId" element={
                                   <ErrorBoundary>
                                     <EventDetail />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/events/:eventId/form" element={
+                                  <ErrorBoundary>
+                                    <EventForm />
                                   </ErrorBoundary>
                                 } />
                                 <Route path="/form-builder" element={

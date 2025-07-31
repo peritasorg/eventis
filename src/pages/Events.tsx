@@ -1,9 +1,8 @@
 
 import React, { useState } from 'react';
-import { Plus, Calendar, List, Eye, Edit } from 'lucide-react';
+import { Plus, Calendar, List, Filter, Search, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +10,7 @@ import { EventCalendarView } from '@/components/events/EventCalendarView';
 import { EventListView } from '@/components/events/EventListView';
 import { CreateEventDialog } from '@/components/events/CreateEventDialog';
 import { useNavigate } from 'react-router-dom';
+import { AppControls } from '@/components/AppControls';
 
 export const Events = () => {
   const { currentTenant } = useAuth();
@@ -57,53 +57,91 @@ export const Events = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-      <div className="flex-shrink-0 p-4 sm:p-6 lg:p-8 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-        <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
-          <div className="ml-12 lg:ml-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Events</h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Manage your events and bookings</p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-            <Tabs value={viewMode} onValueChange={(value: 'calendar' | 'list') => setViewMode(value)}>
-              <TabsList className="grid w-full grid-cols-2 sm:w-auto">
-                <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4" />
-                  <span className="hidden sm:inline">Calendar</span>
-                  <span className="sm:hidden">Cal</span>
-                </TabsTrigger>
-                <TabsTrigger value="list" className="flex items-center gap-2 text-sm">
-                  <List className="h-4 w-4" />
-                  List
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-              onClick={() => setIsCreateEventOpen(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Create Event</span>
-              <span className="sm:hidden">Create</span>
-            </Button>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-card border-b border-border">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground">Events</h1>
+              <p className="text-sm text-muted-foreground mt-1">Manage your event bookings and enquiries</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <AppControls />
+              <Button
+                onClick={() => setIsCreateEventOpen(true)}
+                className="bg-primary hover:bg-primary-hover text-primary-foreground"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Event
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-        {viewMode === 'calendar' ? (
-          <EventCalendarView 
-            events={events || []}
-            onEventClick={handleEventClick}
-            onDateClick={handleDateClick}
-          />
-        ) : (
+      {/* Controls Bar */}
+      <div className="bg-card border-b border-border">
+        <div className="px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center bg-background border border-border rounded-md">
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className={`rounded-r-none border-r ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+                >
+                  <List className="h-4 w-4 mr-2" />
+                  List
+                </Button>
+                <Button
+                  variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('calendar')}
+                  className={`rounded-l-none ${viewMode === 'calendar' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Calendar
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search events..."
+                  className="pl-10 w-64 h-9"
+                />
+              </div>
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
+              </Button>
+              <Button variant="outline" size="sm">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1">
+        {viewMode === 'list' ? (
           <EventListView 
             events={events || []}
             onEventClick={handleEventClick}
           />
+        ) : (
+          <div className="p-6">
+            <EventCalendarView 
+              events={events || []}
+              onEventClick={handleEventClick}
+              onDateClick={handleDateClick}
+            />
+          </div>
         )}
       </div>
 

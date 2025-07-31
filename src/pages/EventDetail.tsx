@@ -23,7 +23,6 @@ import { FinanceTimeline } from '@/components/events/FinanceTimeline';
 import { useManualEventSync } from '@/hooks/useCalendarSync';
 import { toast } from 'sonner';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
-import { EventFormSection } from '@/components/events/EventFormSection';
 import { InlineInput } from '@/components/events/InlineInput';
 import { InlineSelect } from '@/components/events/InlineSelect';
 import { InlineTextarea } from '@/components/events/InlineTextarea';
@@ -340,6 +339,14 @@ export const EventDetail = () => {
               <Button 
                 variant="outline" 
                 size="sm"
+                onClick={() => navigate(`/events/${eventId}/form`)}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Form
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
                 onClick={handleSyncToCalendar}
               >
                 <Calendar className="h-4 w-4 mr-2" />
@@ -587,8 +594,6 @@ export const EventDetail = () => {
               </div>
             </div>
 
-            {/* Form Template */}
-            <EventFormSection event={event} />
 
             {/* Communication Timeline */}
             <div className="bg-card rounded-lg border border-border">
