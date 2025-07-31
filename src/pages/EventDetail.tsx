@@ -171,105 +171,104 @@ export const EventDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="flex flex-col space-y-4 mb-6 lg:mb-8">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate('/events')}
-              className="flex-shrink-0"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Back to Events</span>
-              <span className="sm:hidden">Back</span>
-            </Button>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 truncate">{event.event_name}</h1>
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <span className="text-sm sm:text-base text-gray-600 font-medium">{event.event_type}</span>
-                <Badge className={`${getStatusColor(event.status)} border font-medium text-xs sm:text-sm`}>
-                  {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
-                </Badge>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto p-4 space-y-4">
+        {/* Compact Header */}
+        <div className="bg-card rounded-lg border shadow-sm p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate('/events')}
+                className="shrink-0 h-8 w-8 p-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg font-semibold text-foreground mb-1 truncate">{event.event_name}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">{event.event_type}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                  </Badge>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-            <Button 
-              variant="outline" 
-              className="flex items-center justify-center gap-2 font-medium text-sm"
-              onClick={handleGenerateQuote}
-            >
-              <FileText className="h-4 w-4" />
-              Generate Quote
-            </Button>
-            <Button 
-              variant="outline" 
-              className="flex items-center justify-center gap-2 font-medium text-sm"
-              onClick={handleGenerateInvoice}
-            >
-              <Receipt className="h-4 w-4" />
-              Generate Invoice
-            </Button>
             
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="flex items-center justify-center gap-2 font-medium text-sm text-red-600 border-red-200 hover:bg-red-50">
-                  <Trash2 className="h-4 w-4" />
-                  Delete Event
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Event</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete "{event.event_name}"? This action cannot be undone and will permanently remove all event data, including form responses and financial records.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleDeleteEvent}
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                    disabled={deleteEventMutation.isPending}
-                  >
-                    {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="text-xs"
+                onClick={handleGenerateQuote}
+              >
+                <FileText className="h-3 w-3 mr-1" />
+                Quote
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="text-xs"
+                onClick={handleGenerateInvoice}
+              >
+                <Receipt className="h-3 w-3 mr-1" />
+                Invoice
+              </Button>
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{event.event_name}"? This action cannot be undone and will permanently remove all event data, including form responses and financial records.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleDeleteEvent}
+                      className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      disabled={deleteEventMutation.isPending}
+                    >
+                      {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
 
-        {/* Business Process Flow - Mobile Optimized */}
-        <div className="mb-6 lg:mb-8">
-          <div className="max-w-4xl mx-auto">
-            <EventBusinessFlow 
-              depositPaid={event.deposit_paid}
-              balanceCleared={event.balance_cleared}
-              eventFinalized={event.event_finalized}
-              eventId={event.id}
-            />
-          </div>
+        {/* Business Process Flow - Compact */}
+        <div className="bg-card rounded-lg border shadow-sm p-4">
+          <EventBusinessFlow 
+            depositPaid={event.deposit_paid}
+            balanceCleared={event.balance_cleared}
+            eventFinalized={event.event_finalized}
+            eventId={event.id}
+          />
         </div>
 
         {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="flex justify-center">
-            <TabsList className="grid w-full max-w-sm sm:max-w-md grid-cols-2 h-10 sm:h-12">
-              <TabsTrigger value="overview" className="font-medium text-sm sm:text-base">Overview</TabsTrigger>
-              <TabsTrigger value="form" className="font-medium text-sm sm:text-base">Form</TabsTrigger>
+            <TabsList className="grid w-full max-w-sm grid-cols-2 h-9 bg-muted">
+              <TabsTrigger value="overview" className="text-sm">Overview</TabsTrigger>
+              <TabsTrigger value="form" className="text-sm">Form</TabsTrigger>
             </TabsList>
           </div>
           
-          <TabsContent value="overview" className="space-y-0">
+          <TabsContent value="overview">
             <EventOverviewTab event={event} />
           </TabsContent>
           
-          <TabsContent value="form" className="space-y-0">
+          <TabsContent value="form">
             <EventFormTab event={event} />
           </TabsContent>
         </Tabs>

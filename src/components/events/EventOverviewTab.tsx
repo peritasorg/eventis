@@ -140,30 +140,30 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
   const daysDue = calculateDaysDue();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <form onSubmit={handleSave}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {/* Event Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Calendar className="h-4 w-4" />
                 Event Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Event Title</Label>
-                <div className="text-lg font-medium break-words">{event.event_name}</div>
+            <CardContent className="space-y-3 text-sm">
+               <div>
+                <Label className="text-xs font-medium text-muted-foreground">Event Title</Label>
+                <div className="text-sm font-medium break-words">{event.event_name}</div>
               </div>
               
               <div>
-                <Label>Event Type</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Event Type</Label>
                 <div className="text-sm capitalize">{event.event_type || 'Not specified'}</div>
               </div>
 
               <div className="space-y-2">
-                <Label>Event Date(s)</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Event Date(s)</Label>
                 {isEditing ? (
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
@@ -198,20 +198,19 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                   </div>
                 ) : (
                   <div>
-                    <div className="text-lg font-medium">
+                    <div className="text-sm font-medium">
                       {new Date(event.event_start_date).toLocaleDateString('en-GB', {
-                        weekday: 'long',
+                        weekday: 'short',
                         year: 'numeric',
-                        month: 'long',
+                        month: 'short',
                         day: 'numeric'
                       })}
                     </div>
                     {event.event_multiple_days && event.event_end_date && event.event_end_date !== event.event_start_date && (
-                      <div className="text-sm text-gray-600 mt-1">
+                      <div className="text-xs text-muted-foreground mt-1">
                         Until: {new Date(event.event_end_date).toLocaleDateString('en-GB', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
+                          weekday: 'short',
+                          month: 'short',
                           day: 'numeric'
                         })}
                       </div>
@@ -221,11 +220,11 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               </div>
 
               <div>
-                <Label>Event Time</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Event Time</Label>
                 <div className="text-sm">
                   {event.start_time && event.end_time ? (
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
                       <span>{event.start_time} - {event.end_time}</span>
                     </div>
                   ) : (
@@ -235,9 +234,9 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               </div>
 
               <div>
-                <Label>Countdown</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Countdown</Label>
                 <div className={`text-sm font-medium ${
-                  daysDue < 0 ? 'text-red-600' : daysDue < 7 ? 'text-orange-600' : 'text-green-600'
+                  daysDue < 0 ? 'text-destructive' : daysDue < 7 ? 'text-orange-600' : 'text-green-600'
                 }`}>
                   {daysDue < 0 ? `${Math.abs(daysDue)} days overdue` : 
                    daysDue === 0 ? 'Today' : 
@@ -248,26 +247,28 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
           </Card>
 
           {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between text-base">
                 Basic Information
                 {!isEditing ? (
                   <Button 
                     type="button"
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm"
                     onClick={() => setIsEditing(true)}
+                    className="h-7 px-2 text-xs"
                   >
                     Edit
                   </Button>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Button 
                       type="button"
-                      variant="outline" 
+                      variant="ghost" 
                       size="sm"
                       onClick={() => setIsEditing(false)}
+                      className="h-7 px-2 text-xs"
                     >
                       Cancel
                     </Button>
@@ -275,6 +276,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                       type="submit"
                       size="sm"
                       disabled={updateEventMutation.isPending}
+                      className="h-7 px-2 text-xs"
                     >
                       Save
                     </Button>
@@ -282,9 +284,9 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 text-sm">
               <div>
-                <Label htmlFor="customer_id">Customer</Label>
+                <Label htmlFor="customer_id" className="text-xs font-medium text-muted-foreground">Customer</Label>
                 {isEditing ? (
                   <Select name="customer_id" defaultValue={event.customer_id || 'none'}>
                     <SelectTrigger>
@@ -403,14 +405,14 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
           </Card>
 
           {/* Guest Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-4 w-4" />
                 Guest Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="men_count">Men Count</Label>
@@ -492,74 +494,119 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
             </CardContent>
           </Card>
 
-          {/* Financial Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Financial Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Total Event Price</Label>
-                <div className="text-lg font-medium text-blue-600">£{totalEventPrice.toLocaleString()}</div>
-                <div className="text-xs text-gray-500">Guest Price + Form Total</div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Guest Price</Label>
-                  <div className="text-sm font-medium">£{totalGuestPrice.toLocaleString()}</div>
-                </div>
-                <div>
-                  <Label>Form Total</Label>
-                  <div className="text-sm font-medium">£{formTotal.toLocaleString()}</div>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="deposit_amount">Deposit Amount</Label>
+        {/* Financial Information */}
+        <Card className="lg:col-span-2 xl:col-span-3 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <DollarSign className="h-4 w-4" />
+              Financial Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+              <div className="p-3 bg-blue-50 rounded-md">
+                <Label className="text-xs text-blue-700">Guest Price</Label>
                 {isEditing ? (
                   <Input
-                    id="deposit_amount"
+                    name="total_guest_price"
+                    type="number"
+                    step="0.01"
+                    defaultValue={event.total_guest_price || 0}
+                    className="mt-1 h-8 text-sm"
+                  />
+                ) : (
+                  <div className="text-lg font-bold text-blue-900">
+                    £{totalGuestPrice.toFixed(2)}
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-3 bg-green-50 rounded-md">
+                <Label className="text-xs text-green-700">Form Total</Label>
+                <div className="text-lg font-bold text-green-900">
+                  £{formTotal.toFixed(2)}
+                </div>
+              </div>
+              
+              <div className="p-3 bg-purple-50 rounded-md">
+                <Label className="text-xs text-purple-700">Total Event Price</Label>
+                <div className="text-lg font-bold text-purple-900">
+                  £{totalEventPrice.toFixed(2)}
+                </div>
+              </div>
+              
+              <div className="p-3 bg-orange-50 rounded-md">
+                <Label className="text-xs text-orange-700">Deposit</Label>
+                {isEditing ? (
+                  <Input
                     name="deposit_amount"
                     type="number"
                     step="0.01"
                     defaultValue={event.deposit_amount || 0}
+                    className="mt-1 h-8 text-sm"
                   />
                 ) : (
-                  <div className="text-lg font-medium">£{depositAmount.toLocaleString()}</div>
+                  <div className="text-lg font-bold text-orange-900">
+                    £{depositAmount.toFixed(2)}
+                  </div>
                 )}
               </div>
-
-              <div>
-                <Label>Total Paid</Label>
-                <div className="text-lg font-medium text-green-600">£{(depositAmount + totalPaid).toLocaleString()}</div>
-                <div className="text-xs text-gray-500">Deposit + Finance Timeline Payments</div>
-              </div>
-
-              <div>
-                <Label>Balance Due</Label>
-                <div className={`text-lg font-medium ${
-                  balanceDue > 0 ? 'text-red-600' : 'text-green-600'
-                }`}>
-                  £{balanceDue.toLocaleString()}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-green-100 rounded-md">
+                <Label className="text-xs text-green-700">Total Paid</Label>
+                <div className="text-lg font-bold text-green-900">
+                  £{totalPaid.toFixed(2)}
                 </div>
-                <div className="text-xs text-gray-500">
-                  {balanceDue <= 0 ? 'Fully paid' : 'Amount remaining to be paid'}
+                <div className="text-xs text-green-600 mt-1">
+                  Deposit + Finance Timeline
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              
+              <div className={`p-3 rounded-md ${balanceDue > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                <Label className={`text-xs ${balanceDue > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                  Balance Due
+                </Label>
+                <div className={`text-lg font-bold ${balanceDue > 0 ? 'text-red-900' : 'text-green-900'}`}>
+                  £{balanceDue.toFixed(2)}
+                </div>
+                <div className={`text-xs mt-1 ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {balanceDue > 0 ? 'Outstanding amount' : 'Fully paid'}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         </div>
       </form>
 
-      {/* Communication Timeline */}
-      <CommunicationTimeline eventId={event.id} />
+      {/* Communication & Finance Timelines */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MessageSquare className="h-4 w-4" />
+              Communication Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CommunicationTimeline eventId={event.id} />
+          </CardContent>
+        </Card>
 
-      {/* Finance Timeline */}
-      <FinanceTimeline eventId={event.id} />
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Receipt className="h-4 w-4" />
+              Finance Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FinanceTimeline eventId={event.id} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
