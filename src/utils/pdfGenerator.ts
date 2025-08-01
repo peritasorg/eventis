@@ -100,7 +100,7 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
   // Header - Company name and QUOTE
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(tenant.business_name, 20, yPosition);
+  doc.text(tenant.business_name || 'Business Name', 20, yPosition);
   doc.text('QUOTE', 150, yPosition);
 
   yPosition += 15;
@@ -108,15 +108,15 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
   // Company address
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(tenant.address_line1, 20, yPosition);
+  doc.text(tenant.address_line1 || 'Address Line 1', 20, yPosition);
   yPosition += 5;
   if (tenant.address_line2) {
     doc.text(tenant.address_line2, 20, yPosition);
     yPosition += 5;
   }
-  doc.text(`${tenant.city}`, 20, yPosition);
+  doc.text(tenant.city || 'City', 20, yPosition);
   yPosition += 5;
-  doc.text(`${tenant.postal_code}`, 20, yPosition);
+  doc.text(tenant.postal_code || 'Postal Code', 20, yPosition);
 
   // Quote details (top right)
   const quoteNumber = `QB-${event.id.substring(0, 8).toUpperCase()}`;
@@ -162,15 +162,15 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Event: ${event.event_name}`, 20, yPosition);
+  doc.text(`Event: ${event.event_name || 'Event Name'}`, 20, yPosition);
   yPosition += 5;
-  doc.text(`Type: ${event.event_type}`, 20, yPosition);
+  doc.text(`Type: ${event.event_type || 'Event Type'}`, 20, yPosition);
   yPosition += 5;
   doc.text(`Date: ${new Date(event.event_start_date).toLocaleDateString('en-GB')}`, 20, yPosition);
   yPosition += 5;
-  doc.text(`Time: ${event.start_time} - ${event.end_time}`, 20, yPosition);
+  doc.text(`Time: ${event.start_time || 'Start Time'} - ${event.end_time || 'End Time'}`, 20, yPosition);
   yPosition += 5;
-  doc.text(`Guests: ${event.estimated_guests}`, 20, yPosition);
+  doc.text(`Guests: ${event.estimated_guests || 0}`, 20, yPosition);
 
   yPosition += 20;
 
@@ -262,10 +262,10 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
   yPosition += 5;
   doc.text('Payment is due within 15 days of acceptance.', 20, yPosition);
   yPosition += 5;
-  doc.text(`For payment queries, contact: ${tenant.contact_email}`, 20, yPosition);
+  doc.text(`For payment queries, contact: ${tenant.contact_email || 'Contact Email'}`, 20, yPosition);
 
   // Download
-  doc.save(`Quote-${event.event_name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`);
+  doc.save(`Quote-${(event.event_name || 'Event').replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
 export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
@@ -275,7 +275,7 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
   // Header - Company name and INVOICE
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(tenant.business_name, 20, yPosition);
+  doc.text(tenant.business_name || 'Business Name', 20, yPosition);
   doc.text('INVOICE', 150, yPosition);
 
   yPosition += 15;
@@ -283,15 +283,15 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
   // Company address
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(tenant.address_line1, 20, yPosition);
+  doc.text(tenant.address_line1 || 'Address Line 1', 20, yPosition);
   yPosition += 5;
   if (tenant.address_line2) {
     doc.text(tenant.address_line2, 20, yPosition);
     yPosition += 5;
   }
-  doc.text(`${tenant.city}`, 20, yPosition);
+  doc.text(tenant.city || 'City', 20, yPosition);
   yPosition += 5;
-  doc.text(`${tenant.postal_code}`, 20, yPosition);
+  doc.text(tenant.postal_code || 'Postal Code', 20, yPosition);
 
   // Invoice details (top right)
   const invoiceNumber = `INV-${event.id.substring(0, 8).toUpperCase()}`;
@@ -341,15 +341,15 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Event: ${event.event_name}`, 20, yPosition);
+  doc.text(`Event: ${event.event_name || 'Event Name'}`, 20, yPosition);
   yPosition += 5;
-  doc.text(`Type: ${event.event_type}`, 20, yPosition);
+  doc.text(`Type: ${event.event_type || 'Event Type'}`, 20, yPosition);
   yPosition += 5;
   doc.text(`Date: ${new Date(event.event_start_date).toLocaleDateString('en-GB')}`, 20, yPosition);
   yPosition += 5;
-  doc.text(`Time: ${event.start_time} - ${event.end_time}`, 20, yPosition);
+  doc.text(`Time: ${event.start_time || 'Start Time'} - ${event.end_time || 'End Time'}`, 20, yPosition);
   yPosition += 5;
-  doc.text(`Guests: ${event.estimated_guests}`, 20, yPosition);
+  doc.text(`Guests: ${event.estimated_guests || 0}`, 20, yPosition);
 
   yPosition += 20;
 
@@ -431,11 +431,11 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
   yPosition += 5;
   doc.text('• Please reference invoice number when making payment', 20, yPosition);
   yPosition += 5;
-  doc.text(`• Contact us at ${tenant.contact_email} for payment queries`, 20, yPosition);
+  doc.text(`• Contact us at ${tenant.contact_email || 'Contact Email'} for payment queries`, 20, yPosition);
   yPosition += 10;
 
   doc.text('Thank you for your business!', 20, yPosition);
 
   // Download
-  doc.save(`Invoice-${event.event_name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`);
+  doc.save(`Invoice-${(event.event_name || 'Event').replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`);
 };
