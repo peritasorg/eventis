@@ -19,6 +19,7 @@ import { InlineTextarea } from '@/components/events/InlineTextarea';
 import { InlineNumber } from '@/components/events/InlineNumber';
 import { InlineDate } from '@/components/events/InlineDate';
 import { useEventAutoSync } from '@/hooks/useEventAutoSync';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 export const EventDetail = () => {
   const {
     eventId
@@ -33,6 +34,7 @@ export const EventDetail = () => {
     syncEvent
   } = useManualEventSync();
   const [isEditing, setIsEditing] = useState(false);
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
 
   // Enable auto-sync when editing and navigating away
   useEventAutoSync(eventId || '', isEditing);
@@ -402,18 +404,10 @@ export const EventDetail = () => {
                       </label>
                       <InlineSelect 
                         value={event.event_type || ''} 
-                        options={[
-                          { value: 'wedding', label: 'Wedding' },
-                          { value: 'birthday', label: 'Birthday' },
-                          { value: 'corporate', label: 'Corporate Event' },
-                          { value: 'anniversary', label: 'Anniversary' },
-                          { value: 'engagement', label: 'Engagement' },
-                          { value: 'graduation', label: 'Graduation' },
-                          { value: 'baby_shower', label: 'Baby Shower' },
-                          { value: 'conference', label: 'Conference' },
-                          { value: 'seminar', label: 'Seminar' },
-                          { value: 'other', label: 'Other' }
-                        ]} 
+                        options={eventTypeConfigs?.map(config => ({
+                          value: config.event_type,
+                          label: config.display_name
+                        })) || [{ value: 'other', label: 'Other' }]} 
                         onSave={value => handleUpdateField('event_type', value)} 
                         placeholder="Select event type" 
                       />
