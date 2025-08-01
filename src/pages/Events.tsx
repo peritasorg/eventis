@@ -27,8 +27,16 @@ export const Events = () => {
       const { data, error } = await supabase
         .from('events')
         .select(`
-          *,
-          customers (
+          id,
+          event_name,
+          event_type,
+          event_start_date,
+          start_time,
+          end_time,
+          estimated_guests,
+          status,
+          total_amount,
+          customers!inner (
             name,
             email,
             phone
@@ -42,7 +50,6 @@ export const Events = () => {
         return [];
       }
       
-      console.log('Fetched events:', data);
       return data || [];
     }
   );

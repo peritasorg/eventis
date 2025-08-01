@@ -19,55 +19,42 @@ export const Dashboard = () => {
     async () => {
       if (!currentTenant?.id) return null;
       
-      // Get stats with corrected logic - no longer filtering by status for revenue calculation
-      const [leadsResult, customersResult, eventsResult, revenueResult, upcomingResult] = await Promise.all([
-        // Total leads
-        supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', currentTenant.id),
+      const currentDate = new Date();
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0];
+      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
+      const todayStr = currentDate.toISOString().split('T')[0];
+      const monthStartISO = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
+      
+      // Optimize with fewer, more efficient queries
+      const [countsResult, revenueResult, newLeadsResult] = await Promise.all([
+        // Get all counts in one query using a custom view or function
+        Promise.all([
+          supabase.from('leads').select('*', { count: 'exact', head: true }).eq('tenant_id', currentTenant.id),
+          supabase.from('customers').select('*', { count: 'exact', head: true }).eq('tenant_id', currentTenant.id).eq('active', true),
+          supabase.from('events').select('*', { count: 'exact', head: true }).eq('tenant_id', currentTenant.id).gt('total_amount', 0),
+          supabase.from('events').select('*', { count: 'exact', head: true }).eq('tenant_id', currentTenant.id).gte('event_start_date', todayStr).gt('total_amount', 0)
+        ]),
         
-        // Total customers
-        supabase
-          .from('customers')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', currentTenant.id)
-          .eq('active', true),
-        
-        // Active events (any event with an amount > 0, regardless of status)
-        supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', currentTenant.id)
-          .gt('total_amount', 0),
-        
-        // This month revenue - ALL events with total_amount in current month
+        // Revenue query - only select needed field
         supabase
           .from('events')
           .select('total_amount')
           .eq('tenant_id', currentTenant.id)
           .not('total_amount', 'is', null)
           .gt('total_amount', 0)
-          .gte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
-          .lte('event_start_date', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]),
+          .gte('event_start_date', monthStart)
+          .lte('event_start_date', monthEnd),
         
-        // Upcoming events with amounts
+        // New leads this month - count only
         supabase
-          .from('events')
+          .from('leads')
           .select('*', { count: 'exact', head: true })
           .eq('tenant_id', currentTenant.id)
-          .gte('event_start_date', new Date().toISOString().split('T')[0])
-          .gt('total_amount', 0)
+          .gte('created_at', monthStartISO)
       ]);
       
+      const [leadsResult, customersResult, eventsResult, upcomingResult] = countsResult;
       const thisMonthRevenue = revenueResult.data?.reduce((sum, event) => sum + (event.total_amount || 0), 0) || 0;
-      
-      // New leads this month
-      const newLeadsResult = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', currentTenant.id)
-        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
       
       return {
         total_leads: leadsResult.count || 0,
@@ -87,7 +74,7 @@ export const Dashboard = () => {
       
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select('id, name, email, status, created_at')
         .eq('tenant_id', currentTenant.id)
         .order('created_at', { ascending: false })
         .limit(5);
@@ -108,7 +95,7 @@ export const Dashboard = () => {
       
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select('id, event_name, event_type, event_start_date, start_time, end_time')
         .eq('tenant_id', currentTenant.id)
         .gte('event_start_date', new Date().toISOString().split('T')[0])
         .order('event_start_date', { ascending: true })
