@@ -161,6 +161,12 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
   // Add existing field to form
   const addFieldMutation = useSupabaseMutation(
     async ({ fieldLibraryId, sectionId }: { fieldLibraryId: string; sectionId?: string }) => {
+      // Check if field is already in the form
+      const fieldExists = formFields?.some(field => field.field_library_id === fieldLibraryId);
+      if (fieldExists) {
+        throw new Error('This field is already in the form');
+      }
+
       const maxOrder = Math.max(...(formFields?.map(f => f.field_order) || [0]), 0);
       
       const { error } = await supabase
@@ -446,26 +452,59 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                  {fieldLibrary?.map((field) => (
-                    <Card 
-                      key={field.id}
-                      className="p-3 hover:shadow-sm transition-shadow cursor-pointer border border-border/50"
-                      onClick={() => addFieldMutation.mutate({ fieldLibraryId: field.id })}
-                    >
-                      <div className="space-y-1">
-                        <div className="font-medium text-sm">{field.label}</div>
-                        <div className="text-xs text-muted-foreground capitalize">
-                          {field.field_type.replace('_', ' ')}
-                        </div>
-                        {field.affects_pricing && (
-                          <div className="text-xs text-primary flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" />
-                            Affects pricing
+                  {fieldLibrary?.map((field) => {
+                    const isFieldInForm = formFields?.some(f => f.field_library_id === field.id);
+                    return (
+                      <Card 
+                        key={field.id}
+                        className={`p-3 transition-all cursor-pointer border ${
+                          isFieldInForm 
+                            ? 'border-green-200 bg-green-50 hover:bg-green-100' 
+                            : 'border-border/50 hover:shadow-sm hover:border-border'
+                        }`}
+                        onClick={() => {
+                          if (isFieldInForm) {
+                            // Find the field instance and scroll to it
+                            const fieldInstance = formFields?.find(f => f.field_library_id === field.id);
+                            if (fieldInstance) {
+                              const element = document.getElementById(`field-${fieldInstance.id}`);
+                              if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                setEditingField(fieldInstance.id);
+                              }
+                            }
+                          } else {
+                            addFieldMutation.mutate({ fieldLibraryId: field.id });
+                          }
+                        }}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium text-sm">{field.label}</div>
+                            {isFieldInForm && (
+                              <div className="text-xs text-green-600 font-medium">
+                                ✓ Added
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
+                          <div className="text-xs text-muted-foreground capitalize">
+                            {field.field_type.replace('_', ' ')}
+                          </div>
+                          {field.affects_pricing && (
+                            <div className="text-xs text-primary flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              Affects pricing
+                            </div>
+                          )}
+                          {isFieldInForm && (
+                            <div className="text-xs text-green-600">
+                              Click to edit in form
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
                   
                   {(!fieldLibrary || fieldLibrary.length === 0) && (
                     <div className="text-center py-8 text-muted-foreground">
@@ -569,13 +608,14 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                                     isDragDisabled={previewMode}
                                   >
                                     {(provided, snapshot) => (
-                                      <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        className={`card-elegant p-4 transition-shadow ${
-                                          snapshot.isDragging ? 'shadow-elevated' : ''
-                                        }`}
-                                      >
+                                       <div
+                                         ref={provided.innerRef}
+                                         {...provided.draggableProps}
+                                         id={`field-${fieldInstance.id}`}
+                                         className={`card-elegant p-4 transition-shadow ${
+                                           snapshot.isDragging ? 'shadow-elevated' : ''
+                                         } ${editingField === fieldInstance.id ? 'ring-2 ring-primary' : ''}`}
+                                       >
                                         <div className="flex items-start gap-3">
                                           {!previewMode && (
                                             <div 
