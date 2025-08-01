@@ -94,13 +94,18 @@ const drawTable = (doc: jsPDF, headers: string[], rows: string[][], startY: numb
 };
 
 export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
+  // Validate inputs
+  if (!event || !tenant) {
+    throw new Error('Event and tenant data are required for PDF generation');
+  }
+  
   const doc = new jsPDF();
   let yPosition = 20;
 
   // Header - Company name and QUOTE
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(tenant.business_name || 'Business Name', 20, yPosition);
+  doc.text(String(tenant.business_name || 'Business Name'), 20, yPosition);
   doc.text('QUOTE', 150, yPosition);
 
   yPosition += 15;
@@ -108,15 +113,15 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
   // Company address
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(tenant.address_line1 || 'Address Line 1', 20, yPosition);
+  doc.text(String(tenant.address_line1 || 'Address Line 1'), 20, yPosition);
   yPosition += 5;
   if (tenant.address_line2) {
-    doc.text(tenant.address_line2, 20, yPosition);
+    doc.text(String(tenant.address_line2), 20, yPosition);
     yPosition += 5;
   }
-  doc.text(tenant.city || 'City', 20, yPosition);
+  doc.text(String(tenant.city || 'City'), 20, yPosition);
   yPosition += 5;
-  doc.text(tenant.postal_code || 'Postal Code', 20, yPosition);
+  doc.text(String(tenant.postal_code || 'Postal Code'), 20, yPosition);
 
   // Quote details (top right)
   const quoteNumber = `QB-${event.id.substring(0, 8).toUpperCase()}`;
@@ -269,13 +274,18 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
 };
 
 export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
+  // Validate inputs
+  if (!event || !tenant) {
+    throw new Error('Event and tenant data are required for PDF generation');
+  }
+  
   const doc = new jsPDF();
   let yPosition = 20;
 
   // Header - Company name and INVOICE
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(tenant.business_name || 'Business Name', 20, yPosition);
+  doc.text(String(tenant.business_name || 'Business Name'), 20, yPosition);
   doc.text('INVOICE', 150, yPosition);
 
   yPosition += 15;
@@ -283,15 +293,15 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
   // Company address
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(tenant.address_line1 || 'Address Line 1', 20, yPosition);
+  doc.text(String(tenant.address_line1 || 'Address Line 1'), 20, yPosition);
   yPosition += 5;
   if (tenant.address_line2) {
-    doc.text(tenant.address_line2, 20, yPosition);
+    doc.text(String(tenant.address_line2), 20, yPosition);
     yPosition += 5;
   }
-  doc.text(tenant.city || 'City', 20, yPosition);
+  doc.text(String(tenant.city || 'City'), 20, yPosition);
   yPosition += 5;
-  doc.text(tenant.postal_code || 'Postal Code', 20, yPosition);
+  doc.text(String(tenant.postal_code || 'Postal Code'), 20, yPosition);
 
   // Invoice details (top right)
   const invoiceNumber = `INV-${event.id.substring(0, 8).toUpperCase()}`;
