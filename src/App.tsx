@@ -11,7 +11,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SecurityProvider } from "@/components/SecurityProvider";
 import { useCalendarSync } from "./hooks/useCalendarSync";
 import { Sidebar } from "./components/Sidebar";
-import { TrialBanner } from "./components/TrialBanner";
+import { TopBar } from "./components/TopBar";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
 import { LeadView } from "./pages/LeadView";
@@ -68,7 +68,7 @@ const App: React.FC = () => {
                           </ErrorBoundary>
                           <main className="flex-1 overflow-auto relative bg-gray-50">
                             <ErrorBoundary>
-                              <TrialBanner />
+                              <TopBar />
                             </ErrorBoundary>
                             <div className="h-full">
                               <Routes>
