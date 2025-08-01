@@ -312,7 +312,12 @@ export const EventDetail = () => {
               <div className="flex items-center gap-3">
                 
                 <div>
-                  <h1 className="text-xl font-semibold text-foreground">{event.event_name}</h1>
+                  <InlineInput 
+                    value={event.event_name} 
+                    onSave={value => handleUpdateField('event_name', value)} 
+                    placeholder="Event name"
+                    className="text-xl font-semibold text-foreground bg-transparent border-0 p-0 h-auto"
+                  />
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-sm text-muted-foreground">{event.event_type}</span>
                     <Badge variant="outline" className={`text-xs font-medium border-0 ${getStatusColor(event.status)}`}>
