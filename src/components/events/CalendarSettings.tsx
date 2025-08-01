@@ -141,9 +141,9 @@ export const CalendarSettings = () => {
   };
 
   const predefinedColors = [
-    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-    '#EC4899', '#6B7280', '#DC2626', '#059669', '#0891B2'
-  ];
+    '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6',
+    '#EC4899', '#6B7280', '#059669', '#0891B2'
+  ]; // Removed red and orange - reserved for date warnings
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
