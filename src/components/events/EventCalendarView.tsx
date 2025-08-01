@@ -25,6 +25,7 @@ interface Event {
   start_time: string;
   end_time: string;
   estimated_guests: number;
+  total_guests?: number;
   status: string;
   customers?: {
     name: string;
@@ -271,10 +272,10 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                                    <span className="font-medium">End:</span> {new Date(event.event_end_date).toLocaleDateString()}
                                  </div>
                                )}
-                               <div className="flex items-center gap-2 text-sm">
-                                 <Users className="h-3 w-3" />
-                                 {event.estimated_guests} guests
-                               </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Users className="h-3 w-3" />
+                                  {event.total_guests || event.estimated_guests} guests
+                                </div>
                                {event.customers && (
                                  <div className="text-sm">
                                    <div className="font-medium">{event.customers.name}</div>

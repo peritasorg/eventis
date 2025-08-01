@@ -26,6 +26,7 @@ interface EventData {
   start_time: string;
   end_time: string;
   estimated_guests: number;
+  total_guests?: number;
   total_amount: number;
   deposit_amount: number;
   form_responses: any;
@@ -195,7 +196,7 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
     yPosition += 5;
     doc.text(`Time: ${sanitizeForPDF(event.start_time, 'Start Time')} - ${sanitizeForPDF(event.end_time, 'End Time')}`, 20, yPosition);
     yPosition += 5;
-    doc.text(`Guests: ${event.estimated_guests || 0}`, 20, yPosition);
+    doc.text(`Guests: ${event.total_guests || event.estimated_guests || 0}`, 20, yPosition);
 
     yPosition += 20;
 
@@ -206,10 +207,11 @@ export const generateQuotePDF = (event: EventData, tenant: TenantData) => {
 
     // Add guest count and base price as first row
     const basePrice = event.total_amount - (event.form_total || 0);
+    const guestCount = event.total_guests || event.estimated_guests || 0;
     tableRows.push([
-      event.estimated_guests.toString(),
+      guestCount.toString(),
       `Guests for ${sanitizeForPDF(event.event_name, 'Event')} - ${sanitizeForPDF(event.event_type, 'Type')}`,
-      `£${(basePrice / event.estimated_guests).toFixed(2)}`,
+      guestCount > 0 ? `£${(basePrice / guestCount).toFixed(2)}` : '£0.00',
       `£${basePrice.toFixed(2)}`
     ]);
 
@@ -387,7 +389,7 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
     yPosition += 5;
     doc.text(`Time: ${sanitizeForPDF(event.start_time, 'Start Time')} - ${sanitizeForPDF(event.end_time, 'End Time')}`, 20, yPosition);
     yPosition += 5;
-    doc.text(`Guests: ${event.estimated_guests || 0}`, 20, yPosition);
+    doc.text(`Guests: ${event.total_guests || event.estimated_guests || 0}`, 20, yPosition);
 
     yPosition += 20;
 
@@ -398,10 +400,11 @@ export const generateInvoicePDF = (event: EventData, tenant: TenantData) => {
 
     // Add guest count and base price as first row
     const basePrice = event.total_amount - (event.form_total || 0);
+    const guestCount = event.total_guests || event.estimated_guests || 0;
     tableRows.push([
-      event.estimated_guests.toString(),
+      guestCount.toString(),
       `Guests for ${sanitizeForPDF(event.event_name, 'Event')} - ${sanitizeForPDF(event.event_type, 'Type')}`,
-      `£${(basePrice / event.estimated_guests).toFixed(2)}`,
+      guestCount > 0 ? `£${(basePrice / guestCount).toFixed(2)}` : '£0.00',
       `£${basePrice.toFixed(2)}`
     ]);
 

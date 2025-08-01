@@ -301,37 +301,61 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     const sourceSection = source.droppableId.replace('section-', '');
     const destSection = destination.droppableId.replace('section-', '');
     
-    // Get fields for the source section
+    // Get the field being moved
     const sourceSectionFields = formFields.filter(f => 
       (f.form_section_id || 'default') === sourceSection
-    );
-    const [reorderedItem] = sourceSectionFields.splice(source.index, 1);
+    ).sort((a, b) => a.field_order - b.field_order);
+    
+    const movedField = sourceSectionFields[source.index];
+    if (!movedField) return;
     
     // Update section if moved between sections
     if (sourceSection !== destSection) {
       await supabase
         .from('form_field_instances')
         .update({ form_section_id: destSection === 'default' ? null : destSection })
-        .eq('id', reorderedItem.id);
+        .eq('id', movedField.id);
     }
     
-    // Update field orders
-    const destSectionFields = formFields.filter(f => 
+    // Get all fields in destination section after the move
+    let destSectionFields = formFields.filter(f => 
       (f.form_section_id || 'default') === destSection
+    ).sort((a, b) => a.field_order - b.field_order);
+    
+    // If moving between sections, add the moved field to destination
+    if (sourceSection !== destSection) {
+      destSectionFields.splice(destination.index, 0, movedField);
+    } else {
+      // If moving within same section, remove from old position first
+      const oldIndex = destSectionFields.findIndex(f => f.id === movedField.id);
+      destSectionFields.splice(oldIndex, 1);
+      destSectionFields.splice(destination.index, 0, movedField);
+    }
+    
+    // Update field orders for destination section
+    const updates = destSectionFields.map((field, index) => 
+      supabase
+        .from('form_field_instances')
+        .update({ field_order: index + 1 })
+        .eq('id', field.id)
     );
     
+    await Promise.all(updates);
+
+    // If moving between sections, also update orders in source section
     if (sourceSection !== destSection) {
-      destSectionFields.splice(destination.index, 0, reorderedItem);
-    } else {
-      destSectionFields.splice(destination.index, 0, reorderedItem);
-    }
-    
-    // Update all field orders in destination section
-    for (let i = 0; i < destSectionFields.length; i++) {
-      await supabase
-        .from('form_field_instances')
-        .update({ field_order: i + 1 })
-        .eq('id', destSectionFields[i].id);
+      const remainingSourceFields = formFields.filter(f => 
+        (f.form_section_id || 'default') === sourceSection && f.id !== movedField.id
+      ).sort((a, b) => a.field_order - b.field_order);
+      
+      const sourceUpdates = remainingSourceFields.map((field, index) =>
+        supabase
+          .from('form_field_instances')
+          .update({ field_order: index + 1 })
+          .eq('id', field.id)
+      );
+      
+      await Promise.all(sourceUpdates);
     }
 
     refetchFields();
@@ -772,68 +796,53 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                                           )}
                                         </div>
                                         
-                                        {/* Field Edit Form */}
-                                        {editingField === fieldInstance.id && !previewMode && (
-                                          <div className="mt-4 p-4 bg-secondary/20 rounded-lg space-y-3">
-                                            <div className="grid grid-cols-2 gap-3">
-                                              <div>
-                                                <Label>Custom Label</Label>
-                                                <Input 
-                                                  placeholder={fieldInstance.field_library.label}
-                                                  defaultValue={fieldInstance.label_override || ''}
-                                                  onChange={(e) => {
-                                                    updateFieldMutation.mutate({
-                                                      fieldId: fieldInstance.id,
-                                                      updates: { label_override: e.target.value || null }
-                                                    });
-                                                  }}
-                                                  className="input-elegant"
-                                                />
-                                              </div>
-                                              <div>
-                                                <Label>Custom Placeholder</Label>
-                                                <Input 
-                                                  placeholder={fieldInstance.field_library.placeholder || ''}
-                                                  defaultValue={fieldInstance.placeholder_override || ''}
-                                                  onChange={(e) => {
-                                                    updateFieldMutation.mutate({
-                                                      fieldId: fieldInstance.id,
-                                                      updates: { placeholder_override: e.target.value || null }
-                                                    });
-                                                  }}
-                                                  className="input-elegant"
-                                                />
-                                              </div>
-                                            </div>
-                                            <div>
-                                              <Label>Custom Help Text</Label>
-                                              <Textarea 
-                                                placeholder={fieldInstance.field_library.help_text || ''}
-                                                defaultValue={fieldInstance.help_text_override || ''}
-                                                onChange={(e) => {
-                                                  updateFieldMutation.mutate({
-                                                    fieldId: fieldInstance.id,
-                                                    updates: { help_text_override: e.target.value || null }
-                                                  });
-                                                }}
-                                                className="input-elegant"
-                                                rows={2}
-                                              />
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                              <Switch
-                                                checked={fieldInstance.required_override || false}
-                                                onCheckedChange={(checked) => {
-                                                  updateFieldMutation.mutate({
-                                                    fieldId: fieldInstance.id,
-                                                    updates: { required_override: checked }
-                                                  });
-                                                }}
-                                              />
-                                              <Label>Required field</Label>
-                                            </div>
-                                          </div>
-                                        )}
+                                         {/* Field Edit Form */}
+                                         {editingField === fieldInstance.id && !previewMode && (
+                                           <div className="mt-4 p-4 bg-secondary/20 rounded-lg space-y-3">
+                                             <div className="grid grid-cols-2 gap-3">
+                                               <div>
+                                                 <Label>Label</Label>
+                                                 <Input 
+                                                   placeholder={fieldInstance.field_library.label}
+                                                   defaultValue={fieldInstance.label_override || ''}
+                                                   onChange={(e) => {
+                                                     updateFieldMutation.mutate({
+                                                       fieldId: fieldInstance.id,
+                                                       updates: { label_override: e.target.value || null }
+                                                     });
+                                                   }}
+                                                   className="input-elegant"
+                                                 />
+                                               </div>
+                                               <div>
+                                                 <Label>Placeholder</Label>
+                                                 <Input 
+                                                   placeholder={fieldInstance.field_library.placeholder || ''}
+                                                   defaultValue={fieldInstance.placeholder_override || ''}
+                                                   onChange={(e) => {
+                                                     updateFieldMutation.mutate({
+                                                       fieldId: fieldInstance.id,
+                                                       updates: { placeholder_override: e.target.value || null }
+                                                     });
+                                                   }}
+                                                   className="input-elegant"
+                                                 />
+                                               </div>
+                                             </div>
+                                             <div className="flex items-center space-x-2">
+                                               <Switch
+                                                 checked={fieldInstance.required_override || false}
+                                                 onCheckedChange={(checked) => {
+                                                   updateFieldMutation.mutate({
+                                                     fieldId: fieldInstance.id,
+                                                     updates: { required_override: checked }
+                                                   });
+                                                 }}
+                                               />
+                                               <Label>Required field</Label>
+                                             </div>
+                                           </div>
+                                         )}
                                       </div>
                                     )}
                                   </Draggable>
