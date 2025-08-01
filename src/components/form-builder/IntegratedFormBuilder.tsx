@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripVertical, Edit3, Trash2, Eye, DollarSign, MessageSquare, Plus, FolderPlus, Save, X } from 'lucide-react';
+import { Plus, Edit3, Trash2, GripVertical, Eye, DollarSign, MessageSquare, FolderPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ interface FieldLibraryItem {
   help_text?: string;
   affects_pricing: boolean;
   price_modifier?: number;
+  pricing_type?: string;
   auto_add_price_field: boolean;
   auto_add_notes_field: boolean;
 }
@@ -198,8 +199,35 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
       if (error) throw error;
     },
     {
-      successMessage: 'Field removed!',
+      successMessage: 'Field removed from form!',
       onSuccess: refetchFields
+    }
+  );
+
+  // Delete field entirely from library
+  const deleteFieldMutation = useSupabaseMutation(
+    async (fieldLibraryId: string) => {
+      // First remove all instances of this field from forms
+      await supabase
+        .from('form_field_instances')
+        .delete()
+        .eq('field_library_id', fieldLibraryId);
+
+      // Then delete from library
+      const { error } = await supabase
+        .from('field_library')
+        .delete()
+        .eq('id', fieldLibraryId);
+      
+      if (error) throw error;
+    },
+    {
+      successMessage: 'Field deleted permanently!',
+      onSuccess: () => {
+        refetchFields();
+        // Refetch field library as well
+        window.location.reload();
+      }
     }
   );
 
@@ -319,75 +347,142 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
 
     return (
       <div className="space-y-3">
-        <div className="space-y-2">
-          {field.field_type === 'checkbox' ? (
-            <div className="flex items-center space-x-2">
-              <Switch disabled />
-              <Label>{label}</Label>
-            </div>
-          ) : field.field_type === 'textarea' ? (
-            <>
-              <Label>{label}</Label>
-              <Textarea 
-                placeholder={placeholder}
-                disabled
-                rows={3}
-                className="input-elegant"
-              />
-            </>
-          ) : field.field_type === 'number' ? (
-            <>
-              <Label>{label}</Label>
-              <Input type="number" placeholder={placeholder} disabled className="input-elegant" />
-            </>
-          ) : field.field_type === 'select' ? (
-            <>
-              <Label>{label}</Label>
-              <Select disabled>
-                <SelectTrigger className="input-elegant">
-                  <SelectValue placeholder={placeholder || "Select an option"} />
-                </SelectTrigger>
-              </Select>
-            </>
-          ) : (
-            <>
-              <Label>{label}</Label>
-              <Input placeholder={placeholder} disabled className="input-elegant" />
-            </>
-          )}
-          {helpText && <p className="text-xs text-muted-foreground">{helpText}</p>}
-        </div>
-
-        {field.field_type === 'checkbox' && (field.auto_add_price_field || field.auto_add_notes_field) && (
-          <div className="grid grid-cols-2 gap-3 ml-6 p-3 bg-secondary/20 rounded">
-            {field.auto_add_price_field && (
+        {editingField === fieldInstance.id ? (
+          // Edit mode
+          <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="flex items-center gap-1 text-xs">
-                  <DollarSign className="h-3 w-3" />
-                  Price (£)
-                </Label>
+                <Label className="text-xs font-medium">Label</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  placeholder={field.price_modifier?.toString() || "0.00"}
-                  disabled
-                  className="h-8 input-elegant"
+                  defaultValue={fieldInstance.label_override || field.label}
+                  placeholder="Enter label"
+                  className="h-8 text-sm"
+                  onBlur={(e) => {
+                    updateFieldMutation.mutate({
+                      fieldId: fieldInstance.id,
+                      updates: { label_override: e.target.value || null }
+                    });
+                  }}
                 />
               </div>
-            )}
-            
-            {field.auto_add_notes_field && (
               <div>
-                <Label className="flex items-center gap-1 text-xs">
-                  <MessageSquare className="h-3 w-3" />
-                  Notes
-                </Label>
-                <Textarea
-                  placeholder="Additional notes..."
-                  disabled
-                  rows={1}
-                  className="text-xs input-elegant"
+                <Label className="text-xs font-medium">Placeholder</Label>
+                <Input
+                  defaultValue={fieldInstance.placeholder_override || field.placeholder || ''}
+                  placeholder="Enter placeholder"
+                  className="h-8 text-sm"
+                  onBlur={(e) => {
+                    updateFieldMutation.mutate({
+                      fieldId: fieldInstance.id,
+                      updates: { placeholder_override: e.target.value || null }
+                    });
+                  }}
                 />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={fieldInstance.required_override ?? true}
+                  onCheckedChange={(checked) => {
+                    updateFieldMutation.mutate({
+                      fieldId: fieldInstance.id,
+                      updates: { required_override: checked }
+                    });
+                  }}
+                />
+                <Label className="text-xs">Required</Label>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setEditingField(null)}
+                className="h-7"
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
+          // Preview mode
+          <div className="space-y-2">
+            {field.field_type === 'checkbox' ? (
+              <div className="flex items-center space-x-2">
+                <Switch disabled />
+                <Label>{label}</Label>
+              </div>
+            ) : field.field_type === 'textarea' ? (
+              <>
+                <Label>{label}</Label>
+                <Textarea 
+                  placeholder={placeholder}
+                  disabled
+                  rows={3}
+                  className="input-elegant"
+                />
+              </>
+            ) : field.field_type === 'number' ? (
+              <>
+                <Label>{label}</Label>
+                <Input type="number" placeholder={placeholder} disabled className="input-elegant" />
+              </>
+            ) : field.field_type === 'select' ? (
+              <>
+                <Label>{label}</Label>
+                <Select disabled>
+                  <SelectTrigger className="input-elegant">
+                    <SelectValue placeholder={placeholder || "Select an option"} />
+                  </SelectTrigger>
+                </Select>
+              </>
+            ) : (
+              <>
+                <Label>{label}</Label>
+                <Input placeholder={placeholder} disabled className="input-elegant" />
+              </>
+            )}
+
+            {/* Show pricing information */}
+            {field.affects_pricing && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                  <DollarSign className="h-3 w-3 inline mr-1" />
+                  {field.pricing_type === 'per_guest' ? `£${field.price_modifier || 0} per person` : `£${field.price_modifier || 0} fixed`}
+                </div>
+              </div>
+            )}
+
+            {field.field_type === 'checkbox' && (field.auto_add_price_field || field.auto_add_notes_field) && (
+              <div className="grid grid-cols-2 gap-3 ml-6 p-3 bg-secondary/20 rounded">
+                {field.auto_add_price_field && (
+                  <div>
+                    <Label className="flex items-center gap-1 text-xs">
+                      <DollarSign className="h-3 w-3" />
+                      Price (£)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder={field.price_modifier?.toString() || "0.00"}
+                      disabled
+                      className="h-8 input-elegant"
+                    />
+                  </div>
+                )}
+                
+                {field.auto_add_notes_field && (
+                  <div>
+                    <Label className="flex items-center gap-1 text-xs">
+                      <MessageSquare className="h-3 w-3" />
+                      Notes
+                    </Label>
+                    <Textarea
+                      placeholder="Additional notes..."
+                      disabled
+                      rows={1}
+                      className="text-xs input-elegant"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -562,9 +657,19 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                               {section.id !== 'default' && (
                                 <GripVertical className="h-4 w-4 text-muted-foreground" />
                               )}
-                              <h4 className="font-medium text-foreground">{section.title}</h4>
+                              <h4 
+                                className="font-medium text-foreground cursor-pointer hover:text-primary"
+                                onClick={() => {
+                                  if (!previewMode) {
+                                    const newTitle = prompt('Section title:', section.title);
+                                    if (newTitle) updateSection(section.id, { title: newTitle });
+                                  }
+                                }}
+                              >
+                                {section.title}
+                              </h4>
                             </div>
-                            {section.id !== 'default' && !previewMode && (
+                            {!previewMode && (
                               <div className="flex items-center gap-2">
                                 <Button 
                                   variant="ghost" 
@@ -576,14 +681,16 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                                 >
                                   <Edit3 className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => removeSection(section.id)}
-                                  className="text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {section.id !== 'default' && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => removeSection(section.id)}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </div>
@@ -632,21 +739,35 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                                           
                                           {!previewMode && (
                                             <div className="flex items-center gap-1">
-                                              <Button 
-                                                variant="ghost" 
-                                                size="sm"
-                                                onClick={() => setEditingField(editingField === fieldInstance.id ? null : fieldInstance.id)}
-                                              >
-                                                <Edit3 className="h-4 w-4" />
-                                              </Button>
-                                              <Button 
-                                                variant="ghost" 
-                                                size="sm"
-                                                onClick={() => removeFieldMutation.mutate(fieldInstance.id)}
-                                                className="text-destructive hover:text-destructive"
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </Button>
+                                               <Button 
+                                                 variant="ghost" 
+                                                 size="sm"
+                                                 onClick={() => setEditingField(editingField === fieldInstance.id ? null : fieldInstance.id)}
+                                               >
+                                                 <Edit3 className="h-4 w-4" />
+                                               </Button>
+                                               <Button 
+                                                 variant="ghost" 
+                                                 size="sm"
+                                                 onClick={() => removeFieldMutation.mutate(fieldInstance.id)}
+                                                 className="text-orange-500 hover:text-orange-700"
+                                                 title="Remove from form"
+                                               >
+                                                 <Trash2 className="h-4 w-4" />
+                                               </Button>
+                                               <Button 
+                                                 variant="ghost" 
+                                                 size="sm"
+                                                 onClick={() => {
+                                                   if (confirm('Are you sure you want to permanently delete this field? This will remove it from all forms.')) {
+                                                     deleteFieldMutation.mutate(fieldInstance.field_library_id);
+                                                   }
+                                                 }}
+                                                 className="text-destructive hover:text-destructive"
+                                                 title="Delete permanently"
+                                               >
+                                                 <X className="h-4 w-4" />
+                                               </Button>
                                             </div>
                                           )}
                                         </div>
