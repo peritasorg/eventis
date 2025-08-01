@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Settings, Plus, Trash2, Palette } from 'lucide-react';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +31,8 @@ export const CalendarSettings = () => {
   const [newColor, setNewColor] = useState('#3B82F6');
   const [urgentDays, setUrgentDays] = useState(7);
   const [warningDays, setWarningDays] = useState(28);
+  const [urgentEnabled, setUrgentEnabled] = useState(true);
+  const [warningEnabled, setWarningEnabled] = useState(true);
 
   const { data: eventTypeConfigs, refetch } = useSupabaseQuery(
     ['event-type-configs'],
@@ -323,43 +326,77 @@ export const CalendarSettings = () => {
               <CardTitle className="text-lg">Date Warning Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="urgent-days">Urgent Days (Orange)</Label>
-                  <Input
-                    id="urgent-days"
-                    type="number"
-                    value={urgentDays}
-                    onChange={(e) => setUrgentDays(parseInt(e.target.value))}
-                    min="1"
-                    max="365"
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="urgent-enabled" className="text-sm font-medium">Enable Urgent Warnings</Label>
+                    <p className="text-xs text-muted-foreground">Show events in orange when approaching</p>
+                  </div>
+                  <Switch
+                    id="urgent-enabled"
+                    checked={urgentEnabled}
+                    onCheckedChange={setUrgentEnabled}
                   />
-                  <p className="text-xs text-muted-foreground">Events within this many days show in orange</p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="warning-days">Warning Days (Red)</Label>
-                  <Input
-                    id="warning-days"
-                    type="number"
-                    value={warningDays}
-                    onChange={(e) => setWarningDays(parseInt(e.target.value))}
-                    min="1"
-                    max="365"
-                  />
-                  <p className="text-xs text-muted-foreground">Events within this many days show in red</p>
-                </div>
+                
+                {urgentEnabled && (
+                  <div className="space-y-2 pl-4 border-l-2 border-orange-200">
+                    <Label htmlFor="urgent-days">Days Before Event (Orange Warning)</Label>
+                    <Input
+                      id="urgent-days"
+                      type="number"
+                      value={urgentDays}
+                      onChange={(e) => setUrgentDays(parseInt(e.target.value))}
+                      min="1"
+                      max="365"
+                      className="w-24"
+                    />
+                    <p className="text-xs text-muted-foreground">Events within {urgentDays} days will show in orange</p>
+                  </div>
+                )}
               </div>
-              <div className="space-y-2 text-sm text-muted-foreground">
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="warning-enabled" className="text-sm font-medium">Enable Critical Warnings</Label>
+                    <p className="text-xs text-muted-foreground">Show events in red when very close</p>
+                  </div>
+                  <Switch
+                    id="warning-enabled"
+                    checked={warningEnabled}
+                    onCheckedChange={setWarningEnabled}
+                  />
+                </div>
+                
+                {warningEnabled && (
+                  <div className="space-y-2 pl-4 border-l-2 border-red-200">
+                    <Label htmlFor="warning-days">Days Before Event (Red Warning)</Label>
+                    <Input
+                      id="warning-days"
+                      type="number"
+                      value={warningDays}
+                      onChange={(e) => setWarningDays(parseInt(e.target.value))}
+                      min="1"
+                      max="365"
+                      className="w-24"
+                    />
+                    <p className="text-xs text-muted-foreground">Events within {warningDays} days will show in red</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2 text-sm text-muted-foreground pt-4 border-t">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-orange-500 rounded"></div>
-                  <span>Urgent events (within {urgentDays} days)</span>
+                  <div className="w-4 h-4 bg-orange-500 rounded opacity-50"></div>
+                  <span className={urgentEnabled ? '' : 'line-through opacity-50'}>Urgent events (within {urgentDays} days)</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-red-500 rounded"></div>
-                  <span>Warning events (within {warningDays} days)</span>
+                  <div className="w-4 h-4 bg-red-500 rounded opacity-50"></div>
+                  <span className={warningEnabled ? '' : 'line-through opacity-50'}>Critical events (within {warningDays} days)</span>
                 </div>
                 <p className="mt-3 text-xs">
-                  These colors are reserved and cannot be used for event types.
+                  When enabled, these warning colors take precedence over event type colors.
                 </p>
               </div>
             </CardContent>
