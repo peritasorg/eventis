@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useSupabaseMutation, useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,6 +30,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
   const [isMultipleDays, setIsMultipleDays] = useState(false);
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
 
   const { data: customers } = useSupabaseQuery(
     ['customers'],
@@ -117,12 +119,14 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
                   <SelectValue placeholder="Select event type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="wedding">Wedding</SelectItem>
-                  <SelectItem value="corporate">Corporate Event</SelectItem>
-                  <SelectItem value="birthday">Birthday</SelectItem>
-                  <SelectItem value="anniversary">Anniversary</SelectItem>
-                  <SelectItem value="religious">Religious Event</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  {eventTypeConfigs?.map(config => (
+                    <SelectItem key={config.id} value={config.event_type}>
+                      {config.display_name}
+                    </SelectItem>
+                  ))}
+                  {(!eventTypeConfigs || eventTypeConfigs.length === 0) && (
+                    <SelectItem value="other">Other</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

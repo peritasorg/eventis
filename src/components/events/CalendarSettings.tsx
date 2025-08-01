@@ -28,6 +28,8 @@ export const CalendarSettings = () => {
   const [newEventType, setNewEventType] = useState('');
   const [newDisplayName, setNewDisplayName] = useState('');
   const [newColor, setNewColor] = useState('#3B82F6');
+  const [urgentDays, setUrgentDays] = useState(7);
+  const [warningDays, setWarningDays] = useState(28);
 
   const { data: eventTypeConfigs, refetch } = useSupabaseQuery(
     ['event-type-configs'],
@@ -315,23 +317,49 @@ export const CalendarSettings = () => {
             </CardContent>
           </Card>
           
-          {/* Color Rules Info */}
+          {/* Date Warning Settings */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Automatic Color Rules</CardTitle>
+              <CardTitle className="text-lg">Date Warning Settings</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="urgent-days">Urgent Days (Orange)</Label>
+                  <Input
+                    id="urgent-days"
+                    type="number"
+                    value={urgentDays}
+                    onChange={(e) => setUrgentDays(parseInt(e.target.value))}
+                    min="1"
+                    max="365"
+                  />
+                  <p className="text-xs text-muted-foreground">Events within this many days show in orange</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="warning-days">Warning Days (Red)</Label>
+                  <Input
+                    id="warning-days"
+                    type="number"
+                    value={warningDays}
+                    onChange={(e) => setWarningDays(parseInt(e.target.value))}
+                    min="1"
+                    max="365"
+                  />
+                  <p className="text-xs text-muted-foreground">Events within this many days show in red</p>
+                </div>
+              </div>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-red-500 rounded"></div>
-                  <span>Events within 28 days are highlighted in red</span>
+                  <div className="w-4 h-4 bg-orange-500 rounded"></div>
+                  <span>Urgent events (within {urgentDays} days)</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-orange-500 rounded"></div>
-                  <span>Events within 7 days are highlighted in orange</span>
+                  <div className="w-4 h-4 bg-red-500 rounded"></div>
+                  <span>Warning events (within {warningDays} days)</span>
                 </div>
                 <p className="mt-3 text-xs">
-                  These automatic rules take precedence over event type colors for urgent events.
+                  These colors are reserved and cannot be used for event types.
                 </p>
               </div>
             </CardContent>
