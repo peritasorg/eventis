@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
@@ -69,7 +70,8 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     affects_pricing: false,
     price_modifier: 0,
     auto_add_price_field: false,
-    auto_add_notes_field: false
+    auto_add_notes_field: false,
+    options: [] as { label: string; value: string }[]
   });
 
   // Fetch existing fields
@@ -152,7 +154,8 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
           affects_pricing: false,
           price_modifier: 0,
           auto_add_price_field: false,
-          auto_add_notes_field: false
+          auto_add_notes_field: false,
+          options: []
         });
         refetchFields();
       }
@@ -260,7 +263,10 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
       affects_pricing: newFieldData.affects_pricing,
       price_modifier: newFieldData.affects_pricing ? newFieldData.price_modifier : null,
       auto_add_price_field: newFieldData.auto_add_price_field,
-      auto_add_notes_field: newFieldData.auto_add_notes_field
+      auto_add_notes_field: newFieldData.auto_add_notes_field,
+      options: (newFieldData.field_type === 'select' || newFieldData.field_type === 'radio') && newFieldData.options.length > 0 
+        ? newFieldData.options 
+        : null
     });
   };
 
@@ -816,53 +822,7 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                                           )}
                                         </div>
                                         
-                                         {/* Field Edit Form */}
-                                         {editingField === fieldInstance.id && !previewMode && (
-                                           <div className="mt-4 p-4 bg-secondary/20 rounded-lg space-y-3">
-                                             <div className="grid grid-cols-2 gap-3">
-                                               <div>
-                                                 <Label>Label</Label>
-                                                 <Input 
-                                                   placeholder={fieldInstance.field_library.label}
-                                                   defaultValue={fieldInstance.label_override || ''}
-                                                   onChange={(e) => {
-                                                     updateFieldMutation.mutate({
-                                                       fieldId: fieldInstance.id,
-                                                       updates: { label_override: e.target.value || null }
-                                                     });
-                                                   }}
-                                                   className="input-elegant"
-                                                 />
-                                               </div>
-                                               <div>
-                                                 <Label>Placeholder</Label>
-                                                 <Input 
-                                                   placeholder={fieldInstance.field_library.placeholder || ''}
-                                                   defaultValue={fieldInstance.placeholder_override || ''}
-                                                   onChange={(e) => {
-                                                     updateFieldMutation.mutate({
-                                                       fieldId: fieldInstance.id,
-                                                       updates: { placeholder_override: e.target.value || null }
-                                                     });
-                                                   }}
-                                                   className="input-elegant"
-                                                 />
-                                               </div>
-                                             </div>
-                                             <div className="flex items-center space-x-2">
-                                               <Switch
-                                                 checked={fieldInstance.required_override || false}
-                                                 onCheckedChange={(checked) => {
-                                                   updateFieldMutation.mutate({
-                                                     fieldId: fieldInstance.id,
-                                                     updates: { required_override: checked }
-                                                   });
-                                                 }}
-                                               />
-                                               <Label>Required field</Label>
-                                             </div>
-                                           </div>
-                                         )}
+                                          {/* Field Edit Form - Remove this duplicate */}
                                       </div>
                                     )}
                                   </Draggable>
@@ -977,6 +937,66 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                     onCheckedChange={(checked) => setNewFieldData(prev => ({ ...prev, auto_add_notes_field: checked }))}
                   />
                   <Label>Auto-add notes field</Label>
+                </div>
+              </div>
+            )}
+            
+            {/* Options for select and radio fields */}
+            {(newFieldData.field_type === 'select' || newFieldData.field_type === 'radio') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Options</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNewFieldData(prev => ({
+                        ...prev,
+                        options: [...prev.options, { label: '', value: '' }]
+                      }));
+                    }}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Option
+                  </Button>
+                </div>
+                
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {newFieldData.options.map((option, index) => (
+                    <div key={index} className="flex gap-2">
+                      <Input
+                        placeholder="Option label"
+                        value={option.label}
+                        onChange={(e) => {
+                          const newOptions = [...newFieldData.options];
+                          newOptions[index] = { ...option, label: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') };
+                          setNewFieldData(prev => ({ ...prev, options: newOptions }));
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setNewFieldData(prev => ({
+                            ...prev,
+                            options: prev.options.filter((_, i) => i !== index)
+                          }));
+                        }}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  {newFieldData.options.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-2">
+                      Add options for this {newFieldData.field_type} field
+                    </p>
+                  )}
                 </div>
               </div>
             )}
