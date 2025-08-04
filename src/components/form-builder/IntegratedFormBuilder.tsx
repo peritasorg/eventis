@@ -574,53 +574,73 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                   {fieldLibrary?.map((field) => {
                     const isFieldInForm = formFields?.some(f => f.field_library_id === field.id);
                     return (
-                      <Card 
-                        key={field.id}
-                        className={`p-3 transition-all cursor-pointer border ${
-                          isFieldInForm 
-                            ? 'border-green-200 bg-green-50 hover:bg-green-100' 
-                            : 'border-border/50 hover:shadow-sm hover:border-border'
-                        }`}
-                        onClick={() => {
-                          if (isFieldInForm) {
-                            // Find the field instance and scroll to it
-                            const fieldInstance = formFields?.find(f => f.field_library_id === field.id);
-                            if (fieldInstance) {
-                              const element = document.getElementById(`field-${fieldInstance.id}`);
-                              if (element) {
-                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                setEditingField(fieldInstance.id);
+                       <Card 
+                         key={field.id}
+                         className={`p-3 transition-all border relative group ${
+                           isFieldInForm 
+                             ? 'border-green-200 bg-green-50 hover:bg-green-100' 
+                             : 'border-border/50 hover:shadow-sm hover:border-border'
+                         }`}
+                       >
+                          <div 
+                            className="cursor-pointer"
+                            onClick={() => {
+                              if (isFieldInForm) {
+                                // Find the field instance and scroll to it
+                                const fieldInstance = formFields?.find(f => f.field_library_id === field.id);
+                                if (fieldInstance) {
+                                  const element = document.getElementById(`field-${fieldInstance.id}`);
+                                  if (element) {
+                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    setEditingField(fieldInstance.id);
+                                  }
+                                }
+                              } else {
+                                addFieldMutation.mutate({ fieldLibraryId: field.id });
                               }
-                            }
-                          } else {
-                            addFieldMutation.mutate({ fieldLibraryId: field.id });
-                          }
-                        }}
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <div className="font-medium text-sm">{field.label}</div>
-                            {isFieldInForm && (
-                              <div className="text-xs text-green-600 font-medium">
-                                ✓ Added
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground capitalize">
-                            {field.field_type.replace('_', ' ')}
-                          </div>
-                          {field.affects_pricing && (
-                            <div className="text-xs text-primary flex items-center gap-1">
-                              <DollarSign className="h-3 w-3" />
-                              Affects pricing
-                            </div>
-                          )}
-                          {isFieldInForm && (
-                            <div className="text-xs text-green-600">
-                              Click to edit in form
-                            </div>
-                          )}
-                        </div>
+                            }}
+                          >
+                         <div className="space-y-1">
+                           <div className="flex items-center justify-between">
+                             <div className="font-medium text-sm">{field.label}</div>
+                             {isFieldInForm && (
+                               <div className="text-xs text-green-600 font-medium">
+                                 ✓ Added
+                               </div>
+                             )}
+                           </div>
+                           <div className="text-xs text-muted-foreground capitalize">
+                             {field.field_type.replace('_', ' ')}
+                           </div>
+                           {field.affects_pricing && (
+                             <div className="text-xs text-primary flex items-center gap-1">
+                               <DollarSign className="h-3 w-3" />
+                               Affects pricing
+                             </div>
+                           )}
+                           {isFieldInForm && (
+                             <div className="text-xs text-green-600">
+                               Click to edit in form
+                             </div>
+                           )}
+                         </div>
+                         </div>
+                         
+                         {/* Delete button - appears on hover */}
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             if (confirm(`Are you sure you want to permanently delete "${field.label}"? This will remove it from all forms.`)) {
+                               deleteFieldMutation.mutate(field.id);
+                             }
+                           }}
+                           title="Delete field permanently"
+                         >
+                           <X className="h-3 w-3" />
+                         </Button>
                       </Card>
                     );
                   })}
