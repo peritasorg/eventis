@@ -241,11 +241,8 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     },
     {
       successMessage: 'Field deleted permanently!',
-      onSuccess: () => {
-        refetchFields();
-        // Refetch field library as well
-        window.location.reload();
-      }
+      invalidateQueries: [['field-library'], ['form-fields', form.id]],
+      onSuccess: refetchFields
     }
   );
 
