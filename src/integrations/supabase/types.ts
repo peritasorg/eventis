@@ -752,6 +752,45 @@ export type Database = {
           },
         ]
       }
+      event_type_configs: {
+        Row: {
+          color: string
+          created_at: string
+          display_name: string
+          event_type: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          tenant_id: string
+          text_color: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          display_name: string
+          event_type: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          tenant_id: string
+          text_color?: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          display_name?: string
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          tenant_id?: string
+          text_color?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           accessibility_requirements: string | null
@@ -1889,6 +1928,8 @@ export type Database = {
           sms_notifications: boolean | null
           tenant_id: string | null
           updated_at: string | null
+          urgent_days_threshold: number | null
+          warning_days_threshold: number | null
         }
         Insert: {
           allow_online_booking?: boolean | null
@@ -1909,6 +1950,8 @@ export type Database = {
           sms_notifications?: boolean | null
           tenant_id?: string | null
           updated_at?: string | null
+          urgent_days_threshold?: number | null
+          warning_days_threshold?: number | null
         }
         Update: {
           allow_online_booking?: boolean | null
@@ -1929,6 +1972,8 @@ export type Database = {
           sms_notifications?: boolean | null
           tenant_id?: string | null
           updated_at?: string | null
+          urgent_days_threshold?: number | null
+          warning_days_threshold?: number | null
         }
         Relationships: [
           {
@@ -2295,26 +2340,6 @@ export type Database = {
         Args: { tenant_uuid: string }
         Returns: number
       }
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
-        Returns: undefined
-      }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
       health_check_rls: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2348,18 +2373,6 @@ export type Database = {
           policy_name: string
           avg_execution_time_ms: number
         }[]
-      }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
-      }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
       }
       user_has_valid_access: {
         Args: Record<PropertyKey, never>

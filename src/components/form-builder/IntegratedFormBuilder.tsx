@@ -57,9 +57,6 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
   const { currentTenant } = useAuth();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
-  const [sections, setSections] = useState<FormSection[]>([
-    { id: 'default', title: 'Form Fields', order: 0 }
-  ]);
   
   // Field creation state
   const [isCreatingField, setIsCreatingField] = useState(false);
@@ -89,6 +86,24 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
       
       if (error) throw error;
       return (data || []) as FormFieldInstance[];
+    }
+  );
+
+  // Fetch form sections
+  const { data: sections, refetch: refetchSections } = useSupabaseQuery(
+    ['form-sections', form.id],
+    async () => {
+      if (!form.id || !currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('form_sections')
+        .select('*')
+        .eq('form_page_id', form.id) // Using form_page_id for now
+        .eq('tenant_id', currentTenant.id)
+        .order('section_order');
+      
+      if (error) throw error;
+      return data || [];
     }
   );
 
@@ -250,6 +265,73 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     }
   );
 
+  // Section management mutations
+  const addSectionMutation = useSupabaseMutation(
+    async (sectionData: { title: string }) => {
+      const maxOrder = Math.max(...(sections?.map(s => s.section_order) || [0]), 0);
+      
+      const { data, error } = await supabase
+        .from('form_sections')
+        .insert([{
+          section_title: sectionData.title,
+          section_order: maxOrder + 1,
+          form_page_id: form.id, // Using form_page_id for now
+          tenant_id: currentTenant?.id
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    {
+      successMessage: 'Section created!',
+      onSuccess: refetchSections
+    }
+  );
+
+  const updateSectionMutation = useSupabaseMutation(
+    async ({ sectionId, updates }: { sectionId: string; updates: any }) => {
+      const { error } = await supabase
+        .from('form_sections')
+        .update(updates)
+        .eq('id', sectionId);
+      
+      if (error) throw error;
+    },
+    {
+      successMessage: 'Section updated!',
+      onSuccess: refetchSections
+    }
+  );
+
+  const removeSectionMutation = useSupabaseMutation(
+    async (sectionId: string) => {
+      // First move fields from this section to default (null)
+      const { error: fieldsError } = await supabase
+        .from('form_field_instances')
+        .update({ form_section_id: null })
+        .eq('form_section_id', sectionId);
+      
+      if (fieldsError) throw fieldsError;
+
+      // Then delete the section
+      const { error } = await supabase
+        .from('form_sections')
+        .delete()
+        .eq('id', sectionId);
+      
+      if (error) throw error;
+    },
+    {
+      successMessage: 'Section removed and fields moved to default section!',
+      onSuccess: () => {
+        refetchSections();
+        refetchFields();
+      }
+    }
+  );
+
   const handleCreateField = () => {
     if (!newFieldData.label.trim()) {
       toast.error('Field label is required');
@@ -271,33 +353,31 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
   };
 
   const addSection = () => {
-    const newSection: FormSection = {
-      id: `section-${Date.now()}`,
-      title: 'New Section',
-      order: sections.length
-    };
-    setSections([...sections, newSection]);
+    const title = prompt('Section title:', 'New Section');
+    if (title) {
+      addSectionMutation.mutate({ title });
+    }
   };
 
-  const updateSection = (sectionId: string, updates: Partial<FormSection>) => {
-    setSections(sections.map(section => 
-      section.id === sectionId ? { ...section, ...updates } : section
-    ));
+  const updateSection = (sectionId: string, updates: { title: string }) => {
+    updateSectionMutation.mutate({
+      sectionId,
+      updates: { section_title: updates.title }
+    });
   };
 
   const removeSection = (sectionId: string) => {
-    if (sectionId === 'default') return;
-    
-    // Move fields from this section to default
-    const fieldsInSection = formFields?.filter(f => f.form_section_id === sectionId) || [];
-    fieldsInSection.forEach(field => {
-      updateFieldMutation.mutate({
-        fieldId: field.id,
-        updates: { form_section_id: null }
-      });
-    });
-    
-    setSections(sections.filter(section => section.id !== sectionId));
+    if (confirm('Are you sure you want to remove this section? All fields will be moved to the default section.')) {
+      removeSectionMutation.mutate(sectionId);
+    }
+  };
+
+  const getFieldsForSection = (sectionId: string) => {
+    if (!formFields) return [];
+    return formFields.filter(field => {
+      const fieldSectionId = field.form_section_id || 'default';
+      return fieldSectionId === sectionId;
+    }).sort((a, b) => a.field_order - b.field_order);
   };
 
   const handleDragEnd = async (result: any) => {
@@ -566,12 +646,6 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     );
   };
 
-  const getFieldsForSection = (sectionId: string) => {
-    return formFields?.filter(field => 
-      (field.form_section_id || 'default') === sectionId
-    ) || [];
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
@@ -744,7 +818,104 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                 ) : (
                   <DragDropContext onDragEnd={handleDragEnd}>
                     <div className="space-y-6">
-                      {sections.map((section) => (
+                      {/* Default section always exists */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between border-b pb-2">
+                          <h4 className="font-medium text-foreground">Form Fields</h4>
+                        </div>
+                        <Droppable droppableId="section-default" type="FIELD">
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`space-y-3 min-h-[50px] p-3 rounded-lg border-2 border-dashed transition-colors ${
+                                snapshot.isDraggingOver 
+                                  ? 'border-primary bg-primary/5' 
+                                  : 'border-border/30'
+                              }`}
+                            >
+                              {getFieldsForSection('default').map((fieldInstance, index) => (
+                                <Draggable 
+                                  key={fieldInstance.id} 
+                                  draggableId={fieldInstance.id} 
+                                  index={index}
+                                  isDragDisabled={previewMode}
+                                >
+                                  {(provided, snapshot) => (
+                                     <div
+                                       ref={provided.innerRef}
+                                       {...provided.draggableProps}
+                                       id={`field-${fieldInstance.id}`}
+                                       className={`card-elegant p-4 transition-shadow ${
+                                         snapshot.isDragging ? 'shadow-elevated' : ''
+                                       } ${editingField === fieldInstance.id ? 'ring-2 ring-primary' : ''}`}
+                                     >
+                                      <div className="flex items-start gap-3">
+                                        {!previewMode && (
+                                          <div 
+                                            {...provided.dragHandleProps}
+                                            className="mt-2 text-muted-foreground hover:text-foreground cursor-grab"
+                                          >
+                                            <GripVertical className="h-4 w-4" />
+                                          </div>
+                                        )}
+                                        
+                                        <div className="flex-1">
+                                          {renderFieldPreview(fieldInstance)}
+                                        </div>
+                                        
+                                        {!previewMode && (
+                                          <div className="flex items-center gap-1">
+                                             <Button 
+                                               variant="ghost" 
+                                               size="sm"
+                                               onClick={() => setEditingField(editingField === fieldInstance.id ? null : fieldInstance.id)}
+                                             >
+                                               <Edit3 className="h-4 w-4" />
+                                             </Button>
+                                             <Button 
+                                               variant="ghost" 
+                                               size="sm"
+                                               onClick={() => removeFieldMutation.mutate(fieldInstance.id)}
+                                               className="text-orange-500 hover:text-orange-700"
+                                               title="Remove from form"
+                                             >
+                                               <Trash2 className="h-4 w-4" />
+                                             </Button>
+                                             <Button 
+                                               variant="ghost" 
+                                               size="sm"
+                                               onClick={() => {
+                                                 if (confirm('Are you sure you want to permanently delete this field? This will remove it from all forms.')) {
+                                                   deleteFieldMutation.mutate(fieldInstance.field_library_id);
+                                                 }
+                                               }}
+                                               className="text-destructive hover:text-destructive"
+                                               title="Delete permanently"
+                                             >
+                                               <X className="h-4 w-4" />
+                                             </Button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                              {provided.placeholder}
+                              
+                              {getFieldsForSection('default').length === 0 && (
+                                <div className="text-center py-8 text-muted-foreground">
+                                  <p className="text-sm">Drop fields here or add from library</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </Droppable>
+                      </div>
+
+                      {/* Custom sections from database */}
+                      {sections?.map((section) => (
                         <div key={section.id} className="space-y-4">
                           {/* Section Header */}
                           <div className="flex items-center justify-between border-b pb-2">
@@ -756,12 +927,12 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                                 className="font-medium text-foreground cursor-pointer hover:text-primary"
                                 onClick={() => {
                                   if (!previewMode) {
-                                    const newTitle = prompt('Section title:', section.title);
+                                     const newTitle = prompt('Section title:', section.section_title);
                                     if (newTitle) updateSection(section.id, { title: newTitle });
                                   }
                                 }}
                               >
-                                {section.title}
+                                {section.section_title}
                               </h4>
                             </div>
                             {!previewMode && (
@@ -770,7 +941,7 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                                   variant="ghost" 
                                   size="sm"
                                   onClick={() => {
-                                    const newTitle = prompt('Section title:', section.title);
+                                    const newTitle = prompt('Section title:', section.section_title);
                                     if (newTitle) updateSection(section.id, { title: newTitle });
                                   }}
                                 >
