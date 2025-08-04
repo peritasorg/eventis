@@ -304,8 +304,12 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     if (!result.destination || !formFields) return;
 
     const { source, destination } = result;
-    const sourceSection = source.droppableId.replace('section-', '');
-    const destSection = destination.droppableId.replace('section-', '');
+    
+    // Fix section ID mapping
+    const sourceSection = source.droppableId === 'section-default' ? 'default' : source.droppableId.replace('section-', '');
+    const destSection = destination.droppableId === 'section-default' ? 'default' : destination.droppableId.replace('section-', '');
+    
+    console.log('Drag operation:', { sourceSection, destSection, source, destination });
     
     // Get the field being moved
     const sourceSectionFields = formFields.filter(f => 
@@ -313,58 +317,99 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     ).sort((a, b) => a.field_order - b.field_order);
     
     const movedField = sourceSectionFields[source.index];
-    if (!movedField) return;
-    
-    // Update section if moved between sections
-    if (sourceSection !== destSection) {
-      await supabase
-        .from('form_field_instances')
-        .update({ form_section_id: destSection === 'default' ? null : destSection })
-        .eq('id', movedField.id);
+    if (!movedField) {
+      console.error('No field found at source index');
+      return;
     }
     
-    // Get all fields in destination section after the move
-    let destSectionFields = formFields.filter(f => 
-      (f.form_section_id || 'default') === destSection
-    ).sort((a, b) => a.field_order - b.field_order);
+    console.log('Moving field:', movedField.field_library.label, 'from', sourceSection, 'to', destSection);
     
-    // If moving between sections, add the moved field to destination
-    if (sourceSection !== destSection) {
-      destSectionFields.splice(destination.index, 0, movedField);
-    } else {
-      // If moving within same section, remove from old position first
-      const oldIndex = destSectionFields.findIndex(f => f.id === movedField.id);
-      destSectionFields.splice(oldIndex, 1);
-      destSectionFields.splice(destination.index, 0, movedField);
-    }
-    
-    // Update field orders for destination section
-    const updates = destSectionFields.map((field, index) => 
-      supabase
-        .from('form_field_instances')
-        .update({ field_order: index + 1 })
-        .eq('id', field.id)
-    );
-    
-    await Promise.all(updates);
-
-    // If moving between sections, also update orders in source section
-    if (sourceSection !== destSection) {
-      const remainingSourceFields = formFields.filter(f => 
-        (f.form_section_id || 'default') === sourceSection && f.id !== movedField.id
+    try {
+      // Step 1: Update section assignment first if moving between sections
+      if (sourceSection !== destSection) {
+        const { error: sectionUpdateError } = await supabase
+          .from('form_field_instances')
+          .update({ 
+            form_section_id: destSection === 'default' ? null : destSection 
+          })
+          .eq('id', movedField.id);
+        
+        if (sectionUpdateError) {
+          console.error('Section update error:', sectionUpdateError);
+          throw sectionUpdateError;
+        }
+        
+        console.log('Section updated successfully');
+      }
+      
+      // Step 2: Calculate new field orders for destination section
+      let destSectionFields = formFields.filter(f => 
+        (f.form_section_id || 'default') === destSection && f.id !== movedField.id
       ).sort((a, b) => a.field_order - b.field_order);
       
-      const sourceUpdates = remainingSourceFields.map((field, index) =>
-        supabase
-          .from('form_field_instances')
-          .update({ field_order: index + 1 })
-          .eq('id', field.id)
-      );
+      // Insert the moved field at the destination index
+      destSectionFields.splice(destination.index, 0, movedField);
       
-      await Promise.all(sourceUpdates);
+      // Step 3: Update field orders in destination section
+      const destOrderUpdates = destSectionFields.map((field, index) => ({
+        id: field.id,
+        field_order: index + 1
+      }));
+      
+      console.log('Updating destination field orders:', destOrderUpdates);
+      
+      for (const update of destOrderUpdates) {
+        const { error } = await supabase
+          .from('form_field_instances')
+          .update({ field_order: update.field_order })
+          .eq('id', update.id);
+        
+        if (error) {
+          console.error('Order update error for field', update.id, ':', error);
+          throw error;
+        }
+      }
+      
+      // Step 4: If moving between sections, update orders in source section
+      if (sourceSection !== destSection) {
+        const remainingSourceFields = formFields.filter(f => 
+          (f.form_section_id || 'default') === sourceSection && f.id !== movedField.id
+        ).sort((a, b) => a.field_order - b.field_order);
+        
+        const sourceOrderUpdates = remainingSourceFields.map((field, index) => ({
+          id: field.id,
+          field_order: index + 1
+        }));
+        
+        console.log('Updating source field orders:', sourceOrderUpdates);
+        
+        for (const update of sourceOrderUpdates) {
+          const { error } = await supabase
+            .from('form_field_instances')
+            .update({ field_order: update.field_order })
+            .eq('id', update.id);
+          
+          if (error) {
+            console.error('Source order update error for field', update.id, ':', error);
+            throw error;
+          }
+        }
+      }
+      
+      console.log('All database operations completed successfully');
+      
+      // Step 5: Refresh data only after all operations complete
+      await refetchFields();
+      
+      toast.success('Field moved successfully!');
+      
+    } catch (error) {
+      console.error('Drag operation failed:', error);
+      toast.error('Failed to move field. Please try again.');
+      
+      // Refresh to revert any partial changes
+      await refetchFields();
     }
-
-    refetchFields();
   };
 
   const renderFieldPreview = (fieldInstance: FormFieldInstance) => {
