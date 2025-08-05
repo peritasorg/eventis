@@ -199,9 +199,6 @@ export const Auth = () => {
         
         <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl overflow-hidden">
           <CardHeader className="text-center pb-6">
-            <div className="mb-3 px-3 py-2 bg-orange-100 border border-orange-300 rounded-md">
-              <p className="text-orange-700 text-sm font-medium">🚧 DEVELOPMENT ENVIRONMENT ONLY 🚧</p>
-            </div>
             <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Eventis</CardTitle>
             <CardDescription className="text-slate-600">
               The complete solution for managing your banqueting business
