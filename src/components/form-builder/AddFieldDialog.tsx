@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -27,6 +27,7 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
   refetchFields 
 }) => {
   const { currentTenant } = useAuth();
+  const [fieldType, setFieldType] = useState<string>('');
 
   const createFieldMutation = useSupabaseMutation(
     async (fieldData: any) => {
@@ -112,6 +113,7 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
     {
       successMessage: 'Field created and added to form!',
       onSuccess: () => {
+        setFieldType(''); // Reset field type
         onClose();
         refetchFields();
       }
@@ -125,17 +127,16 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
     // Get raw inputs first
     const rawLabel = formData.get('label') as string || '';
     const rawHelpText = formData.get('help_text') as string || '';
-    const rawFieldType = formData.get('field_type') as string || '';
     const priceModifier = formData.get('price_modifier') as string || '';
     
-    console.log('Raw inputs:', { rawLabel, rawHelpText, rawFieldType, priceModifier });
+    console.log('Raw inputs:', { rawLabel, rawHelpText, fieldType, priceModifier });
     
     // Sanitize inputs
     const label = sanitizeInput(rawLabel);
     const helpText = sanitizeInput(rawHelpText);
-    const fieldType = sanitizeInput(rawFieldType);
+    const sanitizedFieldType = sanitizeInput(fieldType);
     
-    console.log('Sanitized inputs:', { label, helpText, fieldType });
+    console.log('Sanitized inputs:', { label, helpText, sanitizedFieldType });
     
     // CRITICAL: Check if sanitization stripped everything
     if (!rawLabel.trim()) {
@@ -158,8 +159,8 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
       return;
     }
     
-    if (!['text', 'toggle', 'number', 'date'].includes(fieldType)) {
-      toast.error('Invalid field type selected');
+    if (!fieldType || !['text', 'toggle', 'number', 'date'].includes(fieldType)) {
+      toast.error('Please select a valid field type');
       return;
     }
     
@@ -234,7 +235,7 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
           
           <div>
             <Label htmlFor="field_type">Field Type *</Label>
-            <Select name="field_type" required>
+            <Select value={fieldType} onValueChange={setFieldType} required>
               <SelectTrigger>
                 <SelectValue placeholder="Select field type" />
               </SelectTrigger>
