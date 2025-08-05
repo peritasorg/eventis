@@ -547,340 +547,6 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
     });
   };
 
-  // Create Field Dialog Component
-  const CreateFieldDialog = () => (
-    <Dialog 
-      open={isCreateFieldOpen} 
-      onOpenChange={(open) => {
-        setIsCreateFieldOpen(open);
-        if (!open) resetNewFieldForm();
-      }}
-    >
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Create New Field</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Label *</Label>
-            <Input
-              value={newField.label}
-              onChange={(e) => setNewField({ ...newField, label: e.target.value })}
-              placeholder="Field label"
-            />
-          </div>
-          
-          <div>
-            <Label>Type</Label>
-            <Select value={newField.field_type} onValueChange={(value) => setNewField({ ...newField, field_type: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="text">Text</SelectItem>
-                <SelectItem value="toggle">Toggle</SelectItem>
-                <SelectItem value="dropdown">Dropdown</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label>Category</Label>
-            <Select value={newField.category} onValueChange={(value) => setNewField({ ...newField, category: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Category</SelectItem>
-                {fieldCategories?.map((category: any) => (
-                  <SelectItem key={category.id} value={category.name}>
-                    {category.display_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {newField.field_type === 'dropdown' && (
-            <div>
-              <Label>Options</Label>
-              <div className="space-y-2">
-                {newField.options.map((option, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={option}
-                      onChange={(e) => updateOption(index, e.target.value)}
-                      placeholder={`Option ${index + 1}`}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeOption(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" onClick={addOption}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Option
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {newField.field_type === 'toggle' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>True Value</Label>
-                <Input
-                  value={newField.toggle_true_value}
-                  onChange={(e) => setNewField({ ...newField, toggle_true_value: e.target.value })}
-                  placeholder="Yes"
-                />
-              </div>
-              <div>
-                <Label>False Value</Label>
-                <Input
-                  value={newField.toggle_false_value}
-                  onChange={(e) => setNewField({ ...newField, toggle_false_value: e.target.value })}
-                  placeholder="No"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsCreateFieldOpen(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button 
-              onClick={() => {
-                if (!newField.label.trim()) {
-                  toast.error('Field label is required');
-                  return;
-                }
-                createFieldMutation.mutate(newField);
-              }} 
-              disabled={createFieldMutation.isPending} 
-              className="flex-1"
-            >
-              {createFieldMutation.isPending ? 'Creating...' : 'Create'}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-
-  // Edit Library Field Dialog Component
-  const EditLibraryFieldDialog = () => {
-    if (!editingLibraryField) return null;
-    
-    const field = fieldLibrary?.find(f => f.id === editingLibraryField);
-    if (!field) return null;
-
-    const [editData, setEditData] = useState({
-      label: field.label,
-      category: field.category || '',
-      options: Array.isArray(field.options) ? field.options : [],
-      toggle_true_value: field.options?.true_value || 'Yes',
-      toggle_false_value: field.options?.false_value || 'No'
-    });
-
-    const updateEditOption = (index: number, value: string) => {
-      const updatedOptions = [...editData.options];
-      updatedOptions[index] = value;
-      setEditData({ ...editData, options: updatedOptions });
-    };
-
-    const addEditOption = () => {
-      setEditData({
-        ...editData,
-        options: [...editData.options, '']
-      });
-    };
-
-    const removeEditOption = (index: number) => {
-      setEditData({
-        ...editData,
-        options: editData.options.filter((_, i) => i !== index)
-      });
-    };
-
-    const handleSave = () => {
-      let options = null;
-      if (field.field_type === 'dropdown' && editData.options.length > 0) {
-        options = editData.options.filter((opt: string) => opt.trim());
-      } else if (field.field_type === 'toggle') {
-        options = {
-          true_value: editData.toggle_true_value,
-          false_value: editData.toggle_false_value
-        };
-      }
-
-      updateLibraryFieldMutation.mutate({
-        fieldId: field.id,
-        updates: {
-          label: editData.label,
-          category: editData.category || null,
-          options: options
-        }
-      });
-    };
-
-    const handleDelete = () => {
-      if (confirm('Are you sure you want to delete this field? This action cannot be undone.')) {
-        deleteFieldMutation.mutate(field.id);
-      }
-    };
-
-    return (
-      <Dialog open={!!editingLibraryField} onOpenChange={() => setEditingLibraryField(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Library Field</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Label</Label>
-              <Input
-                value={editData.label}
-                onChange={(e) => setEditData({ ...editData, label: e.target.value })}
-                placeholder="Field label"
-              />
-            </div>
-
-            <div>
-              <Label>Type</Label>
-              <Input value={field.field_type} disabled className="capitalize" />
-            </div>
-
-            <div>
-              <Label>Category</Label>
-              <Select value={editData.category} onValueChange={(value) => setEditData({ ...editData, category: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Category</SelectItem>
-                  {fieldCategories?.map((category: any) => (
-                    <SelectItem key={category.id} value={category.name}>
-                      {category.display_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {field.field_type === 'dropdown' && (
-              <div>
-                <Label>Options</Label>
-                <div className="space-y-2">
-                  {editData.options.map((option, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={option}
-                        onChange={(e) => updateEditOption(index, e.target.value)}
-                        placeholder={`Option ${index + 1}`}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeEditOption(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button type="button" variant="outline" onClick={addEditOption}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Option
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {field.field_type === 'toggle' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>True Value</Label>
-                  <Input
-                    value={editData.toggle_true_value}
-                    onChange={(e) => setEditData({ ...editData, toggle_true_value: e.target.value })}
-                    placeholder="Yes"
-                  />
-                </div>
-                <div>
-                  <Label>False Value</Label>
-                  <Input
-                    value={editData.toggle_false_value}
-                    onChange={(e) => setEditData({ ...editData, toggle_false_value: e.target.value })}
-                    placeholder="No"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-4">
-              <Button 
-                variant="destructive" 
-                onClick={handleDelete} 
-                disabled={deleteFieldMutation.isPending}
-                className="mr-auto"
-              >
-                {deleteFieldMutation.isPending ? 'Deleting...' : 'Delete Field'}
-              </Button>
-              <Button variant="outline" onClick={() => setEditingLibraryField(null)} className="flex-1">
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={updateLibraryFieldMutation.isPending} className="flex-1">
-                {updateLibraryFieldMutation.isPending ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  };
-
-  // Edit Field Dialog Component
-  const EditFieldDialog = () => {
-    if (!editingField) return null;
-    
-    const fieldInstance = formFields?.find(f => f.id === editingField);
-    if (!fieldInstance) return null;
-
-    return (
-      <Dialog open={!!editingField} onOpenChange={() => setEditingField(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Field</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Label</Label>
-              <Input
-                value={fieldInstance.label_override || fieldInstance.field_library.label}
-                onChange={(e) => updateFieldMutation.mutate({
-                  fieldId: fieldInstance.id,
-                  updates: { label_override: e.target.value }
-                })}
-                placeholder="Field label"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditingField(null)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  };
 
   // Filter library fields
   const filteredLibraryFields = fieldLibrary?.filter(field => 
@@ -1124,9 +790,206 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
           </div>
         </div>
 
-        <CreateFieldDialog />
-        <EditFieldDialog />
-        <EditLibraryFieldDialog />
+        {/* Create Field Dialog */}
+        <Dialog 
+          open={isCreateFieldOpen} 
+          onOpenChange={(open) => {
+            setIsCreateFieldOpen(open);
+            if (!open) resetNewFieldForm();
+          }}
+        >
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Create New Field</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Label *</Label>
+                <Input
+                  value={newField.label}
+                  onChange={(e) => setNewField({ ...newField, label: e.target.value })}
+                  placeholder="Field label"
+                />
+              </div>
+              
+              <div>
+                <Label>Type</Label>
+                <Select value={newField.field_type} onValueChange={(value) => setNewField({ ...newField, field_type: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="toggle">Toggle</SelectItem>
+                    <SelectItem value="dropdown">Dropdown</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Category</Label>
+                <Select value={newField.category} onValueChange={(value) => setNewField({ ...newField, category: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Category</SelectItem>
+                    {fieldCategories?.map((category: any) => (
+                      <SelectItem key={category.id} value={category.name}>
+                        {category.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {newField.field_type === 'dropdown' && (
+                <div>
+                  <Label>Options</Label>
+                  <div className="space-y-2">
+                    {newField.options.map((option, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          value={option}
+                          onChange={(e) => updateOption(index, e.target.value)}
+                          placeholder={`Option ${index + 1}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeOption(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" onClick={addOption}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Option
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {newField.field_type === 'toggle' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>True Value</Label>
+                    <Input
+                      value={newField.toggle_true_value}
+                      onChange={(e) => setNewField({ ...newField, toggle_true_value: e.target.value })}
+                      placeholder="Yes"
+                    />
+                  </div>
+                  <div>
+                    <Label>False Value</Label>
+                    <Input
+                      value={newField.toggle_false_value}
+                      onChange={(e) => setNewField({ ...newField, toggle_false_value: e.target.value })}
+                      placeholder="No"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={() => setIsCreateFieldOpen(false)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (!newField.label.trim()) {
+                      toast.error('Field label is required');
+                      return;
+                    }
+                    createFieldMutation.mutate(newField);
+                  }} 
+                  disabled={createFieldMutation.isPending} 
+                  className="flex-1"
+                >
+                  {createFieldMutation.isPending ? 'Creating...' : 'Create'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Field Dialog */}
+        {editingField && formFields?.find(f => f.id === editingField) && (
+          <Dialog open={!!editingField} onOpenChange={() => setEditingField(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Field</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Label</Label>
+                  <Input
+                    value={formFields.find(f => f.id === editingField)?.label_override || formFields.find(f => f.id === editingField)?.field_library.label || ''}
+                    onChange={(e) => updateFieldMutation.mutate({
+                      fieldId: editingField,
+                      updates: { label_override: e.target.value }
+                    })}
+                    placeholder="Field label"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setEditingField(null)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Edit Library Field Dialog */}
+        {editingLibraryField && fieldLibrary?.find(f => f.id === editingLibraryField) && (
+          <Dialog open={!!editingLibraryField} onOpenChange={() => setEditingLibraryField(null)}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Edit Library Field</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Label</Label>
+                  <Input
+                    value={fieldLibrary.find(f => f.id === editingLibraryField)?.label || ''}
+                    onChange={(e) => {
+                      const field = fieldLibrary?.find(f => f.id === editingLibraryField);
+                      if (field) {
+                        updateLibraryFieldMutation.mutate({
+                          fieldId: field.id,
+                          updates: { label: e.target.value }
+                        });
+                      }
+                    }}
+                    placeholder="Field label"
+                  />
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => {
+                      const field = fieldLibrary?.find(f => f.id === editingLibraryField);
+                      if (field && confirm('Are you sure you want to delete this field? This action cannot be undone.')) {
+                        deleteFieldMutation.mutate(field.id);
+                      }
+                    }}
+                    disabled={deleteFieldMutation.isPending}
+                    className="mr-auto"
+                  >
+                    {deleteFieldMutation.isPending ? 'Deleting...' : 'Delete Field'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setEditingLibraryField(null)} className="flex-1">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </DragDropContext>
   );
