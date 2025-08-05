@@ -51,8 +51,20 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
 
   const addFormTabMutation = useSupabaseMutation(
     async () => {
-      if (!selectedTemplateId || !formLabel.trim() || !currentTenant?.id) {
+      if (!selectedTemplateId || !formLabel.trim() || !currentTenant?.id || !eventId) {
         throw new Error('Please fill in all required fields');
+      }
+      
+      // Use the database function to get the correct tab order
+      const { data: nextOrder, error: orderError } = await supabase
+        .rpc('get_next_tab_order', {
+          p_event_id: eventId,
+          p_tenant_id: currentTenant.id
+        });
+      
+      if (orderError) {
+        console.error('Error getting next tab order:', orderError);
+        throw new Error('Failed to calculate tab order');
       }
       
       const { data, error } = await supabase
@@ -62,15 +74,18 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
           event_id: eventId,
           form_template_id: selectedTemplateId,
           form_label: formLabel.trim(),
-          tab_order: nextTabOrder,
+          tab_order: nextOrder || 1,
           form_responses: {},
           form_total: 0,
           is_active: true
         })
         .select()
-        .maybeSingle();
+        .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Insert error:', error);
+        throw error;
+      }
       return data;
     },
     {

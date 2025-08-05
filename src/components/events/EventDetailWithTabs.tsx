@@ -14,7 +14,7 @@ import { AddFormTabDialog } from './AddFormTabDialog';
 import { toast } from 'sonner';
 import { useManualEventSync } from '@/hooks/useCalendarSync';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
-import { InlineInput } from './InlineInput';
+import { EventBusinessFlow } from './EventBusinessFlow';
 
 export const EventDetailWithTabs = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -310,14 +310,16 @@ export const EventDetailWithTabs = () => {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <InlineInput
-                  value={event.event_name}
-                  onSave={handleUpdateEventName}
-                  placeholder="Event name"
-                  className="text-xl font-semibold text-foreground bg-transparent border-0 p-0 h-auto"
-                />
+                <h1 className="text-xl font-semibold text-foreground">{event.event_name}</h1>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-sm text-muted-foreground">{event.event_type}</span>
+                  <span className="text-sm text-muted-foreground capitalize">{event.event_type}</span>
+                  <EventBusinessFlow
+                    depositPaid={event.deposit_paid || false}
+                    balanceCleared={event.balance_cleared || false}
+                    eventFinalized={event.event_finalized || false}
+                    eventId={event.id}
+                    compact={true}
+                  />
                 </div>
               </div>
             </div>
@@ -462,7 +464,7 @@ export const EventDetailWithTabs = () => {
         open={isAddFormOpen}
         onOpenChange={setIsAddFormOpen}
         eventId={eventId || ''}
-        nextTabOrder={(eventForms?.length || 0) + 1}
+        nextTabOrder={0} // Will be calculated by the database function
         onSuccess={() => {
           refetchForms();
           setIsAddFormOpen(false);

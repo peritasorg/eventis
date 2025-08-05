@@ -2516,6 +2516,10 @@ export type Database = {
         Args: { encrypted_token: string }
         Returns: string
       }
+      get_next_tab_order: {
+        Args: { p_event_id: string; p_tenant_id: string }
+        Returns: number
+      }
       get_tenant_dashboard_stats: {
         Args: { p_tenant_id: string }
         Returns: {
