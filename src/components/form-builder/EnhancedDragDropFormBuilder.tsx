@@ -53,14 +53,14 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
   const [isCreateFieldOpen, setIsCreateFieldOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sections, setSections] = useState<FormSectionData[]>([]);
-  const [newField, setNewField] = useState({
+  const [newField, setNewField] = useState(() => ({
     label: '',
     field_type: 'text',
     category: '',
     options: [] as string[],
     toggle_true_value: 'Yes',
     toggle_false_value: 'No'
-  });
+  }));
 
   // Fetch field categories
   const { data: fieldCategories } = useSupabaseQuery(
@@ -535,9 +535,27 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
     });
   };
 
+  // Reset form when dialog opens/closes
+  const resetNewFieldForm = () => {
+    setNewField({
+      label: '',
+      field_type: 'text',
+      category: '',
+      options: [],
+      toggle_true_value: 'Yes',
+      toggle_false_value: 'No'
+    });
+  };
+
   // Create Field Dialog Component
   const CreateFieldDialog = () => (
-    <Dialog open={isCreateFieldOpen} onOpenChange={setIsCreateFieldOpen}>
+    <Dialog 
+      open={isCreateFieldOpen} 
+      onOpenChange={(open) => {
+        setIsCreateFieldOpen(open);
+        if (!open) resetNewFieldForm();
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Create New Field</DialogTitle>
