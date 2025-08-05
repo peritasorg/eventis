@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, Edit3, Trash2, GripVertical, Eye, DollarSign, MessageSquare, FolderPlus, X } from 'lucide-react';
+import { Plus, Edit3, Trash2, GripVertical, Eye, DollarSign, MessageSquare, FolderPlus, X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { AdvancedFieldLibrary } from './AdvancedFieldLibrary';
+import { FormPreviewMode } from './FormPreviewMode';
 
 interface IntegratedFormBuilderProps {
   form: any;

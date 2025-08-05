@@ -26,6 +26,16 @@ export const FormBuilder = () => {
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
+
+    // Check for URL parameter to edit specific form
+    const urlParams = new URLSearchParams(window.location.search);
+    const editFormId = urlParams.get('edit');
+    if (editFormId && forms) {
+      const formToEdit = forms.find(f => f.id === editFormId);
+      if (formToEdit) {
+        handleEditForm(formToEdit);
+      }
+    }
   }, []);
 
   const { data: forms, refetch: refetchForms } = useSupabaseQuery(

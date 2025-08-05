@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { IntegratedFormBuilder } from './IntegratedFormBuilder';
+import { IntegratedFormBuilder } from './IntegratedFormBuilderNew';
 
 interface FormEditorProps {
   form: any;
