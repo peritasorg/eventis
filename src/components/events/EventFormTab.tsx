@@ -280,7 +280,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
   return (
     <div className="space-y-4">
       {/* Form Sections */}
-      {formStructure?.sections && formStructure.sections.length > 0 && (
+      {selectedFormId && formStructure && (formStructure.sections?.length > 0 || formStructure.fields?.length > 0) && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Form Responses</h3>
