@@ -27,13 +27,12 @@ interface FieldLibraryItem {
   name: string;
   label: string;
   field_type: string;
+  category?: string;
   placeholder?: string;
   help_text?: string;
-  affects_pricing: boolean;
-  price_modifier?: number;
-  pricing_type?: string;
-  auto_add_price_field: boolean;
-  auto_add_notes_field: boolean;
+  options?: any[];
+  required?: boolean;
+  sort_order?: number;
 }
 
 interface FormFieldInstance {
@@ -617,49 +616,45 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
               </>
             )}
 
-            {/* Show pricing information */}
-            {field.affects_pricing && (
+            {/* Show category information */}
+            {field.category && (
               <div className="flex items-center gap-2 mt-2">
-                <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
-                  <DollarSign className="h-3 w-3 inline mr-1" />
-                  {field.pricing_type === 'per_guest' ? `£${field.price_modifier || 0} per person` : `£${field.price_modifier || 0} fixed`}
+                <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                  {field.category}
                 </div>
               </div>
             )}
 
-            {field.field_type === 'checkbox' && (field.auto_add_price_field || field.auto_add_notes_field) && (
+            {field.field_type === 'toggle' && (
               <div className="grid grid-cols-2 gap-3 ml-6 p-3 bg-secondary/20 rounded">
-                {field.auto_add_price_field && (
-                  <div>
-                    <Label className="flex items-center gap-1 text-xs">
-                      <DollarSign className="h-3 w-3" />
-                      Price (£)
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder={field.price_modifier?.toString() || "0.00"}
-                      disabled
-                      className="h-8 input-elegant"
-                    />
-                  </div>
-                )}
+                <div>
+                  <Label className="flex items-center gap-1 text-xs">
+                    <DollarSign className="h-3 w-3" />
+                    Price (£)
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled
+                    className="h-8 input-elegant"
+                  />
+                </div>
                 
-                {field.auto_add_notes_field && (
-                  <div>
-                    <Label className="flex items-center gap-1 text-xs">
-                      <MessageSquare className="h-3 w-3" />
-                      Notes
-                    </Label>
-                    <Textarea
-                      placeholder="Additional notes..."
-                      disabled
-                      rows={1}
-                      className="text-xs input-elegant"
-                    />
-                  </div>
-                )}
+                <div>
+                <div>
+                  <Label className="flex items-center gap-1 text-xs">
+                    <MessageSquare className="h-3 w-3" />
+                    Notes
+                  </Label>
+                  <Input
+                    placeholder="Additional notes..."
+                    disabled
+                    className="h-8 input-elegant"
+                  />
+                </div>
               </div>
+            )}
             )}
           </div>
         )}

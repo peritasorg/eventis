@@ -62,7 +62,7 @@ export const EventFormSection: React.FC<EventFormSectionProps> = ({ event }) => 
             field_type,
             category,
             help_text,
-            price_modifier
+            options
           )
         `)
         .eq('form_template_id', selectedFormId)
@@ -120,7 +120,7 @@ export const EventFormSection: React.FC<EventFormSectionProps> = ({ event }) => 
       ...formResponses,
       [fieldId]: {
         enabled,
-        price: enabled ? (formResponses[fieldId]?.price || field?.price_modifier || 0) : 0,
+        price: enabled ? (formResponses[fieldId]?.price || 0) : 0,
         notes: enabled ? (formResponses[fieldId]?.notes || '') : '',
         label: field?.label || ''
       }
@@ -297,7 +297,7 @@ export const EventFormSection: React.FC<EventFormSectionProps> = ({ event }) => 
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={response.price || field.price_modifier || 0}
+                                value={response.price || 0}
                                 onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
                                 placeholder="0.00"
                                 className="h-8 text-sm"
