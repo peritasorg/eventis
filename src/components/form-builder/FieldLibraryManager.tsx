@@ -39,16 +39,43 @@ export const FieldLibraryManager = () => {
 
   const createFieldMutation = useSupabaseMutation(
     async (fieldData: any) => {
+      console.log('🚀 FieldLibraryManager: Creating field with data:', fieldData);
+      
+      // Ensure all required fields are present and valid
+      if (!fieldData.name || !fieldData.label || !fieldData.field_type) {
+        throw new Error('Missing required fields');
+      }
+      
+      // Create the field with explicit required fields
+      const insertData = {
+        name: fieldData.name,
+        label: fieldData.label,
+        field_type: fieldData.field_type,
+        placeholder: fieldData.placeholder || null,
+        help_text: fieldData.help_text || null,
+        category: fieldData.category || null,
+        affects_pricing: fieldData.affects_pricing || false,
+        auto_add_price_field: fieldData.auto_add_price_field || false,
+        auto_add_notes_field: fieldData.auto_add_notes_field || false,
+        price_modifier: fieldData.price_modifier || 0,
+        active: true,
+        tenant_id: currentTenant?.id
+      };
+      
+      console.log('🚀 FieldLibraryManager: Inserting data:', insertData);
+      
       const { data, error } = await supabase
         .from('field_library')
-        .insert([{
-          ...fieldData,
-          tenant_id: currentTenant?.id
-        }])
+        .insert([insertData])
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ FieldLibraryManager: Database error:', error);
+        throw error;
+      }
+      
+      console.log('✅ FieldLibraryManager: Field created successfully:', data);
       return data;
     },
     {
@@ -75,13 +102,36 @@ export const FieldLibraryManager = () => {
     }
   );
 
+  const generateFieldName = (label: string): string => {
+    const baseName = label
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+    
+    const timestamp = Date.now().toString().slice(-6);
+    return baseName || `field_${timestamp}`;
+  };
+
   const handleCreateField = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    const label = formData.get('label') as string;
+    const nameInput = formData.get('name') as string;
+    
+    // Generate name automatically if not provided or use provided name
+    const fieldName = nameInput?.trim() || generateFieldName(label);
+    
+    console.log('🔍 FieldLibraryManager: Form data collected:', {
+      nameInput,
+      label,
+      generatedName: fieldName
+    });
+    
     const fieldData = {
-      name: formData.get('name') as string,
-      label: formData.get('label') as string,
+      name: fieldName,
+      label: label,
       field_type: formData.get('field_type') as string,
       placeholder: formData.get('placeholder') as string,
       help_text: formData.get('help_text') as string,
@@ -93,6 +143,7 @@ export const FieldLibraryManager = () => {
       active: true
     };
 
+    console.log('🔍 FieldLibraryManager: Final field data:', fieldData);
     createFieldMutation.mutate(fieldData);
   };
 
