@@ -187,7 +187,13 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
         {availableFields.map((field) => (
           <div key={field.id} className="p-3 border rounded-md hover:bg-accent/50 transition-colors">
             <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
+              <div 
+                className="flex-1 min-w-0 cursor-pointer" 
+                onClick={() => {
+                  setEditingField(field);
+                  setIsFieldEditorOpen(true);
+                }}
+              >
                 <div className="flex items-center gap-2 mb-1">
                   <div className="font-medium text-sm truncate">{field.label}</div>
                   <Badge variant="outline" className="text-xs capitalize">
@@ -212,7 +218,8 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setEditingField(field);
                     setIsFieldEditorOpen(true);
                   }}
@@ -222,7 +229,10 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => addFieldToFormMutation.mutate(field.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addFieldToFormMutation.mutate(field.id);
+                  }}
                   disabled={addFieldToFormMutation.isPending}
                   className="h-7 w-7 p-0"
                 >
