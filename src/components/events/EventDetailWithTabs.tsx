@@ -12,7 +12,6 @@ import { EventOverviewTab } from './EventOverviewTab';
 import { EventFormTab } from './EventFormTab';
 import { AddFormTabDialog } from './AddFormTabDialog';
 import { SaveBeforeCloseDialog } from './SaveBeforeCloseDialog';
-import { EnhancedBusinessFlow } from './EnhancedBusinessFlow';
 import { toast } from 'sonner';
 import { useManualEventSync } from '@/hooks/useCalendarSync';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
@@ -376,13 +375,11 @@ export const EventDetailWithTabs = () => {
                 <h1 className="text-xl font-semibold text-foreground">{event.event_name}</h1>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-sm text-muted-foreground capitalize">{event.event_type}</span>
-                  <EnhancedBusinessFlow
-                    eventId={event.id}
+                  <EventBusinessFlow
                     depositPaid={event.deposit_paid || false}
                     balanceCleared={event.balance_cleared || false}
                     eventFinalized={event.event_finalized || false}
-                    depositAmount={event.deposit_amount || 0}
-                    totalAmount={event.total_amount || 0}
+                    eventId={event.id}
                     compact={true}
                   />
                 </div>
