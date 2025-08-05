@@ -139,10 +139,7 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
               )}
             </CardHeader>
             <CardContent>
-              <div className="flex justify-between items-center">
-                <div className="text-xs text-muted-foreground">
-                  Used {form.usage_count || 0} times
-                </div>
+              <div className="flex justify-end items-center">
                 <div className="flex gap-1">
                   <Button 
                     variant="ghost" 
