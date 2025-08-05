@@ -1053,12 +1053,10 @@ export type Database = {
           category: string | null
           created_at: string | null
           field_type: string
-          help_text: string | null
           id: string
           label: string
           name: string
           options: Json | null
-          placeholder: string | null
           required: boolean | null
           sort_order: number | null
           tenant_id: string | null
@@ -1069,12 +1067,10 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           field_type: string
-          help_text?: string | null
           id?: string
           label: string
           name: string
           options?: Json | null
-          placeholder?: string | null
           required?: boolean | null
           sort_order?: number | null
           tenant_id?: string | null
@@ -1085,12 +1081,10 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           field_type?: string
-          help_text?: string | null
           id?: string
           label?: string
           name?: string
           options?: Json | null
-          placeholder?: string | null
           required?: boolean | null
           sort_order?: number | null
           tenant_id?: string | null
