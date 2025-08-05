@@ -28,6 +28,28 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
   const [formLabel, setFormLabel] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
+  // Get already used form templates for this event
+  const { data: usedTemplates } = useSupabaseQuery(
+    ['used-form-templates', eventId],
+    async () => {
+      if (!eventId || !currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('event_forms')
+        .select('form_template_id')
+        .eq('event_id', eventId)
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true);
+      
+      if (error) {
+        console.error('Used templates error:', error);
+        return [];
+      }
+      
+      return data?.map(item => item.form_template_id) || [];
+    }
+  );
+
   const { data: formTemplates } = useSupabaseQuery(
     ['form-templates'],
     async () => {
@@ -48,6 +70,11 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
       return data || [];
     }
   );
+
+  // Filter out already used templates
+  const availableTemplates = formTemplates?.filter(
+    template => !usedTemplates?.includes(template.id)
+  ) || [];
 
   const addFormTabMutation = useSupabaseMutation(
     async () => {
@@ -141,14 +168,20 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
                 <SelectValue placeholder="Select a form template..." />
               </SelectTrigger>
               <SelectContent>
-                {formTemplates?.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name}
-                    {template.description && (
-                      <span className="text-muted-foreground ml-2">- {template.description}</span>
-                    )}
-                  </SelectItem>
-                ))}
+                {availableTemplates.length === 0 ? (
+                  <div className="px-2 py-1 text-sm text-gray-500">
+                    All form templates are already used in this event
+                  </div>
+                ) : (
+                  availableTemplates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                      {template.description && (
+                        <span className="text-muted-foreground ml-2">- {template.description}</span>
+                      )}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

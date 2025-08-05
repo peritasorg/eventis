@@ -2484,6 +2484,10 @@ export type Database = {
         Args: { event_uuid: string }
         Returns: number
       }
+      calculate_total_paid: {
+        Args: { p_event_id: string }
+        Returns: number
+      }
       check_subscription_access: {
         Args: { tenant_uuid: string; feature_name?: string }
         Returns: boolean

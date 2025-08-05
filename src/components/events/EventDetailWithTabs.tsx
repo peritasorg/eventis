@@ -11,6 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { EventOverviewTab } from './EventOverviewTab';
 import { EventFormTab } from './EventFormTab';
 import { AddFormTabDialog } from './AddFormTabDialog';
+import { SaveBeforeCloseDialog } from './SaveBeforeCloseDialog';
+import { EnhancedBusinessFlow } from './EnhancedBusinessFlow';
 import { toast } from 'sonner';
 import { useManualEventSync } from '@/hooks/useCalendarSync';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
@@ -25,6 +27,8 @@ export const EventDetailWithTabs = () => {
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTabLabel, setEditingTabLabel] = useState('');
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [formToClose, setFormToClose] = useState<any>(null);
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -180,8 +184,8 @@ export const EventDetailWithTabs = () => {
     }
   );
 
-  // Delete form tab mutation
-  const deleteFormTabMutation = useSupabaseMutation(
+  // Save and close form tab mutation
+  const saveAndCloseTabMutation = useSupabaseMutation(
     async (formId: string) => {
       const { error } = await supabase
         .from('event_forms')
@@ -192,8 +196,25 @@ export const EventDetailWithTabs = () => {
       if (error) throw error;
     },
     {
-      successMessage: 'Form tab removed successfully!',
-      invalidateQueries: [['event-forms', eventId]]
+      successMessage: 'Form tab saved and closed successfully!',
+      invalidateQueries: [['event-forms', eventId], ['inactive-forms', eventId]]
+    }
+  );
+
+  // Delete form tab mutation (permanent)
+  const deleteFormTabMutation = useSupabaseMutation(
+    async (formId: string) => {
+      const { error } = await supabase
+        .from('event_forms')
+        .delete()
+        .eq('id', formId)
+        .eq('tenant_id', currentTenant?.id);
+      
+      if (error) throw error;
+    },
+    {
+      successMessage: 'Form tab deleted permanently!',
+      invalidateQueries: [['event-forms', eventId], ['inactive-forms', eventId]]
     }
   );
 
@@ -267,11 +288,31 @@ export const EventDetailWithTabs = () => {
     setEditingTabLabel('');
   };
 
-  const handleDeleteTab = (formId: string) => {
-    deleteFormTabMutation.mutate(formId);
-    if (activeTab === formId) {
-      setActiveTab('overview');
+  const handleCloseTab = (form: any) => {
+    setFormToClose(form);
+    setShowCloseDialog(true);
+  };
+
+  const handleSaveAndClose = () => {
+    if (formToClose) {
+      saveAndCloseTabMutation.mutate(formToClose.id);
+      if (activeTab === formToClose.id) {
+        setActiveTab('overview');
+      }
     }
+    setShowCloseDialog(false);
+    setFormToClose(null);
+  };
+
+  const handleDiscardChanges = () => {
+    if (formToClose) {
+      deleteFormTabMutation.mutate(formToClose.id);
+      if (activeTab === formToClose.id) {
+        setActiveTab('overview');
+      }
+    }
+    setShowCloseDialog(false);
+    setFormToClose(null);
   };
 
   // Mutation to activate a form tab
@@ -335,11 +376,13 @@ export const EventDetailWithTabs = () => {
                 <h1 className="text-xl font-semibold text-foreground">{event.event_name}</h1>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-sm text-muted-foreground capitalize">{event.event_type}</span>
-                  <EventBusinessFlow
+                  <EnhancedBusinessFlow
+                    eventId={event.id}
                     depositPaid={event.deposit_paid || false}
                     balanceCleared={event.balance_cleared || false}
                     eventFinalized={event.event_finalized || false}
-                    eventId={event.id}
+                    depositAmount={event.deposit_amount || 0}
+                    totalAmount={event.total_amount || 0}
                     compact={true}
                   />
                 </div>
@@ -446,7 +489,7 @@ export const EventDetailWithTabs = () => {
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteTab(form.id)}
+                          onClick={() => handleCloseTab(form)}
                         >
                           <X className="h-3 w-3" />
                         </Button>
@@ -517,6 +560,15 @@ export const EventDetailWithTabs = () => {
           refetchForms();
           setIsAddFormOpen(false);
         }}
+      />
+
+      <SaveBeforeCloseDialog
+        open={showCloseDialog}
+        onOpenChange={setShowCloseDialog}
+        onSaveAndClose={handleSaveAndClose}
+        onDiscardChanges={handleDiscardChanges}
+        formLabel={formToClose?.form_label || ''}
+        hasUnsavedChanges={false} // TODO: Track unsaved changes
       />
     </div>
   );

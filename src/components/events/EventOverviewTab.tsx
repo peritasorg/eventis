@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Calendar, DollarSign, Users, MessageSquare, Receipt, Clock } from 'lucide-react';
 import { CommunicationTimeline } from '@/components/events/CommunicationTimeline';
 import { FinanceTimeline } from '@/components/events/FinanceTimeline';
-import { EventBusinessFlow } from '@/components/events/EventBusinessFlow';
+import { EnhancedBusinessFlow } from '@/components/events/EnhancedBusinessFlow';
 import { InlineInput } from './InlineInput';
 import { InlineSelect } from './InlineSelect';
 import { InlineDate } from './InlineDate';
@@ -455,6 +455,22 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
         </Card>
         </div>
       </form>
+
+      {/* Business Process Flow */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4" />
+          <h3 className="text-base font-medium">Business Process Flow</h3>
+        </div>
+        <EnhancedBusinessFlow
+          eventId={event.id}
+          depositPaid={event.deposit_paid || false}
+          balanceCleared={event.balance_cleared || false}
+          eventFinalized={event.event_finalized || false}
+          depositAmount={event.deposit_amount || 0}
+          totalAmount={event.total_amount || 0}
+        />
+      </div>
 
       {/* Communication & Finance Timelines */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
