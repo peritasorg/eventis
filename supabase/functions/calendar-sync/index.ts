@@ -30,6 +30,7 @@ interface EventData {
   start_time: string;
   end_time: string;
   estimated_guests: number;
+  total_guests?: number;
   venue_area?: string;
   form_responses?: any;
   customers?: {
@@ -142,7 +143,7 @@ class CalendarService {
     const timeZone = 'Europe/London';
     
     let description = `Event Type: ${eventData.event_type}\n`;
-    description += `Guests: ${eventData.estimated_guests}\n`;
+    description += `Guests: ${eventData.total_guests || eventData.estimated_guests}\n`;
     
     if (eventData.customers) {
       description += `\nCustomer: ${eventData.customers.name}\n`;
