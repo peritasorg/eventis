@@ -100,57 +100,75 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
     }
   );
 
-  // Fetch form sections with simplified approach
-  const { data: formSections, refetch: refetchSections } = useSupabaseQuery(
-    ['form-sections', form.id],
+  // Fetch form pages first, then sections
+  const { data: formPages } = useSupabaseQuery(
+    ['form-pages', form.id],
     async () => {
       if (!form.id || !currentTenant?.id) return [];
       
-      try {
-        // Direct API call to avoid type recursion
-        const response = await fetch(
-          `https://vbowtpkisiabdwwgttry.supabase.co/rest/v1/form_sections?form_template_id=eq.${form.id}&tenant_id=eq.${currentTenant.id}&order=section_order.asc`,
-          {
-            headers: {
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZib3d0cGtpc2lhYmR3d2d0dHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTY0MDUsImV4cCI6MjA2NTkzMjQwNX0.g-2yp1SgMTYA9doXALsPRO0dMJX4sE7Ol1DNBIymSFU',
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZib3d0cGtpc2lhYmR3d2d0dHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTY0MDUsImV4cCI6MjA2NTkzMjQwNX0.g-2yp1SgMTYA9doXALsPRO0dMJX4sE7Ol1DNBIymSFU`
-            }
-          }
-        );
+      const { data, error } = await supabase
+        .from('form_pages')
+        .select('*')
+        .eq('form_template_id', form.id)
+        .eq('tenant_id', currentTenant.id)
+        .order('page_number');
+      
+      if (error) throw error;
+      
+      // If no pages exist, create the first one
+      if (!data || data.length === 0) {
+        const { data: newPage, error: createError } = await supabase
+          .from('form_pages')
+          .insert([{
+            form_template_id: form.id,
+            tenant_id: currentTenant.id,
+            page_title: 'Page 1',
+            page_number: 1
+          }])
+          .select()
+          .single();
         
-        const data = await response.json();
-        
-        // If no sections exist, create the first one  
-        if (!data || data.length === 0) {
-          const createResponse = await fetch(
-            `https://vbowtpkisiabdwwgttry.supabase.co/rest/v1/form_sections`,
-            {
-              method: 'POST',
-              headers: {
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZib3d0cGtpc2lhYmR3d2d0dHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTY0MDUsImV4cCI6MjA2NTkzMjQwNX0.g-2yp1SgMTYA9doXALsPRO0dMJX4sE7Ol1DNBIymSFU',
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZib3d0cGtpc2lhYmR3d2d0dHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTY0MDUsImV4cCI6MjA2NTkzMjQwNX0.g-2yp1SgMTYA9doXALsPRO0dMJX4sE7Ol1DNBIymSFU`,
-                'Prefer': 'return=representation'
-              },
-              body: JSON.stringify([{
-                form_template_id: form.id,
-                tenant_id: currentTenant.id,
-                section_title: 'Section 1',
-                section_order: 0
-              }])
-            }
-          );
-          
-          const newSection = await createResponse.json();
-          return Array.isArray(newSection) ? newSection : [newSection];
-        }
-        
-        return data || [];
-      } catch (error) {
-        console.error('Error with sections:', error);
-        return [];
+        if (createError) throw createError;
+        return [newPage];
       }
+      
+      return data || [];
+    }
+  );
+
+  // Fetch form sections for the first page
+  const { data: formSections, refetch: refetchSections } = useSupabaseQuery(
+    ['form-sections', formPages?.[0]?.id],
+    async () => {
+      if (!formPages?.[0]?.id || !currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('form_sections')
+        .select('*')
+        .eq('form_page_id', formPages[0].id)
+        .eq('tenant_id', currentTenant.id)
+        .order('section_order');
+      
+      if (error) throw error;
+      
+      // If no sections exist, create the first one
+      if (!data || data.length === 0) {
+        const { data: newSection, error: createError } = await supabase
+          .from('form_sections')
+          .insert([{
+            form_page_id: formPages[0].id,
+            tenant_id: currentTenant.id,
+            section_title: 'Section 1',
+            section_order: 0
+          }])
+          .select()
+          .single();
+        
+        if (createError) throw createError;
+        return [newSection];
+      }
+      
+      return data || [];
     }
   );
 
