@@ -31,28 +31,51 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
 
   const createFieldMutation = useSupabaseMutation(
     async (fieldData: any) => {
-      console.log('Field data being inserted:', fieldData);
-      console.log('Tenant ID:', currentTenant?.id);
+      console.log('🔍 DEBUGGING: Field data received by mutation:', fieldData);
+      console.log('🔍 DEBUGGING: Tenant ID:', currentTenant?.id);
+      console.log('🔍 DEBUGGING: Field data type and keys:', typeof fieldData, Object.keys(fieldData));
+      console.log('🔍 DEBUGGING: Name field specifically:', fieldData.name, typeof fieldData.name);
       
       // Validate that required fields are present
       if (!fieldData.name || !fieldData.label || !fieldData.field_type) {
-        throw new Error('Missing required fields: name, label, or field_type');
+        console.error('❌ VALIDATION FAILED: Missing required fields');
+        console.error('Name:', fieldData.name);
+        console.error('Label:', fieldData.label);
+        console.error('Field Type:', fieldData.field_type);
+        throw new Error(`Missing required fields: name=${fieldData.name}, label=${fieldData.label}, field_type=${fieldData.field_type}`);
       }
+      
+      // Prepare the exact data for insertion
+      const insertData = {
+        name: fieldData.name,
+        label: fieldData.label,
+        field_type: fieldData.field_type,
+        help_text: fieldData.help_text,
+        price_modifier: fieldData.price_modifier,
+        affects_pricing: fieldData.affects_pricing,
+        auto_add_price_field: fieldData.auto_add_price_field,
+        auto_add_notes_field: fieldData.auto_add_notes_field,
+        active: fieldData.active,
+        tenant_id: currentTenant?.id
+      };
+      
+      console.log('🔍 DEBUGGING: Exact data being sent to Supabase:', insertData);
+      console.log('🔍 DEBUGGING: Insert data name field:', insertData.name, typeof insertData.name);
       
       // First create the field in the library
       const { data: newField, error: fieldError } = await supabase
         .from('field_library')
-        .insert([{
-          ...fieldData,
-          tenant_id: currentTenant?.id
-        }])
+        .insert([insertData])
         .select()
         .single();
       
       if (fieldError) {
-        console.error('Database insert error:', fieldError);
+        console.error('❌ DATABASE INSERT ERROR:', fieldError);
+        console.error('❌ Data that failed to insert:', insertData);
         throw fieldError;
       }
+      
+      console.log('✅ SUCCESS: Field created in library:', newField);
 
       // Get the default form section for this form template
       // First, let's find or create a default section for this form
