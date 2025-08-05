@@ -12,7 +12,7 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { EnhancedFieldCreator } from './EnhancedFieldCreator';
+import { StandardFieldEditor } from './StandardFieldEditor';
 
 interface EnhancedDragDropFormBuilderProps {
   form: any;
@@ -562,12 +562,14 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-lg">Field Library</h3>
-              <EnhancedFieldCreator 
-                formId={form.id} 
-                onFieldAdded={() => {
+              <StandardFieldEditor 
+                isOpen={false}
+                onClose={() => {}}
+                onSuccess={() => {
                   refetchLibrary();
                   refetchFields();
                 }} 
+                formId={form.id}
               />
             </div>
             
