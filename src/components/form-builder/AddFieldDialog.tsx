@@ -112,13 +112,14 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
     const formData = new FormData(e.currentTarget);
     
     // Sanitize and validate inputs
-    const label = sanitizeInput(formData.get('label') as string);
-    const helpText = sanitizeInput(formData.get('help_text') as string);
-    const fieldType = sanitizeInput(formData.get('field_type') as string);
-    const priceModifier = formData.get('price_modifier') as string;
+    const rawLabel = formData.get('label') as string;
+    const label = sanitizeInput(rawLabel || '');
+    const helpText = sanitizeInput(formData.get('help_text') as string || '');
+    const fieldType = sanitizeInput(formData.get('field_type') as string || '');
+    const priceModifier = formData.get('price_modifier') as string || '';
     
     // Validation
-    if (!label || !validateTextLength(label, 100)) {
+    if (!label || label.trim() === '' || !validateTextLength(label, 100)) {
       toast.error('Field label is required and must be less than 100 characters');
       return;
     }
@@ -140,8 +141,15 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
       return;
     }
     
+    // Create a unique name from label (slug-style)
+    const fieldName = label.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/_+/g, '_') // Replace multiple underscores with single
+      .trim();
+    
     createFieldMutation.mutate({
-      name: label,
+      name: fieldName || `field_${Date.now()}`, // Fallback to timestamp if name is empty
       label: label,
       field_type: fieldType,
       help_text: helpText || null,
