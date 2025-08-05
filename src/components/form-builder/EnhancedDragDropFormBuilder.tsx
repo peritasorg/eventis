@@ -12,7 +12,7 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { EnhancedFieldCreator } from './EnhancedFieldCreator';
+import { StandardFieldEditor } from './StandardFieldEditor';
 
 interface EnhancedDragDropFormBuilderProps {
   form: any;
@@ -48,20 +48,12 @@ interface FormSectionData {
 export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderProps> = ({ form, onBack }) => {
   const { currentTenant } = useAuth();
   const [editingField, setEditingField] = useState<string | null>(null);
-  const [editingLibraryField, setEditingLibraryField] = useState<string | null>(null);
+  const [editingLibraryField, setEditingLibraryField] = useState<FieldLibraryItem | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
-  const [isCreateFieldOpen, setIsCreateFieldOpen] = useState(false);
+  const [isFieldEditorOpen, setIsFieldEditorOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sections, setSections] = useState<FormSectionData[]>([]);
-  const [newField, setNewField] = useState(() => ({
-    label: '',
-    field_type: 'text',
-    category: '',
-    options: [] as string[],
-    toggle_true_value: 'Yes',
-    toggle_false_value: 'No'
-  }));
 
   // Fetch field categories
   const { data: fieldCategories } = useSupabaseQuery(
@@ -223,58 +215,6 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
     }
   );
 
-  // Create new field mutation
-  const createFieldMutation = useSupabaseMutation(
-    async (fieldData: any) => {
-      const name = fieldData.label
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s+/g, '_')
-        .slice(0, 50) + '_' + Date.now();
-
-      let options = null;
-      if (fieldData.field_type === 'dropdown' && fieldData.options.length > 0) {
-        options = fieldData.options.filter((opt: string) => opt.trim());
-      } else if (fieldData.field_type === 'toggle') {
-        options = {
-          true_value: fieldData.toggle_true_value,
-          false_value: fieldData.toggle_false_value
-        };
-      }
-
-      const { data, error } = await supabase
-        .from('field_library')
-        .insert([{
-          name: name,
-          label: fieldData.label,
-          field_type: fieldData.field_type,
-          category: fieldData.category || null,
-          options: options,
-          tenant_id: currentTenant?.id,
-          active: true
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    {
-      successMessage: 'Field created!',
-      onSuccess: () => {
-        setIsCreateFieldOpen(false);
-        setNewField({
-          label: '',
-          field_type: 'text',
-          category: '',
-          options: [],
-          toggle_true_value: 'Yes',
-          toggle_false_value: 'No'
-        });
-        refetchLibrary();
-      }
-    }
-  );
 
   // Update library field mutation
   const updateLibraryFieldMutation = useSupabaseMutation(
@@ -512,41 +452,6 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
     }
   };
 
-  // Helper functions for create field dialog
-  const addOption = () => {
-    setNewField({
-      ...newField,
-      options: [...newField.options, '']
-    });
-  };
-
-  const updateOption = (index: number, value: string) => {
-    const updatedOptions = [...newField.options];
-    updatedOptions[index] = value;
-    setNewField({
-      ...newField,
-      options: updatedOptions
-    });
-  };
-
-  const removeOption = (index: number) => {
-    setNewField({
-      ...newField,
-      options: newField.options.filter((_, i) => i !== index)
-    });
-  };
-
-  // Reset form when dialog opens/closes
-  const resetNewFieldForm = () => {
-    setNewField({
-      label: '',
-      field_type: 'text',
-      category: '',
-      options: [],
-      toggle_true_value: 'Yes',
-      toggle_false_value: 'No'
-    });
-  };
 
 
   // Filter library fields
@@ -562,13 +467,16 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-lg">Field Library</h3>
-              <EnhancedFieldCreator 
-                formId={form.id} 
-                onFieldAdded={() => {
-                  refetchLibrary();
-                  refetchFields();
-                }} 
-              />
+              <Button 
+                size="sm" 
+                onClick={() => {
+                  setEditingLibraryField(null);
+                  setIsFieldEditorOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Create Field
+              </Button>
             </div>
             
             {/* Search */}
@@ -590,7 +498,10 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
                   <div className="flex items-center justify-between gap-2">
                     <div 
                       className="flex-1 cursor-pointer"
-                      onClick={() => setEditingLibraryField(field.id)}
+                      onClick={() => {
+                        setEditingLibraryField(field);
+                        setIsFieldEditorOpen(true);
+                      }}
                     >
                       <div className="font-medium text-sm">{field.label}</div>
                       <div className="text-xs text-gray-500 capitalize">{field.field_type}</div>
@@ -794,206 +705,20 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
           </div>
         </div>
 
-        {/* Create Field Dialog */}
-        <Dialog 
-          open={isCreateFieldOpen} 
-          onOpenChange={(open) => {
-            setIsCreateFieldOpen(open);
-            if (!open) resetNewFieldForm();
+        {/* StandardFieldEditor for creating and editing fields */}
+        <StandardFieldEditor
+          isOpen={isFieldEditorOpen}
+          onClose={() => {
+            setIsFieldEditorOpen(false);
+            setEditingLibraryField(null);
           }}
-        >
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Create New Field</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Label *</Label>
-                <Input
-                  value={newField.label}
-                  onChange={(e) => setNewField({ ...newField, label: e.target.value })}
-                  placeholder="Field label"
-                />
-              </div>
-              
-              <div>
-                <Label>Type</Label>
-                <Select value={newField.field_type} onValueChange={(value) => setNewField({ ...newField, field_type: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text">Text</SelectItem>
-                    <SelectItem value="toggle">Toggle</SelectItem>
-                    <SelectItem value="dropdown">Dropdown</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Category</Label>
-                <Select value={newField.category} onValueChange={(value) => setNewField({ ...newField, category: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Category</SelectItem>
-                    {fieldCategories?.map((category: any) => (
-                      <SelectItem key={category.id} value={category.name}>
-                        {category.display_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {newField.field_type === 'dropdown' && (
-                <div>
-                  <Label>Options</Label>
-                  <div className="space-y-2">
-                    {newField.options.map((option, index) => (
-                      <div key={index} className="flex gap-2">
-                        <Input
-                          value={option}
-                          onChange={(e) => updateOption(index, e.target.value)}
-                          placeholder={`Option ${index + 1}`}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeOption(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button type="button" variant="outline" onClick={addOption}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Option
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {newField.field_type === 'toggle' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>True Value</Label>
-                    <Input
-                      value={newField.toggle_true_value}
-                      onChange={(e) => setNewField({ ...newField, toggle_true_value: e.target.value })}
-                      placeholder="Yes"
-                    />
-                  </div>
-                  <div>
-                    <Label>False Value</Label>
-                    <Input
-                      value={newField.toggle_false_value}
-                      onChange={(e) => setNewField({ ...newField, toggle_false_value: e.target.value })}
-                      placeholder="No"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsCreateFieldOpen(false)} className="flex-1">
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => {
-                    if (!newField.label.trim()) {
-                      toast.error('Field label is required');
-                      return;
-                    }
-                    createFieldMutation.mutate(newField);
-                  }} 
-                  disabled={createFieldMutation.isPending} 
-                  className="flex-1"
-                >
-                  {createFieldMutation.isPending ? 'Creating...' : 'Create'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Field Dialog */}
-        {editingField && formFields?.find(f => f.id === editingField) && (
-          <Dialog open={!!editingField} onOpenChange={() => setEditingField(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Field</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Label</Label>
-                  <Input
-                    value={formFields.find(f => f.id === editingField)?.label_override || formFields.find(f => f.id === editingField)?.field_library.label || ''}
-                    onChange={(e) => updateFieldMutation.mutate({
-                      fieldId: editingField,
-                      updates: { label_override: e.target.value }
-                    })}
-                    placeholder="Field label"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setEditingField(null)}>
-                    Close
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* Edit Library Field Dialog */}
-        {editingLibraryField && fieldLibrary?.find(f => f.id === editingLibraryField) && (
-          <Dialog open={!!editingLibraryField} onOpenChange={() => setEditingLibraryField(null)}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Edit Library Field</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Label</Label>
-                  <Input
-                    value={fieldLibrary.find(f => f.id === editingLibraryField)?.label || ''}
-                    onChange={(e) => {
-                      const field = fieldLibrary?.find(f => f.id === editingLibraryField);
-                      if (field) {
-                        updateLibraryFieldMutation.mutate({
-                          fieldId: field.id,
-                          updates: { label: e.target.value }
-                        });
-                      }
-                    }}
-                    placeholder="Field label"
-                  />
-                </div>
-                <div className="flex gap-2 pt-4">
-                  <Button 
-                    variant="destructive" 
-                    onClick={() => {
-                      const field = fieldLibrary?.find(f => f.id === editingLibraryField);
-                      if (field && confirm('Are you sure you want to delete this field? This action cannot be undone.')) {
-                        deleteFieldMutation.mutate(field.id);
-                      }
-                    }}
-                    disabled={deleteFieldMutation.isPending}
-                    className="mr-auto"
-                  >
-                    {deleteFieldMutation.isPending ? 'Deleting...' : 'Delete Field'}
-                  </Button>
-                  <Button variant="outline" onClick={() => setEditingLibraryField(null)} className="flex-1">
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+          field={editingLibraryField}
+          onSuccess={() => {
+            refetchLibrary();
+            refetchFields();
+          }}
+          formId={form.id}
+        />
       </div>
     </DragDropContext>
   );
