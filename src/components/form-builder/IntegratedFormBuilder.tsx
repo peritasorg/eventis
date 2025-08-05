@@ -107,7 +107,7 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     }
   );
 
-  // Fetch field library for quick add
+  // Simplified field library fetch
   const { data: fieldLibrary } = useSupabaseQuery(
     ['field-library'],
     async () => {
@@ -125,23 +125,41 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
     }
   );
 
-  // Create new field and add to form
+  // Simplified field creation - create field and add to form in one step
   const createAndAddFieldMutation = useSupabaseMutation(
     async (fieldData: any) => {
-      // First create the field in the library
+      // Generate simple name from label
+      const name = fieldData.label
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, '_') + '_' + Date.now();
+
+      console.log('🔵 Creating field:', { ...fieldData, name });
+
+      // Create field in library
       const { data: newField, error: fieldError } = await supabase
         .from('field_library')
         .insert([{
-          ...fieldData,
+          name: name,
+          label: fieldData.label,
+          field_type: fieldData.field_type,
+          help_text: fieldData.help_text || null,
+          affects_pricing: fieldData.affects_pricing,
+          price_modifier: fieldData.affects_pricing ? fieldData.price_modifier : 0,
           tenant_id: currentTenant?.id,
           active: true
         }])
         .select()
         .single();
       
-      if (fieldError) throw fieldError;
+      if (fieldError) {
+        console.error('❌ Field creation error:', fieldError);
+        throw fieldError;
+      }
 
-      // Then add it to the form
+      console.log('✅ Field created:', newField);
+
+      // Add to form
       const maxOrder = Math.max(...(formFields?.map(f => f.field_order) || [0]), 0);
       
       const { error: instanceError } = await supabase
@@ -154,8 +172,12 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
           tenant_id: currentTenant?.id
         }]);
       
-      if (instanceError) throw instanceError;
-      
+      if (instanceError) {
+        console.error('❌ Instance creation error:', instanceError);
+        throw instanceError;
+      }
+
+      console.log('✅ Field added to form');
       return newField;
     },
     {
