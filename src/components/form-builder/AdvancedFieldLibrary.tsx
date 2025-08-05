@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,6 +32,8 @@ const FIELD_CATEGORIES = [
 export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ formId, onFieldAdded }) => {
   const { currentTenant } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingField, setEditingField] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
@@ -137,6 +139,42 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
     }
   );
 
+  // Update field mutation
+  const updateFieldMutation = useSupabaseMutation(
+    async (fieldData: any) => {
+      let options = null;
+      
+      // Set options based on field type
+      if (fieldData.field_type === 'select') {
+        options = fieldData.options;
+      } else if (fieldData.field_type === 'checkbox') {
+        options = [fieldData.toggle_false_value, fieldData.toggle_true_value];
+      }
+
+      const { data, error } = await supabase
+        .from('field_library')
+        .update({
+          label: fieldData.label,
+          field_type: fieldData.field_type,
+          category: fieldData.category || null,
+          options: options
+        })
+        .eq('id', fieldData.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    {
+      successMessage: 'Field updated successfully!',
+      onSuccess: () => {
+        setIsEditDialogOpen(false);
+        setEditingField(null);
+      }
+    }
+  );
+
   // Add field to form mutation
   const addFieldToFormMutation = useSupabaseMutation(
     async (fieldLibraryId: string) => {
@@ -196,6 +234,30 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
     }
 
     createFieldMutation.mutate(newField);
+  };
+
+  const handleEditField = (field: any) => {
+    setEditingField({
+      ...field,
+      options: field.options || [],
+      toggle_true_value: Array.isArray(field.options) && field.options.length >= 2 ? field.options[1] : 'Yes',
+      toggle_false_value: Array.isArray(field.options) && field.options.length >= 2 ? field.options[0] : 'No'
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateField = () => {
+    if (!editingField?.label.trim()) {
+      toast.error('Field label is required');
+      return;
+    }
+
+    if (editingField.field_type === 'select' && editingField.options.length === 0) {
+      toast.error('Dropdown fields require at least one option');
+      return;
+    }
+
+    updateFieldMutation.mutate(editingField);
   };
 
   const addOption = () => {
@@ -361,6 +423,149 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                 </div>
               </DialogContent>
             </Dialog>
+
+            {/* Edit Field Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Edit Field</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Label *</Label>
+                    <Input
+                      value={editingField?.label || ''}
+                      onChange={(e) => setEditingField({ ...editingField, label: e.target.value })}
+                      placeholder="Field label"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Type *</Label>
+                    <Select 
+                      value={editingField?.field_type || 'text'} 
+                      onValueChange={(value) => setEditingField({ ...editingField, field_type: value, options: [] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="checkbox">Toggle</SelectItem>
+                        <SelectItem value="select">Dropdown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Category</Label>
+                    <Select 
+                      value={editingField?.category || ''} 
+                      onValueChange={(value) => setEditingField({ ...editingField, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FIELD_CATEGORIES.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Dropdown Options */}
+                  {editingField?.field_type === 'select' && (
+                    <div>
+                      <Label>Dropdown Options *</Label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            value={newOption}
+                            onChange={(e) => setNewOption(e.target.value)}
+                            placeholder="Add option..."
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (newOption.trim() && !editingField.options.includes(newOption.trim())) {
+                                  setEditingField({
+                                    ...editingField,
+                                    options: [...editingField.options, newOption.trim()]
+                                  });
+                                  setNewOption('');
+                                }
+                              }
+                            }}
+                          />
+                          <Button 
+                            type="button" 
+                            onClick={() => {
+                              if (newOption.trim() && !editingField.options.includes(newOption.trim())) {
+                                setEditingField({
+                                  ...editingField,
+                                  options: [...editingField.options, newOption.trim()]
+                                });
+                                setNewOption('');
+                              }
+                            }}
+                            disabled={!newOption.trim()}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {editingField.options?.map((option: string, index: number) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {option}
+                              <button
+                                onClick={() => setEditingField({
+                                  ...editingField,
+                                  options: editingField.options.filter((opt: string) => opt !== option)
+                                })}
+                                className="ml-1 hover:text-red-600"
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Toggle Values */}
+                  {editingField?.field_type === 'checkbox' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>False Value</Label>
+                        <Input
+                          value={editingField.toggle_false_value || 'No'}
+                          onChange={(e) => setEditingField({ ...editingField, toggle_false_value: e.target.value })}
+                          placeholder="No"
+                        />
+                      </div>
+                      <div>
+                        <Label>True Value</Label>
+                        <Input
+                          value={editingField.toggle_true_value || 'Yes'}
+                          onChange={(e) => setEditingField({ ...editingField, toggle_true_value: e.target.value })}
+                          placeholder="Yes"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-4">
+                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="flex-1">
+                      Cancel
+                    </Button>
+                    <Button onClick={handleUpdateField} disabled={updateFieldMutation.isPending} className="flex-1">
+                      {updateFieldMutation.isPending ? 'Updating...' : 'Update Field'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -425,14 +630,24 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                 )}
               </div>
               
-              <Button
-                size="sm"
-                onClick={() => addFieldToFormMutation.mutate(field.id)}
-                disabled={addFieldToFormMutation.isPending}
-                className="h-7 w-7 p-0 shrink-0"
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
+              <div className="flex gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditField(field)}
+                  className="h-7 w-7 p-0"
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => addFieldToFormMutation.mutate(field.id)}
+                  disabled={addFieldToFormMutation.isPending}
+                  className="h-7 w-7 p-0"
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
           </div>
         ))}

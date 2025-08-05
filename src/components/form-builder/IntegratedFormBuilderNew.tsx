@@ -382,39 +382,30 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                 />
               </div>
             ) : (
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <div className="space-y-6">
-                  <Droppable droppableId="section-default">
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`min-h-32 p-4 border-2 border-dashed rounded-lg transition-colors ${
-                          snapshot.isDraggingOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
-                        }`}
-                      >
-                        <h3 className="text-lg font-medium mb-4">Form Fields</h3>
-                        
-                        {getFieldsForSection('default').length > 0 ? (
-                          <div className="space-y-3">
-                            {getFieldsForSection('default').map((fieldInstance) => 
-                              renderEditableField(fieldInstance)
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p>No fields yet</p>
-                            <p className="text-sm mt-1">Drag fields from the library to get started</p>
-                          </div>
-                        )}
-                        
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
+              <div className="space-y-6">
+                <div className="p-4 border rounded-lg">
+                  <h3 className="text-lg font-medium mb-4">Form Fields</h3>
+                  
+                  {(formFields && formFields.length > 0) ? (
+                    <FormPreviewMode 
+                      formFields={formFields}
+                      formResponses={{}}
+                      readOnly={false}
+                      removeFieldMutation={removeFieldMutation}
+                      onResponseChange={(fieldId, field, value) => {
+                        // Handle field interactions in edit mode if needed
+                        console.log('Field interaction:', { fieldId, field, value });
+                      }}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No fields yet</p>
+                      <p className="text-sm mt-1">Add fields from the library to get started</p>
+                    </div>
+                  )}
                 </div>
-              </DragDropContext>
+              </div>
             )}
           </div>
         </div>

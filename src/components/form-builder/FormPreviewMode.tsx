@@ -5,20 +5,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, MessageSquare, Users, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { DollarSign, MessageSquare, Users, TrendingUp, X } from 'lucide-react';
 
 interface FormPreviewModeProps {
   formFields: any[];
   formResponses?: Record<string, any>;
   onResponseChange?: (fieldId: string, field: string, value: any) => void;
   readOnly?: boolean;
+  removeFieldMutation?: any;
 }
 
 export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({ 
   formFields, 
   formResponses = {}, 
   onResponseChange,
-  readOnly = true 
+  readOnly = true,
+  removeFieldMutation
 }) => {
   const handleToggleChange = (fieldId: string, enabled: boolean) => {
     if (onResponseChange) {
@@ -141,8 +144,20 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
                       </Badge>
                     )}
                     <Badge variant="outline" className="text-xs capitalize">
-                      {field.field_type.replace('_', ' ')}
+                      {field.field_type === 'checkbox' ? 'Toggle' : field.field_type === 'select' ? 'Dropdown' : field.field_type.replace('_', ' ')}
                     </Badge>
+                    {!readOnly && (
+                      <div className="flex gap-1 ml-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFieldMutation?.mutate?.(fieldInstance.id)}
+                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
