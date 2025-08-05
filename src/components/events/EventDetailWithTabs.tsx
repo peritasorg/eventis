@@ -57,11 +57,11 @@ export const EventDetailWithTabs = () => {
     }
   );
 
-  // Fetch event forms
+  // Fetch event forms (both active and inactive)
   const { data: eventForms, refetch: refetchForms } = useSupabaseQuery(
     ['event-forms', eventId],
     async () => {
-      if (!eventId || !currentTenant?.id) return [];
+      if (!eventId || !currentTenant?.id) return { active: [], inactive: [] };
       
       const { data, error } = await supabase
         .from('event_forms')
@@ -75,15 +75,17 @@ export const EventDetailWithTabs = () => {
         `)
         .eq('event_id', eventId)
         .eq('tenant_id', currentTenant.id)
-        .eq('is_active', true)
         .order('tab_order');
       
       if (error) {
         console.error('Event forms error:', error);
-        return [];
+        return { active: [], inactive: [] };
       }
       
-      return data || [];
+      const active = data?.filter(form => form.is_active) || [];
+      const inactive = data?.filter(form => !form.is_active) || [];
+      
+      return { active, inactive };
     }
   );
 
@@ -272,6 +274,26 @@ export const EventDetailWithTabs = () => {
     }
   };
 
+  // Mutation to activate a form tab
+  const activateTabMutation = useSupabaseMutation(
+    async (formId: string) => {
+      const { error } = await supabase
+        .from('event_forms')
+        .update({ is_active: true })
+        .eq('id', formId);
+      
+      if (error) throw error;
+    },
+    {
+      successMessage: 'Form tab activated successfully!',
+      invalidateQueries: [['event-forms', eventId], ['events', eventId]]
+    }
+  );
+
+  const handleActivateTab = (formId: string) => {
+    activateTabMutation.mutate(formId);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -384,7 +406,7 @@ export const EventDetailWithTabs = () => {
                 Overview
               </TabsTrigger>
               
-              {eventForms?.map((form) => (
+              {eventForms?.active?.map((form) => (
                 <div key={form.id} className="flex items-center group">
                   {editingTabId === form.id ? (
                     <div className="flex items-center gap-2">
@@ -443,6 +465,25 @@ export const EventDetailWithTabs = () => {
                 <Plus className="h-4 w-4 mr-1" />
                 Add Form
               </Button>
+              
+              {/* Show inactive forms that can be activated */}
+              {eventForms?.inactive && eventForms.inactive.length > 0 && (
+                <div className="ml-4 flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Inactive:</span>
+                  {eventForms.inactive.map((form) => (
+                    <Button
+                      key={form.id}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleActivateTab(form.id)}
+                      className="h-6 px-2 text-xs"
+                      disabled={activateTabMutation.isPending}
+                    >
+                      {form.form_label}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </TabsList>
           </div>
 
@@ -451,7 +492,7 @@ export const EventDetailWithTabs = () => {
               <EventOverviewTab event={event} />
             </TabsContent>
             
-            {eventForms?.map((form) => (
+            {eventForms?.active?.map((form) => (
               <TabsContent key={form.id} value={form.id} className="mt-0">
                 <EventFormTab 
                   eventForm={form} 

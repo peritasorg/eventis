@@ -87,8 +87,10 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
               label,
               field_type,
               category,
-              help_text,
-              required
+              required,
+              options,
+              pricing_behavior,
+              unit_price
             )
           `)
           .eq('form_template_id', selectedFormId)
@@ -130,8 +132,10 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
             label,
             field_type,
             category,
-            help_text,
-            required
+            required,
+            options,
+            pricing_behavior,
+            unit_price
           )
         `)
         .eq('form_template_id', selectedFormId)
@@ -349,9 +353,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
                                 )}
                               </div>
                               
-                              {field.help_text && (
-                                <p className="text-xs text-muted-foreground mb-2">{field.help_text}</p>
-                              )}
                               
                               {isEnabled && (
                                 <div className="space-y-3 mt-3">
@@ -495,9 +496,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
                           )}
                         </div>
                         
-                        {field.help_text && (
-                          <p className="text-xs text-muted-foreground mb-2">{field.help_text}</p>
-                        )}
                         
                         {isEnabled && (
                           <div className="space-y-3 mt-3">
