@@ -18,6 +18,7 @@ import { InlineTextarea } from './InlineTextarea';
 import { useSupabaseMutation, useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 
 interface EventOverviewTabProps {
   event: any;
@@ -25,6 +26,7 @@ interface EventOverviewTabProps {
 
 export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => {
   const { currentTenant } = useAuth();
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
 
   // Query to get all customers for the dropdown
   const { data: customers } = useSupabaseQuery(
@@ -171,13 +173,10 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                 <InlineSelect
                   value={event.event_type || ''}
                   options={[
-                    { value: 'wedding', label: 'Wedding' },
-                    { value: 'birthday', label: 'Birthday' },
-                    { value: 'corporate', label: 'Corporate Event' },
-                    { value: 'anniversary', label: 'Anniversary' },
-                    { value: 'graduation', label: 'Graduation' },
-                    { value: 'baby_shower', label: 'Baby Shower' },
-                    { value: 'funeral', label: 'Funeral' },
+                    ...(eventTypeConfigs?.map(config => ({
+                      value: config.event_type,
+                      label: config.display_name
+                    })) || []),
                     { value: 'other', label: 'Other' }
                   ]}
                   onSave={(value) => updateEventMutation.mutate({ event_type: value })}
