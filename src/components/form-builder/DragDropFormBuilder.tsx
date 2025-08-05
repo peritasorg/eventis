@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { QuickFieldLibrary } from './QuickFieldLibrary';
+import { SimpleFieldCreator } from './SimpleFieldCreator';
 import { FormSection } from './FormSection';
 
 interface DragDropFormBuilderProps {
@@ -317,10 +317,9 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
           <div className="col-span-3">
             <Card className="sticky top-6" style={{ height: 'calc(100vh - 8rem)' }}>
               <CardContent className="p-0 h-full">
-                <QuickFieldLibrary 
-                  onAddField={(fieldLibraryId: string) => 
-                    addFieldMutation.mutate({ fieldLibraryId, sectionId: null })
-                  } 
+                <SimpleFieldCreator 
+                  formId={form.id}
+                  onFieldAdded={refetchFields}
                 />
               </CardContent>
             </Card>

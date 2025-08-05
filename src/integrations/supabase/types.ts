@@ -1035,7 +1035,6 @@ export type Database = {
           placeholder: string | null
           price_modifier: number | null
           pricing_type: string | null
-          tags: string[] | null
           tenant_id: string | null
           updated_at: string | null
           usage_count: number | null
@@ -1058,7 +1057,6 @@ export type Database = {
           placeholder?: string | null
           price_modifier?: number | null
           pricing_type?: string | null
-          tags?: string[] | null
           tenant_id?: string | null
           updated_at?: string | null
           usage_count?: number | null
@@ -1081,7 +1079,6 @@ export type Database = {
           placeholder?: string | null
           price_modifier?: number | null
           pricing_type?: string | null
-          tags?: string[] | null
           tenant_id?: string | null
           updated_at?: string | null
           usage_count?: number | null

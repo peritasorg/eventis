@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { FileText, DollarSign, MessageSquare, Save, Users, TrendingUp } from 'lucide-react';
+import { FileText, DollarSign, MessageSquare, Save, Users, TrendingUp, Edit2 } from 'lucide-react';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -224,8 +224,21 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
           </div>
           
           {selectedFormId && (
-            <div className="mt-3 p-2 bg-muted rounded text-xs text-muted-foreground">
-              Currently using: {formTemplates?.find(t => t.id === selectedFormId)?.name || 'Unknown Template'}
+            <div className="mt-3 p-2 bg-muted rounded text-xs text-muted-foreground flex items-center justify-between">
+              <span>Currently using: {formTemplates?.find(t => t.id === selectedFormId)?.name || 'Unknown Template'}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  // Navigate to form builder with this form ID
+                  const formId = selectedFormId;
+                  window.open(`/form-builder?edit=${formId}`, '_blank');
+                }}
+                className="h-6 text-xs"
+              >
+                <Edit2 className="h-3 w-3 mr-1" />
+                Edit Form
+              </Button>
             </div>
           )}
         </CardContent>

@@ -409,32 +409,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      // Clean up storage first (even if logout fails)
+      cleanupAuthState();
       
-      if (error) {
-        console.error('Sign out error:', error);
-        toast.error(error.message);
-      } else {
-        toast.success('Signed out successfully!');
-        
-        // Clear all state
-        setUser(null);
-        setSession(null);
-        setCurrentTenant(null);
-        setUserProfile(null);
-        setSubscriptionData(null);
-        
-        // Clean up storage
-        cleanupAuthState();
-        
-        // Force page reload for clean state
-        setTimeout(() => {
-          window.location.href = '/auth';
-        }, 500);
+      // Clear state immediately
+      setUser(null);
+      setSession(null);
+      setCurrentTenant(null);
+      setUserProfile(null);
+      setSubscriptionData(null);
+      
+      // Attempt global sign out (ignore errors since session might be invalid)
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+        console.log('Successfully signed out from Supabase');
+      } catch (signOutError: any) {
+        console.log('Sign out failed (probably session already invalid):', signOutError.message);
+        // Don't show error to user - this is expected when session is invalid
       }
+      
+      toast.success('Signed out successfully!');
+      
+      // Force page reload for completely clean state
+      setTimeout(() => {
+        window.location.href = '/auth';
+      }, 300);
+      
     } catch (error: any) {
       console.error('Sign out exception:', error);
-      toast.error('An error occurred during sign out');
+      // Even if sign out fails completely, clean up and redirect
+      cleanupAuthState();
+      setUser(null);
+      setSession(null);
+      setCurrentTenant(null);
+      setUserProfile(null);
+      setSubscriptionData(null);
+      
+      toast.success('Signed out locally');
+      
+      setTimeout(() => {
+        window.location.href = '/auth';
+      }, 300);
     } finally {
       setLoading(false);
     }
