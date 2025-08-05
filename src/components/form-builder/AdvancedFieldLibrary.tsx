@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Tag, Filter, X, Edit2 } from 'lucide-react';
+import { Plus, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,8 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,34 +29,27 @@ const FIELD_CATEGORIES = [
   'Other'
 ];
 
-const COMMON_TAGS = [
-  'premium', 'basic', 'seasonal', 'wedding', 'corporate', 'birthday', 
-  'anniversary', 'halal', 'vegetarian', 'alcohol', 'setup', 'cleanup',
-  'audio', 'visual', 'lighting', 'furniture', 'security'
-];
-
 export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ formId, onFieldAdded }) => {
   const { currentTenant } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   
   const [newField, setNewField] = useState({
     label: '',
     field_type: 'text',
-    help_text: '',
     category: '',
-    tags: [] as string[],
-    price_modifier: 0,
-    affects_pricing: false,
-    pricing_type: 'fixed'
+    options: [] as string[],
+    toggle_true_value: 'Yes',
+    toggle_false_value: 'No'
   });
+
+  const [newOption, setNewOption] = useState('');
 
   // Fetch field library with enhanced search
   const { data: fieldLibrary } = useSupabaseQuery(
-    ['field-library-advanced', searchTerm, selectedCategory, selectedTags.join(',')],
+    ['field-library-advanced', searchTerm, selectedCategory],
     async () => {
       if (!currentTenant?.id) return [];
       
@@ -70,17 +61,12 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
 
       // Apply search filter
       if (searchTerm) {
-        query = query.or(`label.ilike.%${searchTerm}%,help_text.ilike.%${searchTerm}%`);
+        query = query.ilike('label', `%${searchTerm}%`);
       }
 
       // Apply category filter
       if (selectedCategory) {
         query = query.eq('category', selectedCategory);
-      }
-
-      // Apply tag filters - convert to array format for Supabase
-      if (selectedTags.length > 0) {
-        query = query.contains('tags', selectedTags);
       }
 
       query = query.order('label');
@@ -116,18 +102,23 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
         .replace(/\s+/g, '_')
         .slice(0, 50) + '_' + Date.now();
 
+      let options = null;
+      
+      // Set options based on field type
+      if (fieldData.field_type === 'select') {
+        options = fieldData.options;
+      } else if (fieldData.field_type === 'checkbox') {
+        options = [fieldData.toggle_false_value, fieldData.toggle_true_value];
+      }
+
       const { data, error } = await supabase
         .from('field_library')
         .insert([{
           name: name,
           label: fieldData.label,
           field_type: fieldData.field_type,
-          help_text: fieldData.help_text || null,
           category: fieldData.category || null,
-          tags: fieldData.tags || [],
-          price_modifier: fieldData.affects_pricing ? fieldData.price_modifier : 0,
-          pricing_type: fieldData.affects_pricing ? fieldData.pricing_type : null,
-          affects_pricing: fieldData.affects_pricing,
+          options: options,
           tenant_id: currentTenant?.id,
           active: true
         }])
@@ -185,13 +176,12 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
     setNewField({
       label: '',
       field_type: 'text',
-      help_text: '',
       category: '',
-      tags: [],
-      price_modifier: 0,
-      affects_pricing: false,
-      pricing_type: 'fixed'
+      options: [],
+      toggle_true_value: 'Yes',
+      toggle_false_value: 'No'
     });
+    setNewOption('');
   };
 
   const handleCreateField = () => {
@@ -199,42 +189,47 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
       toast.error('Field label is required');
       return;
     }
+
+    if (newField.field_type === 'select' && newField.options.length === 0) {
+      toast.error('Dropdown fields require at least one option');
+      return;
+    }
+
     createFieldMutation.mutate(newField);
   };
 
-  const addTag = (tag: string) => {
-    if (!newField.tags.includes(tag)) {
+  const addOption = () => {
+    if (newOption.trim() && !newField.options.includes(newOption.trim())) {
       setNewField(prev => ({
         ...prev,
-        tags: [...prev.tags, tag]
+        options: [...prev.options, newOption.trim()]
       }));
+      setNewOption('');
     }
   };
 
-  const removeTag = (tagToRemove: string) => {
+  const removeOption = (optionToRemove: string) => {
     setNewField(prev => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
+      options: prev.options.filter(option => option !== optionToRemove)
     }));
-  };
-
-  const toggleFilterTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
   };
 
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCategory('');
-    setSelectedTags([]);
   };
 
   const availableFields = fieldLibrary?.filter(field => 
     !formFieldIds?.includes(field.id)
   ) || [];
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addOption();
+    }
+  };
 
   return (
     <Card className="h-full flex flex-col">
@@ -258,36 +253,32 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                   Create Field
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Create New Field</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Label *</Label>
-                      <Input
-                        value={newField.label}
-                        onChange={(e) => setNewField({ ...newField, label: e.target.value })}
-                        placeholder="Field label"
-                      />
-                    </div>
-                    <div>
-                      <Label>Type</Label>
-                      <Select value={newField.field_type} onValueChange={(value) => setNewField({ ...newField, field_type: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Text</SelectItem>
-                          <SelectItem value="number">Number</SelectItem>
-                          <SelectItem value="textarea">Textarea</SelectItem>
-                          <SelectItem value="checkbox">Toggle/Checkbox</SelectItem>
-                          <SelectItem value="select">Select Dropdown</SelectItem>
-                          <SelectItem value="radio">Radio Buttons</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Label *</Label>
+                    <Input
+                      value={newField.label}
+                      onChange={(e) => setNewField({ ...newField, label: e.target.value })}
+                      placeholder="Field label"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Type *</Label>
+                    <Select value={newField.field_type} onValueChange={(value) => setNewField({ ...newField, field_type: value, options: [] })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="checkbox">Toggle</SelectItem>
+                        <SelectItem value="select">Dropdown</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
@@ -304,84 +295,60 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                     </Select>
                   </div>
 
-                  <div>
-                    <Label>Help Text</Label>
-                    <Textarea
-                      value={newField.help_text}
-                      onChange={(e) => setNewField({ ...newField, help_text: e.target.value })}
-                      placeholder="Optional help text for users"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Tags</Label>
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-1">
-                        {newField.tags.map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            {tag}
-                            <button
-                              onClick={() => removeTag(tag)}
-                              className="ml-1 hover:text-red-600"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {COMMON_TAGS.filter(tag => !newField.tags.includes(tag)).map(tag => (
-                          <Button
-                            key={tag}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addTag(tag)}
-                            className="h-6 text-xs"
-                          >
-                            {tag}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={newField.affects_pricing}
-                        onCheckedChange={(checked) => setNewField({ ...newField, affects_pricing: checked })}
-                      />
-                      <Label>Affects Pricing</Label>
-                    </div>
-                    
-                    {newField.affects_pricing && (
-                      <div className="grid grid-cols-2 gap-4 ml-6">
-                        <div>
-                          <Label>Pricing Type</Label>
-                          <Select value={newField.pricing_type} onValueChange={(value) => setNewField({ ...newField, pricing_type: value })}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fixed">Fixed Price</SelectItem>
-                              <SelectItem value="per_person">Per Person</SelectItem>
-                              <SelectItem value="percentage">Percentage</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Price/Rate (£)</Label>
+                  {/* Dropdown Options */}
+                  {newField.field_type === 'select' && (
+                    <div>
+                      <Label>Dropdown Options *</Label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
                           <Input
-                            type="number"
-                            step="0.01"
-                            value={newField.price_modifier}
-                            onChange={(e) => setNewField({ ...newField, price_modifier: parseFloat(e.target.value) || 0 })}
+                            value={newOption}
+                            onChange={(e) => setNewOption(e.target.value)}
+                            placeholder="Add option..."
+                            onKeyPress={handleKeyPress}
                           />
+                          <Button type="button" onClick={addOption} disabled={!newOption.trim()}>
+                            Add
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {newField.options.map((option, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {option}
+                              <button
+                                onClick={() => removeOption(option)}
+                                className="ml-1 hover:text-red-600"
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          ))}
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Toggle Values */}
+                  {newField.field_type === 'checkbox' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>False Value</Label>
+                        <Input
+                          value={newField.toggle_false_value}
+                          onChange={(e) => setNewField({ ...newField, toggle_false_value: e.target.value })}
+                          placeholder="No"
+                        />
+                      </div>
+                      <div>
+                        <Label>True Value</Label>
+                        <Input
+                          value={newField.toggle_true_value}
+                          onChange={(e) => setNewField({ ...newField, toggle_true_value: e.target.value })}
+                          placeholder="Yes"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex gap-2 pt-4">
                     <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="flex-1">
@@ -401,7 +368,7 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
         <div className="relative">
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search fields by name or description..."
+            placeholder="Search fields by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8 h-8"
@@ -425,23 +392,6 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                 </SelectContent>
               </Select>
             </div>
-            
-            <div>
-              <Label className="text-xs">Tags</Label>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {COMMON_TAGS.map(tag => (
-                  <Button
-                    key={tag}
-                    variant={selectedTags.includes(tag) ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => toggleFilterTag(tag)}
-                    className="h-6 text-xs"
-                  >
-                    {tag}
-                  </Button>
-                ))}
-              </div>
-            </div>
 
             <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full h-6">
               Clear Filters
@@ -458,7 +408,7 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                 <div className="flex items-center gap-2 mb-1">
                   <div className="font-medium text-sm truncate">{field.label}</div>
                   <Badge variant="outline" className="text-xs capitalize">
-                    {field.field_type.replace('_', ' ')}
+                    {field.field_type === 'checkbox' ? 'Toggle' : field.field_type === 'select' ? 'Dropdown' : 'Text'}
                   </Badge>
                 </div>
                 
@@ -467,29 +417,10 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
                     {field.category}
                   </Badge>
                 )}
-                
-                {field.tags && field.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-1">
-                    {field.tags.map(tag => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        <Tag className="h-2 w-2 mr-1" />
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
 
-                {field.affects_pricing && (
-                  <div className="text-xs text-green-600 font-medium">
-                    {field.pricing_type === 'fixed' && `Fixed: £${field.price_modifier}`}
-                    {field.pricing_type === 'per_person' && `Per Person: £${field.price_modifier}`}
-                    {field.pricing_type === 'percentage' && `${field.price_modifier}%`}
-                  </div>
-                )}
-
-                {field.help_text && (
-                  <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {field.help_text}
+                {field.options && field.options.length > 0 && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Options: {Array.isArray(field.options) ? field.options.join(', ') : field.options}
                   </div>
                 )}
               </div>
@@ -508,15 +439,15 @@ export const AdvancedFieldLibrary: React.FC<AdvancedFieldLibraryProps> = ({ form
 
         {availableFields.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <Tag className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <div className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">
-              {searchTerm || selectedCategory || selectedTags.length > 0 
+              {searchTerm || selectedCategory 
                 ? 'No fields match your filters' 
                 : 'No available fields'
               }
             </p>
             <p className="text-xs mt-1">
-              {searchTerm || selectedCategory || selectedTags.length > 0
+              {searchTerm || selectedCategory
                 ? 'Try adjusting your search or filters'
                 : 'Create your first field to get started'
               }
