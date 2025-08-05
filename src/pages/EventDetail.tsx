@@ -320,9 +320,6 @@ export const EventDetail = () => {
                   />
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-sm text-muted-foreground">{event.event_type}</span>
-                    <Badge variant="outline" className={`text-xs font-medium border-0 ${getStatusColor(event.status)}`}>
-                      {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
-                    </Badge>
                   </div>
                 </div>
               </div>
@@ -373,9 +370,9 @@ export const EventDetail = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Business Flow */}
-        <div className="mb-6">
-          <div className="card-elegant p-4">
+        {/* Compact Business Flow */}
+        <div className="mb-4">
+          <div className="card-elegant p-3">
             <EventBusinessFlow depositPaid={event.deposit_paid} balanceCleared={event.balance_cleared} eventFinalized={event.event_finalized} eventId={event.id} />
           </div>
         </div>
@@ -585,30 +582,10 @@ export const EventDetail = () => {
               </div>
             </div>
 
-            {/* Communication Timeline */}
-            <div className="card-elegant">
-              <div className="px-6 py-4 border-b border-border/50">
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <Mail className="h-5 w-5 text-cyan-500" />
-                  Communication Timeline
-                </h2>
-              </div>
-              <div className="p-6">
-                <CommunicationTimeline eventId={event.id} />
-              </div>
-            </div>
-
-            {/* Finance Timeline */}
-            <div className="card-elegant">
-              <div className="px-6 py-4 border-b border-border/50">
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-rose-500" />
-                  Finance Timeline
-                </h2>
-              </div>
-              <div className="p-6">
-                <FinanceTimeline eventId={event.id} />
-              </div>
+            {/* Timelines - Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CommunicationTimeline eventId={event.id} />
+              <FinanceTimeline eventId={event.id} />
             </div>
           </div>
 

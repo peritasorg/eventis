@@ -282,9 +282,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                                    <div className="text-gray-600">{event.customers.phone}</div>
                                  </div>
                                )}
-                               <div className="inline-block px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
-                                 {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
-                               </div>
                              </div>
                            </TooltipContent>
                          </Tooltip>
