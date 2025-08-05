@@ -36,7 +36,7 @@ export const Events = () => {
           estimated_guests,
           status,
           total_amount,
-          customers!inner (
+          customers (
             name,
             email,
             phone

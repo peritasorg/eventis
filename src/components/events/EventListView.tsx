@@ -79,14 +79,10 @@ export const EventListView: React.FC<EventListViewProps> = ({
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'inquiry': 
-        return <Badge className="bg-status-discovery text-status-discovery-foreground text-xs">Discovery</Badge>;
-      case 'confirmed': 
-        return <Badge className="bg-status-proposal text-status-proposal-foreground text-xs">Proposal</Badge>;
-      case 'completed': 
-        return <Badge className="bg-status-won text-status-won-foreground text-xs">Won</Badge>;
-      case 'cancelled': 
-        return <Badge className="bg-status-closed text-status-closed-foreground text-xs">Closed</Badge>;
+      case 'active': 
+        return <Badge variant="default" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Active</Badge>;
+      case 'inactive': 
+        return <Badge variant="secondary" className="text-xs">Inactive</Badge>;
       default: 
         return <Badge variant="outline" className="text-xs">{status}</Badge>;
     }
@@ -141,11 +137,10 @@ export const EventListView: React.FC<EventListViewProps> = ({
   return (
     <div className="bg-card">
       {/* Table Header */}
-      <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      <div className="grid grid-cols-11 gap-4 px-6 py-3 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <div className="col-span-3">Event</div>
         <div className="col-span-2">Customer</div>
         <div className="col-span-2">Date</div>
-        <div className="col-span-1">Status</div>
         <div className="col-span-1">Guests</div>
         <div className="col-span-2">Value</div>
         <div className="col-span-1">Actions</div>
@@ -156,7 +151,7 @@ export const EventListView: React.FC<EventListViewProps> = ({
         {events.map((event) => (
           <div 
             key={event.id} 
-            className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer group"
+            className="grid grid-cols-11 gap-4 px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer group"
             onClick={() => onEventClick(event.id)}
           >
             {/* Event Details */}
@@ -192,11 +187,6 @@ export const EventListView: React.FC<EventListViewProps> = ({
                 <Clock className="h-3 w-3" />
                 {formatTime(event.start_time)} - {formatTime(event.end_time)}
               </div>
-            </div>
-
-            {/* Status */}
-            <div className="col-span-1 flex items-center">
-              {getStatusBadge(event.status)}
             </div>
 
             {/* Guests */}

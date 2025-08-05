@@ -9,17 +9,24 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Calendar, DollarSign, Users, MessageSquare, Receipt, Clock } from 'lucide-react';
 import { CommunicationTimeline } from '@/components/events/CommunicationTimeline';
 import { FinanceTimeline } from '@/components/events/FinanceTimeline';
+import { EventBusinessFlow } from '@/components/events/EventBusinessFlow';
+import { InlineInput } from './InlineInput';
+import { InlineSelect } from './InlineSelect';
+import { InlineDate } from './InlineDate';
+import { InlineNumber } from './InlineNumber';
+import { InlineTextarea } from './InlineTextarea';
 import { useSupabaseMutation, useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 
 interface EventOverviewTabProps {
   event: any;
 }
 
 export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => {
-  const [isEditing, setIsEditing] = useState(false);
   const { currentTenant } = useAuth();
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
 
   // Query to get all customers for the dropdown
   const { data: customers } = useSupabaseQuery(
@@ -83,8 +90,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
     },
     {
       successMessage: 'Event updated successfully!',
-      invalidateQueries: [['event', event.id]],
-      onSuccess: () => setIsEditing(false)
+      invalidateQueries: [['event', event.id]]
     }
   );
 
@@ -152,71 +158,51 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-               <div>
+              <div>
                 <Label className="text-xs font-medium text-muted-foreground">Event Title</Label>
-                <div className="text-sm font-medium break-words">{event.event_name}</div>
+                <InlineInput
+                  value={event.event_name}
+                  onSave={(value) => updateEventMutation.mutate({ event_name: value })}
+                  placeholder="Event name"
+                  className="text-sm font-medium"
+                />
               </div>
               
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Event Type</Label>
-                <div className="text-sm capitalize">{event.event_type || 'Not specified'}</div>
+                <InlineSelect
+                  value={event.event_type || ''}
+                  options={[
+                    ...(eventTypeConfigs?.map(config => ({
+                      value: config.event_type,
+                      label: config.display_name
+                    })) || []),
+                    { value: 'other', label: 'Other' }
+                  ]}
+                  onSave={(value) => updateEventMutation.mutate({ event_type: value })}
+                  placeholder="Select event type"
+                  className="text-sm capitalize"
+                />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground">Event Date(s)</Label>
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        name="event_multiple_days"
-                        defaultChecked={event.event_multiple_days}
+                <div>
+                  <InlineDate
+                    value={event.event_start_date}
+                    onSave={(value) => updateEventMutation.mutate({ event_start_date: value })}
+                    className="text-sm font-medium"
+                  />
+                  {event.event_multiple_days && event.event_end_date && event.event_end_date !== event.event_start_date && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Until: <InlineDate
+                        value={event.event_end_date}
+                        onSave={(value) => updateEventMutation.mutate({ event_end_date: value })}
+                        className="text-xs"
                       />
-                      <Label>Multiple day event</Label>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="event_start_date">Start Date</Label>
-                        <Input
-                          id="event_start_date"
-                          name="event_start_date"
-                          type="date"
-                          defaultValue={event.event_start_date}
-                        />
-                      </div>
-                      {event.event_multiple_days && (
-                        <div>
-                          <Label htmlFor="event_end_date">End Date</Label>
-                          <Input
-                            id="event_end_date"
-                            name="event_end_date"
-                            type="date"
-                            defaultValue={event.event_end_date}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-sm font-medium">
-                      {new Date(event.event_start_date).toLocaleDateString('en-GB', {
-                        weekday: 'short',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </div>
-                    {event.event_multiple_days && event.event_end_date && event.event_end_date !== event.event_start_date && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Until: {new Date(event.event_end_date).toLocaleDateString('en-GB', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <div>
@@ -249,157 +235,88 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
           {/* Basic Information */}
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center justify-between text-base">
+              <CardTitle className="flex items-center gap-2 text-base">
                 Basic Information
-                {!isEditing ? (
-                  <Button 
-                    type="button"
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setIsEditing(true)}
-                    className="h-7 px-2 text-xs"
-                  >
-                    Edit
-                  </Button>
-                ) : (
-                  <div className="flex gap-1">
-                    <Button 
-                      type="button"
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setIsEditing(false)}
-                      className="h-7 px-2 text-xs"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit"
-                      size="sm"
-                      disabled={updateEventMutation.isPending}
-                      className="h-7 px-2 text-xs"
-                    >
-                      Save
-                    </Button>
-                  </div>
-                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <Label htmlFor="customer_id" className="text-xs font-medium text-muted-foreground">Customer</Label>
-                {isEditing ? (
-                  <Select name="customer_id" defaultValue={event.customer_id || 'none'}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a customer..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No customer assigned</SelectItem>
-                      {customers?.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          <div className="truncate">
-                            {customer.name}
-                            {customer.company && (
-                              <span className="text-gray-500 ml-2">- {customer.company}</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="break-words">
-                    <div className="font-medium">{event.customers?.name || 'No customer assigned'}</div>
-                    {event.customers?.company && (
-                      <div className="text-sm text-gray-600 break-words">{event.customers.company}</div>
-                    )}
-                  </div>
-                )}
+                <Label className="text-xs font-medium text-muted-foreground">Customer</Label>
+                <InlineSelect
+                  value={event.customer_id || 'none'}
+                  options={[
+                    { value: 'none', label: 'No customer assigned' },
+                    ...(customers?.map(customer => ({
+                      value: customer.id,
+                      label: `${customer.name}${customer.company ? ` - ${customer.company}` : ''}`
+                    })) || [])
+                  ]}
+                  onSave={(value) => updateEventMutation.mutate({ customer_id: value === 'none' ? null : value })}
+                  placeholder="Select a customer..."
+                  className="text-sm"
+                />
               </div>
 
               <div>
-                <Label htmlFor="ethnicity">Ethnicity</Label>
-                {isEditing ? (
-                  <Input
-                    id="ethnicity"
-                    name="ethnicity"
-                    defaultValue={event.ethnicity || ''}
-                    placeholder="e.g., Somali, Pakistani, etc."
-                  />
-                ) : (
-                  <div className="text-sm break-words">{event.ethnicity || 'Not specified'}</div>
-                )}
+                <Label className="text-xs font-medium text-muted-foreground">Ethnicity</Label>
+                <InlineInput
+                  value={event.ethnicity || ''}
+                  onSave={(value) => updateEventMutation.mutate({ ethnicity: value })}
+                  placeholder="e.g., Somali, Pakistani, etc."
+                  className="text-sm"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="primary_contact_name">Primary Contact</Label>
-                  {isEditing ? (
-                    <Input
-                      id="primary_contact_name"
-                      name="primary_contact_name"
-                      defaultValue={event.primary_contact_name || ''}
-                      placeholder="Contact name"
-                    />
-                  ) : (
-                    <div className="text-sm break-words">{event.primary_contact_name || 'Not specified'}</div>
-                  )}
+                  <Label className="text-xs font-medium text-muted-foreground">Primary Contact</Label>
+                  <InlineInput
+                    value={event.primary_contact_name || ''}
+                    onSave={(value) => updateEventMutation.mutate({ primary_contact_name: value })}
+                    placeholder="Contact name"
+                    className="text-sm"
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="primary_contact_phone">Phone</Label>
-                  {isEditing ? (
-                    <Input
-                      id="primary_contact_phone"
-                      name="primary_contact_phone"
-                      defaultValue={event.primary_contact_phone || ''}
-                      placeholder="Phone number"
-                    />
-                  ) : (
-                    <div className="text-sm break-words">{event.primary_contact_phone || 'Not specified'}</div>
-                  )}
+                  <Label className="text-xs font-medium text-muted-foreground">Phone</Label>
+                  <InlineInput
+                    value={event.primary_contact_phone || ''}
+                    onSave={(value) => updateEventMutation.mutate({ primary_contact_phone: value })}
+                    placeholder="Phone number"
+                    className="text-sm"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="secondary_contact_name">Secondary Contact</Label>
-                  {isEditing ? (
-                    <Input
-                      id="secondary_contact_name"
-                      name="secondary_contact_name"
-                      defaultValue={event.secondary_contact_name || ''}
-                      placeholder="Contact name"
-                    />
-                  ) : (
-                    <div className="text-sm break-words">{event.secondary_contact_name || 'Not specified'}</div>
-                  )}
+                  <Label className="text-xs font-medium text-muted-foreground">Secondary Contact</Label>
+                  <InlineInput
+                    value={event.secondary_contact_name || ''}
+                    onSave={(value) => updateEventMutation.mutate({ secondary_contact_name: value })}
+                    placeholder="Contact name"
+                    className="text-sm"
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="secondary_contact_phone">Phone</Label>
-                  {isEditing ? (
-                    <Input
-                      id="secondary_contact_phone"
-                      name="secondary_contact_phone"
-                      defaultValue={event.secondary_contact_phone || ''}
-                      placeholder="Phone number"
-                    />
-                  ) : (
-                    <div className="text-sm break-words">{event.secondary_contact_phone || 'Not specified'}</div>
-                  )}
+                  <Label className="text-xs font-medium text-muted-foreground">Phone</Label>
+                  <InlineInput
+                    value={event.secondary_contact_phone || ''}
+                    onSave={(value) => updateEventMutation.mutate({ secondary_contact_phone: value })}
+                    placeholder="Phone number"
+                    className="text-sm"
+                  />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="secondary_contact_relationship">Relationship to Main Contact</Label>
-                {isEditing ? (
-                  <Input
-                    id="secondary_contact_relationship"
-                    name="secondary_contact_relationship"
-                    defaultValue={event.secondary_contact_relationship || ''}
-                    placeholder="e.g., Spouse, Parent, etc."
-                  />
-                ) : (
-                  <div className="text-sm break-words">{event.secondary_contact_relationship || 'Not specified'}</div>
-                )}
+                <Label className="text-xs font-medium text-muted-foreground">Relationship to Main Contact</Label>
+                <InlineInput
+                  value={event.secondary_contact_relationship || ''}
+                  onSave={(value) => updateEventMutation.mutate({ secondary_contact_relationship: value })}
+                  placeholder="e.g., Spouse, Parent, etc."
+                  className="text-sm"
+                />
               </div>
             </CardContent>
           </Card>
@@ -415,81 +332,59 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
             <CardContent className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="men_count">Men Count</Label>
-                  {isEditing ? (
-                    <Input
-                      id="men_count"
-                      name="men_count"
-                      type="number"
-                      defaultValue={event.men_count || 0}
-                    />
-                  ) : (
-                    <div className="text-lg font-medium">{event.men_count || 0}</div>
-                  )}
+                  <Label className="text-xs font-medium text-muted-foreground">Men Count</Label>
+                  <InlineNumber
+                    value={event.men_count || 0}
+                    onSave={(value) => updateEventMutation.mutate({ men_count: value })}
+                    min={0}
+                    className="text-lg font-medium"
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="ladies_count">Ladies Count</Label>
-                  {isEditing ? (
-                    <Input
-                      id="ladies_count"
-                      name="ladies_count"
-                      type="number"
-                      defaultValue={event.ladies_count || 0}
-                    />
-                  ) : (
-                    <div className="text-lg font-medium">{event.ladies_count || 0}</div>
-                  )}
+                  <Label className="text-xs font-medium text-muted-foreground">Ladies Count</Label>
+                  <InlineNumber
+                    value={event.ladies_count || 0}
+                    onSave={(value) => updateEventMutation.mutate({ ladies_count: value })}
+                    min={0}
+                    className="text-lg font-medium"
+                  />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="event_mix_type">Event Mix Type</Label>
-                {isEditing ? (
-                  <Select name="event_mix_type" defaultValue={event.event_mix_type || 'mixed'}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mixed">Mixed</SelectItem>
-                      <SelectItem value="men_only">Men Only</SelectItem>
-                      <SelectItem value="ladies_only">Ladies Only</SelectItem>
-                      <SelectItem value="separate_sections">Separate Sections</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="text-sm capitalize break-words">{event.event_mix_type || 'Mixed'}</div>
-                )}
+                <Label className="text-xs font-medium text-muted-foreground">Event Mix Type</Label>
+                <InlineSelect
+                  value={event.event_mix_type || 'mixed'}
+                  options={[
+                    { value: 'mixed', label: 'Mixed' },
+                    { value: 'men_only', label: 'Men Only' },
+                    { value: 'ladies_only', label: 'Ladies Only' },
+                    { value: 'separate_sections', label: 'Separate Sections' }
+                  ]}
+                  onSave={(value) => updateEventMutation.mutate({ event_mix_type: value })}
+                  className="text-sm capitalize"
+                />
               </div>
 
               <div>
-                <Label htmlFor="total_guests">Total Guest Count</Label>
-                {isEditing ? (
-                  <Input
-                    id="total_guests"
-                    name="total_guests"
-                    type="number"
-                    defaultValue={event.total_guests || (event.men_count || 0) + (event.ladies_count || 0)}
-                  />
-                ) : (
-                  <div className="text-lg font-medium">
-                    {event.total_guests || (event.men_count || 0) + (event.ladies_count || 0)} guests
-                  </div>
-                )}
+                <Label className="text-xs font-medium text-muted-foreground">Total Guest Count</Label>
+                <InlineNumber
+                  value={event.total_guests || (event.men_count || 0) + (event.ladies_count || 0)}
+                  onSave={(value) => updateEventMutation.mutate({ total_guests: value })}
+                  min={0}
+                  className="text-lg font-medium"
+                />
               </div>
 
               <div>
-                <Label htmlFor="total_guest_price">Total Guest Price</Label>
-                {isEditing ? (
-                  <Input
-                    id="total_guest_price"
-                    name="total_guest_price"
-                    type="number"
-                    step="0.01"
-                    defaultValue={event.total_guest_price || 0}
-                  />
-                ) : (
-                  <div className="text-lg font-medium">£{(event.total_guest_price || 0).toLocaleString()}</div>
-                )}
+                <Label className="text-xs font-medium text-muted-foreground">Total Guest Price</Label>
+                <InlineNumber
+                  value={event.total_guest_price || 0}
+                  onSave={(value) => updateEventMutation.mutate({ total_guest_price: value })}
+                  step={0.01}
+                  min={0}
+                  className="text-lg font-medium"
+                />
               </div>
             </CardContent>
           </Card>
@@ -506,19 +401,9 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               <div className="p-3 bg-blue-50 rounded-md">
                 <Label className="text-xs text-blue-700">Guest Price</Label>
-                {isEditing ? (
-                  <Input
-                    name="total_guest_price"
-                    type="number"
-                    step="0.01"
-                    defaultValue={event.total_guest_price || 0}
-                    className="mt-1 h-8 text-sm"
-                  />
-                ) : (
-                  <div className="text-lg font-bold text-blue-900">
-                    £{totalGuestPrice.toFixed(2)}
-                  </div>
-                )}
+                <div className="text-lg font-bold text-blue-900">
+                  £{totalGuestPrice.toFixed(2)}
+                </div>
               </div>
               
               <div className="p-3 bg-green-50 rounded-md">
@@ -537,19 +422,9 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               
               <div className="p-3 bg-orange-50 rounded-md">
                 <Label className="text-xs text-orange-700">Deposit</Label>
-                {isEditing ? (
-                  <Input
-                    name="deposit_amount"
-                    type="number"
-                    step="0.01"
-                    defaultValue={event.deposit_amount || 0}
-                    className="mt-1 h-8 text-sm"
-                  />
-                ) : (
-                  <div className="text-lg font-bold text-orange-900">
-                    £{depositAmount.toFixed(2)}
-                  </div>
-                )}
+                <div className="text-lg font-bold text-orange-900">
+                  £{depositAmount.toFixed(2)}
+                </div>
               </div>
             </div>
             
@@ -583,29 +458,29 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
 
       {/* Communication & Finance Timelines */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <MessageSquare className="h-4 w-4" />
-              Communication Timeline
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CommunicationTimeline eventId={event.id} />
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            <h3 className="text-base font-medium">Communication Timeline</h3>
+          </div>
+          <Card className="shadow-sm">
+            <CardContent className="pt-6">
+              <CommunicationTimeline eventId={event.id} />
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Receipt className="h-4 w-4" />
-              Finance Timeline
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FinanceTimeline eventId={event.id} />
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            <h3 className="text-base font-medium">Finance Timeline</h3>
+          </div>
+          <Card className="shadow-sm">
+            <CardContent className="pt-6">
+              <FinanceTimeline eventId={event.id} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

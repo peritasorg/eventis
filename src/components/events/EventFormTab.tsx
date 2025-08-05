@@ -13,16 +13,26 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface EventFormTabProps {
-  event: any;
+  eventForm: any;
+  eventId: string;
+  onFormChange?: (total: number) => void;
 }
 
-export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
+export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, onFormChange }) => {
   const { currentTenant } = useAuth();
-  const [formResponses, setFormResponses] = useState<Record<string, any>>(event.form_responses || {});
+  const [formResponses, setFormResponses] = useState<Record<string, any>>(eventForm.form_responses || {});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Use the event's form_template_used as the selected form - this ensures persistence
-  const selectedFormId = event.form_template_used || '';
+  // Use the eventForm's form_template_id as the selected form
+  const selectedFormId = eventForm.form_template_id || '';
+
+  // Update form responses when eventForm changes
+  useEffect(() => {
+    if (eventForm.form_responses) {
+      setFormResponses(eventForm.form_responses);
+      setHasUnsavedChanges(false);
+    }
+  }, [eventForm.form_responses]);
 
   const { data: formTemplates } = useSupabaseQuery(
     ['form-templates'],
@@ -45,51 +55,108 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     }
   );
 
-  const { data: selectedFormFields } = useSupabaseQuery(
-    ['form-fields', selectedFormId],
+  const { data: formStructure } = useSupabaseQuery(
+    ['form-structure', selectedFormId],
     async () => {
-      if (!selectedFormId || !currentTenant?.id) return [];
+      if (!selectedFormId || !currentTenant?.id) return { sections: [], fields: [] };
       
-      const { data, error } = await supabase
+      // First fetch form pages for this template
+      const { data: pages, error: pagesError } = await supabase
+        .from('form_pages')
+        .select('id')
+        .eq('form_template_id', selectedFormId)
+        .eq('tenant_id', currentTenant.id)
+        .order('page_number');
+      
+      if (pagesError) {
+        console.error('Form pages error:', pagesError);
+        return { sections: [], fields: [] };
+      }
+      
+      if (!pages || pages.length === 0) {
+        // If no pages exist, just fetch fields directly
+        const { data: fields, error: fieldsError } = await supabase
+          .from('form_field_instances')
+          .select(`
+            id,
+            field_library_id,
+            field_order,
+            form_section_id,
+            field_library (
+              id,
+              label,
+              field_type,
+              category,
+              required,
+              options,
+              pricing_behavior,
+              unit_price
+            )
+          `)
+          .eq('form_template_id', selectedFormId)
+          .eq('tenant_id', currentTenant.id)
+          .order('field_order');
+        
+        if (fieldsError) {
+          console.error('Form fields error:', fieldsError);
+          return { sections: [], fields: [] };
+        }
+        
+        return { sections: [], fields: fields || [] };
+      }
+      
+      const pageIds = pages.map(p => p.id);
+      
+      // Fetch sections for these pages
+      const { data: sections, error: sectionsError } = await supabase
+        .from('form_sections')
+        .select('*')
+        .in('form_page_id', pageIds)
+        .eq('tenant_id', currentTenant.id)
+        .order('section_order');
+      
+      if (sectionsError) {
+        console.error('Form sections error:', sectionsError);
+      }
+      
+      // Fetch fields with their sections
+      const { data: fields, error: fieldsError } = await supabase
         .from('form_field_instances')
         .select(`
           id,
           field_library_id,
           field_order,
+          form_section_id,
           field_library (
             id,
             label,
             field_type,
             category,
-            help_text,
-            price_modifier
+            required,
+            options,
+            pricing_behavior,
+            unit_price
           )
         `)
         .eq('form_template_id', selectedFormId)
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
       
-      if (error) {
-        console.error('Form fields error:', error);
-        return [];
+      if (fieldsError) {
+        console.error('Form fields error:', fieldsError);
+        return { sections: sections || [], fields: [] };
       }
       
-      // Filter out auto-created price/notes fields - we only want the main fields
-      const mainFields = (data || []).filter(field => {
-        const label = field.field_library?.label || '';
-        return !label.toLowerCase().includes(' price') && !label.toLowerCase().includes(' notes');
-      });
-      
-      return mainFields;
+      return { sections: sections || [], fields: fields || [] };
     }
   );
 
-  const updateEventMutation = useSupabaseMutation(
+  const updateEventFormMutation = useSupabaseMutation(
     async (updates: Record<string, any>) => {
       const { data, error } = await supabase
-        .from('events')
+        .from('event_forms')
         .update(updates)
-        .eq('id', event.id)
+        .eq('id', eventForm.id)
         .select()
         .single();
       
@@ -98,31 +165,43 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     },
     {
       successMessage: 'Form responses saved successfully!',
-      invalidateQueries: [['event', event.id]]
+      invalidateQueries: [['event-forms', eventId]]
     }
   );
 
-  const handleLoadForm = (newFormId: string) => {
+  const handleChangeTemplate = (newFormId: string) => {
     if (!newFormId) {
       toast.error('Please select a form template');
       return;
     }
     
-    updateEventMutation.mutate({
-      form_template_used: newFormId
+    // Warn about data loss
+    if (Object.keys(formResponses).length > 0) {
+      if (!confirm('Changing the template will clear all current form responses. Continue?')) {
+        return;
+      }
+    }
+    
+    updateEventFormMutation.mutate({
+      form_template_id: newFormId,
+      form_responses: {},
+      form_total: 0
     });
   };
 
   const handleToggleChange = (fieldId: string, enabled: boolean) => {
-    const field = selectedFormFields?.find(f => f.field_library.id === fieldId)?.field_library;
+    const field = formStructure?.fields?.find(f => f.field_library.id === fieldId)?.field_library;
     
     const updatedResponses = {
       ...formResponses,
       [fieldId]: {
+        ...formResponses[fieldId],
         enabled,
-        price: enabled ? (formResponses[fieldId]?.price || field?.price_modifier || 0) : 0,
+        pricing_type: enabled ? (formResponses[fieldId]?.pricing_type || 'fixed') : 'none',
+        price: enabled ? (formResponses[fieldId]?.price || 0) : 0,
+        quantity: enabled ? (formResponses[fieldId]?.quantity || 1) : 1,
         notes: enabled ? (formResponses[fieldId]?.notes || '') : '',
-        label: field?.label || '' // Store the field label for PDF generation
+        label: field?.label || ''
       }
     };
     
@@ -131,7 +210,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   };
 
   const handleFieldChange = (fieldId: string, field: string, value: string | number) => {
-    const fieldInstance = selectedFormFields?.find(f => f.field_library.id === fieldId);
+    const fieldInstance = formStructure?.fields?.find(f => f.field_library.id === fieldId);
     const fieldLabel = fieldInstance?.field_library?.label || '';
     
     const updatedResponses = {
@@ -150,18 +229,21 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   const handleSaveChanges = () => {
     const formTotal = calculateFormTotal();
     
-    updateEventMutation.mutate({
+    updateEventFormMutation.mutate({
       form_responses: formResponses,
       form_total: formTotal
     });
+    
+    // Call the callback to update parent component
+    onFormChange?.(formTotal);
     
     setHasUnsavedChanges(false);
   };
 
   const calculateFormTotal = () => {
-    if (!selectedFormFields) return 0;
+    if (!formStructure?.fields) return 0;
     
-    return selectedFormFields.reduce((total: number, fieldInstance: any) => {
+    return formStructure.fields.reduce((total: number, fieldInstance: any) => {
       const fieldId = fieldInstance.field_library.id;
       const response = formResponses[fieldId];
       
@@ -177,9 +259,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
 
   // Get enabled fields for the summary - only fields that exist in current form AND are enabled
   const getEnabledFieldsForSummary = () => {
-    if (!selectedFormFields) return [];
+    if (!formStructure?.fields) return [];
     
-    return selectedFormFields
+    return formStructure.fields
       .filter(fieldInstance => {
         const fieldId = fieldInstance.field_library.id;
         const response = formResponses[fieldId];
@@ -191,61 +273,175 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
       }));
   };
 
+  // Organize fields by section
+  const getFieldsBySection = (sectionId: string) => {
+    if (!formStructure?.fields) return [];
+    return formStructure.fields
+      .filter(fieldInstance => fieldInstance.form_section_id === sectionId)
+      .sort((a, b) => a.field_order - b.field_order);
+  };
+
   return (
     <div className="space-y-4">
-      {/* Form Selection */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Form Template Selection
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <Label htmlFor="form_template" className="text-xs font-medium text-muted-foreground">Select Form Template</Label>
-              <Select value={selectedFormId} onValueChange={handleLoadForm}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Choose a form template..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {formTemplates?.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                      {template.description && (
-                        <span className="text-muted-foreground ml-2">- {template.description}</span>
-                      )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Form Sections */}
+      {selectedFormId && formStructure && (formStructure.sections?.length > 0 || formStructure.fields?.length > 0) && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Form Responses</h3>
+            <div className="flex items-center gap-3">
+              <div className="text-sm font-bold text-green-600">
+                Total: £{calculateFormTotal().toFixed(2)}
+              </div>
+              {hasUnsavedChanges && (
+                <Button 
+                  onClick={handleSaveChanges}
+                  disabled={updateEventFormMutation.isPending}
+                  size="sm"
+                  className="flex items-center gap-1 h-7 px-2 text-xs"
+                >
+                  <Save className="h-3 w-3" />
+                  Save Changes
+                </Button>
+              )}
             </div>
           </div>
-          
-          {selectedFormId && (
-            <div className="mt-3 p-2 bg-muted rounded text-xs text-muted-foreground flex items-center justify-between">
-              <span>Currently using: {formTemplates?.find(t => t.id === selectedFormId)?.name || 'Unknown Template'}</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  // Navigate to form builder with this form ID
-                  const formId = selectedFormId;
-                  window.open(`/form-builder?edit=${formId}`, '_blank');
-                }}
-                className="h-6 text-xs"
-              >
-                <Edit2 className="h-3 w-3 mr-1" />
-                Edit Form
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Form Fields */}
-      {selectedFormFields && selectedFormFields.length > 0 && (
+          {formStructure.sections.map((section) => {
+            const sectionFields = getFieldsBySection(section.id);
+            
+            if (sectionFields.length === 0) return null;
+            
+            return (
+              <Card key={section.id} className="shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    {section.section_title || 'Form Section'}
+                  </CardTitle>
+                  {section.section_description && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {section.section_description}
+                    </p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {sectionFields.map((fieldInstance) => {
+                      const field = fieldInstance.field_library;
+                      const fieldId = field.id;
+                      const response = formResponses[fieldId] || {};
+                      // Auto-enable if there's existing data (price > 0 or notes exist)
+                      const hasExistingData = (response.price && response.price > 0) || (response.notes && response.notes.trim() !== '');
+                      const isEnabled = response.enabled || hasExistingData;
+                      
+                      return (
+                        <div key={fieldId} className="border rounded-md p-3">
+                          <div className="flex items-start gap-3">
+                            <Switch
+                              checked={isEnabled}
+                              onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
+                              className="mt-0.5"
+                            />
+                            
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium text-sm">{field.label}</h4>
+                                {field.category && (
+                                  <span className="bg-muted px-2 py-0.5 rounded text-xs">
+                                    {field.category}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              
+                              {isEnabled && (
+                                <div className="space-y-3 mt-3">
+                                  {/* Pricing Type Selection */}
+                                  <div>
+                                    <Label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                      Pricing Type
+                                    </Label>
+                                    <Select
+                                      value={response.pricing_type || 'fixed'}
+                                      onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
+                                    >
+                                      <SelectTrigger className="h-8 text-sm">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                       <SelectContent>
+                                         <SelectItem value="fixed">Fixed Price</SelectItem>
+                                         <SelectItem value="per_person">Per Person</SelectItem>
+                                       </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                        <DollarSign className="h-3 w-3" />
+                                        {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
+                                      </Label>
+                                      <Input
+                                        id={`price-${fieldId}`}
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={response.price || ''}
+                                        onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                                        onFocus={(e) => e.target.select()}
+                                        placeholder={response.price ? response.price.toString() : "0.00"}
+                                        className="h-8 text-sm"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                        <Users className="h-3 w-3" />
+                                        {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
+                                      </Label>
+                                      <Input
+                                        id={`quantity-${fieldId}`}
+                                        type="number"
+                                        min="1"
+                                        value={response.quantity || ''}
+                                        onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                                        onFocus={(e) => e.target.select()}
+                                        placeholder={response.quantity ? response.quantity.toString() : "1"}
+                                        className="h-8 text-sm"
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                      <MessageSquare className="h-3 w-3" />
+                                      Notes
+                                    </Label>
+                                    <Textarea
+                                      id={`notes-${fieldId}`}
+                                      value={response.notes || ''}
+                                      onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+                                      placeholder="Additional notes..."
+                                      rows={2}
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Form Fields without sections (fallback) */}
+      {formStructure?.fields && formStructure.fields.length > 0 && (!formStructure.sections || formStructure.sections.length === 0) && (
         <Card className="shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
@@ -260,7 +456,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                 {hasUnsavedChanges && (
                   <Button 
                     onClick={handleSaveChanges}
-                    disabled={updateEventMutation.isPending}
+                    disabled={updateEventFormMutation.isPending}
                     size="sm"
                     className="flex items-center gap-1 h-7 px-2 text-xs"
                   >
@@ -273,11 +469,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {selectedFormFields.map((fieldInstance) => {
+              {formStructure.fields.map((fieldInstance) => {
                 const field = fieldInstance.field_library;
                 const fieldId = field.id;
                 const response = formResponses[fieldId] || {};
-                const isEnabled = response.enabled || false;
+                // Auto-enable if there's existing data (price > 0 or notes exist)
+                const hasExistingData = (response.price && response.price > 0) || (response.notes && response.notes.trim() !== '');
+                const isEnabled = response.enabled || hasExistingData;
                 
                 return (
                   <div key={fieldId} className="border rounded-md p-3">
@@ -298,9 +496,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                           )}
                         </div>
                         
-                        {field.help_text && (
-                          <p className="text-xs text-muted-foreground mb-2">{field.help_text}</p>
-                        )}
                         
                         {isEnabled && (
                           <div className="space-y-3 mt-3">
@@ -316,81 +511,48 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                 <SelectTrigger className="h-8 text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="fixed">Fixed Price</SelectItem>
-                                  <SelectItem value="per_person">Per Person</SelectItem>
-                                </SelectContent>
+                                 <SelectContent>
+                                   <SelectItem value="fixed">Fixed Price</SelectItem>
+                                   <SelectItem value="per_person">Per Person</SelectItem>
+                                 </SelectContent>
                               </Select>
                             </div>
 
-                            {response.pricing_type === 'per_person' ? (
-                              <div className="grid grid-cols-3 gap-2">
-                                <div>
-                                  <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                    <Users className="h-3 w-3" />
-                                    Quantity
-                                  </Label>
-                                  <Input
-                                    id={`quantity-${fieldId}`}
-                                    type="number"
-                                    value={response.quantity || 1}
-                                    onChange={(e) => {
-                                      const qty = parseInt(e.target.value) || 1;
-                                      const unitPrice = parseFloat(response.unit_price) || 0;
-                                      handleFieldChange(fieldId, 'quantity', qty);
-                                      handleFieldChange(fieldId, 'price', qty * unitPrice);
-                                    }}
-                                    placeholder="1"
-                                    className="h-8 text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor={`unit-price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                    <DollarSign className="h-3 w-3" />
-                                    Per Unit
-                                  </Label>
-                                  <Input
-                                    id={`unit-price-${fieldId}`}
-                                    type="number"
-                                    step="0.01"
-                                    value={response.unit_price || field.price_modifier || 0}
-                                    onChange={(e) => {
-                                      const unitPrice = parseFloat(e.target.value) || 0;
-                                      const qty = parseInt(response.quantity) || 1;
-                                      handleFieldChange(fieldId, 'unit_price', unitPrice);
-                                      handleFieldChange(fieldId, 'price', qty * unitPrice);
-                                    }}
-                                    placeholder="0.00"
-                                    className="h-8 text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                    <TrendingUp className="h-3 w-3" />
-                                    Total
-                                  </Label>
-                                  <div className="h-8 text-sm bg-muted/30 rounded border flex items-center px-2 font-medium">
-                                    £{((parseInt(response.quantity) || 1) * (parseFloat(response.unit_price) || 0)).toFixed(2)}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
+                            <div className="grid grid-cols-2 gap-3">
                               <div>
                                 <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                                   <DollarSign className="h-3 w-3" />
-                                  Fixed Price (£)
+                                  {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
                                 </Label>
                                 <Input
                                   id={`price-${fieldId}`}
                                   type="number"
                                   step="0.01"
-                                  value={response.price || field.price_modifier || 0}
+                                  min="0"
+                                  value={response.price || ''}
                                   onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                                  placeholder="0.00"
+                                  onFocus={(e) => e.target.select()}
+                                  placeholder={response.price ? response.price.toString() : "0.00"}
                                   className="h-8 text-sm"
                                 />
                               </div>
-                            )}
+                              <div>
+                                <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                  <Users className="h-3 w-3" />
+                                  {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
+                                </Label>
+                                <Input
+                                  id={`quantity-${fieldId}`}
+                                  type="number"
+                                  min="1"
+                                  value={response.quantity || ''}
+                                  onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                                  onFocus={(e) => e.target.select()}
+                                  placeholder={response.quantity ? response.quantity.toString() : "1"}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                            </div>
                             
                             <div>
                               <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -402,8 +564,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                 value={response.notes || ''}
                                 onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
                                 placeholder="Additional notes..."
-                                rows={1}
-                                className="h-8 text-sm resize-none"
+                                rows={2}
+                                className="text-sm"
                               />
                             </div>
                           </div>

@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 
 interface FormTemplateListProps {
   formTemplates: any[];
@@ -25,6 +26,7 @@ export const FormTemplateList: React.FC<FormTemplateListProps> = ({
   refetchForms 
 }) => {
   const { currentTenant } = useAuth();
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
 
   const createFormMutation = useSupabaseMutation(
@@ -148,10 +150,11 @@ export const FormTemplateList: React.FC<FormTemplateListProps> = ({
                     <SelectValue placeholder="Select event type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="wedding">Wedding</SelectItem>
-                    <SelectItem value="corporate">Corporate Event</SelectItem>
-                    <SelectItem value="birthday">Birthday</SelectItem>
-                    <SelectItem value="anniversary">Anniversary</SelectItem>
+                    {eventTypeConfigs?.map(config => (
+                      <SelectItem key={config.id} value={config.event_type}>
+                        {config.display_name}
+                      </SelectItem>
+                    ))}
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>

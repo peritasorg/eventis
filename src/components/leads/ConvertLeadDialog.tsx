@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { UserPlus, Calendar, Users } from 'lucide-react';
 import { sanitizeInput, validateEmail, validatePhone, validateTextLength } from '@/utils/security';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 
 interface ConvertLeadDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ export const ConvertLeadDialog: React.FC<ConvertLeadDialogProps> = ({
   onSuccess
 }) => {
   const { currentTenant } = useAuth();
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
   const [isConverting, setIsConverting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -228,11 +230,11 @@ export const ConvertLeadDialog: React.FC<ConvertLeadDialogProps> = ({
                         <SelectValue placeholder="Select event type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="wedding">Wedding</SelectItem>
-                        <SelectItem value="corporate">Corporate Event</SelectItem>
-                        <SelectItem value="birthday">Birthday</SelectItem>
-                        <SelectItem value="anniversary">Anniversary</SelectItem>
-                        <SelectItem value="conference">Conference</SelectItem>
+                        {eventTypeConfigs?.map(config => (
+                          <SelectItem key={config.id} value={config.event_type}>
+                            {config.display_name}
+                          </SelectItem>
+                        ))}
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>

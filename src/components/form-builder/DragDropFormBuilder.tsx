@@ -23,12 +23,12 @@ interface FieldLibraryItem {
   name: string;
   label: string;
   field_type: string;
+  category?: string;
   placeholder?: string;
   help_text?: string;
-  affects_pricing: boolean;
-  price_modifier?: number;
-  auto_add_price_field: boolean;
-  auto_add_notes_field: boolean;
+  options?: any[];
+  required?: boolean;
+  sort_order?: number;
 }
 
 interface FormFieldInstance {
@@ -255,7 +255,7 @@ export const DragDropFormBuilder: React.FC<DragDropFormBuilderProps> = ({ form, 
               <Input
                 type="number"
                 step="0.01"
-                placeholder={field.price_modifier?.toString() || "0.00"}
+                placeholder="0.00"
                 disabled
                 className="h-8"
               />

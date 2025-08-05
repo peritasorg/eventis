@@ -14,12 +14,14 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { ConvertLeadDialog } from '@/components/leads/ConvertLeadDialog';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { LeadsCalendarView } from '@/components/leads/LeadsCalendarView';
+import { ConvertLeadDialog } from '@/components/leads/ConvertLeadDialog';
 import { useNavigate } from 'react-router-dom';
 
 export const Leads = () => {
   const { currentTenant } = useAuth();
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -244,10 +246,11 @@ export const Leads = () => {
                       <SelectValue placeholder="Select event type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="wedding">Wedding</SelectItem>
-                      <SelectItem value="corporate">Corporate Event</SelectItem>
-                      <SelectItem value="birthday">Birthday</SelectItem>
-                      <SelectItem value="anniversary">Anniversary</SelectItem>
+                      {eventTypeConfigs?.map(config => (
+                        <SelectItem key={config.id} value={config.event_type}>
+                          {config.display_name}
+                        </SelectItem>
+                      ))}
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>

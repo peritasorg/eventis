@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { sanitizeInput, validateEmail, validatePhone, validateTextLength } from '@/utils/security';
 
 interface LeadDetailsDialogProps {
@@ -28,6 +29,7 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
   onUpdate
 }) => {
   const { currentTenant } = useAuth();
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(lead || {});
 
@@ -210,14 +212,15 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
                   <SelectTrigger>
                     <SelectValue placeholder="Select event type" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No event type selected</SelectItem>
-                    <SelectItem value="wedding">Wedding</SelectItem>
-                    <SelectItem value="corporate">Corporate Event</SelectItem>
-                    <SelectItem value="birthday">Birthday</SelectItem>
-                    <SelectItem value="anniversary">Anniversary</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
+                    <SelectContent>
+                      <SelectItem value="none">No event type selected</SelectItem>
+                      {eventTypeConfigs?.map(config => (
+                        <SelectItem key={config.id} value={config.event_type}>
+                          {config.display_name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">

@@ -27,13 +27,12 @@ interface FieldLibraryItem {
   name: string;
   label: string;
   field_type: string;
+  category?: string;
   placeholder?: string;
   help_text?: string;
-  affects_pricing: boolean;
-  price_modifier?: number;
-  pricing_type?: string;
-  auto_add_price_field: boolean;
-  auto_add_notes_field: boolean;
+  options?: any[];
+  required?: boolean;
+  sort_order?: number;
 }
 
 interface FormFieldInstance {
@@ -57,8 +56,9 @@ interface FormSection {
 
 export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ form, onBack }) => {
   const { currentTenant } = useAuth();
-  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<any>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [isFieldEditorOpen, setIsFieldEditorOpen] = useState(false);
 
   // Fetch existing fields
   const { data: formFields, refetch: refetchFields } = useSupabaseQuery(
@@ -309,8 +309,8 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                     
                     <div className="text-xs text-gray-500 mb-2">
                       Type: <span className="capitalize">{field.field_type}</span>
-                      {field.affects_pricing && (
-                        <span className="ml-2 text-green-600">• Affects pricing: £{field.price_modifier}</span>
+                      {field.category && (
+                        <span className="ml-2 text-blue-600">• {field.category}</span>
                       )}
                     </div>
                     

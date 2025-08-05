@@ -589,6 +589,70 @@ export type Database = {
           },
         ]
       }
+      event_forms: {
+        Row: {
+          created_at: string | null
+          event_id: string
+          form_label: string
+          form_responses: Json | null
+          form_template_id: string
+          form_total: number | null
+          id: string
+          is_active: boolean | null
+          tab_order: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id: string
+          form_label?: string
+          form_responses?: Json | null
+          form_template_id: string
+          form_total?: number | null
+          id?: string
+          is_active?: boolean | null
+          tab_order?: number
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string
+          form_label?: string
+          form_responses?: Json | null
+          form_template_id?: string
+          form_total?: number | null
+          id?: string
+          is_active?: boolean | null
+          tab_order?: number
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_forms_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "event_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_forms_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_forms_form_template_id_fkey"
+            columns: ["form_template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_responses: {
         Row: {
           calculated_price: number | null
@@ -1017,72 +1081,99 @@ export type Database = {
           },
         ]
       }
+      field_categories: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          description: string | null
+          display_name: string
+          id: string
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          id?: string
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          id?: string
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
       field_library: {
         Row: {
           active: boolean | null
           affects_pricing: boolean | null
-          auto_add_notes_field: boolean | null
-          auto_add_price_field: boolean | null
           category: string | null
           created_at: string | null
-          default_value: string | null
           field_type: string
-          help_text: string | null
           id: string
           label: string
+          max_quantity: number | null
+          min_quantity: number | null
           name: string
           options: Json | null
-          placeholder: string | null
-          price_modifier: number | null
+          pricing_behavior: string | null
           pricing_type: string | null
+          required: boolean | null
+          show_notes_field: boolean | null
+          sort_order: number | null
           tenant_id: string | null
+          unit_price: number | null
           updated_at: string | null
-          usage_count: number | null
-          validation_rules: Json | null
         }
         Insert: {
           active?: boolean | null
           affects_pricing?: boolean | null
-          auto_add_notes_field?: boolean | null
-          auto_add_price_field?: boolean | null
           category?: string | null
           created_at?: string | null
-          default_value?: string | null
           field_type: string
-          help_text?: string | null
           id?: string
           label: string
+          max_quantity?: number | null
+          min_quantity?: number | null
           name: string
           options?: Json | null
-          placeholder?: string | null
-          price_modifier?: number | null
+          pricing_behavior?: string | null
           pricing_type?: string | null
+          required?: boolean | null
+          show_notes_field?: boolean | null
+          sort_order?: number | null
           tenant_id?: string | null
+          unit_price?: number | null
           updated_at?: string | null
-          usage_count?: number | null
-          validation_rules?: Json | null
         }
         Update: {
           active?: boolean | null
           affects_pricing?: boolean | null
-          auto_add_notes_field?: boolean | null
-          auto_add_price_field?: boolean | null
           category?: string | null
           created_at?: string | null
-          default_value?: string | null
           field_type?: string
-          help_text?: string | null
           id?: string
           label?: string
+          max_quantity?: number | null
+          min_quantity?: number | null
           name?: string
           options?: Json | null
-          placeholder?: string | null
-          price_modifier?: number | null
+          pricing_behavior?: string | null
           pricing_type?: string | null
+          required?: boolean | null
+          show_notes_field?: boolean | null
+          sort_order?: number | null
           tenant_id?: string | null
+          unit_price?: number | null
           updated_at?: string | null
-          usage_count?: number | null
-          validation_rules?: Json | null
         }
         Relationships: [
           {
@@ -1093,6 +1184,105 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      field_library_backup: {
+        Row: {
+          active: boolean | null
+          affects_pricing: boolean | null
+          allow_zero_price: boolean | null
+          auto_add_notes_field: boolean | null
+          auto_add_price_field: boolean | null
+          category: string | null
+          created_at: string | null
+          custom_pricing_logic: Json | null
+          default_quantity: number | null
+          default_value: string | null
+          field_type: string | null
+          help_text: string | null
+          id: string | null
+          label: string | null
+          max_quantity: number | null
+          min_quantity: number | null
+          name: string | null
+          options: Json | null
+          placeholder: string | null
+          price_modifier: number | null
+          pricing_behavior: string | null
+          pricing_tiers: Json | null
+          pricing_type: string | null
+          show_notes_field: boolean | null
+          show_quantity_field: boolean | null
+          tenant_id: string | null
+          unit_price: number | null
+          updated_at: string | null
+          usage_count: number | null
+          validation_rules: Json | null
+        }
+        Insert: {
+          active?: boolean | null
+          affects_pricing?: boolean | null
+          allow_zero_price?: boolean | null
+          auto_add_notes_field?: boolean | null
+          auto_add_price_field?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          custom_pricing_logic?: Json | null
+          default_quantity?: number | null
+          default_value?: string | null
+          field_type?: string | null
+          help_text?: string | null
+          id?: string | null
+          label?: string | null
+          max_quantity?: number | null
+          min_quantity?: number | null
+          name?: string | null
+          options?: Json | null
+          placeholder?: string | null
+          price_modifier?: number | null
+          pricing_behavior?: string | null
+          pricing_tiers?: Json | null
+          pricing_type?: string | null
+          show_notes_field?: boolean | null
+          show_quantity_field?: boolean | null
+          tenant_id?: string | null
+          unit_price?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+          validation_rules?: Json | null
+        }
+        Update: {
+          active?: boolean | null
+          affects_pricing?: boolean | null
+          allow_zero_price?: boolean | null
+          auto_add_notes_field?: boolean | null
+          auto_add_price_field?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          custom_pricing_logic?: Json | null
+          default_quantity?: number | null
+          default_value?: string | null
+          field_type?: string | null
+          help_text?: string | null
+          id?: string | null
+          label?: string | null
+          max_quantity?: number | null
+          min_quantity?: number | null
+          name?: string | null
+          options?: Json | null
+          placeholder?: string | null
+          price_modifier?: number | null
+          pricing_behavior?: string | null
+          pricing_tiers?: Json | null
+          pricing_type?: string | null
+          show_notes_field?: boolean | null
+          show_quantity_field?: boolean | null
+          tenant_id?: string | null
+          unit_price?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+          validation_rules?: Json | null
+        }
+        Relationships: []
       }
       finance_timeline: {
         Row: {
@@ -2282,12 +2472,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      calculate_event_form_total: {
+        Args: { p_event_form_id: string }
+        Returns: number
+      }
       calculate_event_pricing: {
         Args: { p_tenant_id: string; p_form_responses: Json }
         Returns: number
       }
       calculate_form_total: {
         Args: { event_uuid: string }
+        Returns: number
+      }
+      calculate_total_paid: {
+        Args: { p_event_id: string }
         Returns: number
       }
       check_subscription_access: {
@@ -2321,6 +2519,10 @@ export type Database = {
       get_decrypted_token: {
         Args: { encrypted_token: string }
         Returns: string
+      }
+      get_next_tab_order: {
+        Args: { p_event_id: string; p_tenant_id: string }
+        Returns: number
       }
       get_tenant_dashboard_stats: {
         Args: { p_tenant_id: string }
@@ -2362,6 +2564,10 @@ export type Database = {
           p_risk_level?: string
         }
         Returns: undefined
+      }
+      migrate_existing_single_forms: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       monitor_rls_performance: {
         Args: Record<PropertyKey, never>

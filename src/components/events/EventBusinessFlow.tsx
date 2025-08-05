@@ -1,138 +1,140 @@
-
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Check, Clock, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, DollarSign, Calendar, FileCheck } from 'lucide-react';
 import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EventBusinessFlowProps {
   depositPaid: boolean;
   balanceCleared: boolean;
   eventFinalized: boolean;
   eventId: string;
+  compact?: boolean;
 }
 
 export const EventBusinessFlow: React.FC<EventBusinessFlowProps> = ({
   depositPaid,
   balanceCleared,
   eventFinalized,
-  eventId
+  eventId,
+  compact = false
 }) => {
-  const updateEventMutation = useSupabaseMutation(
-    async (updates: any) => {
+  const { currentTenant } = useAuth();
+
+  const finalizeEventMutation = useSupabaseMutation(
+    async () => {
       const { data, error } = await supabase
         .from('events')
-        .update(updates)
+        .update({ 
+          event_finalized: true,
+          event_finalized_date: new Date().toISOString().split('T')[0]
+        })
         .eq('id', eventId)
+        .eq('tenant_id', currentTenant?.id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
     {
-      successMessage: 'Event updated successfully!',
+      successMessage: 'Event finalized successfully!',
       invalidateQueries: [['event', eventId]]
     }
   );
 
   const handleMarkFinalized = () => {
-    updateEventMutation.mutate({
-      event_finalized: true,
-      event_finalized_date: new Date().toISOString().split('T')[0]
-    });
+    finalizeEventMutation.mutate(undefined);
   };
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2 text-xs">
+        <div className={`flex items-center gap-1 ${depositPaid ? 'text-green-600' : 'text-gray-400'}`}>
+          {depositPaid ? <Check className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+          <span>Deposit</span>
+        </div>
+        <div className={`flex items-center gap-1 ${balanceCleared ? 'text-green-600' : 'text-gray-400'}`}>
+          {balanceCleared ? <Check className="h-3 w-3" /> : <DollarSign className="h-3 w-3" />}
+          <span>Balance</span>
+        </div>
+        <div className={`flex items-center gap-1 ${eventFinalized ? 'text-green-600' : 'text-gray-400'}`}>
+          {eventFinalized ? <Check className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+          <span>Final</span>
+        </div>
+        {balanceCleared && !eventFinalized && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleMarkFinalized}
+            disabled={finalizeEventMutation.isPending}
+            className="h-6 px-2 text-xs"
+          >
+            Finalize
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   const steps = [
     {
-      id: 'deposit',
       label: 'Deposit Paid',
       completed: depositPaid,
-      icon: DollarSign,
-      description: 'Customer deposit received'
+      icon: depositPaid ? Check : Clock,
+      description: 'Initial payment received'
     },
     {
-      id: 'balance',
       label: 'Balance Cleared',
       completed: balanceCleared,
-      icon: Calendar,
-      description: 'Full payment received'
+      icon: balanceCleared ? Check : DollarSign,
+      description: 'Full payment completed'
     },
     {
-      id: 'finalized',
       label: 'Event Finalized',
       completed: eventFinalized,
-      icon: FileCheck,
+      icon: eventFinalized ? Check : Clock,
       description: 'Event marked as complete',
-      action: !eventFinalized && balanceCleared ? handleMarkFinalized : undefined
+      action: balanceCleared && !eventFinalized ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleMarkFinalized}
+          disabled={finalizeEventMutation.isPending}
+          className="ml-2"
+        >
+          {finalizeEventMutation.isPending ? 'Finalizing...' : 'Mark Complete'}
+        </Button>
+      ) : null
     }
   ];
 
   return (
-    <Card className="shadow-sm border-gray-200">
-      <CardContent className="p-8">
-        <div className="text-center mb-8">
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Business Process Flow</h3>
-          <p className="text-gray-600 text-sm">Track your event's progress through key milestones</p>
-        </div>
-        
-        <div className="flex items-center justify-center">
-          <div className="flex items-center space-x-8 lg:space-x-16">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
-              const isLast = index === steps.length - 1;
-              
-              return (
-                <div key={step.id} className="flex items-center">
-                  <div className="flex flex-col items-center text-center min-w-[120px]">
-                    <div className={`
-                      flex items-center justify-center w-16 h-16 rounded-full border-2 mb-4 transition-all duration-200
-                      ${step.completed 
-                        ? 'bg-green-50 border-green-500 text-green-600 shadow-md' 
-                        : 'bg-gray-50 border-gray-300 text-gray-400'
-                      }
-                    `}>
-                      {step.completed ? (
-                        <CheckCircle className="w-8 h-8" />
-                      ) : (
-                        <Icon className="w-8 h-8" />
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className={`font-semibold text-sm ${
-                        step.completed ? 'text-green-700' : 'text-gray-500'
-                      }`}>
-                        {step.label}
-                      </div>
-                      <div className="text-xs text-gray-500 leading-tight">
-                        {step.description}
-                      </div>
-                      {step.action && (
-                        <Button
-                          size="sm"
-                          onClick={step.action}
-                          className="mt-3 text-xs px-3 py-1.5 h-auto"
-                          disabled={updateEventMutation.isPending}
-                        >
-                          Mark Complete
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {!isLast && (
-                    <div className={`w-12 lg:w-20 h-0.5 mx-4 lg:mx-8 transition-all duration-200 ${
-                      step.completed ? 'bg-green-500' : 'bg-gray-300'
-                    }`} />
-                  )}
-                </div>
-              );
-            })}
+    <div className="space-y-4">
+      {steps.map((step, index) => {
+        const IconComponent = step.icon;
+        return (
+          <div key={step.label} className="flex items-center space-x-3">
+            <div className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+              step.completed 
+                ? 'bg-green-100 border-green-500 text-green-700' 
+                : 'bg-gray-100 border-gray-300 text-gray-500'
+            }`}>
+              <IconComponent className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-medium ${
+                step.completed ? 'text-green-900' : 'text-gray-900'
+              }`}>
+                {step.label}
+              </p>
+              <p className="text-xs text-gray-500">{step.description}</p>
+            </div>
+            {step.action}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        );
+      })}
+    </div>
   );
 };
