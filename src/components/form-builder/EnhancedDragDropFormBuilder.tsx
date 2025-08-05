@@ -384,7 +384,7 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
       const { data: result, error } = await supabase
         .from('form_sections')
         .insert([{
-          form_template_id: form.id,
+          form_page_id: formPages?.[0]?.id,
           tenant_id: currentTenant?.id,
           section_title: `Section ${sections.length + 1}`,
           section_order: maxOrder
