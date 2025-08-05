@@ -120,30 +120,67 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
     }
   );
 
+  // Bulletproof name generation function
+  const generateFieldName = (label: string): string => {
+    // Start with the raw label
+    let fieldName = label.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters but keep spaces and hyphens
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/-+/g, '_') // Replace hyphens with underscores
+      .replace(/_+/g, '_') // Replace multiple underscores with single
+      .trim()
+      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+    
+    // Fallback 1: Try using just letters and numbers
+    if (!fieldName || fieldName.length === 0) {
+      fieldName = label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    }
+    
+    // Fallback 2: Use field type + timestamp
+    if (!fieldName || fieldName.length === 0) {
+      fieldName = `${fieldType || 'field'}_${Date.now()}`;
+    }
+    
+    // Final fallback: Guaranteed unique name
+    if (!fieldName || fieldName.length === 0) {
+      fieldName = `field_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    }
+    
+    // Ensure the name is valid (no null/undefined/empty)
+    return fieldName && typeof fieldName === 'string' && fieldName.trim() 
+      ? fieldName 
+      : `field_${Date.now()}`;
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    // Get raw inputs first
+    // Get raw inputs
     const rawLabel = formData.get('label') as string || '';
     const rawHelpText = formData.get('help_text') as string || '';
     const priceModifier = formData.get('price_modifier') as string || '';
     
     console.log('Raw inputs:', { rawLabel, rawHelpText, fieldType, priceModifier });
     
-    // Sanitize inputs
-    const label = sanitizeInput(rawLabel);
-    const helpText = sanitizeInput(rawHelpText);
-    const sanitizedFieldType = sanitizeInput(fieldType);
-    
-    console.log('Sanitized inputs:', { label, helpText, sanitizedFieldType });
-    
-    // CRITICAL: Check if sanitization stripped everything
+    // Validate required fields FIRST
     if (!rawLabel.trim()) {
       toast.error('Field label is required');
       return;
     }
     
+    if (!fieldType || !['text', 'toggle', 'number', 'date'].includes(fieldType)) {
+      toast.error('Please select a valid field type');
+      return;
+    }
+    
+    // Sanitize inputs (but only text inputs, not controlled components)
+    const label = sanitizeInput(rawLabel);
+    const helpText = rawHelpText ? sanitizeInput(rawHelpText) : '';
+    
+    console.log('Sanitized inputs:', { label, helpText, fieldType });
+    
+    // Validate sanitized inputs
     if (!label || label.trim() === '') {
       toast.error('Field label contains invalid characters. Please use only letters, numbers, and basic punctuation.');
       return;
@@ -159,11 +196,6 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
       return;
     }
     
-    if (!fieldType || !['text', 'toggle', 'number', 'date'].includes(fieldType)) {
-      toast.error('Please select a valid field type');
-      return;
-    }
-    
     // Validate price modifier
     const parsedPrice = parseFloat(priceModifier);
     if (priceModifier && (isNaN(parsedPrice) || parsedPrice < 0 || parsedPrice > 10000)) {
@@ -171,33 +203,12 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
       return;
     }
     
-    // Create a unique name from the original label (before sanitization)
-    // Use rawLabel to ensure we don't lose content from overzealous sanitization
-    let fieldName = rawLabel.toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '_') // Replace spaces with underscores
-      .replace(/_+/g, '_') // Replace multiple underscores with single
-      .trim()
-      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
-    
-    // Multiple fallback layers to ensure we ALWAYS have a valid name
-    if (!fieldName || fieldName.length === 0) {
-      // Try using just letters and numbers from the label
-      fieldName = rawLabel.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-    }
-    
-    if (!fieldName || fieldName.length === 0) {
-      // Final fallback with timestamp
-      fieldName = `field_${Date.now()}`;
-    }
-    
-    // Ensure the name is valid (not empty/null/undefined)
-    if (!fieldName || typeof fieldName !== 'string' || fieldName.trim() === '') {
-      fieldName = `field_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    }
+    // Generate bulletproof field name
+    const fieldName = generateFieldName(rawLabel);
     
     console.log('Generated field name:', fieldName);
     
+    // Final validation before database insertion
     const mutationData = {
       name: fieldName,
       label: label,
@@ -209,6 +220,13 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
       auto_add_notes_field: formData.get('auto_add_notes_field') === 'on',
       active: true
     };
+    
+    // CRITICAL: Final null check before mutation
+    if (!mutationData.name || !mutationData.label || !mutationData.field_type) {
+      toast.error('Critical error: Missing required field data. Please try again.');
+      console.error('Missing required data:', mutationData);
+      return;
+    }
     
     console.log('Final mutation data:', mutationData);
     
