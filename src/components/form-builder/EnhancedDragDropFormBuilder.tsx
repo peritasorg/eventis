@@ -66,6 +66,26 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
     toggle_false_value: 'No'
   });
 
+  // Fetch field categories - skip type checking for this specific query
+  const { data: fieldCategories } = useSupabaseQuery(
+    ['field-categories'],
+    async () => {
+      try {
+        const response = await fetch(`https://vbowtpkisiabdwwgttry.supabase.co/rest/v1/field_categories?active=eq.true&order=sort_order.asc`, {
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZib3d0cGtpc2lhYmR3d2d0dHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTY0MDUsImV4cCI6MjA2NTkzMjQwNX0.g-2yp1SgMTYA9doXALsPRO0dMJX4sE7Ol1DNBIymSFU',
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await response.json();
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        return [];
+      }
+    }
+  );
+
   // Fetch field library
   const { data: fieldLibrary, refetch: refetchLibrary } = useSupabaseQuery(
     ['field-library'],
@@ -281,16 +301,20 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
 
     const { source, destination, type } = result;
 
-    if (type === 'LIBRARY_FIELD') {
-      // Dragging from library to form section
-      const fieldLibraryId = result.draggableId;
-      const targetSectionId = destination.droppableId.replace('section-', '');
-      
-      addFieldMutation.mutate({
-        fieldLibraryId,
-        sectionId: targetSectionId,
-        order: destination.index + 1
-      });
+    if (type === 'SECTION') {
+      // Reordering sections
+      const reorderedSections = Array.from(sections);
+      const [removed] = reorderedSections.splice(source.index, 1);
+      if (removed) {
+        reorderedSections.splice(destination.index, 0, removed);
+        
+        // Update section orders
+        const updatedSections = reorderedSections.map((section, index) => ({
+          ...section,
+          order: index
+        }));
+        setSections(updatedSections);
+      }
     } else if (type === 'FORM_FIELD') {
       // Reordering fields within or between sections
       if (!formFields) return;
@@ -313,23 +337,30 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
           .eq('id', draggedField.id);
       }
 
-      // Reorder fields
-      const destSectionFields = getFieldsForSection(destSection);
+      // Reorder fields within the destination section
+      const destSectionFields = sourceSection === destSection 
+        ? sourceSectionFields 
+        : getFieldsForSection(destSection);
+      
+      const reorderedFields: FormFieldInstance[] = Array.from(destSectionFields);
       
       if (sourceSection === destSection) {
-        const reorderedFields: FormFieldInstance[] = Array.from(destSectionFields);
+        // Same section - just reorder
         const [removed] = reorderedFields.splice(source.index, 1);
         if (removed) {
           reorderedFields.splice(destination.index, 0, removed);
         }
-        
-        // Update field orders
-        for (let i = 0; i < reorderedFields.length; i++) {
-          await supabase
-            .from('form_field_instances')
-            .update({ field_order: i + 1 })
-            .eq('id', reorderedFields[i].id);
-        }
+      } else {
+        // Different sections - insert at destination
+        reorderedFields.splice(destination.index, 0, draggedField);
+      }
+      
+      // Update field orders for the destination section
+      for (let i = 0; i < reorderedFields.length; i++) {
+        await supabase
+          .from('form_field_instances')
+          .update({ field_order: i + 1 })
+          .eq('id', reorderedFields[i].id);
       }
 
       refetchFields();
@@ -440,11 +471,19 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
 
           <div>
             <Label>Category</Label>
-            <Input
-              value={newField.category}
-              onChange={(e) => setNewField({ ...newField, category: e.target.value })}
-              placeholder="Optional category"
-            />
+            <Select value={newField.category} onValueChange={(value) => setNewField({ ...newField, category: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No Category</SelectItem>
+                {fieldCategories?.map((category: any) => (
+                  <SelectItem key={category.id} value={category.name}>
+                    {category.display_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {newField.field_type === 'dropdown' && (
@@ -634,11 +673,19 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
 
             <div>
               <Label>Category</Label>
-              <Input
-                value={editData.category}
-                onChange={(e) => setEditData({ ...editData, category: e.target.value })}
-                placeholder="Optional category"
-              />
+              <Select value={editData.category} onValueChange={(value) => setEditData({ ...editData, category: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Category</SelectItem>
+                  {fieldCategories?.map((category: any) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.display_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {field.field_type === 'dropdown' && (
@@ -737,54 +784,50 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
           </div>
           
           <div className="flex-1 overflow-auto p-4">
-            <Droppable droppableId="field-library" type="LIBRARY_FIELD" isDropDisabled={true}>
-              {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
-                  {filteredLibraryFields.map((field, index) => (
-                    <Draggable key={field.id} draggableId={field.id} index={index}>
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          className={`p-3 border rounded-lg bg-white cursor-grab transition-all animate-fade-in ${
-                            snapshot.isDragging 
-                              ? 'shadow-lg rotate-2 scale-105 bg-blue-50 border-blue-200' 
-                              : 'hover:shadow-md hover:border-blue-200'
-                          }`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingLibraryField(field.id);
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <GripVertical className="h-4 w-4 text-gray-400" />
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{field.label}</div>
-                              <div className="text-xs text-gray-500 capitalize">{field.field_type}</div>
-                              {field.category && (
-                                <div className="text-xs text-blue-600 mt-1">{field.category}</div>
-                              )}
-                            </div>
-                          </div>
+            <div className="space-y-2">
+              {filteredLibraryFields.map((field) => (
+                <div key={field.id} className="p-3 border rounded-lg bg-white transition-all animate-fade-in hover:shadow-md hover:border-blue-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <div 
+                      className="flex-1 cursor-pointer"
+                      onClick={() => setEditingLibraryField(field.id)}
+                    >
+                      <div className="font-medium text-sm">{field.label}</div>
+                      <div className="text-xs text-gray-500 capitalize">{field.field_type}</div>
+                      {field.category && (
+                        <div className="text-xs text-blue-600 mt-1">
+                          {fieldCategories?.find((cat: any) => cat.name === field.category)?.display_name || field.category}
                         </div>
                       )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                  
-                  {filteredLibraryFields.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">
-                        {searchTerm ? 'No fields match your search' : 'No fields available'}
-                      </p>
-                      <p className="text-xs mt-1">Create your first field to get started</p>
                     </div>
-                  )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addFieldMutation.mutate({
+                          fieldLibraryId: field.id,
+                          sectionId: 'section1'
+                        });
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              
+              {filteredLibraryFields.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">
+                    {searchTerm ? 'No fields match your search' : 'No fields available'}
+                  </p>
+                  <p className="text-xs mt-1">Create your first field to get started</p>
                 </div>
               )}
-            </Droppable>
+            </div>
           </div>
         </div>
 
@@ -800,7 +843,7 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
                 <div>
                   <h1 className="text-lg font-semibold">{form.name || 'Untitled Form'}</h1>
                   <p className="text-sm text-muted-foreground">
-                    {previewMode ? 'Preview mode' : 'Drag fields from the library • Click to edit • Smooth animations'}
+                    {previewMode ? 'Preview mode' : 'Click + to add fields • Drag to reorder • Click field names to edit'}
                   </p>
                 </div>
               </div>
@@ -842,148 +885,148 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
                                 snapshot.isDragging ? 'shadow-lg scale-105' : ''
                               }`}
                             >
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
-                              {editingSection === section.id ? (
-                                <div className="flex items-center gap-2 flex-1">
-                                  <Input
-                                    value={section.title}
-                                    onChange={(e) => updateSection(section.id, { title: e.target.value })}
-                                    className="h-8"
-                                    autoFocus
-                                    onBlur={() => setEditingSection(null)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') setEditingSection(null);
-                                      if (e.key === 'Escape') setEditingSection(null);
-                                    }}
-                                  />
-                                  <Button size="sm" variant="ghost" onClick={() => setEditingSection(null)}>
-                                    <Check className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  {!previewMode && (
-                                    <div {...provided.dragHandleProps} className="cursor-grab">
-                                      <GripVertical className="h-4 w-4 text-gray-400" />
+                              <CardHeader className="pb-3">
+                                <div className="flex items-center justify-between">
+                                  {editingSection === section.id ? (
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <Input
+                                        value={section.title}
+                                        onChange={(e) => updateSection(section.id, { title: e.target.value })}
+                                        className="h-8"
+                                        autoFocus
+                                        onBlur={() => setEditingSection(null)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') setEditingSection(null);
+                                          if (e.key === 'Escape') setEditingSection(null);
+                                        }}
+                                      />
+                                      <Button size="sm" variant="ghost" onClick={() => setEditingSection(null)}>
+                                        <Check className="h-4 w-4" />
+                                      </Button>
                                     </div>
-                                  )}
-                                  <CardTitle 
-                                    className="cursor-pointer hover:text-blue-600"
-                                    onClick={() => !previewMode && setEditingSection(section.id)}
-                                  >
-                                    {section.title}
-                                  </CardTitle>
-                                  {!previewMode && section.id !== 'section1' && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeSection(section.id)}
-                                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </CardHeader>
-                          
-                          <CardContent>
-                            <Droppable droppableId={`section-${section.id}`} type="FORM_FIELD">
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.droppableProps}
-                                  className={`space-y-3 min-h-[50px] transition-all ${
-                                    snapshot.isDraggingOver ? 'bg-blue-50 rounded-lg p-2' : ''
-                                  }`}
-                                >
-                                  {sectionFields.map((fieldInstance, index) => (
-                                    <Draggable 
-                                      key={fieldInstance.id} 
-                                      draggableId={fieldInstance.id} 
-                                      index={index}
-                                      isDragDisabled={previewMode}
-                                    >
-                                      {(provided, snapshot) => (
-                                        <div
-                                          ref={provided.innerRef}
-                                          {...provided.draggableProps}
-                                          className={`p-4 border rounded-lg bg-white transition-all animate-fade-in ${
-                                            snapshot.isDragging 
-                                              ? 'shadow-lg rotate-1 scale-105' 
-                                              : 'hover:shadow-md'
-                                          }`}
-                                        >
-                                          <div className="flex items-start gap-3">
-                                            {!previewMode && (
-                                              <div 
-                                                {...provided.dragHandleProps}
-                                                className="mt-1 text-gray-400 hover:text-gray-600 cursor-grab"
-                                              >
-                                                <GripVertical className="h-4 w-4" />
-                                              </div>
-                                            )}
-                                            
-                                            <div className="flex-1">
-                                              {renderFieldPreview(fieldInstance)}
-                                            </div>
-                                            
-                                            {!previewMode && (
-                                              <div className="flex items-center gap-1">
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => setEditingField(fieldInstance.id)}
-                                                  className="h-7 w-7 p-0"
-                                                >
-                                                  <Edit3 className="h-3 w-3" />
-                                                </Button>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => removeFieldMutation.mutate(fieldInstance.id)}
-                                                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                                                >
-                                                  <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                              </div>
-                                            )}
-                                          </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      {!previewMode && (
+                                        <div {...provided.dragHandleProps} className="cursor-grab">
+                                          <GripVertical className="h-4 w-4 text-gray-400" />
                                         </div>
                                       )}
-                                    </Draggable>
-                                  ))}
-                                  {provided.placeholder}
-                                  
-                                  {sectionFields.length === 0 && !previewMode && (
-                                    <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
-                                      <Plus className="h-6 w-6 mx-auto mb-2" />
-                                      <p className="text-sm">Drop fields here</p>
+                                      <CardTitle 
+                                        className="cursor-pointer hover:text-blue-600"
+                                        onClick={() => !previewMode && setEditingSection(section.id)}
+                                      >
+                                        {section.title}
+                                      </CardTitle>
+                                      {!previewMode && section.id !== 'section1' && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => removeSection(section.id)}
+                                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
-                              )}
-                            </Droppable>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </Draggable>
-                  );
-                })}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
+                              </CardHeader>
+                              
+                              <CardContent>
+                                <Droppable droppableId={`section-${section.id}`} type="FORM_FIELD">
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.droppableProps}
+                                      className={`space-y-3 min-h-[50px] transition-all ${
+                                        snapshot.isDraggingOver ? 'bg-blue-50 rounded-lg p-2' : ''
+                                      }`}
+                                    >
+                                      {sectionFields.map((fieldInstance, index) => (
+                                        <Draggable 
+                                          key={fieldInstance.id} 
+                                          draggableId={fieldInstance.id} 
+                                          index={index}
+                                          isDragDisabled={previewMode}
+                                        >
+                                          {(provided, snapshot) => (
+                                            <div
+                                              ref={provided.innerRef}
+                                              {...provided.draggableProps}
+                                              className={`p-4 border rounded-lg bg-white transition-all animate-fade-in ${
+                                                snapshot.isDragging 
+                                                  ? 'shadow-lg rotate-1 scale-105' 
+                                                  : 'hover:shadow-md'
+                                              }`}
+                                            >
+                                              <div className="flex items-start gap-3">
+                                                {!previewMode && (
+                                                  <div 
+                                                    {...provided.dragHandleProps}
+                                                    className="mt-1 text-gray-400 hover:text-gray-600 cursor-grab"
+                                                  >
+                                                    <GripVertical className="h-4 w-4" />
+                                                  </div>
+                                                )}
+                                                
+                                                <div className="flex-1">
+                                                  {renderFieldPreview(fieldInstance)}
+                                                </div>
+                                                
+                                                {!previewMode && (
+                                                  <div className="flex items-center gap-1">
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => setEditingField(fieldInstance.id)}
+                                                      className="h-7 w-7 p-0"
+                                                    >
+                                                      <Edit3 className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => removeFieldMutation.mutate(fieldInstance.id)}
+                                                      className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                                                    >
+                                                      <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </Draggable>
+                                      ))}
+                                      {provided.placeholder}
+                                      
+                                      {sectionFields.length === 0 && !previewMode && (
+                                        <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
+                                          <Plus className="h-6 w-6 mx-auto mb-2" />
+                                          <p className="text-sm">Drop fields here or use + buttons in the library</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </Droppable>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </Draggable>
+                      );
+                    })}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          </div>
         </div>
-        </div>
-      </div>
 
-      {renderCreateFieldDialog()}
-      {renderEditFieldDialog()}
-      {renderEditLibraryFieldDialog()}
-    </div>
-  </DragDropContext>
-);
+        {renderCreateFieldDialog()}
+        {renderEditFieldDialog()}
+        {renderEditLibraryFieldDialog()}
+      </div>
+    </DragDropContext>
+  );
 };
