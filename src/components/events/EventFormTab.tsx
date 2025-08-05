@@ -404,11 +404,10 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                       <SelectTrigger className="h-8 text-sm">
                                         <SelectValue />
                                       </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="fixed">Fixed Price</SelectItem>
-                                        <SelectItem value="per_person">Per Person</SelectItem>
-                                        <SelectItem value="quantity_based">Quantity Based</SelectItem>
-                                      </SelectContent>
+                                       <SelectContent>
+                                         <SelectItem value="fixed">Fixed Price</SelectItem>
+                                         <SelectItem value="per_person">Per Person</SelectItem>
+                                       </SelectContent>
                                     </Select>
                                   </div>
 
@@ -551,11 +550,10 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                 <SelectTrigger className="h-8 text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="fixed">Fixed Price</SelectItem>
-                                  <SelectItem value="per_person">Per Person</SelectItem>
-                                  <SelectItem value="quantity_based">Quantity Based</SelectItem>
-                                </SelectContent>
+                                 <SelectContent>
+                                   <SelectItem value="fixed">Fixed Price</SelectItem>
+                                   <SelectItem value="per_person">Per Person</SelectItem>
+                                 </SelectContent>
                               </Select>
                             </div>
 

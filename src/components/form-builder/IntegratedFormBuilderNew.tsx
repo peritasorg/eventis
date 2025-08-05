@@ -56,8 +56,9 @@ interface FormSection {
 
 export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ form, onBack }) => {
   const { currentTenant } = useAuth();
-  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<any>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [isFieldEditorOpen, setIsFieldEditorOpen] = useState(false);
 
   // Fetch existing fields
   const { data: formFields, refetch: refetchFields } = useSupabaseQuery(
