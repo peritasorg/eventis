@@ -826,20 +826,22 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
           {/* Form Canvas */}
           <div className="flex-1 overflow-auto p-6">
             <div className="max-w-4xl mx-auto">
-              <div className="space-y-6">
-                {sections.map((section, sectionIndex) => {
-                  const sectionFields = getFieldsForSection(section.id);
-                  
-                  return (
-                    <Draggable key={section.id} draggableId={section.id} index={sectionIndex} isDragDisabled={previewMode}>
-                      {(provided, snapshot) => (
-                        <Card 
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          className={`overflow-hidden transition-all animate-fade-in ${
-                            snapshot.isDragging ? 'shadow-lg scale-105' : ''
-                          }`}
-                        >
+              <Droppable droppableId="sections" type="SECTION">
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-6">
+                    {sections.map((section, sectionIndex) => {
+                      const sectionFields = getFieldsForSection(section.id);
+                      
+                      return (
+                        <Draggable key={section.id} draggableId={section.id} index={sectionIndex} isDragDisabled={previewMode}>
+                          {(provided, snapshot) => (
+                            <Card 
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`overflow-hidden transition-all animate-fade-in ${
+                                snapshot.isDragging ? 'shadow-lg scale-105' : ''
+                              }`}
+                            >
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
                               {editingSection === section.id ? (
@@ -970,15 +972,18 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
                     </Draggable>
                   );
                 })}
+                {provided.placeholder}
               </div>
-            </div>
-          </div>
+            )}
+          </Droppable>
         </div>
-
-        {renderCreateFieldDialog()}
-        {renderEditFieldDialog()}
-        {renderEditLibraryFieldDialog()}
+        </div>
       </div>
-    </DragDropContext>
-  );
+
+      {renderCreateFieldDialog()}
+      {renderEditFieldDialog()}
+      {renderEditLibraryFieldDialog()}
+    </div>
+  </DragDropContext>
+);
 };
