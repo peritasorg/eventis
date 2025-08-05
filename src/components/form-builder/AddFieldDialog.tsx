@@ -142,14 +142,20 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
     }
     
     // Create a unique name from label (slug-style)
-    const fieldName = label.toLowerCase()
+    let fieldName = label.toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
       .replace(/\s+/g, '_') // Replace spaces with underscores
       .replace(/_+/g, '_') // Replace multiple underscores with single
-      .trim();
+      .trim()
+      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+    
+    // Ensure we have a valid name
+    if (!fieldName || fieldName.length === 0) {
+      fieldName = `field_${Date.now()}`;
+    }
     
     createFieldMutation.mutate({
-      name: fieldName || `field_${Date.now()}`, // Fallback to timestamp if name is empty
+      name: fieldName,
       label: label,
       field_type: fieldType,
       help_text: helpText || null,
