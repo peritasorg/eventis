@@ -47,7 +47,7 @@ interface FormSectionData {
 
 export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderProps> = ({ form, onBack }) => {
   const { currentTenant } = useAuth();
-  const [editingField, setEditingField] = useState<string | null>(null);
+  
   const [editingLibraryField, setEditingLibraryField] = useState<FieldLibraryItem | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
@@ -665,7 +665,10 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
                                             <Button
                                               variant="ghost"
                                               size="sm"
-                                              onClick={() => setEditingField(fieldInstance.id)}
+                                              onClick={() => {
+                                                setEditingLibraryField(fieldInstance.field_library);
+                                                setIsFieldEditorOpen(true);
+                                              }}
                                               className="h-7 w-7 p-0"
                                             >
                                               <Edit3 className="h-3 w-3" />
