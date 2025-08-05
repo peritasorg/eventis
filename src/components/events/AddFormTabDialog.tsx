@@ -68,7 +68,7 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
           is_active: true
         })
         .select()
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data;
