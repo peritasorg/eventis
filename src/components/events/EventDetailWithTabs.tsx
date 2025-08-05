@@ -453,7 +453,14 @@ export const EventDetailWithTabs = () => {
             
             {eventForms?.map((form) => (
               <TabsContent key={form.id} value={form.id} className="mt-0">
-                <EventFormTab event={form} />
+                <EventFormTab 
+                  eventForm={form} 
+                  eventId={eventId || ''} 
+                  onFormChange={(total) => {
+                    // Optionally handle form total changes here
+                    console.log('Form total updated:', total);
+                  }}
+                />
               </TabsContent>
             ))}
           </div>

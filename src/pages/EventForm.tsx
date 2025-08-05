@@ -6,6 +6,7 @@ import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventFormTab } from '@/components/events/EventFormTab';
+import { useEventForms } from '@/hooks/useEventForms';
 
 export const EventForm = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -41,6 +42,9 @@ export const EventForm = () => {
       return data;
     }
   );
+
+  // Get event forms for this event
+  const { eventForms } = useEventForms(eventId || '');
 
   if (isLoading) {
     return (
@@ -88,7 +92,25 @@ export const EventForm = () => {
 
       {/* Content */}
       <div className="max-w-5xl mx-auto px-6 py-6">
-        <EventFormTab event={event} />
+        {eventForms && eventForms.length > 0 ? (
+          <EventFormTab 
+            eventForm={eventForms[0]} 
+            eventId={eventId || ''} 
+            onFormChange={(total) => {
+              console.log('Form total updated:', total);
+            }}
+          />
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No forms have been added to this event yet.</p>
+            <Button 
+              onClick={() => navigate(`/events/${eventId}`)}
+              className="mt-4"
+            >
+              Go to Event Details
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

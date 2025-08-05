@@ -13,24 +13,26 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface EventFormTabProps {
-  event: any;
+  eventForm: any;
+  eventId: string;
+  onFormChange?: (total: number) => void;
 }
 
-export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
+export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, onFormChange }) => {
   const { currentTenant } = useAuth();
-  const [formResponses, setFormResponses] = useState<Record<string, any>>(event.form_responses || {});
+  const [formResponses, setFormResponses] = useState<Record<string, any>>(eventForm.form_responses || {});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Use the event's form_template_used as the selected form - this ensures persistence
-  const selectedFormId = event.form_template_used || '';
+  // Use the eventForm's form_template_id as the selected form
+  const selectedFormId = eventForm.form_template_id || '';
 
-  // Auto-load form if it exists and has responses
+  // Update form responses when eventForm changes
   useEffect(() => {
-    if (event.form_template_used && Object.keys(event.form_responses || {}).length > 0) {
-      // Form is already loaded with data, no need to reload
-      return;
+    if (eventForm.form_responses) {
+      setFormResponses(eventForm.form_responses);
+      setHasUnsavedChanges(false);
     }
-  }, [event.form_template_used, event.form_responses]);
+  }, [eventForm.form_responses]);
 
   const { data: formTemplates } = useSupabaseQuery(
     ['form-templates'],
@@ -145,12 +147,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     }
   );
 
-  const updateEventMutation = useSupabaseMutation(
+  const updateEventFormMutation = useSupabaseMutation(
     async (updates: Record<string, any>) => {
       const { data, error } = await supabase
-        .from('events')
+        .from('event_forms')
         .update(updates)
-        .eq('id', event.id)
+        .eq('id', eventForm.id)
         .select()
         .single();
       
@@ -159,18 +161,27 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     },
     {
       successMessage: 'Form responses saved successfully!',
-      invalidateQueries: [['event', event.id]]
+      invalidateQueries: [['event-forms', eventId]]
     }
   );
 
-  const handleLoadForm = (newFormId: string) => {
+  const handleChangeTemplate = (newFormId: string) => {
     if (!newFormId) {
       toast.error('Please select a form template');
       return;
     }
     
-    updateEventMutation.mutate({
-      form_template_used: newFormId
+    // Warn about data loss
+    if (Object.keys(formResponses).length > 0) {
+      if (!confirm('Changing the template will clear all current form responses. Continue?')) {
+        return;
+      }
+    }
+    
+    updateEventFormMutation.mutate({
+      form_template_id: newFormId,
+      form_responses: {},
+      form_total: 0
     });
   };
 
@@ -214,10 +225,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   const handleSaveChanges = () => {
     const formTotal = calculateFormTotal();
     
-    updateEventMutation.mutate({
+    updateEventFormMutation.mutate({
       form_responses: formResponses,
       form_total: formTotal
     });
+    
+    // Call the callback to update parent component
+    onFormChange?.(formTotal);
     
     setHasUnsavedChanges(false);
   };
@@ -270,47 +284,52 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Form Template Selection
+            Form Template: {formTemplates?.find(t => t.id === selectedFormId)?.name || 'Loading...'}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <Label htmlFor="form_template" className="text-xs font-medium text-muted-foreground">Select Form Template</Label>
-              <Select value={selectedFormId} onValueChange={handleLoadForm}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Choose a form template..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {formTemplates?.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                      {template.description && (
-                        <span className="text-muted-foreground ml-2">- {template.description}</span>
-                      )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {selectedFormId ? (
+            <div className="space-y-3">
+              <div className="p-3 bg-muted rounded text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{formTemplates?.find(t => t.id === selectedFormId)?.name}</p>
+                    {formTemplates?.find(t => t.id === selectedFormId)?.description && (
+                      <p className="text-muted-foreground text-xs">
+                        {formTemplates?.find(t => t.id === selectedFormId)?.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        window.open(`/form-builder?edit=${selectedFormId}`, '_blank');
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      <Edit2 className="h-3 w-3 mr-1" />
+                      Edit Template
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        const newTemplateId = prompt('Enter new template ID or select from dropdown (this will clear current responses):');
+                        if (newTemplateId) handleChangeTemplate(newTemplateId);
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      Change Template
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          
-          {selectedFormId && (
-            <div className="mt-3 p-2 bg-muted rounded text-xs text-muted-foreground flex items-center justify-between">
-              <span>Currently using: {formTemplates?.find(t => t.id === selectedFormId)?.name || 'Unknown Template'}</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  // Navigate to form builder with this form ID
-                  const formId = selectedFormId;
-                  window.open(`/form-builder?edit=${formId}`, '_blank');
-                }}
-                className="h-6 text-xs"
-              >
-                <Edit2 className="h-3 w-3 mr-1" />
-                Edit Form
-              </Button>
+          ) : (
+            <div className="text-center py-4 text-muted-foreground">
+              <p>No template selected for this form tab.</p>
             </div>
           )}
         </CardContent>
@@ -328,7 +347,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
               {hasUnsavedChanges && (
                 <Button 
                   onClick={handleSaveChanges}
-                  disabled={updateEventMutation.isPending}
+                  disabled={updateEventFormMutation.isPending}
                   size="sm"
                   className="flex items-center gap-1 h-7 px-2 text-xs"
                 >
@@ -492,7 +511,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                 {hasUnsavedChanges && (
                   <Button 
                     onClick={handleSaveChanges}
-                    disabled={updateEventMutation.isPending}
+                    disabled={updateEventFormMutation.isPending}
                     size="sm"
                     className="flex items-center gap-1 h-7 px-2 text-xs"
                   >
