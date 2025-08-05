@@ -279,62 +279,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
 
   return (
     <div className="space-y-4">
-      {/* Form Selection */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Form Template: {formTemplates?.find(t => t.id === selectedFormId)?.name || 'Loading...'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {selectedFormId ? (
-            <div className="space-y-3">
-              <div className="p-3 bg-muted rounded text-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{formTemplates?.find(t => t.id === selectedFormId)?.name}</p>
-                    {formTemplates?.find(t => t.id === selectedFormId)?.description && (
-                      <p className="text-muted-foreground text-xs">
-                        {formTemplates?.find(t => t.id === selectedFormId)?.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => {
-                        window.open(`/form-builder?edit=${selectedFormId}`, '_blank');
-                      }}
-                      className="h-7 text-xs"
-                    >
-                      <Edit2 className="h-3 w-3 mr-1" />
-                      Edit Template
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => {
-                        const newTemplateId = prompt('Enter new template ID or select from dropdown (this will clear current responses):');
-                        if (newTemplateId) handleChangeTemplate(newTemplateId);
-                      }}
-                      className="h-7 text-xs"
-                    >
-                      Change Template
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-4 text-muted-foreground">
-              <p>No template selected for this form tab.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Form Sections */}
       {formStructure?.sections && formStructure.sections.length > 0 && (
         <div className="space-y-4">
