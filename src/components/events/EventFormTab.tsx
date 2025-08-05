@@ -56,13 +56,21 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
           id,
           field_library_id,
           field_order,
+          form_section_id,
           field_library (
             id,
             label,
             field_type,
             category,
             help_text,
-            price_modifier
+            pricing_behavior,
+            unit_price,
+            min_quantity,
+            max_quantity,
+            default_quantity,
+            show_quantity_field,
+            show_notes_field,
+            allow_zero_price
           )
         `)
         .eq('form_template_id', selectedFormId)
@@ -74,13 +82,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         return [];
       }
       
-      // Filter out auto-created price/notes fields - we only want the main fields
-      const mainFields = (data || []).filter(field => {
-        const label = field.field_library?.label || '';
-        return !label.toLowerCase().includes(' price') && !label.toLowerCase().includes(' notes');
-      });
-      
-      return mainFields;
+      return data || [];
     }
   );
 
@@ -116,13 +118,19 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   const handleToggleChange = (fieldId: string, enabled: boolean) => {
     const field = selectedFormFields?.find(f => f.field_library.id === fieldId)?.field_library;
     
+    const defaultPrice = field?.unit_price || 0;
+    const defaultQuantity = field?.default_quantity || 1;
+    
     const updatedResponses = {
       ...formResponses,
       [fieldId]: {
         enabled,
-        price: enabled ? (formResponses[fieldId]?.price || field?.price_modifier || 0) : 0,
+        pricing_type: enabled ? (formResponses[fieldId]?.pricing_type || field?.pricing_behavior || 'fixed') : 'none',
+        price: enabled ? (formResponses[fieldId]?.price || defaultPrice) : 0,
+        unit_price: enabled ? (formResponses[fieldId]?.unit_price || defaultPrice) : 0,
+        quantity: enabled ? (formResponses[fieldId]?.quantity || defaultQuantity) : 1,
         notes: enabled ? (formResponses[fieldId]?.notes || '') : '',
-        label: field?.label || '' // Store the field label for PDF generation
+        label: field?.label || ''
       }
     };
     
@@ -304,26 +312,38 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                         
                         {isEnabled && (
                           <div className="space-y-3 mt-3">
-                            {/* Pricing Type Selection */}
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground mb-1 block">
-                                Pricing Type
-                              </Label>
-                              <Select
-                                value={response.pricing_type || 'fixed'}
-                                onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
-                              >
-                                <SelectTrigger className="h-8 text-sm">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="fixed">Fixed Price</SelectItem>
-                                  <SelectItem value="per_person">Per Person</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
+                            {/* Pricing Type Selection - only show if field has pricing */}
+                            {field.pricing_behavior !== 'none' && (
+                              <div>
+                                <Label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                  Pricing Type
+                                </Label>
+                                <Select
+                                  value={response.pricing_type || field.pricing_behavior}
+                                  onValueChange={(value) => {
+                                    handleFieldChange(fieldId, 'pricing_type', value);
+                                    // Reset quantity when changing pricing type
+                                    if (value === 'fixed') {
+                                      handleFieldChange(fieldId, 'quantity', 1);
+                                      handleFieldChange(fieldId, 'price', field.unit_price || 0);
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="fixed">Fixed Price</SelectItem>
+                                    <SelectItem value="per_person">Per Person</SelectItem>
+                                    {field.pricing_behavior === 'quantity_based' && (
+                                      <SelectItem value="quantity_based">Quantity Based</SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
 
-                            {response.pricing_type === 'per_person' ? (
+                            {(response.pricing_type === 'per_person' || response.pricing_type === 'quantity_based') ? (
                               <div className="grid grid-cols-3 gap-2">
                                 <div>
                                   <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -333,14 +353,16 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                   <Input
                                     id={`quantity-${fieldId}`}
                                     type="number"
-                                    value={response.quantity || 1}
+                                    min={field.min_quantity || 1}
+                                    max={field.max_quantity || undefined}
+                                    value={response.quantity || field.default_quantity || 1}
                                     onChange={(e) => {
                                       const qty = parseInt(e.target.value) || 1;
-                                      const unitPrice = parseFloat(response.unit_price) || 0;
+                                      const unitPrice = parseFloat(response.unit_price) || field.unit_price || 0;
                                       handleFieldChange(fieldId, 'quantity', qty);
                                       handleFieldChange(fieldId, 'price', qty * unitPrice);
                                     }}
-                                    placeholder="1"
+                                    placeholder={field.default_quantity?.toString() || "1"}
                                     className="h-8 text-sm"
                                   />
                                 </div>
@@ -353,10 +375,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                     id={`unit-price-${fieldId}`}
                                     type="number"
                                     step="0.01"
-                                    value={response.unit_price || field.price_modifier || 0}
+                                    min={field.allow_zero_price ? "0" : "0.01"}
+                                    value={response.unit_price || field.unit_price || 0}
                                     onChange={(e) => {
                                       const unitPrice = parseFloat(e.target.value) || 0;
-                                      const qty = parseInt(response.quantity) || 1;
+                                      const qty = parseInt(response.quantity) || field.default_quantity || 1;
                                       handleFieldChange(fieldId, 'unit_price', unitPrice);
                                       handleFieldChange(fieldId, 'price', qty * unitPrice);
                                     }}
@@ -370,11 +393,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                     Total
                                   </Label>
                                   <div className="h-8 text-sm bg-muted/30 rounded border flex items-center px-2 font-medium">
-                                    £{((parseInt(response.quantity) || 1) * (parseFloat(response.unit_price) || 0)).toFixed(2)}
+                                    £{((parseInt(response.quantity) || field.default_quantity || 1) * (parseFloat(response.unit_price) || field.unit_price || 0)).toFixed(2)}
                                   </div>
                                 </div>
                               </div>
-                            ) : (
+                            ) : field.pricing_behavior !== 'none' ? (
                               <div>
                                 <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                                   <DollarSign className="h-3 w-3" />
@@ -384,28 +407,31 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
                                   id={`price-${fieldId}`}
                                   type="number"
                                   step="0.01"
-                                  value={response.price || field.price_modifier || 0}
+                                  min={field.allow_zero_price ? "0" : "0.01"}
+                                  value={response.price || field.unit_price || 0}
                                   onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
                                   placeholder="0.00"
                                   className="h-8 text-sm"
                                 />
                               </div>
-                            )}
+                            ) : null}
                             
-                            <div>
-                              <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                <MessageSquare className="h-3 w-3" />
-                                Notes
-                              </Label>
-                              <Textarea
-                                id={`notes-${fieldId}`}
-                                value={response.notes || ''}
-                                onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-                                placeholder="Additional notes..."
-                                rows={1}
-                                className="h-8 text-sm resize-none"
-                              />
-                            </div>
+                            {field.show_notes_field && (
+                              <div>
+                                <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                  <MessageSquare className="h-3 w-3" />
+                                  Notes
+                                </Label>
+                                <Textarea
+                                  id={`notes-${fieldId}`}
+                                  value={response.notes || ''}
+                                  onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+                                  placeholder="Additional notes..."
+                                  rows={1}
+                                  className="h-8 text-sm resize-none"
+                                />
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

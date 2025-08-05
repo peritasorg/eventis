@@ -12,6 +12,7 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { EnhancedFieldCreator } from './EnhancedFieldCreator';
 
 interface EnhancedDragDropFormBuilderProps {
   form: any;
@@ -561,10 +562,13 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-lg">Field Library</h3>
-              <Button onClick={() => setIsCreateFieldOpen(true)} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Create
-              </Button>
+              <EnhancedFieldCreator 
+                formId={form.id} 
+                onFieldAdded={() => {
+                  refetchLibrary();
+                  refetchFields();
+                }} 
+              />
             </div>
             
             {/* Search */}

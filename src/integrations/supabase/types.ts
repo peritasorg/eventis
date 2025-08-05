@@ -1051,21 +1051,31 @@ export type Database = {
         Row: {
           active: boolean | null
           affects_pricing: boolean | null
+          allow_zero_price: boolean | null
           auto_add_notes_field: boolean | null
           auto_add_price_field: boolean | null
           category: string | null
           created_at: string | null
+          custom_pricing_logic: Json | null
+          default_quantity: number | null
           default_value: string | null
           field_type: string
           help_text: string | null
           id: string
           label: string
+          max_quantity: number | null
+          min_quantity: number | null
           name: string
           options: Json | null
           placeholder: string | null
           price_modifier: number | null
+          pricing_behavior: string | null
+          pricing_tiers: Json | null
           pricing_type: string | null
+          show_notes_field: boolean | null
+          show_quantity_field: boolean | null
           tenant_id: string | null
+          unit_price: number | null
           updated_at: string | null
           usage_count: number | null
           validation_rules: Json | null
@@ -1073,21 +1083,31 @@ export type Database = {
         Insert: {
           active?: boolean | null
           affects_pricing?: boolean | null
+          allow_zero_price?: boolean | null
           auto_add_notes_field?: boolean | null
           auto_add_price_field?: boolean | null
           category?: string | null
           created_at?: string | null
+          custom_pricing_logic?: Json | null
+          default_quantity?: number | null
           default_value?: string | null
           field_type: string
           help_text?: string | null
           id?: string
           label: string
+          max_quantity?: number | null
+          min_quantity?: number | null
           name: string
           options?: Json | null
           placeholder?: string | null
           price_modifier?: number | null
+          pricing_behavior?: string | null
+          pricing_tiers?: Json | null
           pricing_type?: string | null
+          show_notes_field?: boolean | null
+          show_quantity_field?: boolean | null
           tenant_id?: string | null
+          unit_price?: number | null
           updated_at?: string | null
           usage_count?: number | null
           validation_rules?: Json | null
@@ -1095,21 +1115,31 @@ export type Database = {
         Update: {
           active?: boolean | null
           affects_pricing?: boolean | null
+          allow_zero_price?: boolean | null
           auto_add_notes_field?: boolean | null
           auto_add_price_field?: boolean | null
           category?: string | null
           created_at?: string | null
+          custom_pricing_logic?: Json | null
+          default_quantity?: number | null
           default_value?: string | null
           field_type?: string
           help_text?: string | null
           id?: string
           label?: string
+          max_quantity?: number | null
+          min_quantity?: number | null
           name?: string
           options?: Json | null
           placeholder?: string | null
           price_modifier?: number | null
+          pricing_behavior?: string | null
+          pricing_tiers?: Json | null
           pricing_type?: string | null
+          show_notes_field?: boolean | null
+          show_quantity_field?: boolean | null
           tenant_id?: string | null
+          unit_price?: number | null
           updated_at?: string | null
           usage_count?: number | null
           validation_rules?: Json | null
