@@ -573,7 +573,7 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Category</SelectItem>
+                <SelectItem value="none">No Category</SelectItem>
                 {fieldCategories?.map((category: any) => (
                   <SelectItem key={category.id} value={category.name}>
                     {category.display_name}
@@ -746,7 +746,7 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Category</SelectItem>
+                  <SelectItem value="none">No Category</SelectItem>
                   {fieldCategories?.map((category: any) => (
                     <SelectItem key={category.id} value={category.name}>
                       {category.display_name}
