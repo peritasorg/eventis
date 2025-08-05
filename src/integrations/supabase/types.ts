@@ -1050,44 +1050,65 @@ export type Database = {
       field_library: {
         Row: {
           active: boolean | null
+          affects_pricing: boolean | null
           category: string | null
           created_at: string | null
           field_type: string
           id: string
           label: string
+          max_quantity: number | null
+          min_quantity: number | null
           name: string
           options: Json | null
+          pricing_behavior: string | null
+          pricing_type: string | null
           required: boolean | null
+          show_notes_field: boolean | null
           sort_order: number | null
           tenant_id: string | null
+          unit_price: number | null
           updated_at: string | null
         }
         Insert: {
           active?: boolean | null
+          affects_pricing?: boolean | null
           category?: string | null
           created_at?: string | null
           field_type: string
           id?: string
           label: string
+          max_quantity?: number | null
+          min_quantity?: number | null
           name: string
           options?: Json | null
+          pricing_behavior?: string | null
+          pricing_type?: string | null
           required?: boolean | null
+          show_notes_field?: boolean | null
           sort_order?: number | null
           tenant_id?: string | null
+          unit_price?: number | null
           updated_at?: string | null
         }
         Update: {
           active?: boolean | null
+          affects_pricing?: boolean | null
           category?: string | null
           created_at?: string | null
           field_type?: string
           id?: string
           label?: string
+          max_quantity?: number | null
+          min_quantity?: number | null
           name?: string
           options?: Json | null
+          pricing_behavior?: string | null
+          pricing_type?: string | null
           required?: boolean | null
+          show_notes_field?: boolean | null
           sort_order?: number | null
           tenant_id?: string | null
+          unit_price?: number | null
           updated_at?: string | null
         }
         Relationships: [

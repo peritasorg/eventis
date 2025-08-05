@@ -61,7 +61,6 @@ export const EventFormSection: React.FC<EventFormSectionProps> = ({ event }) => 
             label,
             field_type,
             category,
-            help_text,
             options
           )
         `)
@@ -283,9 +282,6 @@ export const EventFormSection: React.FC<EventFormSectionProps> = ({ event }) => 
                           )}
                         </div>
                         
-                        {field.help_text && (
-                          <p className="text-xs text-muted-foreground mb-2">{field.help_text}</p>
-                        )}
                         
                         {isEnabled && (
                           <div className="grid grid-cols-2 gap-3 mt-3">

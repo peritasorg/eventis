@@ -13,22 +13,24 @@ import { Plus, Trash2, DollarSign, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 const FIELD_CATEGORIES = [
-  'Basic Information',
-  'Event Details', 
-  'Food & Catering',
-  'Services',
-  'Decorations',
+  'Basic Info',
+  'Food & Beverage',
+  'Decorations', 
   'Equipment',
-  'Other'
+  'Services',
+  'Logistics',
+  'Entertainment',
+  'Venue'
 ];
 
 const FIELD_TYPES = [
-  { value: 'toggle', label: 'Toggle (Default)' },
+  { value: 'toggle', label: 'Toggle' },
   { value: 'number', label: 'Number' },
   { value: 'select', label: 'Dropdown' }
 ];
 
-const PRICING_TYPES = [
+const PRICING_BEHAVIORS = [
+  { value: 'none', label: 'No Pricing' },
   { 
     value: 'fixed', 
     label: 'Fixed Price', 
@@ -62,7 +64,7 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
     category: '',
     field_type: 'toggle',
     options: [] as string[],
-    pricing_type: 'fixed',
+    pricing_type: 'none',
     show_notes_field: true
   });
   const [newOption, setNewOption] = useState('');
@@ -75,7 +77,7 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
         category: field.category || '',
         field_type: field.field_type || 'toggle',
         options: field.options || [],
-        pricing_type: field.pricing_behavior || 'fixed',
+        pricing_type: field.pricing_behavior || 'none',
         show_notes_field: field.show_notes_field !== false
       });
     } else {
@@ -85,7 +87,7 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
         category: '',
         field_type: 'toggle',
         options: [],
-        pricing_type: 'fixed',
+        pricing_type: 'none',
         show_notes_field: true
       });
     }
@@ -336,18 +338,20 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PRICING_TYPES.map((type) => (
+                {PRICING_BEHAVIORS.map((type) => (
                   <SelectItem key={type.value} value={type.value}>
                     <div className="flex flex-col items-start gap-1">
                       <div className="flex items-center gap-2">
                         {type.value === 'fixed' ? (
                           <DollarSign className="h-3 w-3" />
-                        ) : (
+                        ) : type.value === 'per_person' ? (
                           <Users className="h-3 w-3" />
-                        )}
+                        ) : null}
                         {type.label}
                       </div>
-                      <span className="text-xs text-muted-foreground">{type.example}</span>
+                      {type.example && (
+                        <span className="text-xs text-muted-foreground">{type.example}</span>
+                      )}
                     </div>
                   </SelectItem>
                 ))}
