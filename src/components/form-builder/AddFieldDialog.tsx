@@ -30,6 +30,14 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
 
   const createFieldMutation = useSupabaseMutation(
     async (fieldData: any) => {
+      console.log('Field data being inserted:', fieldData);
+      console.log('Tenant ID:', currentTenant?.id);
+      
+      // Validate that required fields are present
+      if (!fieldData.name || !fieldData.label || !fieldData.field_type) {
+        throw new Error('Missing required fields: name, label, or field_type');
+      }
+      
       // First create the field in the library
       const { data: newField, error: fieldError } = await supabase
         .from('field_library')
@@ -40,7 +48,10 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
         .select()
         .single();
       
-      if (fieldError) throw fieldError;
+      if (fieldError) {
+        console.error('Database insert error:', fieldError);
+        throw fieldError;
+      }
 
       // Get the default form section for this form template
       // First, let's find or create a default section for this form
