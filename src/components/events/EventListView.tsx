@@ -79,14 +79,10 @@ export const EventListView: React.FC<EventListViewProps> = ({
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'inquiry': 
-        return <Badge className="bg-status-discovery text-status-discovery-foreground text-xs">Discovery</Badge>;
-      case 'confirmed': 
-        return <Badge className="bg-status-proposal text-status-proposal-foreground text-xs">Proposal</Badge>;
-      case 'completed': 
-        return <Badge className="bg-status-won text-status-won-foreground text-xs">Won</Badge>;
-      case 'cancelled': 
-        return <Badge className="bg-status-closed text-status-closed-foreground text-xs">Closed</Badge>;
+      case 'active': 
+        return <Badge variant="default" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Active</Badge>;
+      case 'inactive': 
+        return <Badge variant="secondary" className="text-xs">Inactive</Badge>;
       default: 
         return <Badge variant="outline" className="text-xs">{status}</Badge>;
     }
