@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { IntegratedFormBuilder } from './IntegratedFormBuilderNew';
+import { EnhancedDragDropFormBuilder } from './EnhancedDragDropFormBuilder';
 
 interface FormEditorProps {
   form: any;
@@ -8,5 +8,5 @@ interface FormEditorProps {
 }
 
 export const FormEditor: React.FC<FormEditorProps> = ({ form, onBack }) => {
-  return <IntegratedFormBuilder form={form} onBack={onBack} />;
+  return <EnhancedDragDropFormBuilder form={form} onBack={onBack} />;
 };
