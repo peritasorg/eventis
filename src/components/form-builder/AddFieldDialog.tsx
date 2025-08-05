@@ -111,16 +111,34 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    // Sanitize and validate inputs
-    const rawLabel = formData.get('label') as string;
-    const label = sanitizeInput(rawLabel || '');
-    const helpText = sanitizeInput(formData.get('help_text') as string || '');
-    const fieldType = sanitizeInput(formData.get('field_type') as string || '');
+    // Get raw inputs first
+    const rawLabel = formData.get('label') as string || '';
+    const rawHelpText = formData.get('help_text') as string || '';
+    const rawFieldType = formData.get('field_type') as string || '';
     const priceModifier = formData.get('price_modifier') as string || '';
     
-    // Validation
-    if (!label || label.trim() === '' || !validateTextLength(label, 100)) {
-      toast.error('Field label is required and must be less than 100 characters');
+    console.log('Raw inputs:', { rawLabel, rawHelpText, rawFieldType, priceModifier });
+    
+    // Sanitize inputs
+    const label = sanitizeInput(rawLabel);
+    const helpText = sanitizeInput(rawHelpText);
+    const fieldType = sanitizeInput(rawFieldType);
+    
+    console.log('Sanitized inputs:', { label, helpText, fieldType });
+    
+    // CRITICAL: Check if sanitization stripped everything
+    if (!rawLabel.trim()) {
+      toast.error('Field label is required');
+      return;
+    }
+    
+    if (!label || label.trim() === '') {
+      toast.error('Field label contains invalid characters. Please use only letters, numbers, and basic punctuation.');
+      return;
+    }
+    
+    if (!validateTextLength(label, 100)) {
+      toast.error('Field label must be less than 100 characters');
       return;
     }
     
@@ -141,20 +159,34 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
       return;
     }
     
-    // Create a unique name from label (slug-style)
-    let fieldName = label.toLowerCase()
+    // Create a unique name from the original label (before sanitization)
+    // Use rawLabel to ensure we don't lose content from overzealous sanitization
+    let fieldName = rawLabel.toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
       .replace(/\s+/g, '_') // Replace spaces with underscores
       .replace(/_+/g, '_') // Replace multiple underscores with single
       .trim()
       .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
     
-    // Ensure we have a valid name
+    // Multiple fallback layers to ensure we ALWAYS have a valid name
     if (!fieldName || fieldName.length === 0) {
+      // Try using just letters and numbers from the label
+      fieldName = rawLabel.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    }
+    
+    if (!fieldName || fieldName.length === 0) {
+      // Final fallback with timestamp
       fieldName = `field_${Date.now()}`;
     }
     
-    createFieldMutation.mutate({
+    // Ensure the name is valid (not empty/null/undefined)
+    if (!fieldName || typeof fieldName !== 'string' || fieldName.trim() === '') {
+      fieldName = `field_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    }
+    
+    console.log('Generated field name:', fieldName);
+    
+    const mutationData = {
       name: fieldName,
       label: label,
       field_type: fieldType,
@@ -164,7 +196,11 @@ export const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
       auto_add_price_field: formData.get('auto_add_price_field') === 'on',
       auto_add_notes_field: formData.get('auto_add_notes_field') === 'on',
       active: true
-    });
+    };
+    
+    console.log('Final mutation data:', mutationData);
+    
+    createFieldMutation.mutate(mutationData);
   };
 
   return (
