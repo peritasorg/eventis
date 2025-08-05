@@ -45,12 +45,26 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
     }
   );
 
-  const { data: selectedFormFields } = useSupabaseQuery(
-    ['form-fields', selectedFormId],
+  const { data: formStructure } = useSupabaseQuery(
+    ['form-structure', selectedFormId],
     async () => {
-      if (!selectedFormId || !currentTenant?.id) return [];
+      if (!selectedFormId || !currentTenant?.id) return { sections: [], fields: [] };
       
-      const { data, error } = await supabase
+      // Fetch sections
+      const { data: sections, error: sectionsError } = await supabase
+        .from('form_sections')
+        .select('*')
+        .eq('form_page_id', selectedFormId)
+        .eq('tenant_id', currentTenant.id)
+        .order('section_order');
+      
+      if (sectionsError) {
+        console.error('Form sections error:', sectionsError);
+        return { sections: [], fields: [] };
+      }
+      
+      // Fetch fields with their sections
+      const { data: fields, error: fieldsError } = await supabase
         .from('form_field_instances')
         .select(`
           id,
@@ -70,12 +84,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
       
-      if (error) {
-        console.error('Form fields error:', error);
-        return [];
+      if (fieldsError) {
+        console.error('Form fields error:', fieldsError);
+        return { sections: sections || [], fields: [] };
       }
       
-      return data || [];
+      return { sections: sections || [], fields: fields || [] };
     }
   );
 
@@ -109,7 +123,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   };
 
   const handleToggleChange = (fieldId: string, enabled: boolean) => {
-    const field = selectedFormFields?.find(f => f.field_library.id === fieldId)?.field_library;
+    const field = formStructure?.fields?.find(f => f.field_library.id === fieldId)?.field_library;
     
     const updatedResponses = {
       ...formResponses,
@@ -127,7 +141,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   };
 
   const handleFieldChange = (fieldId: string, field: string, value: string | number) => {
-    const fieldInstance = selectedFormFields?.find(f => f.field_library.id === fieldId);
+    const fieldInstance = formStructure?.fields?.find(f => f.field_library.id === fieldId);
     const fieldLabel = fieldInstance?.field_library?.label || '';
     
     const updatedResponses = {
@@ -155,9 +169,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
   };
 
   const calculateFormTotal = () => {
-    if (!selectedFormFields) return 0;
+    if (!formStructure?.fields) return 0;
     
-    return selectedFormFields.reduce((total: number, fieldInstance: any) => {
+    return formStructure.fields.reduce((total: number, fieldInstance: any) => {
       const fieldId = fieldInstance.field_library.id;
       const response = formResponses[fieldId];
       
@@ -173,9 +187,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
 
   // Get enabled fields for the summary - only fields that exist in current form AND are enabled
   const getEnabledFieldsForSummary = () => {
-    if (!selectedFormFields) return [];
+    if (!formStructure?.fields) return [];
     
-    return selectedFormFields
+    return formStructure.fields
       .filter(fieldInstance => {
         const fieldId = fieldInstance.field_library.id;
         const response = formResponses[fieldId];
@@ -185,6 +199,14 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         field: fieldInstance.field_library,
         response: formResponses[fieldInstance.field_library.id]
       }));
+  };
+
+  // Organize fields by section
+  const getFieldsBySection = (sectionId: string) => {
+    if (!formStructure?.fields) return [];
+    return formStructure.fields
+      .filter(fieldInstance => fieldInstance.form_section_id === sectionId)
+      .sort((a, b) => a.field_order - b.field_order);
   };
 
   return (
@@ -240,124 +262,141 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ event }) => {
         </CardContent>
       </Card>
 
-      {/* Form Fields */}
-      {selectedFormFields && selectedFormFields.length > 0 && (
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Form Responses
+      {/* Form Sections */}
+      {formStructure?.sections && formStructure.sections.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Form Responses</h3>
+            <div className="flex items-center gap-3">
+              <div className="text-sm font-bold text-green-600">
+                Total: £{calculateFormTotal().toFixed(2)}
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-sm font-bold text-green-600">
-                  Total: £{calculateFormTotal().toFixed(2)}
-                </div>
-                {hasUnsavedChanges && (
-                  <Button 
-                    onClick={handleSaveChanges}
-                    disabled={updateEventMutation.isPending}
-                    size="sm"
-                    className="flex items-center gap-1 h-7 px-2 text-xs"
-                  >
-                    <Save className="h-3 w-3" />
-                    Save Changes
-                  </Button>
-                )}
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {selectedFormFields.map((fieldInstance) => {
-                const field = fieldInstance.field_library;
-                const fieldId = field.id;
-                const response = formResponses[fieldId] || {};
-                const isEnabled = response.enabled || false;
-                
-                return (
-                  <div key={fieldId} className="border rounded-md p-3">
-                    <div className="flex items-start gap-3">
-                      <Switch
-                        checked={isEnabled}
-                        onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
-                        className="mt-0.5"
-                      />
+              {hasUnsavedChanges && (
+                <Button 
+                  onClick={handleSaveChanges}
+                  disabled={updateEventMutation.isPending}
+                  size="sm"
+                  className="flex items-center gap-1 h-7 px-2 text-xs"
+                >
+                  <Save className="h-3 w-3" />
+                  Save Changes
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {formStructure.sections.map((section) => {
+            const sectionFields = getFieldsBySection(section.id);
+            
+            if (sectionFields.length === 0) return null;
+            
+            return (
+              <Card key={section.id} className="shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    {section.section_title || 'Form Section'}
+                  </CardTitle>
+                  {section.section_description && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {section.section_description}
+                    </p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {sectionFields.map((fieldInstance) => {
+                      const field = fieldInstance.field_library;
+                      const fieldId = field.id;
+                      const response = formResponses[fieldId] || {};
+                      const isEnabled = response.enabled || false;
                       
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-sm">{field.label}</h4>
-                          {field.category && (
-                            <span className="bg-muted px-2 py-0.5 rounded text-xs">
-                              {field.category}
-                            </span>
-                          )}
-                        </div>
-                        
-                        {field.help_text && (
-                          <p className="text-xs text-muted-foreground mb-2">{field.help_text}</p>
-                        )}
-                        
-                        {isEnabled && (
-                          <div className="space-y-3 mt-3">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                  <DollarSign className="h-3 w-3" />
-                                  Price (£)
-                                </Label>
-                                <Input
-                                  id={`price-${fieldId}`}
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={response.price || 0}
-                                  onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                                  placeholder="0.00"
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                  <Users className="h-3 w-3" />
-                                  Quantity
-                                </Label>
-                                <Input
-                                  id={`quantity-${fieldId}`}
-                                  type="number"
-                                  min="1"
-                                  value={response.quantity || 1}
-                                  onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
-                                  placeholder="1"
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                            </div>
+                      return (
+                        <div key={fieldId} className="border rounded-md p-3">
+                          <div className="flex items-start gap-3">
+                            <Switch
+                              checked={isEnabled}
+                              onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
+                              className="mt-0.5"
+                            />
                             
-                            <div>
-                              <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                <MessageSquare className="h-3 w-3" />
-                                Notes
-                              </Label>
-                              <Textarea
-                                id={`notes-${fieldId}`}
-                                value={response.notes || ''}
-                                onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-                                placeholder="Additional notes..."
-                                rows={2}
-                                className="text-sm"
-                              />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium text-sm">{field.label}</h4>
+                                {field.category && (
+                                  <span className="bg-muted px-2 py-0.5 rounded text-xs">
+                                    {field.category}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {field.help_text && (
+                                <p className="text-xs text-muted-foreground mb-2">{field.help_text}</p>
+                              )}
+                              
+                              {isEnabled && (
+                                <div className="space-y-3 mt-3">
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                        <DollarSign className="h-3 w-3" />
+                                        Price (£)
+                                      </Label>
+                                      <Input
+                                        id={`price-${fieldId}`}
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={response.price || 0}
+                                        onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                                        placeholder="0.00"
+                                        className="h-8 text-sm"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                        <Users className="h-3 w-3" />
+                                        Quantity
+                                      </Label>
+                                      <Input
+                                        id={`quantity-${fieldId}`}
+                                        type="number"
+                                        min="1"
+                                        value={response.quantity || 1}
+                                        onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                                        placeholder="1"
+                                        className="h-8 text-sm"
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                      <MessageSquare className="h-3 w-3" />
+                                      Notes
+                                    </Label>
+                                    <Textarea
+                                      id={`notes-${fieldId}`}
+                                      value={response.notes || ''}
+                                      onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+                                      placeholder="Additional notes..."
+                                      rows={2}
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* Form Summary */}
