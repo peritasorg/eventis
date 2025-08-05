@@ -390,112 +390,112 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
   };
 
   return (
-    <div className="h-full flex bg-gray-50 dark:bg-gray-900">
-      {/* Left Sidebar - Field Library */}
-      <div className="w-80 border-r bg-white dark:bg-gray-800 flex flex-col">
-        <div className="p-4 border-b">
-          <h3 className="font-semibold text-lg">Field Library</h3>
-          <p className="text-sm text-muted-foreground">Drag fields into your form</p>
-        </div>
-        
-        <div className="flex-1 overflow-auto p-4">
-          <Droppable droppableId="field-library" type="LIBRARY_FIELD" isDropDisabled={true}>
-            {(provided) => (
-              <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
-                {availableLibraryFields.map((field, index) => (
-                  <Draggable key={field.id} draggableId={field.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        className={`p-3 border rounded-lg bg-white cursor-grab transition-all ${
-                          snapshot.isDragging 
-                            ? 'shadow-lg rotate-2 scale-105 bg-blue-50 border-blue-200' 
-                            : 'hover:shadow-md hover:border-blue-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <GripVertical className="h-4 w-4 text-gray-400" />
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{field.label}</div>
-                            <div className="text-xs text-gray-500 capitalize">{field.field_type}</div>
-                            {field.affects_pricing && (
-                              <div className="text-xs text-green-600 mt-1">£{field.price_modifier}</div>
-                            )}
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <div className="h-full flex bg-gray-50 dark:bg-gray-900">
+        {/* Left Sidebar - Field Library */}
+        <div className="w-80 border-r bg-white dark:bg-gray-800 flex flex-col">
+          <div className="p-4 border-b">
+            <h3 className="font-semibold text-lg">Field Library</h3>
+            <p className="text-sm text-muted-foreground">Drag fields into your form</p>
+          </div>
+          
+          <div className="flex-1 overflow-auto p-4">
+            <Droppable droppableId="field-library" type="LIBRARY_FIELD" isDropDisabled={true}>
+              {(provided) => (
+                <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                  {availableLibraryFields.map((field, index) => (
+                    <Draggable key={field.id} draggableId={field.id} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className={`p-3 border rounded-lg bg-white cursor-grab transition-all ${
+                            snapshot.isDragging 
+                              ? 'shadow-lg rotate-2 scale-105 bg-blue-50 border-blue-200' 
+                              : 'hover:shadow-md hover:border-blue-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <GripVertical className="h-4 w-4 text-gray-400" />
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{field.label}</div>
+                              <div className="text-xs text-gray-500 capitalize">{field.field_type}</div>
+                              {field.affects_pricing && (
+                                <div className="text-xs text-green-600 mt-1">£{field.price_modifier}</div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-                
-                {availableLibraryFields.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">All fields are in use</p>
-                    <p className="text-xs mt-1">Create more fields to add them</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </Droppable>
-        </div>
-      </div>
-
-      {/* Main Content - Form Builder */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="border-b bg-white dark:bg-gray-800 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={onBack} className="h-8 w-8 p-0">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <h1 className="text-lg font-semibold">{form.name || 'Untitled Form'}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {previewMode ? 'Preview mode' : 'Drag fields from the library • Click to edit • Right-click to delete'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant={previewMode ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setPreviewMode(!previewMode)}
-              >
-                <Eye className="h-4 w-4 mr-1" />
-                {previewMode ? 'Edit Mode' : 'Preview'}
-              </Button>
-              {!previewMode && (
-                <Button onClick={addSection} variant="outline" size="sm">
-                  <FolderPlus className="h-4 w-4 mr-1" />
-                  Add Section
-                </Button>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                  
+                  {availableLibraryFields.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">All fields are in use</p>
+                      <p className="text-xs mt-1">Create more fields to add them</p>
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
+            </Droppable>
           </div>
         </div>
 
-        {/* Form Canvas */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-4xl mx-auto">
-            {(!formFields || formFields.length === 0) && !previewMode ? (
-              <div className="flex items-center justify-center h-64 text-center border-2 border-dashed border-gray-300 rounded-lg">
-                <div className="space-y-4">
-                  <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
-                    <Plus className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">Drag fields here to start building</h4>
-                    <p className="text-gray-500">Drag fields from the library on the left to create your form</p>
-                  </div>
+        {/* Main Content - Form Builder */}
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <div className="border-b bg-white dark:bg-gray-800 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={onBack} className="h-8 w-8 p-0">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div>
+                  <h1 className="text-lg font-semibold">{form.name || 'Untitled Form'}</h1>
+                  <p className="text-sm text-muted-foreground">
+                    {previewMode ? 'Preview mode' : 'Drag fields from the library • Click to edit • Right-click to delete'}
+                  </p>
                 </div>
               </div>
-            ) : (
-              <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={previewMode ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setPreviewMode(!previewMode)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  {previewMode ? 'Edit Mode' : 'Preview'}
+                </Button>
+                {!previewMode && (
+                  <Button onClick={addSection} variant="outline" size="sm">
+                    <FolderPlus className="h-4 w-4 mr-1" />
+                    Add Section
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Form Canvas */}
+          <div className="flex-1 overflow-auto p-6">
+            <div className="max-w-4xl mx-auto">
+              {(!formFields || formFields.length === 0) && !previewMode ? (
+                <div className="flex items-center justify-center h-64 text-center border-2 border-dashed border-gray-300 rounded-lg">
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
+                      <Plus className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-medium text-gray-900 mb-2">Drag fields here to start building</h4>
+                      <p className="text-gray-500">Drag fields from the library on the left to create your form</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
                 <div className="space-y-6">
                   {sections.map((section) => {
                     const sectionFields = getFieldsForSection(section.id);
@@ -626,13 +626,13 @@ export const EnhancedDragDropFormBuilder: React.FC<EnhancedDragDropFormBuilderPr
                     );
                   })}
                 </div>
-              </DragDropContext>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {renderEditDialog()}
-    </div>
+        {renderEditDialog()}
+      </div>
+    </DragDropContext>
   );
 };
