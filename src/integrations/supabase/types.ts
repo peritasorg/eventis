@@ -1050,6 +1050,65 @@ export type Database = {
       field_library: {
         Row: {
           active: boolean | null
+          category: string | null
+          created_at: string | null
+          field_type: string
+          help_text: string | null
+          id: string
+          label: string
+          name: string
+          options: Json | null
+          placeholder: string | null
+          required: boolean | null
+          sort_order: number | null
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          field_type: string
+          help_text?: string | null
+          id?: string
+          label: string
+          name: string
+          options?: Json | null
+          placeholder?: string | null
+          required?: boolean | null
+          sort_order?: number | null
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          field_type?: string
+          help_text?: string | null
+          id?: string
+          label?: string
+          name?: string
+          options?: Json | null
+          placeholder?: string | null
+          required?: boolean | null
+          sort_order?: number | null
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_library_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_library_backup: {
+        Row: {
+          active: boolean | null
           affects_pricing: boolean | null
           allow_zero_price: boolean | null
           auto_add_notes_field: boolean | null
@@ -1059,13 +1118,13 @@ export type Database = {
           custom_pricing_logic: Json | null
           default_quantity: number | null
           default_value: string | null
-          field_type: string
+          field_type: string | null
           help_text: string | null
-          id: string
-          label: string
+          id: string | null
+          label: string | null
           max_quantity: number | null
           min_quantity: number | null
-          name: string
+          name: string | null
           options: Json | null
           placeholder: string | null
           price_modifier: number | null
@@ -1091,13 +1150,13 @@ export type Database = {
           custom_pricing_logic?: Json | null
           default_quantity?: number | null
           default_value?: string | null
-          field_type: string
+          field_type?: string | null
           help_text?: string | null
-          id?: string
-          label: string
+          id?: string | null
+          label?: string | null
           max_quantity?: number | null
           min_quantity?: number | null
-          name: string
+          name?: string | null
           options?: Json | null
           placeholder?: string | null
           price_modifier?: number | null
@@ -1123,13 +1182,13 @@ export type Database = {
           custom_pricing_logic?: Json | null
           default_quantity?: number | null
           default_value?: string | null
-          field_type?: string
+          field_type?: string | null
           help_text?: string | null
-          id?: string
-          label?: string
+          id?: string | null
+          label?: string | null
           max_quantity?: number | null
           min_quantity?: number | null
-          name?: string
+          name?: string | null
           options?: Json | null
           placeholder?: string | null
           price_modifier?: number | null
@@ -1144,15 +1203,7 @@ export type Database = {
           usage_count?: number | null
           validation_rules?: Json | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "field_library_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       finance_timeline: {
         Row: {
