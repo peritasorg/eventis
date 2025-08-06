@@ -89,7 +89,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
               category,
               required,
               options,
-              pricing_behavior,
+              affects_pricing,
               unit_price,
               show_notes_field
             )
@@ -135,7 +135,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
             category,
             required,
             options,
-            pricing_behavior,
+            affects_pricing,
             unit_price,
             show_notes_field
           )
@@ -212,28 +212,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
   };
 
   const renderFieldInput = (field: any, fieldId: string, response: any) => {
-    // Text fields with no pricing behavior - only show notes if enabled
-    if (field.field_type === 'text' && field.pricing_behavior === 'none') {
-      if (!field.show_notes_field) return null;
-      
-      return (
-        <div>
-          <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <MessageSquare className="h-3 w-3" />
-            Notes
-          </Label>
-          <Textarea
-            id={`notes-${fieldId}`}
-            value={response.notes || ''}
-            onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-            placeholder="Additional notes..."
-            rows={2}
-            className="text-sm"
-          />
-        </div>
-      );
-    }
-
     // Toggle fields - show toggle switch with conditional pricing/notes
     if (field.field_type === 'toggle') {
       const isEnabled = response.enabled || false;
@@ -248,7 +226,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
             <span className="text-sm">{isEnabled ? 'Enabled' : 'Disabled'}</span>
           </div>
           
-          {isEnabled && field.pricing_behavior !== 'none' && (
+          {isEnabled && field.affects_pricing && (
             <div className="space-y-3">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -299,6 +277,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
                   />
                 </div>
               </div>
+
+              {response.pricing_type === 'per_person' && (
+                <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <TrendingUp className="h-3 w-3" />
+                  Total: £{((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1)).toFixed(2)}
+                </div>
+              )}
             </div>
           )}
 
@@ -322,14 +307,14 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
       );
     }
 
-    // Other field types (text with pricing, number, select, etc.)
+    // All other field types - simplified unified rendering
     return (
       <div className="space-y-3">
-        {/* Field value input based on type */}
+        {/* Basic field input based on type */}
         {field.field_type === 'text' && (
           <div>
             <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
-              Value
+              {field.affects_pricing ? 'Value' : 'Enter text (optional)'}
             </Label>
             <Input
               id={`value-${fieldId}`}
@@ -394,8 +379,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
           </div>
         )}
 
-        {/* Pricing section for fields with pricing */}
-        {field.pricing_behavior !== 'none' && (
+        {/* Pricing section - only show if field affects pricing */}
+        {field.affects_pricing && (
           <div className="space-y-3">
             <div>
               <Label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -446,10 +431,17 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
                 />
               </div>
             </div>
+
+            {response.pricing_type === 'per_person' && (
+              <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                <TrendingUp className="h-3 w-3" />
+                Total: £{((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1)).toFixed(2)}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Notes section */}
+        {/* Notes section - show if enabled in field settings */}
         {field.show_notes_field && (
           <div>
             <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -509,15 +501,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
       const field = fieldInstance.field_library;
       const response = formResponses[fieldId];
       
-      // Only include fields with pricing in the total
-      if (field.pricing_behavior !== 'none' && response) {
+      // Only include fields that affect pricing
+      if (field.affects_pricing && response) {
         // For toggle fields, only count if enabled
         if (field.field_type === 'toggle' && !response.enabled) {
           return total;
         }
         
         const price = parseFloat(response.price) || 0;
-        return total + price;
+        const quantity = parseInt(response.quantity) || 1;
+        
+        // Calculate total based on pricing type
+        if (response.pricing_type === 'per_person') {
+          return total + (price * quantity);
+        } else {
+          return total + price;
+        }
       }
       
       return total;
@@ -534,8 +533,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
         const field = fieldInstance.field_library;
         const response = formResponses[fieldId];
         
-        // Only include fields with pricing
-        if (field.pricing_behavior === 'none') return false;
+        // Only include fields that affect pricing
+        if (!field.affects_pricing) return false;
         
         // For toggle fields, only include if enabled
         if (field.field_type === 'toggle') {
