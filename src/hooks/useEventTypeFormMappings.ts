@@ -31,12 +31,7 @@ export const useEventTypeFormMappings = (eventTypeConfigId?: string) => {
       const { data, error } = await supabase
         .from('event_type_form_mappings')
         .select(`
-          *,
-          form_templates (
-            id,
-            name,
-            description
-          )
+          *
         `)
         .eq('event_type_config_id', eventTypeConfigId)
         .eq('tenant_id', currentTenant.id)
