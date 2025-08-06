@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { FileText, DollarSign, MessageSquare, Save } from 'lucide-react';
+import { FileText, DollarSign, MessageSquare, Save, Users } from 'lucide-react';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -61,7 +61,9 @@ export const EventFormSection: React.FC<EventFormSectionProps> = ({ event }) => 
             label,
             field_type,
             category,
-            options
+            options,
+            pricing_behavior,
+            show_notes_field
           )
         `)
         .eq('form_template_id', selectedFormId)
@@ -284,35 +286,59 @@ export const EventFormSection: React.FC<EventFormSectionProps> = ({ event }) => 
                         
                         
                         {isEnabled && (
-                          <div className="grid grid-cols-2 gap-3 mt-3">
-                            <div>
-                              <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
-                                <DollarSign className="h-3 w-3" />
-                                Price (£)
-                              </label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={response.price || 0}
-                                onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                                placeholder="0.00"
-                                className="h-8 text-sm"
-                              />
-                            </div>
+                          <div className="space-y-3 mt-3">
+                            {/* Show pricing fields only if pricing_behavior is not 'none' */}
+                            {field.pricing_behavior && field.pricing_behavior !== 'none' && (
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
+                                    <DollarSign className="h-3 w-3" />
+                                    {field.pricing_behavior === 'per_person' ? 'Per Person (£)' : 'Price (£)'}
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={response.price || 0}
+                                    onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                                    placeholder="0.00"
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                                
+                                {field.pricing_behavior === 'per_person' && (
+                                  <div>
+                                    <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
+                                      <Users className="h-3 w-3" />
+                                      Quantity
+                                    </label>
+                                    <Input
+                                      type="number"
+                                      value={response.quantity || 1}
+                                      onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                                      placeholder="1"
+                                      className="h-8 text-sm"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             
-                            <div>
-                              <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
-                                <MessageSquare className="h-3 w-3" />
-                                Notes
-                              </label>
-                              <Textarea
-                                value={response.notes || ''}
-                                onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-                                placeholder="Additional notes..."
-                                rows={1}
-                                className="text-xs resize-none"
-                              />
-                            </div>
+                            {/* Show notes field only if show_notes_field is true */}
+                            {field.show_notes_field !== false && (
+                              <div>
+                                <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
+                                  <MessageSquare className="h-3 w-3" />
+                                  Notes
+                                </label>
+                                <Textarea
+                                  value={response.notes || ''}
+                                  onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+                                  placeholder="Additional notes..."
+                                  rows={1}
+                                  className="text-xs resize-none"
+                                />
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

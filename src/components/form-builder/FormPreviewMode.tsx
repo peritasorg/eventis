@@ -170,114 +170,100 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
                   {renderFieldInput(field)}
                 </div>
                 
-                {/* Pricing and Notes - Only show when enabled */}
+                {/* Pricing and Notes - Only show when enabled and based on field settings */}
                 {isEnabled && (
                   <div className="space-y-3 pt-3 border-t border-muted">
-                    {/* Pricing Type Selection */}
-                    <div>
-                      <Label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Pricing Type
-                      </Label>
-                      <Select
-                        value={response.pricing_type || 'fixed'}
-                        onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fixed">Fixed Price</SelectItem>
-                          <SelectItem value="per_person">Per Person</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Pricing Inputs */}
-                    {response.pricing_type === 'per_person' ? (
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                            <Users className="h-3 w-3" />
-                            Quantity
-                          </Label>
-                          <Input
-                            type="number"
-                            value={response.quantity || 1}
-                            onChange={(e) => {
-                              const qty = parseInt(e.target.value) || 1;
-                              const unitPrice = parseFloat(response.unit_price) || 0;
-                              handleFieldChange(fieldId, 'quantity', qty);
-                              handleFieldChange(fieldId, 'price', qty * unitPrice);
-                            }}
-                            placeholder="1"
-                            className="h-8 text-sm"
-                            disabled={readOnly}
-                          />
-                        </div>
-                        <div>
-                          <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                            <DollarSign className="h-3 w-3" />
-                            Per Unit
-                          </Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={response.unit_price || field.price_modifier || 0}
-                            onChange={(e) => {
-                              const unitPrice = parseFloat(e.target.value) || 0;
-                              const qty = parseInt(response.quantity) || 1;
-                              handleFieldChange(fieldId, 'unit_price', unitPrice);
-                              handleFieldChange(fieldId, 'price', qty * unitPrice);
-                            }}
-                            placeholder="0.00"
-                            className="h-8 text-sm"
-                            disabled={readOnly}
-                          />
-                        </div>
-                        <div>
-                          <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                            <TrendingUp className="h-3 w-3" />
-                            Total
-                          </Label>
-                          <div className="h-8 text-sm bg-muted/30 rounded border flex items-center px-2 font-medium">
-                            £{((parseInt(response.quantity) || 1) * (parseFloat(response.unit_price) || 0)).toFixed(2)}
+                    {/* Show pricing only if field has pricing behavior */}
+                    {field.pricing_behavior && field.pricing_behavior !== 'none' && (
+                      <div className="space-y-3">
+                        {field.pricing_behavior === 'per_person' ? (
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                <Users className="h-3 w-3" />
+                                Quantity
+                              </Label>
+                              <Input
+                                type="number"
+                                value={response.quantity || 1}
+                                onChange={(e) => {
+                                  const qty = parseInt(e.target.value) || 1;
+                                  const unitPrice = parseFloat(response.unit_price) || 0;
+                                  handleFieldChange(fieldId, 'quantity', qty);
+                                  handleFieldChange(fieldId, 'price', qty * unitPrice);
+                                }}
+                                placeholder="1"
+                                className="h-8 text-sm"
+                                disabled={readOnly}
+                              />
+                            </div>
+                            <div>
+                              <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                <DollarSign className="h-3 w-3" />
+                                Per Unit
+                              </Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={response.unit_price || field.unit_price || 0}
+                                onChange={(e) => {
+                                  const unitPrice = parseFloat(e.target.value) || 0;
+                                  const qty = parseInt(response.quantity) || 1;
+                                  handleFieldChange(fieldId, 'unit_price', unitPrice);
+                                  handleFieldChange(fieldId, 'price', qty * unitPrice);
+                                }}
+                                placeholder="0.00"
+                                className="h-8 text-sm"
+                                disabled={readOnly}
+                              />
+                            </div>
+                            <div>
+                              <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                <TrendingUp className="h-3 w-3" />
+                                Total
+                              </Label>
+                              <div className="h-8 text-sm bg-muted/30 rounded border flex items-center px-2 font-medium">
+                                £{((parseInt(response.quantity) || 1) * (parseFloat(response.unit_price) || 0)).toFixed(2)}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div>
+                            <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                              <DollarSign className="h-3 w-3" />
+                              Fixed Price (£)
+                            </Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={response.price || field.unit_price || 0}
+                              onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                              className="h-8 text-sm"
+                              disabled={readOnly}
+                            />
+                          </div>
+                        )}
                       </div>
-                    ) : (
+                    )}
+                    
+                    {/* Show notes only if field allows notes */}
+                    {field.show_notes_field !== false && (
                       <div>
                         <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                          <DollarSign className="h-3 w-3" />
-                          Fixed Price (£)
+                          <MessageSquare className="h-3 w-3" />
+                          Notes
                         </Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={response.price || field.price_modifier || 0}
-                          onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                          placeholder="0.00"
-                          className="h-8 text-sm"
+                        <Textarea
+                          value={response.notes || ''}
+                          onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+                          placeholder="Additional notes for this field..."
+                          rows={2}
+                          className="text-sm resize-none"
                           disabled={readOnly}
                         />
                       </div>
                     )}
-                    
-                    {/* Notes */}
-                    <div>
-                      <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                        <MessageSquare className="h-3 w-3" />
-                        Notes
-                      </Label>
-                      <Textarea
-                        value={response.notes || ''}
-                        onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-                        placeholder="Additional notes for this field..."
-                        rows={2}
-                        className="text-sm resize-none"
-                        disabled={readOnly}
-                      />
-                    </div>
                   </div>
                 )}
               </div>
