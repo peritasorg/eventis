@@ -889,7 +889,22 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_event_type_form_mappings_event_type_config_id"
+            columns: ["event_type_config_id"]
+            isOneToOne: false
+            referencedRelation: "event_type_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_event_type_form_mappings_form_template_id"
+            columns: ["form_template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {

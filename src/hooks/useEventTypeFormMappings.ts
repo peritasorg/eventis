@@ -22,7 +22,7 @@ export interface EventTypeFormMapping {
 export const useEventTypeFormMappings = (eventTypeConfigId?: string) => {
   const { currentTenant } = useAuth();
 
-  // Fetch all mappings for an event type
+  // Fetch all mappings for an event type with form template details
   const { data: mappings, refetch: refetchMappings } = useSupabaseQuery(
     ['event-type-form-mappings', eventTypeConfigId],
     async () => {
@@ -30,9 +30,7 @@ export const useEventTypeFormMappings = (eventTypeConfigId?: string) => {
       
       const { data, error } = await supabase
         .from('event_type_form_mappings')
-        .select(`
-          *
-        `)
+        .select('*')
         .eq('event_type_config_id', eventTypeConfigId)
         .eq('tenant_id', currentTenant.id)
         .order('sort_order');
@@ -40,6 +38,27 @@ export const useEventTypeFormMappings = (eventTypeConfigId?: string) => {
       if (error) {
         console.error('Event type form mappings error:', error);
         return [];
+      }
+      
+      // Now fetch form templates for these mappings
+      if (data && data.length > 0) {
+        const formTemplateIds = data.map(m => m.form_template_id);
+        const { data: formTemplates, error: templatesError } = await supabase
+          .from('form_templates')
+          .select('id, name, description')
+          .in('id', formTemplateIds)
+          .eq('tenant_id', currentTenant.id);
+        
+        if (templatesError) {
+          console.error('Form templates error:', templatesError);
+          return data.map(mapping => ({ ...mapping, form_templates: null }));
+        }
+        
+        // Combine data
+        return data.map(mapping => ({
+          ...mapping,
+          form_templates: formTemplates?.find(ft => ft.id === mapping.form_template_id) || null
+        }));
       }
       
       return data || [];
@@ -160,17 +179,10 @@ export const useEventTypeFormMappingsForCreation = () => {
 
     if (!eventTypeConfig) return [];
 
-    // Get the form mappings for this event type
+    // Get the form mappings for this event type with form template details
     const { data: mappings, error } = await supabase
       .from('event_type_form_mappings')
-      .select(`
-        *,
-        form_templates (
-          id,
-          name,
-          description
-        )
-      `)
+      .select('*')
       .eq('event_type_config_id', eventTypeConfig.id)
       .eq('tenant_id', currentTenant.id)
       .eq('auto_assign', true)
@@ -181,7 +193,27 @@ export const useEventTypeFormMappingsForCreation = () => {
       return [];
     }
 
-    return mappings || [];
+    if (!mappings || mappings.length === 0) return [];
+
+    // Fetch form template details
+    const formTemplateIds = mappings.map(m => m.form_template_id);
+    const { data: formTemplates, error: templatesError } = await supabase
+      .from('form_templates')
+      .select('id, name, description')
+      .in('id', formTemplateIds)
+      .eq('tenant_id', currentTenant.id);
+
+    if (templatesError) {
+      console.error('Error fetching form templates:', templatesError);
+      return mappings.map(mapping => ({ ...mapping, form_templates: null }));
+    }
+
+    // Combine the data
+    return mappings.map(mapping => ({
+      ...mapping,
+      form_templates: formTemplates?.find(ft => ft.id === mapping.form_template_id) || null
+    }));
+
   };
 
   return { getFormMappingsForEventType };
