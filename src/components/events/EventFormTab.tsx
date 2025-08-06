@@ -199,13 +199,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
       [fieldId]: {
         ...formResponses[fieldId],
         enabled,
-        pricing_type: enabled ? (formResponses[fieldId]?.pricing_type || 'fixed') : 'none',
-        price: enabled ? (formResponses[fieldId]?.price || 0) : 0,
-        quantity: enabled ? (formResponses[fieldId]?.quantity || 1) : 1,
-        notes: enabled ? (formResponses[fieldId]?.notes || '') : '',
         label: field?.label || ''
       }
     };
+
+    // Only add pricing data if field affects pricing
+    if (enabled && field?.affects_pricing) {
+      updatedResponses[fieldId].pricing_type = formResponses[fieldId]?.pricing_type || 'fixed';
+      updatedResponses[fieldId].price = formResponses[fieldId]?.price || 0;
+      updatedResponses[fieldId].quantity = formResponses[fieldId]?.quantity || 1;
+    } else if (!enabled) {
+      // Reset notes when disabled
+      updatedResponses[fieldId].notes = '';
+      if (field?.affects_pricing) {
+        updatedResponses[fieldId].quantity = 0;
+      }
+    }
     
     setFormResponses(updatedResponses);
     setHasUnsavedChanges(true);
@@ -310,11 +319,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
     // All other field types - simplified unified rendering
     return (
       <div className="space-y-3">
-        {/* Basic field input based on type */}
-        {field.field_type === 'text' && (
+        {/* Basic field input based on type - only show for pricing fields */}
+        {field.field_type === 'text' && field.affects_pricing && (
           <div>
             <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
-              {field.affects_pricing ? 'Value' : 'Enter text (optional)'}
+              Value
             </Label>
             <Input
               id={`value-${fieldId}`}
