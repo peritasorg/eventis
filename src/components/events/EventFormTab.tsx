@@ -90,7 +90,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
               required,
               options,
               pricing_behavior,
-              unit_price
+              unit_price,
+              show_notes_field
             )
           `)
           .eq('form_template_id', selectedFormId)
@@ -135,7 +136,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
             required,
             options,
             pricing_behavior,
-            unit_price
+            unit_price,
+            show_notes_field
           )
         `)
         .eq('form_template_id', selectedFormId)
@@ -209,6 +211,265 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
     setHasUnsavedChanges(true);
   };
 
+  const renderFieldInput = (field: any, fieldId: string, response: any) => {
+    // Text fields with no pricing behavior - only show notes if enabled
+    if (field.field_type === 'text' && field.pricing_behavior === 'none') {
+      if (!field.show_notes_field) return null;
+      
+      return (
+        <div>
+          <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <MessageSquare className="h-3 w-3" />
+            Notes
+          </Label>
+          <Textarea
+            id={`notes-${fieldId}`}
+            value={response.notes || ''}
+            onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+            placeholder="Additional notes..."
+            rows={2}
+            className="text-sm"
+          />
+        </div>
+      );
+    }
+
+    // Toggle fields - show toggle switch with conditional pricing/notes
+    if (field.field_type === 'toggle') {
+      const isEnabled = response.enabled || false;
+      
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={isEnabled}
+              onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
+            />
+            <span className="text-sm">{isEnabled ? 'Enabled' : 'Disabled'}</span>
+          </div>
+          
+          {isEnabled && field.pricing_behavior !== 'none' && (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Pricing Type
+                </Label>
+                <Select
+                  value={response.pricing_type || 'fixed'}
+                  onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed Price</SelectItem>
+                    <SelectItem value="per_person">Per Person</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                    <DollarSign className="h-3 w-3" />
+                    {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
+                  </Label>
+                  <Input
+                    id={`price-${fieldId}`}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={response.price || ''}
+                    onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                    <Users className="h-3 w-3" />
+                    {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
+                  </Label>
+                  <Input
+                    id={`quantity-${fieldId}`}
+                    type="number"
+                    min="1"
+                    value={response.quantity || ''}
+                    onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isEnabled && field.show_notes_field && (
+            <div>
+              <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                <MessageSquare className="h-3 w-3" />
+                Notes
+              </Label>
+              <Textarea
+                id={`notes-${fieldId}`}
+                value={response.notes || ''}
+                onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+                placeholder="Additional notes..."
+                rows={2}
+                className="text-sm"
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Other field types (text with pricing, number, select, etc.)
+    return (
+      <div className="space-y-3">
+        {/* Field value input based on type */}
+        {field.field_type === 'text' && (
+          <div>
+            <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
+              Value
+            </Label>
+            <Input
+              id={`value-${fieldId}`}
+              type="text"
+              value={response.value || ''}
+              onChange={(e) => handleFieldChange(fieldId, 'value', e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+        )}
+
+        {field.field_type === 'number' && (
+          <div>
+            <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
+              Value
+            </Label>
+            <Input
+              id={`value-${fieldId}`}
+              type="number"
+              value={response.value || ''}
+              onChange={(e) => handleFieldChange(fieldId, 'value', parseFloat(e.target.value) || 0)}
+              className="h-8 text-sm"
+            />
+          </div>
+        )}
+
+        {field.field_type === 'select' && field.options && (
+          <div>
+            <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
+              Selection
+            </Label>
+            <Select
+              value={response.value || ''}
+              onValueChange={(value) => handleFieldChange(fieldId, 'value', value)}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select an option" />
+              </SelectTrigger>
+              <SelectContent>
+                {field.options.map((option: any, index: number) => (
+                  <SelectItem key={index} value={option.value || option}>
+                    {option.label || option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {field.field_type === 'textarea' && (
+          <div>
+            <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
+              Value
+            </Label>
+            <Textarea
+              id={`value-${fieldId}`}
+              value={response.value || ''}
+              onChange={(e) => handleFieldChange(fieldId, 'value', e.target.value)}
+              rows={2}
+              className="text-sm"
+            />
+          </div>
+        )}
+
+        {/* Pricing section for fields with pricing */}
+        {field.pricing_behavior !== 'none' && (
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Pricing Type
+              </Label>
+              <Select
+                value={response.pricing_type || 'fixed'}
+                onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed">Fixed Price</SelectItem>
+                  <SelectItem value="per_person">Per Person</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <DollarSign className="h-3 w-3" />
+                  {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
+                </Label>
+                <Input
+                  id={`price-${fieldId}`}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={response.price || ''}
+                  onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <Users className="h-3 w-3" />
+                  {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
+                </Label>
+                <Input
+                  id={`quantity-${fieldId}`}
+                  type="number"
+                  min="1"
+                  value={response.quantity || ''}
+                  onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notes section */}
+        {field.show_notes_field && (
+          <div>
+            <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              <MessageSquare className="h-3 w-3" />
+              Notes
+            </Label>
+            <Textarea
+              id={`notes-${fieldId}`}
+              value={response.notes || ''}
+              onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+              placeholder="Additional notes..."
+              rows={2}
+              className="text-sm"
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const handleFieldChange = (fieldId: string, field: string, value: string | number) => {
     const fieldInstance = formStructure?.fields?.find(f => f.field_library.id === fieldId);
     const fieldLabel = fieldInstance?.field_library?.label || '';
@@ -245,10 +506,16 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
     
     return formStructure.fields.reduce((total: number, fieldInstance: any) => {
       const fieldId = fieldInstance.field_library.id;
+      const field = fieldInstance.field_library;
       const response = formResponses[fieldId];
       
-      // Only include enabled fields in the total
-      if (response?.enabled) {
+      // Only include fields with pricing in the total
+      if (field.pricing_behavior !== 'none' && response) {
+        // For toggle fields, only count if enabled
+        if (field.field_type === 'toggle' && !response.enabled) {
+          return total;
+        }
+        
         const price = parseFloat(response.price) || 0;
         return total + price;
       }
@@ -257,15 +524,26 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
     }, 0);
   };
 
-  // Get enabled fields for the summary - only fields that exist in current form AND are enabled
+  // Get fields for the summary - only fields with pricing that have values
   const getEnabledFieldsForSummary = () => {
     if (!formStructure?.fields) return [];
     
     return formStructure.fields
       .filter(fieldInstance => {
         const fieldId = fieldInstance.field_library.id;
+        const field = fieldInstance.field_library;
         const response = formResponses[fieldId];
-        return response?.enabled === true;
+        
+        // Only include fields with pricing
+        if (field.pricing_behavior === 'none') return false;
+        
+        // For toggle fields, only include if enabled
+        if (field.field_type === 'toggle') {
+          return response?.enabled === true && response?.price > 0;
+        }
+        
+        // For other fields with pricing, include if they have a price
+        return response?.price > 0;
       })
       .map(fieldInstance => ({
         field: fieldInstance.field_library,
@@ -326,112 +604,26 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {sectionFields.map((fieldInstance) => {
-                      const field = fieldInstance.field_library;
-                      const fieldId = field.id;
-                      const response = formResponses[fieldId] || {};
-                      // Auto-enable if there's existing data (price > 0 or notes exist)
-                      const hasExistingData = (response.price && response.price > 0) || (response.notes && response.notes.trim() !== '');
-                      const isEnabled = response.enabled || hasExistingData;
-                      
-                      return (
-                        <div key={fieldId} className="border rounded-md p-3">
-                          <div className="flex items-start gap-3">
-                            <Switch
-                              checked={isEnabled}
-                              onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
-                              className="mt-0.5"
-                            />
-                            
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium text-sm">{field.label}</h4>
-                                {field.category && (
-                                  <span className="bg-muted px-2 py-0.5 rounded text-xs">
-                                    {field.category}
-                                  </span>
-                                )}
-                              </div>
-                              
-                              
-                              {isEnabled && (
-                                <div className="space-y-3 mt-3">
-                                  {/* Pricing Type Selection */}
-                                  <div>
-                                    <Label className="text-xs font-medium text-muted-foreground mb-1 block">
-                                      Pricing Type
-                                    </Label>
-                                    <Select
-                                      value={response.pricing_type || 'fixed'}
-                                      onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
-                                    >
-                                      <SelectTrigger className="h-8 text-sm">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                       <SelectContent>
-                                         <SelectItem value="fixed">Fixed Price</SelectItem>
-                                         <SelectItem value="per_person">Per Person</SelectItem>
-                                       </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                      <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                        <DollarSign className="h-3 w-3" />
-                                        {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
-                                      </Label>
-                                      <Input
-                                        id={`price-${fieldId}`}
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={response.price || ''}
-                                        onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                                        onFocus={(e) => e.target.select()}
-                                        placeholder={response.price ? response.price.toString() : "0.00"}
-                                        className="h-8 text-sm"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                        <Users className="h-3 w-3" />
-                                        {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
-                                      </Label>
-                                      <Input
-                                        id={`quantity-${fieldId}`}
-                                        type="number"
-                                        min="1"
-                                        value={response.quantity || ''}
-                                        onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
-                                        onFocus={(e) => e.target.select()}
-                                        placeholder={response.quantity ? response.quantity.toString() : "1"}
-                                        className="h-8 text-sm"
-                                      />
-                                    </div>
-                                  </div>
-                                  
-                                  <div>
-                                    <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                      <MessageSquare className="h-3 w-3" />
-                                      Notes
-                                    </Label>
-                                    <Textarea
-                                      id={`notes-${fieldId}`}
-                                      value={response.notes || ''}
-                                      onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-                                      placeholder="Additional notes..."
-                                      rows={2}
-                                      className="text-sm"
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                     {sectionFields.map((fieldInstance) => {
+                       const field = fieldInstance.field_library;
+                       const fieldId = field.id;
+                       const response = formResponses[fieldId] || {};
+                       
+                       return (
+                         <div key={fieldId} className="border rounded-md p-3">
+                           <div className="flex items-center justify-between mb-3">
+                             <h4 className="font-medium text-sm">{field.label}</h4>
+                             {field.category && (
+                               <span className="bg-muted px-2 py-0.5 rounded text-xs">
+                                 {field.category}
+                               </span>
+                             )}
+                           </div>
+                           
+                           {renderFieldInput(field, fieldId, response)}
+                         </div>
+                       );
+                     })}
                   </div>
                 </CardContent>
               </Card>
@@ -473,105 +665,19 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
                 const field = fieldInstance.field_library;
                 const fieldId = field.id;
                 const response = formResponses[fieldId] || {};
-                // Auto-enable if there's existing data (price > 0 or notes exist)
-                const hasExistingData = (response.price && response.price > 0) || (response.notes && response.notes.trim() !== '');
-                const isEnabled = response.enabled || hasExistingData;
                 
                 return (
                   <div key={fieldId} className="border rounded-md p-3">
-                    <div className="flex items-start gap-3">
-                      <Switch
-                        checked={isEnabled}
-                        onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
-                        className="mt-0.5"
-                      />
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-sm">{field.label}</h4>
-                          {field.category && (
-                            <span className="bg-muted px-2 py-0.5 rounded text-xs">
-                              {field.category}
-                            </span>
-                          )}
-                        </div>
-                        
-                        
-                        {isEnabled && (
-                          <div className="space-y-3 mt-3">
-                            {/* Pricing Type Selection */}
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground mb-1 block">
-                                Pricing Type
-                              </Label>
-                              <Select
-                                value={response.pricing_type || 'fixed'}
-                                onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
-                              >
-                                <SelectTrigger className="h-8 text-sm">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                 <SelectContent>
-                                   <SelectItem value="fixed">Fixed Price</SelectItem>
-                                   <SelectItem value="per_person">Per Person</SelectItem>
-                                 </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <Label htmlFor={`price-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                  <DollarSign className="h-3 w-3" />
-                                  {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
-                                </Label>
-                                <Input
-                                  id={`price-${fieldId}`}
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={response.price || ''}
-                                  onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                                  onFocus={(e) => e.target.select()}
-                                  placeholder={response.price ? response.price.toString() : "0.00"}
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor={`quantity-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                  <Users className="h-3 w-3" />
-                                  {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
-                                </Label>
-                                <Input
-                                  id={`quantity-${fieldId}`}
-                                  type="number"
-                                  min="1"
-                                  value={response.quantity || ''}
-                                  onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
-                                  onFocus={(e) => e.target.select()}
-                                  placeholder={response.quantity ? response.quantity.toString() : "1"}
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <Label htmlFor={`notes-${fieldId}`} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                <MessageSquare className="h-3 w-3" />
-                                Notes
-                              </Label>
-                              <Textarea
-                                id={`notes-${fieldId}`}
-                                value={response.notes || ''}
-                                onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-                                placeholder="Additional notes..."
-                                rows={2}
-                                className="text-sm"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-sm">{field.label}</h4>
+                      {field.category && (
+                        <span className="bg-muted px-2 py-0.5 rounded text-xs">
+                          {field.category}
+                        </span>
+                      )}
                     </div>
+                    
+                    {renderFieldInput(field, fieldId, response)}
                   </div>
                 );
               })}
