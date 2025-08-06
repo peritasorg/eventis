@@ -39,11 +39,51 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
     }
   };
 
-  const renderFieldInput = (field: any) => {
+  const renderFieldInput = (field: any, fieldId: string, response: any) => {
+    // For text fields with no pricing, only show notes if enabled
+    if (field.field_type === 'text' && !field.affects_pricing) {
+      if (field.show_notes_field) {
+        return (
+          <div>
+            <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              <MessageSquare className="h-3 w-3" />
+              Notes
+            </Label>
+            <Textarea
+              value={response.notes || ''}
+              onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+              rows={3}
+              className="text-sm resize-none"
+              disabled={readOnly}
+            />
+          </div>
+        );
+      }
+      return null;
+    }
+
+    // For toggle/checkbox fields, show the toggle switch
+    if (field.field_type === 'checkbox') {
+      return (
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={response.enabled || false}
+            onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
+            disabled={readOnly}
+          />
+          <span className="text-sm font-medium">Enable {field.label}</span>
+        </div>
+      );
+    }
+
+    // For other field types, show the appropriate input
     switch (field.field_type) {
       case 'text':
         return (
           <Input
+            value={response.value || ''}
+            onChange={(e) => handleFieldChange(fieldId, 'value', e.target.value)}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
             className="h-8 text-sm"
             disabled={readOnly}
@@ -53,6 +93,8 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
         return (
           <Input
             type="number"
+            value={response.value || ''}
+            onChange={(e) => handleFieldChange(fieldId, 'value', e.target.value)}
             placeholder={field.placeholder || "Enter number"}
             className="h-8 text-sm"
             disabled={readOnly}
@@ -61,6 +103,8 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
       case 'textarea':
         return (
           <Textarea
+            value={response.value || ''}
+            onChange={(e) => handleFieldChange(fieldId, 'value', e.target.value)}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
             rows={3}
             className="text-sm resize-none"
@@ -69,31 +113,32 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
         );
       case 'select':
         return (
-          <Select disabled={readOnly}>
+          <Select 
+            value={response.value || ''} 
+            onValueChange={(value) => handleFieldChange(fieldId, 'value', value)}
+            disabled={readOnly}
+          >
             <SelectTrigger className="h-8 text-sm">
               <SelectValue placeholder="Select an option..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="option1">Option 1</SelectItem>
-              <SelectItem value="option2">Option 2</SelectItem>
-              <SelectItem value="option3">Option 3</SelectItem>
+              {field.field_options?.map((option: any, index: number) => (
+                <SelectItem key={index} value={option.value || option}>
+                  {option.label || option}
+                </SelectItem>
+              )) || [
+                <SelectItem key="1" value="option1">Option 1</SelectItem>,
+                <SelectItem key="2" value="option2">Option 2</SelectItem>,
+                <SelectItem key="3" value="option3">Option 3</SelectItem>
+              ]}
             </SelectContent>
           </Select>
-        );
-      case 'checkbox':
-        return (
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              className="rounded"
-              disabled={readOnly}
-            />
-            <span className="text-sm">Enable this option</span>
-          </div>
         );
       default:
         return (
           <Input
+            value={response.value || ''}
+            onChange={(e) => handleFieldChange(fieldId, 'value', e.target.value)}
             placeholder={field.placeholder || "Enter value"}
             className="h-8 text-sm"
             disabled={readOnly}
@@ -114,87 +159,96 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground mb-4">
-        This preview shows how the form will appear when used in event records, including pricing controls and notes.
+        This preview shows exactly how fields will appear in event form responses, including conditional pricing and notes.
       </div>
 
       {formFields.map((fieldInstance) => {
         const field = fieldInstance.field_library || fieldInstance;
         const fieldId = field.id;
         const response = formResponses[fieldId] || {};
-        const isEnabled = response.enabled || false;
+        
+        // For text fields with no pricing, they render differently
+        if (field.field_type === 'text' && !field.affects_pricing) {
+          return (
+            <div key={fieldId} className="border rounded-md p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-sm">{field.label}</h4>
+                <div className="flex items-center gap-2">
+                  {field.category && (
+                    <Badge variant="secondary" className="text-xs">
+                      {field.category}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs">
+                    Notes Only
+                  </Badge>
+                  {!readOnly && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFieldMutation?.mutate?.(fieldInstance.id)}
+                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mb-3">{field.help_text}</p>
+              )}
+
+              {renderFieldInput(field, fieldId, response)}
+            </div>
+          );
+        }
+
+        // For other field types (toggle, select, etc.)
+        const isEnabled = field.field_type === 'checkbox' ? (response.enabled || false) : true;
 
         return (
           <div key={fieldId} className="border rounded-md p-4">
-            <div className="flex items-start gap-3">
-              {/* Enable/Disable Toggle */}
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={(enabled) => handleToggleChange(fieldId, enabled)}
-                className="mt-0.5"
-                disabled={readOnly}
-              />
-              
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-sm">{field.label}</h4>
-                  <div className="flex items-center gap-2">
-                    {field.category && (
-                      <Badge variant="secondary" className="text-xs">
-                        {field.category}
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {field.field_type === 'checkbox' ? 'Toggle' : field.field_type === 'select' ? 'Dropdown' : field.field_type.replace('_', ' ')}
-                    </Badge>
-                    {!readOnly && (
-                      <div className="flex gap-1 ml-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFieldMutation?.mutate?.(fieldInstance.id)}
-                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                {field.help_text && (
-                  <p className="text-xs text-muted-foreground mb-3">{field.help_text}</p>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-sm">{field.label}</h4>
+              <div className="flex items-center gap-2">
+                {field.category && (
+                  <Badge variant="secondary" className="text-xs">
+                    {field.category}
+                  </Badge>
                 )}
+                <Badge variant="outline" className="text-xs capitalize">
+                  {field.field_type === 'checkbox' ? 'Toggle' : field.field_type === 'select' ? 'Dropdown' : field.field_type.replace('_', ' ')}
+                </Badge>
+                {!readOnly && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFieldMutation?.mutate?.(fieldInstance.id)}
+                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            {field.help_text && (
+              <p className="text-xs text-muted-foreground mb-3">{field.help_text}</p>
+            )}
 
-                {/* Field Input */}
-                <div className="mb-3">
-                  {renderFieldInput(field)}
-                </div>
-                
-                {/* Pricing and Notes - Only show when enabled */}
-                {isEnabled && (
-                  <div className="space-y-3 pt-3 border-t border-muted">
-                    {/* Pricing Type Selection */}
-                    <div>
-                      <Label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Pricing Type
-                      </Label>
-                      <Select
-                        value={response.pricing_type || 'fixed'}
-                        onValueChange={(value) => handleFieldChange(fieldId, 'pricing_type', value)}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fixed">Fixed Price</SelectItem>
-                          <SelectItem value="per_person">Per Person</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Pricing Inputs */}
-                    {response.pricing_type === 'per_person' ? (
+            {/* Field Input */}
+            <div className="mb-3">
+              {renderFieldInput(field, fieldId, response)}
+            </div>
+            
+            {/* Pricing and Notes - Only show when enabled for toggles, or always for other types */}
+            {(field.field_type !== 'checkbox' || isEnabled) && (
+              <div className="space-y-3 pt-3 border-t border-muted">
+                {/* Show pricing only if field affects pricing */}
+                {field.affects_pricing && (
+                  <div className="space-y-3">
+                    {field.pricing_behavior === 'per_person' ? (
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -223,7 +277,7 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
                           <Input
                             type="number"
                             step="0.01"
-                            value={response.unit_price || field.price_modifier || 0}
+                            value={response.unit_price || field.unit_price || 0}
                             onChange={(e) => {
                               const unitPrice = parseFloat(e.target.value) || 0;
                               const qty = parseInt(response.quantity) || 1;
@@ -254,7 +308,7 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
                         <Input
                           type="number"
                           step="0.01"
-                          value={response.price || field.price_modifier || 0}
+                          value={response.price || field.unit_price || 0}
                           onChange={(e) => handleFieldChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
                           placeholder="0.00"
                           className="h-8 text-sm"
@@ -262,26 +316,28 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
                         />
                       </div>
                     )}
-                    
-                    {/* Notes */}
-                    <div>
-                      <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                        <MessageSquare className="h-3 w-3" />
-                        Notes
-                      </Label>
-                      <Textarea
-                        value={response.notes || ''}
-                        onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
-                        placeholder="Additional notes for this field..."
-                        rows={2}
-                        className="text-sm resize-none"
-                        disabled={readOnly}
-                      />
-                    </div>
+                  </div>
+                )}
+                
+                {/* Show notes only if field allows notes */}
+                {field.show_notes_field && (
+                  <div>
+                    <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                      <MessageSquare className="h-3 w-3" />
+                      Notes
+                    </Label>
+                    <Textarea
+                      value={response.notes || ''}
+                      onChange={(e) => handleFieldChange(fieldId, 'notes', e.target.value)}
+                      placeholder="Additional notes for this field..."
+                      rows={2}
+                      className="text-sm resize-none"
+                      disabled={readOnly}
+                    />
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
         );
       })}

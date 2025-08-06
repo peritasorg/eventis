@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, X, Edit2, Receipt, Calendar, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, X, Edit2, Receipt, Calendar, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ export const EventDetailWithTabs = () => {
   const [formToClose, setFormToClose] = useState<any>(null);
 
   // Fetch event data
-  const { data: event, isLoading } = useSupabaseQuery(
+  const { data: event, isLoading, refetch: refetchEvent } = useSupabaseQuery(
     ['event', eventId],
     async () => {
       if (!eventId || !currentTenant?.id) return null;
@@ -93,7 +93,7 @@ export const EventDetailWithTabs = () => {
   );
 
   // Fetch tenant details for PDF generation
-  const { data: tenantDetails } = useSupabaseQuery(
+  const { data: tenantDetails, refetch: refetchTenant } = useSupabaseQuery(
     ['tenant-details', currentTenant?.id],
     async () => {
       if (!currentTenant?.id) return null;
@@ -112,6 +112,32 @@ export const EventDetailWithTabs = () => {
       return data;
     }
   );
+
+  // Manual refresh function
+  const handleRefreshData = async () => {
+    toast.loading('Refreshing data...', { id: 'refresh-data' });
+    try {
+      await Promise.all([
+        refetchEvent(),
+        refetchForms(),
+        refetchTenant()
+      ]);
+      toast.success('Data refreshed successfully!', { id: 'refresh-data' });
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error('Failed to refresh data', { id: 'refresh-data' });
+    }
+  };
+
+  // Handle tab change with refresh
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    // Refresh data when switching tabs to ensure calculated fields are up to date
+    setTimeout(() => {
+      refetchEvent();
+      refetchForms();
+    }, 100);
+  };
 
   // Update event mutation
   const updateEventMutation = useSupabaseMutation(
@@ -179,7 +205,11 @@ export const EventDetailWithTabs = () => {
     },
     {
       successMessage: 'Tab renamed successfully!',
-      invalidateQueries: [['event-forms', eventId]]
+      invalidateQueries: [['event-forms', eventId]],
+      onSuccess: () => {
+        refetchEvent();
+        refetchForms();
+      }
     }
   );
 
@@ -196,7 +226,11 @@ export const EventDetailWithTabs = () => {
     },
     {
       successMessage: 'Form tab saved and closed successfully!',
-      invalidateQueries: [['event-forms', eventId], ['inactive-forms', eventId]]
+      invalidateQueries: [['event-forms', eventId], ['inactive-forms', eventId]],
+      onSuccess: () => {
+        refetchEvent();
+        refetchForms();
+      }
     }
   );
 
@@ -213,7 +247,11 @@ export const EventDetailWithTabs = () => {
     },
     {
       successMessage: 'Form tab deleted permanently!',
-      invalidateQueries: [['event-forms', eventId], ['inactive-forms', eventId]]
+      invalidateQueries: [['event-forms', eventId], ['inactive-forms', eventId]],
+      onSuccess: () => {
+        refetchEvent();
+        refetchForms();
+      }
     }
   );
 
@@ -326,7 +364,11 @@ export const EventDetailWithTabs = () => {
     },
     {
       successMessage: 'Form tab activated successfully!',
-      invalidateQueries: [['event-forms', eventId], ['events', eventId]]
+      invalidateQueries: [['event-forms', eventId], ['events', eventId]],
+      onSuccess: () => {
+        refetchEvent();
+        refetchForms();
+      }
     }
   );
 
@@ -387,6 +429,10 @@ export const EventDetailWithTabs = () => {
             </div>
             
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleRefreshData}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
               <Button variant="outline" size="sm" onClick={handleSyncToCalendar}>
                 <Calendar className="h-4 w-4 mr-2" />
                 Sync
@@ -436,7 +482,7 @@ export const EventDetailWithTabs = () => {
 
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="border-b border-border bg-background sticky top-[73px] z-10">
             <TabsList className="h-12 w-full justify-start rounded-none bg-transparent p-0 space-x-8">
               <TabsTrigger
@@ -554,6 +600,7 @@ export const EventDetailWithTabs = () => {
         eventId={eventId || ''}
         nextTabOrder={0} // Will be calculated by the database function
         onSuccess={() => {
+          refetchEvent();
           refetchForms();
           setIsAddFormOpen(false);
         }}

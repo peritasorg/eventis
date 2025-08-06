@@ -26,7 +26,8 @@ const FIELD_CATEGORIES = [
 const FIELD_TYPES = [
   { value: 'toggle', label: 'Toggle' },
   { value: 'number', label: 'Number' },
-  { value: 'select', label: 'Dropdown' }
+  { value: 'select', label: 'Dropdown' },
+  { value: 'text', label: 'Text' }
 ];
 
 const PRICING_BEHAVIORS = [
