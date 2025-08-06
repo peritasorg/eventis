@@ -9,6 +9,7 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { EventTypeFormAssignments } from './EventTypeFormAssignments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -236,89 +237,96 @@ export const CalendarSettings = () => {
               <CardTitle className="text-lg">Existing Event Types</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {eventTypeConfigs?.map((config) => (
-                  <div key={config.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                    {editingConfig?.id === config.id ? (
-                      <div className="flex-1 grid grid-cols-3 gap-4">
-                        <Input
-                          value={editingConfig.display_name}
-                          onChange={(e) => setEditingConfig({
-                            ...editingConfig,
-                            display_name: e.target.value
-                          })}
-                        />
-                        <div className="flex gap-2 items-center">
-                          <input
-                            type="color"
-                            value={editingConfig.color}
-                            onChange={(e) => setEditingConfig({
-                              ...editingConfig,
-                              color: e.target.value
-                            })}
-                            className="w-10 h-8 border border-border rounded cursor-pointer"
-                          />
-                          <Badge style={{ backgroundColor: editingConfig.color, color: editingConfig.text_color }}>
-                            {editingConfig.display_name}
-                          </Badge>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleUpdateConfig(editingConfig)}
-                            disabled={updateConfigMutation.isPending}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingConfig(null)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
+               <div className="space-y-6">
+                 {eventTypeConfigs?.map((config) => (
+                   <div key={config.id} className="space-y-4">
+                     <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                       {editingConfig?.id === config.id ? (
+                         <div className="flex-1 grid grid-cols-3 gap-4">
+                           <Input
+                             value={editingConfig.display_name}
+                             onChange={(e) => setEditingConfig({
+                               ...editingConfig,
+                               display_name: e.target.value
+                             })}
+                           />
+                           <div className="flex gap-2 items-center">
+                             <input
+                               type="color"
+                               value={editingConfig.color}
+                               onChange={(e) => setEditingConfig({
+                                 ...editingConfig,
+                                 color: e.target.value
+                               })}
+                               className="w-10 h-8 border border-border rounded cursor-pointer"
+                             />
+                             <Badge style={{ backgroundColor: editingConfig.color, color: editingConfig.text_color }}>
+                               {editingConfig.display_name}
+                             </Badge>
+                           </div>
+                           <div className="flex gap-2">
+                             <Button
+                               size="sm"
+                               onClick={() => handleUpdateConfig(editingConfig)}
+                               disabled={updateConfigMutation.isPending}
+                             >
+                               Save
+                             </Button>
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               onClick={() => setEditingConfig(null)}
+                             >
+                               Cancel
+                             </Button>
+                           </div>
+                         </div>
+                       ) : (
+                         <>
+                           <div className="flex items-center gap-3">
+                             <Badge style={{ backgroundColor: config.color, color: config.text_color }}>
+                               {config.display_name}
+                             </Badge>
+                             <span className="text-sm text-muted-foreground">
+                               {config.event_type}
+                             </span>
+                           </div>
+                           <div className="flex gap-2">
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               onClick={() => setEditingConfig(config)}
+                             >
+                               Edit
+                             </Button>
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               onClick={() => handleDeleteConfig(config.id)}
+                               disabled={deleteConfigMutation.isPending}
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                           </div>
+                         </>
+                        )}
                       </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <Badge style={{ backgroundColor: config.color, color: config.text_color }}>
-                            {config.display_name}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {config.event_type}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingConfig(config)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteConfig(config.id)}
-                            disabled={deleteConfigMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-                
-                {(!eventTypeConfigs || eventTypeConfigs.length === 0) && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No event types configured yet. Add your first event type above.
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+
+                      {/* Form Assignments for this Event Type */}
+                      {editingConfig?.id !== config.id && (
+                        <EventTypeFormAssignments eventTypeConfig={config} />
+                      )}
+                    </div>
+                 ))}
+                 
+                 {(!eventTypeConfigs || eventTypeConfigs.length === 0) && (
+                   <div className="text-center py-8 text-muted-foreground">
+                     No event types configured yet. Add your first event type above.
+                   </div>
+                 )}
+               </div>
+             </CardContent>
+           </Card>
           
           {/* Date Warning Settings */}
           <Card>

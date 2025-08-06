@@ -855,6 +855,42 @@ export type Database = {
         }
         Relationships: []
       }
+      event_type_form_mappings: {
+        Row: {
+          auto_assign: boolean
+          created_at: string
+          default_label: string
+          event_type_config_id: string
+          form_template_id: string
+          id: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_assign?: boolean
+          created_at?: string
+          default_label?: string
+          event_type_config_id: string
+          form_template_id: string
+          id?: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          auto_assign?: boolean
+          created_at?: string
+          default_label?: string
+          event_type_config_id?: string
+          form_template_id?: string
+          id?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           accessibility_requirements: string | null

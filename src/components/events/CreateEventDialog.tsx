@@ -11,8 +11,11 @@ import { useSupabaseMutation, useSupabaseQuery } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
+import { useEventTypeFormMappingsForCreation } from '@/hooks/useEventTypeFormMappings';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -30,7 +33,10 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
   const [isMultipleDays, setIsMultipleDays] = useState(false);
+  const [selectedEventType, setSelectedEventType] = useState('');
+  const [previewMappings, setPreviewMappings] = useState<any[]>([]);
   const { data: eventTypeConfigs } = useEventTypeConfigs();
+  const { getFormMappingsForEventType } = useEventTypeFormMappingsForCreation();
 
   const { data: customers } = useSupabaseQuery(
     ['customers'],
@@ -64,10 +70,36 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
         .single();
       
       if (error) throw error;
+
+      // Auto-assign forms if any are mapped to this event type
+      if (previewMappings.length > 0) {
+        const formInserts = previewMappings.map((mapping, index) => ({
+          tenant_id: currentTenant?.id,
+          event_id: data.id,
+          form_template_id: mapping.form_template_id,
+          form_label: mapping.default_label,
+          tab_order: index + 1,
+          form_responses: {},
+          form_total: 0,
+          is_active: true
+        }));
+
+        const { error: formsError } = await supabase
+          .from('event_forms')
+          .insert(formInserts);
+
+        if (formsError) {
+          console.error('Error auto-assigning forms:', formsError);
+          toast.error('Event created but failed to assign forms');
+        } else if (formInserts.length > 0) {
+          toast.success(`Event created with ${formInserts.length} form(s) auto-assigned!`);
+        }
+      }
+      
       return data;
     },
     {
-      successMessage: 'Event created successfully!',
+      successMessage: previewMappings.length === 0 ? 'Event created successfully!' : undefined,
       onSuccess: (data) => {
         onSuccess();
         // Navigate to the new event's detail page
@@ -100,6 +132,17 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
     createEventMutation.mutate(eventData);
   };
 
+  // Handle event type selection and fetch form mappings
+  const handleEventTypeChange = async (eventType: string) => {
+    setSelectedEventType(eventType);
+    if (eventType) {
+      const mappings = await getFormMappingsForEventType(eventType);
+      setPreviewMappings(mappings);
+    } else {
+      setPreviewMappings([]);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -114,7 +157,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
             </div>
             <div className="space-y-2">
               <Label htmlFor="event_type">Event Type *</Label>
-              <Select name="event_type" required>
+              <Select name="event_type" value={selectedEventType} onValueChange={handleEventTypeChange} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select event type" />
                 </SelectTrigger>
@@ -204,6 +247,27 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
             <Label htmlFor="internal_notes">Internal Notes</Label>
             <Textarea id="internal_notes" name="internal_notes" placeholder="Any internal notes..." />
           </div>
+
+          {/* Form Assignment Preview */}
+          {previewMappings.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Forms to be Auto-Assigned</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground mb-2">
+                  The following {previewMappings.length} form(s) will be automatically added to this event:
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {previewMappings.map((mapping, index) => (
+                    <Badge key={mapping.id} variant="secondary" className="text-xs">
+                      {index + 1}. {mapping.default_label}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
