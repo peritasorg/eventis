@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CalendarStateProvider } from "@/contexts/CalendarStateContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SecurityProvider } from "@/components/SecurityProvider";
@@ -41,7 +42,8 @@ const App: React.FC = () => {
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary>
           <AuthProvider>
-            <SecurityProvider>
+            <CalendarStateProvider>
+              <SecurityProvider>
               <TooltipProvider>
               <Toaster />
               <Sonner />
@@ -137,7 +139,8 @@ const App: React.FC = () => {
                 </Routes>
               </BrowserRouter>
               </TooltipProvider>
-            </SecurityProvider>
+              </SecurityProvider>
+            </CalendarStateProvider>
           </AuthProvider>
         </ErrorBoundary>
       </QueryClientProvider>

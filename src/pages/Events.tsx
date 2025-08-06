@@ -9,7 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { EventCalendarView } from '@/components/events/EventCalendarView';
 import { EventListView } from '@/components/events/EventListView';
 import { CreateEventDialog } from '@/components/events/CreateEventDialog';
-import { CalendarStateProvider } from '@/contexts/CalendarStateContext';
 import { useNavigate } from 'react-router-dom';
 import { AppControls } from '@/components/AppControls';
 
@@ -68,8 +67,7 @@ export const Events = () => {
   };
 
   return (
-    <CalendarStateProvider>
-      <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="bg-card border-b border-border">
           <div className="px-6 py-4">
@@ -167,6 +165,6 @@ export const Events = () => {
           }}
         />
       </div>
-    </CalendarStateProvider>
+    </div>
   );
 };
