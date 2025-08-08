@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Plus, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
@@ -59,13 +59,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
   // Determine if this is an "All Day" event using database configuration
   const isAllDayEvent = event ? isEventTypeAllDay(event.event_type) : false;
 
-  // Fetch fields for this form template
-  const { data: fields } = useSupabaseQuery(
-    ['form-fields', eventForm.form_template_id],
+  // Fetch form sections and fields for this form template
+  const { data: formData } = useSupabaseQuery(
+    ['form-sections-fields', eventForm.form_template_id],
     async () => {
-      if (!eventForm.form_template_id || !currentTenant?.id) return [];
+      if (!eventForm.form_template_id || !currentTenant?.id) return { sections: [], fields: [] };
       
-      const { data, error } = await supabase
+      // Get form sections
+      const { data: sections, error: sectionsError } = await supabase
+        .from('form_sections')
+        .select('*')
+        .eq('form_page_id', eventForm.form_template_id)
+        .eq('tenant_id', currentTenant.id)
+        .order('section_order');
+
+      // Get form fields
+      const { data: fields, error: fieldsError } = await supabase
         .from('form_field_instances')
         .select(`
           *,
@@ -85,15 +94,21 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
         .eq('form_template_id', eventForm.form_template_id)
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
-      
-      if (error) {
-        console.error('Form fields error:', error);
-        return [];
+
+      if (sectionsError || fieldsError) {
+        console.error('Form data error:', sectionsError || fieldsError);
+        return { sections: [], fields: [] };
       }
       
-      return data || [];
+      return { 
+        sections: sections || [], 
+        fields: fields || [] 
+      };
     }
   );
+
+  const sections = formData?.sections || [];
+  const fields = formData?.fields || [];
 
   // Load existing responses when component mounts
   useEffect(() => {
@@ -135,6 +150,19 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
     }
   );
 
+  const handleFieldValueChange = (fieldId: string, value: any) => {
+    const updatedResponses = {
+      ...formResponses,
+      [fieldId]: {
+        ...formResponses[fieldId],
+        value: value,
+        enabled: formResponses[fieldId]?.enabled || true
+      }
+    };
+    
+    setFormResponses(updatedResponses);
+  };
+
   const handleInputChange = (fieldId: string, property: string, value: any) => {
     const updatedResponses = {
       ...formResponses,
@@ -146,25 +174,27 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
     
     setFormResponses(updatedResponses);
     
-    // Recalculate total
-    let newTotal = 0;
-    Object.keys(updatedResponses).forEach(id => {
-      const field = fields?.find(f => f.field_library.id === id);
-      const response = updatedResponses[id];
-      
-      if (response.enabled && field?.field_library.affects_pricing) {
-        const price = parseFloat(response.price || 0);
-        const quantity = parseInt(response.quantity || 1);
+    // Recalculate total if pricing-related
+    if (property === 'price' || property === 'quantity' || property === 'enabled') {
+      let newTotal = 0;
+      Object.keys(updatedResponses).forEach(id => {
+        const field = fields?.find(f => f.field_library.id === id);
+        const response = updatedResponses[id];
         
-        if (response.pricing_type === 'per_person') {
-          newTotal += price * quantity;
-        } else {
-          newTotal += price;
+        if (response.enabled && field?.field_library.affects_pricing) {
+          const price = parseFloat(response.price || 0);
+          const quantity = parseInt(response.quantity || 1);
+          
+          if (response.pricing_type === 'per_person') {
+            newTotal += price * quantity;
+          } else {
+            newTotal += price;
+          }
         }
-      }
-    });
-    
-    setFormTotal(newTotal);
+      });
+      
+      setFormTotal(newTotal);
+    }
   };
 
   const handleFieldToggle = (fieldId: string, enabled: boolean) => {
@@ -218,6 +248,96 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
       [field]: value
     };
     setGuestInfo(updatedGuestInfo);
+  };
+
+  const renderField = (field: any) => {
+    const fieldId = field.field_library.id;
+    const response = formResponses[fieldId] || {};
+    const fieldLibrary = field.field_library;
+    
+    const fieldLabel = field.label_override || fieldLibrary.label;
+    const fieldRequired = field.required_override !== null ? field.required_override : fieldLibrary.required;
+    
+    switch (fieldLibrary.field_type) {
+      case 'text':
+        return (
+          <Input
+            value={response.value || ''}
+            onChange={(e) => handleFieldValueChange(fieldId, e.target.value)}
+            placeholder={field.placeholder_override || `Enter ${fieldLabel.toLowerCase()}`}
+            required={fieldRequired}
+          />
+        );
+      
+      case 'textarea':
+        return (
+          <Textarea
+            value={response.value || ''}
+            onChange={(e) => handleFieldValueChange(fieldId, e.target.value)}
+            placeholder={field.placeholder_override || `Enter ${fieldLabel.toLowerCase()}`}
+            required={fieldRequired}
+            rows={3}
+          />
+        );
+      
+      case 'select':
+        return (
+          <Select 
+            value={response.value || ''} 
+            onValueChange={(value) => handleFieldValueChange(fieldId, value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={`Select ${fieldLabel.toLowerCase()}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {fieldLibrary.options?.map((option: any, index: number) => (
+                <SelectItem key={index} value={option.value || option.label || option}>
+                  {option.label || option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      
+      case 'checkbox':
+        return (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id={fieldId}
+              checked={response.enabled || false}
+              onCheckedChange={(checked) => handleFieldToggle(fieldId, checked as boolean)}
+            />
+            <Label htmlFor={fieldId} className="text-sm">
+              {fieldLabel}
+            </Label>
+          </div>
+        );
+      
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={response.value || ''}
+            onChange={(e) => handleFieldValueChange(fieldId, parseFloat(e.target.value) || 0)}
+            placeholder={field.placeholder_override || `Enter ${fieldLabel.toLowerCase()}`}
+            required={fieldRequired}
+          />
+        );
+      
+      default:
+        return (
+          <Input
+            value={response.value || ''}
+            onChange={(e) => handleFieldValueChange(fieldId, e.target.value)}
+            placeholder={field.placeholder_override || `Enter ${fieldLabel.toLowerCase()}`}
+            required={fieldRequired}
+          />
+        );
+    }
+  };
+
+  const getFieldsForSection = (sectionId: string) => {
+    return fields.filter(field => field.form_section_id === sectionId);
   };
 
   return (
@@ -326,97 +446,231 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
         </Card>
       )}
 
-      {/* Form Fields */}
-      <div className="space-y-4">
-        {fields?.map((field) => {
-          const fieldId = field.field_library.id;
-          const response = formResponses[fieldId] || {};
-          
-          return (
-            <Card key={fieldId} className="p-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">{field.field_library.label}</Label>
-                  {field.field_library.field_type === 'checkbox' && (
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={fieldId}
-                        checked={response.enabled || false}
-                        onChange={(e) => handleFieldToggle(fieldId, e.target.checked)}
-                        className="h-4 w-4 text-primary border-border rounded focus:ring-primary"
-                      />
-                      <Label htmlFor={fieldId} className="text-sm">
-                        Enable
-                      </Label>
-                    </div>
+      {/* Form Sections */}
+      <div className="space-y-6">
+        {sections.length > 0 ? (
+          sections.map((section) => {
+            const sectionFields = getFieldsForSection(section.id);
+            
+            if (sectionFields.length === 0) return null;
+            
+            return (
+              <Card key={section.id}>
+                <CardHeader>
+                  <CardTitle className="text-lg">{section.section_title}</CardTitle>
+                  {section.section_description && (
+                    <p className="text-sm text-muted-foreground">{section.section_description}</p>
                   )}
-                </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {sectionFields.map((field) => {
+                    const fieldId = field.field_library.id;
+                    const response = formResponses[fieldId] || {};
+                    const fieldLibrary = field.field_library;
+                    const fieldLabel = field.label_override || fieldLibrary.label;
+                    
+                    return (
+                      <div key={fieldId} className="space-y-3 p-4 border rounded-lg">
+                        {/* Field Label and Input */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            {fieldLabel}
+                            {field.required_override !== null ? field.required_override : fieldLibrary.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </Label>
+                          
+                          {field.help_text_override || fieldLibrary.help_text && (
+                            <p className="text-xs text-muted-foreground">
+                              {field.help_text_override || fieldLibrary.help_text}
+                            </p>
+                          )}
+                          
+                          {fieldLibrary.field_type !== 'checkbox' && renderField(field)}
+                          
+                          {fieldLibrary.field_type === 'checkbox' && (
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={fieldId}
+                                checked={response.enabled || false}
+                                onCheckedChange={(checked) => handleFieldToggle(fieldId, checked as boolean)}
+                              />
+                              <Label htmlFor={fieldId} className="text-sm">
+                                Enable {fieldLabel}
+                              </Label>
+                            </div>
+                          )}
+                        </div>
 
-                {/* Pricing Fields */}
-                {response.enabled && field.field_library.affects_pricing && (
-                  <div className="bg-muted/30 rounded-lg p-3 space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="space-y-2">
-                        <Label className="text-sm">Pricing Type</Label>
-                        <Select
-                          value={response.pricing_type || 'fixed'}
-                          onValueChange={(value) => handleInputChange(fieldId, 'pricing_type', value)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed">Fixed Price</SelectItem>
-                            <SelectItem value="per_person">Per Person</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                        {/* Pricing Fields - Only show for enabled fields that affect pricing */}
+                        {response.enabled && fieldLibrary.affects_pricing && (
+                          <div className="bg-muted/30 rounded-lg p-3 space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="space-y-2">
+                                <Label className="text-sm">Pricing Type</Label>
+                                <Select
+                                  value={response.pricing_type || 'fixed'}
+                                  onValueChange={(value) => handleInputChange(fieldId, 'pricing_type', value)}
+                                >
+                                  <SelectTrigger className="h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="fixed">Fixed Price</SelectItem>
+                                    <SelectItem value="per_person">Per Person</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm">
-                          {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
-                        </Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={response.price || ''}
-                          onChange={(e) => handleInputChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                          className="h-8"
-                        />
-                      </div>
+                              <div className="space-y-2">
+                                <Label className="text-sm">
+                                  {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
+                                </Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={response.price || ''}
+                                  onChange={(e) => handleInputChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                                  className="h-8"
+                                />
+                              </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm">
-                          {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
-                        </Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={response.quantity || ''}
-                          onChange={(e) => handleInputChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
-                          className="h-8"
-                        />
+                              <div className="space-y-2">
+                                <Label className="text-sm">
+                                  {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={response.quantity || ''}
+                                  onChange={(e) => handleInputChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                                  className="h-8"
+                                />
+                              </div>
+                            </div>
+
+                            {response.pricing_type === 'per_person' && (
+                              <div className="text-sm text-green-600 font-medium">
+                                Subtotal: £{formatCurrency((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })
+        ) : (
+          // Fallback for forms without sections - show fields directly
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              {fields.map((field) => {
+                const fieldId = field.field_library.id;
+                const response = formResponses[fieldId] || {};
+                const fieldLibrary = field.field_library;
+                const fieldLabel = field.label_override || fieldLibrary.label;
+                
+                return (
+                  <div key={fieldId} className="space-y-3 p-4 border rounded-lg">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        {fieldLabel}
+                        {field.required_override !== null ? field.required_override : fieldLibrary.required && (
+                          <span className="text-destructive ml-1">*</span>
+                        )}
+                      </Label>
+                      
+                      {field.help_text_override || fieldLibrary.help_text && (
+                        <p className="text-xs text-muted-foreground">
+                          {field.help_text_override || fieldLibrary.help_text}
+                        </p>
+                      )}
+                      
+                      {fieldLibrary.field_type !== 'checkbox' && renderField(field)}
+                      
+                      {fieldLibrary.field_type === 'checkbox' && (
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={fieldId}
+                            checked={response.enabled || false}
+                            onCheckedChange={(checked) => handleFieldToggle(fieldId, checked as boolean)}
+                          />
+                          <Label htmlFor={fieldId} className="text-sm">
+                            Enable {fieldLabel}
+                          </Label>
+                        </div>
+                      )}
                     </div>
 
-                    {response.pricing_type === 'per_person' && (
-                      <div className="text-sm text-green-600 font-medium">
-                        Subtotal: £{formatCurrency((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1))}
+                    {response.enabled && fieldLibrary.affects_pricing && (
+                      <div className="bg-muted/30 rounded-lg p-3 space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-sm">Pricing Type</Label>
+                            <Select
+                              value={response.pricing_type || 'fixed'}
+                              onValueChange={(value) => handleInputChange(fieldId, 'pricing_type', value)}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="fixed">Fixed Price</SelectItem>
+                                <SelectItem value="per_person">Per Person</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-sm">
+                              {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
+                            </Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={response.price || ''}
+                              onChange={(e) => handleInputChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                              className="h-8"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-sm">
+                              {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
+                            </Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={response.quantity || ''}
+                              onChange={(e) => handleInputChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                              className="h-8"
+                            />
+                          </div>
+                        </div>
+
+                        {response.pricing_type === 'per_person' && (
+                          <div className="text-sm text-green-600 font-medium">
+                            Subtotal: £{formatCurrency((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-
-        {(!fields || fields.length === 0) && (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>No fields configured for this form template.</p>
-          </div>
+                );
+              })}
+              
+              {fields.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No fields configured for this form template.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
