@@ -597,6 +597,7 @@ export type Database = {
           form_responses: Json | null
           form_template_id: string
           form_total: number | null
+          guest_info: Json | null
           id: string
           is_active: boolean | null
           tab_order: number
@@ -610,6 +611,7 @@ export type Database = {
           form_responses?: Json | null
           form_template_id: string
           form_total?: number | null
+          guest_info?: Json | null
           id?: string
           is_active?: boolean | null
           tab_order?: number
@@ -623,6 +625,7 @@ export type Database = {
           form_responses?: Json | null
           form_template_id?: string
           form_total?: number | null
+          guest_info?: Json | null
           id?: string
           is_active?: boolean | null
           tab_order?: number
@@ -815,6 +818,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      event_time_slots: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          start_time: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          start_time: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          start_time?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       event_type_configs: {
         Row: {

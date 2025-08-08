@@ -332,10 +332,13 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              {event.event_type === 'all_day' ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                  <p className="text-sm text-blue-700 font-medium">All Day Event</p>
-                  <p className="text-xs text-blue-600 mt-1">
+              {event.event_type === 'All Day' ? (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <p className="text-sm text-blue-700 dark:text-blue-100 font-medium">All Day Event</p>
+                  </div>
+                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
                     Guest information is managed individually in each form tab. Each form represents a separate session with its own guest details.
                   </p>
                 </div>

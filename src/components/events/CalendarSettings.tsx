@@ -3,15 +3,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { Settings, Plus, Trash2, Palette } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trash2, Plus, Settings, Palette } from 'lucide-react';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 import { EventTypeFormAssignments } from './EventTypeFormAssignments';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { TimeSlotManager } from './TimeSlotManager';
+import { toast } from 'sonner';
 
 interface EventTypeConfig {
   id: string;
@@ -26,21 +29,20 @@ interface EventTypeConfig {
 export const CalendarSettings = () => {
   const { currentTenant } = useAuth();
   const [open, setOpen] = useState(false);
-  const [editingConfig, setEditingConfig] = useState<EventTypeConfig | null>(null);
-  const [newEventType, setNewEventType] = useState('');
-  const [newDisplayName, setNewDisplayName] = useState('');
-  const [newColor, setNewColor] = useState('#3B82F6');
-  const [urgentDays, setUrgentDays] = useState(7);
-  const [warningDays, setWarningDays] = useState(28);
-  const [urgentEnabled, setUrgentEnabled] = useState(true);
-  const [warningEnabled, setWarningEnabled] = useState(true);
+  const [editingConfig, setEditingConfig] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<any>({});
+  const [newEventType, setNewEventType] = useState({
+    event_type: '',
+    display_name: '',
+    color: '#3B82F6'
+  });
 
   const { data: eventTypeConfigs, refetch } = useSupabaseQuery(
     ['event-type-configs'],
     async () => {
       if (!currentTenant?.id) return [];
       
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('event_type_configs')
         .select('*')
         .eq('tenant_id', currentTenant.id)
@@ -53,8 +55,8 @@ export const CalendarSettings = () => {
   );
 
   const createConfigMutation = useSupabaseMutation(
-    async (config: Partial<EventTypeConfig>) => {
-      const { data, error } = await (supabase as any)
+    async (config: any) => {
+      const { data, error } = await supabase
         .from('event_type_configs')
         .insert({
           tenant_id: currentTenant?.id,
@@ -71,26 +73,17 @@ export const CalendarSettings = () => {
       return data;
     },
     {
-      onSuccess: () => {
-        refetch();
-        setNewEventType('');
-        setNewDisplayName('');
-        setNewColor('#3B82F6');
-        toast.success('Event type added successfully');
-      }
+      successMessage: 'Event type created successfully!',
+      invalidateQueries: [['event-type-configs']]
     }
   );
 
   const updateConfigMutation = useSupabaseMutation(
-    async (config: EventTypeConfig) => {
-      const { data, error } = await (supabase as any)
+    async ({ id, ...updates }: any) => {
+      const { data, error } = await supabase
         .from('event_type_configs')
-        .update({
-          display_name: config.display_name,
-          color: config.color,
-          text_color: config.text_color
-        })
-        .eq('id', config.id)
+        .update(updates)
+        .eq('id', id)
         .select()
         .single();
       
@@ -98,58 +91,59 @@ export const CalendarSettings = () => {
       return data;
     },
     {
-      onSuccess: () => {
-        refetch();
-        setEditingConfig(null);
-        toast.success('Event type updated successfully');
-      }
+      successMessage: 'Event type updated successfully!',
+      invalidateQueries: [['event-type-configs']]
     }
   );
 
   const deleteConfigMutation = useSupabaseMutation(
-    async (configId: string) => {
-      const { error } = await (supabase as any)
+    async (id: string) => {
+      const { error } = await supabase
         .from('event_type_configs')
         .update({ is_active: false })
-        .eq('id', configId);
+        .eq('id', id);
       
       if (error) throw error;
     },
     {
-      onSuccess: () => {
-        refetch();
-        toast.success('Event type deleted successfully');
-      }
+      successMessage: 'Event type deleted successfully!',
+      invalidateQueries: [['event-type-configs']]
     }
   );
 
   const handleCreateConfig = () => {
-    if (!newEventType.trim() || !newDisplayName.trim()) {
+    if (!newEventType.event_type.trim() || !newEventType.display_name.trim()) {
       toast.error('Please fill in all fields');
       return;
     }
 
     createConfigMutation.mutate({
-      event_type: newEventType.toLowerCase().replace(/\s+/g, '_'),
-      display_name: newDisplayName,
-      color: newColor
+      event_type: newEventType.event_type.toLowerCase().replace(/\s+/g, '_'),
+      display_name: newEventType.display_name,
+      color: newEventType.color
+    });
+
+    setNewEventType({
+      event_type: '',
+      display_name: '',
+      color: '#3B82F6'
     });
   };
 
-  const handleUpdateConfig = (config: EventTypeConfig) => {
-    updateConfigMutation.mutate(config);
+  const handleUpdateConfig = (id: string) => {
+    updateConfigMutation.mutate({
+      id,
+      ...editingData
+    });
+    setEditingConfig(null);
+    setEditingData({});
   };
 
-  const handleDeleteConfig = (configId: string) => {
+  const handleDeleteConfig = (id: string) => {
     if (confirm('Are you sure you want to delete this event type?')) {
-      deleteConfigMutation.mutate(configId);
+      deleteConfigMutation.mutate(id);
     }
   };
-
-  const predefinedColors = [
-    '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6',
-    '#EC4899', '#6B7280', '#059669', '#0891B2'
-  ]; // Removed red and orange - reserved for date warnings
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -159,257 +153,270 @@ export const CalendarSettings = () => {
           Calendar Settings
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
+            <Settings className="h-5 w-5" />
             Calendar Settings
           </DialogTitle>
         </DialogHeader>
-        
-        <div className="space-y-6">
-          {/* Add New Event Type */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Add New Event Type</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="event-type">Event Type Key</Label>
-                  <Input
-                    id="event-type"
-                    placeholder="e.g., wedding, birthday"
-                    value={newEventType}
-                    onChange={(e) => setNewEventType(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="display-name">Display Name</Label>
-                  <Input
-                    id="display-name"
-                    placeholder="e.g., Wedding, Birthday Party"
-                    value={newDisplayName}
-                    onChange={(e) => setNewDisplayName(e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Color</Label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="color"
-                    value={newColor}
-                    onChange={(e) => setNewColor(e.target.value)}
-                    className="w-12 h-8 border border-border rounded cursor-pointer"
-                  />
-                  <div className="flex gap-1">
-                    {predefinedColors.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => setNewColor(color)}
-                        className="w-6 h-6 border border-border rounded-sm cursor-pointer hover:scale-110 transition-transform"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                  <div
-                    className="px-3 py-1 rounded text-white text-sm font-medium"
-                    style={{ backgroundColor: newColor }}
-                  >
-                    Preview
-                  </div>
-                </div>
-              </div>
-              
-              <Button onClick={handleCreateConfig} disabled={createConfigMutation.isPending}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Event Type
-              </Button>
-            </CardContent>
-          </Card>
 
-          {/* Existing Event Types */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Existing Event Types</CardTitle>
-            </CardHeader>
-            <CardContent>
-               <div className="space-y-6">
-                 {eventTypeConfigs?.map((config) => (
-                   <div key={config.id} className="space-y-4">
-                     <div className="flex items-center justify-between p-3 border border-border rounded-lg">
-                       {editingConfig?.id === config.id ? (
-                         <div className="flex-1 grid grid-cols-3 gap-4">
-                           <Input
-                             value={editingConfig.display_name}
-                             onChange={(e) => setEditingConfig({
-                               ...editingConfig,
-                               display_name: e.target.value
-                             })}
-                           />
-                           <div className="flex gap-2 items-center">
-                             <input
-                               type="color"
-                               value={editingConfig.color}
-                               onChange={(e) => setEditingConfig({
-                                 ...editingConfig,
-                                 color: e.target.value
-                               })}
-                               className="w-10 h-8 border border-border rounded cursor-pointer"
-                             />
-                             <Badge style={{ backgroundColor: editingConfig.color, color: editingConfig.text_color }}>
-                               {editingConfig.display_name}
-                             </Badge>
-                           </div>
-                           <div className="flex gap-2">
-                             <Button
-                               size="sm"
-                               onClick={() => handleUpdateConfig(editingConfig)}
-                               disabled={updateConfigMutation.isPending}
-                             >
-                               Save
-                             </Button>
-                             <Button
-                               size="sm"
-                               variant="outline"
-                               onClick={() => setEditingConfig(null)}
-                             >
-                               Cancel
-                             </Button>
-                           </div>
-                         </div>
-                       ) : (
-                         <>
-                           <div className="flex items-center gap-3">
-                             <Badge style={{ backgroundColor: config.color, color: config.text_color }}>
-                               {config.display_name}
-                             </Badge>
-                             <span className="text-sm text-muted-foreground">
-                               {config.event_type}
-                             </span>
-                           </div>
-                           <div className="flex gap-2">
-                             <Button
-                               size="sm"
-                               variant="outline"
-                               onClick={() => setEditingConfig(config)}
-                             >
-                               Edit
-                             </Button>
-                             <Button
-                               size="sm"
-                               variant="outline"
-                               onClick={() => handleDeleteConfig(config.id)}
-                               disabled={deleteConfigMutation.isPending}
-                             >
-                               <Trash2 className="h-4 w-4" />
-                             </Button>
-                           </div>
-                         </>
+        <Tabs defaultValue="event-types" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="event-types">Event Types</TabsTrigger>
+            <TabsTrigger value="time-slots">Time Slots</TabsTrigger>
+            <TabsTrigger value="warnings">Date Warnings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="event-types" className="space-y-6">
+            {/* Add New Event Type */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Add New Event Type</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="event_type">Event Type Key</Label>
+                    <Input
+                      id="event_type"
+                      value={newEventType.event_type}
+                      onChange={(e) => setNewEventType({ ...newEventType, event_type: e.target.value })}
+                      placeholder="e.g., wedding"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="display_name">Display Name</Label>
+                    <Input
+                      id="display_name"
+                      value={newEventType.display_name}
+                      onChange={(e) => setNewEventType({ ...newEventType, display_name: e.target.value })}
+                      placeholder="e.g., Wedding"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="color">Color</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="color"
+                        id="color"
+                        value={newEventType.color}
+                        onChange={(e) => setNewEventType({ ...newEventType, color: e.target.value })}
+                        className="w-16 h-10 p-1 border rounded"
+                      />
+                      <Input
+                        value={newEventType.color}
+                        onChange={(e) => setNewEventType({ ...newEventType, color: e.target.value })}
+                        placeholder="#3B82F6"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={handleCreateConfig} disabled={createConfigMutation.isPending}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {createConfigMutation.isPending ? 'Adding...' : 'Add Event Type'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Existing Event Types */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Event Types</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {eventTypeConfigs?.map((config) => (
+                  <div key={config.id} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: config.color }}
+                        />
+                        {editingConfig === config.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingData.display_name || ''}
+                              onChange={(e) => setEditingData({ ...editingData, display_name: e.target.value })}
+                              className="w-32"
+                            />
+                            <Input
+                              type="color"
+                              value={editingData.color || config.color}
+                              onChange={(e) => setEditingData({ ...editingData, color: e.target.value })}
+                              className="w-16 h-8 p-1"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <span className="font-medium">{config.display_name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {config.event_type}
+                            </Badge>
+                          </>
                         )}
                       </div>
-
-                      {/* Form Assignments for this Event Type */}
-                      {editingConfig?.id !== config.id && (
-                        <EventTypeFormAssignments eventTypeConfig={config} />
-                      )}
+                      
+                      <div className="flex items-center gap-2">
+                        {editingConfig === config.id ? (
+                          <>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleUpdateConfig(config.id)}
+                              disabled={updateConfigMutation.isPending}
+                            >
+                              {updateConfigMutation.isPending ? 'Saving...' : 'Save'}
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                setEditingConfig(null);
+                                setEditingData({});
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingConfig(config.id);
+                                setEditingData({
+                                  display_name: config.display_name,
+                                  color: config.color
+                                });
+                              }}
+                            >
+                              <Palette className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteConfig(config.id)}
+                              disabled={deleteConfigMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                 ))}
-                 
-                 {(!eventTypeConfigs || eventTypeConfigs.length === 0) && (
-                   <div className="text-center py-8 text-muted-foreground">
-                     No event types configured yet. Add your first event type above.
-                   </div>
-                 )}
-               </div>
-             </CardContent>
-           </Card>
-          
-          {/* Date Warning Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Date Warning Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="urgent-enabled" className="text-sm font-medium">Enable Urgent Warnings</Label>
-                    <p className="text-xs text-muted-foreground">Show events in orange when approaching</p>
+                    
+                    <EventTypeFormAssignments eventTypeConfig={config} />
                   </div>
-                  <Switch
-                    id="urgent-enabled"
-                    checked={urgentEnabled}
-                    onCheckedChange={setUrgentEnabled}
-                  />
-                </div>
+                ))}
                 
-                {urgentEnabled && (
-                  <div className="space-y-2 pl-4 border-l-2 border-orange-200">
-                    <Label htmlFor="urgent-days">Days Before Event (Orange Warning)</Label>
-                    <Input
-                      id="urgent-days"
-                      type="number"
-                      value={urgentDays}
-                      onChange={(e) => setUrgentDays(parseInt(e.target.value))}
-                      min="1"
-                      max="365"
-                      className="w-24"
-                    />
-                    <p className="text-xs text-muted-foreground">Events within {urgentDays} days will show in orange</p>
+                {(!eventTypeConfigs || eventTypeConfigs.length === 0) && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No event types configured yet.</p>
+                    <p className="text-sm">Add your first event type above to get started.</p>
                   </div>
                 )}
-              </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="warning-enabled" className="text-sm font-medium">Enable Critical Warnings</Label>
-                    <p className="text-xs text-muted-foreground">Show events in red when very close</p>
-                  </div>
-                  <Switch
-                    id="warning-enabled"
-                    checked={warningEnabled}
-                    onCheckedChange={setWarningEnabled}
-                  />
-                </div>
-                
-                {warningEnabled && (
-                  <div className="space-y-2 pl-4 border-l-2 border-red-200">
-                    <Label htmlFor="warning-days">Days Before Event (Red Warning)</Label>
-                    <Input
-                      id="warning-days"
-                      type="number"
-                      value={warningDays}
-                      onChange={(e) => setWarningDays(parseInt(e.target.value))}
-                      min="1"
-                      max="365"
-                      className="w-24"
+          <TabsContent value="time-slots">
+            <TimeSlotManager />
+          </TabsContent>
+
+          <TabsContent value="warnings" className="space-y-6">
+            {/* Date Warning Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Date Warning Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Urgent Warnings */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Urgent Warnings (Orange)</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Show orange warnings when events are approaching
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={true} 
+                      disabled 
                     />
-                    <p className="text-xs text-muted-foreground">Events within {warningDays} days will show in red</p>
                   </div>
-                )}
-              </div>
-              
-              <div className="space-y-2 text-sm text-muted-foreground pt-4 border-t">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-orange-500 rounded opacity-50"></div>
-                  <span className={urgentEnabled ? '' : 'line-through opacity-50'}>Urgent events (within {urgentDays} days)</span>
+                  
+                  <div className="grid grid-cols-2 gap-4 pl-6">
+                    <div className="space-y-2">
+                      <Label>Show warning when event is within</Label>
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          type="number" 
+                          defaultValue="28" 
+                          className="w-20"
+                          min="1"
+                          max="365"
+                        />
+                        <span className="text-sm text-muted-foreground">days</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Preview</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
+                        <span className="text-sm">28 days warning</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-red-500 rounded opacity-50"></div>
-                  <span className={warningEnabled ? '' : 'line-through opacity-50'}>Critical events (within {warningDays} days)</span>
+
+                <Separator />
+
+                {/* Critical Warnings */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Critical Warnings (Red)</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Show red warnings when events are very close
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={true} 
+                      disabled 
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 pl-6">
+                    <div className="space-y-2">
+                      <Label>Show critical warning when event is within</Label>
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          type="number" 
+                          defaultValue="7" 
+                          className="w-20"
+                          min="1"
+                          max="365"
+                        />
+                        <span className="text-sm text-muted-foreground">days</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Preview</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                        <span className="text-sm">7 days critical warning</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-3 text-xs">
-                  When enabled, these warning colors take precedence over event type colors.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
