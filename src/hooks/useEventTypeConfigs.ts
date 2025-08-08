@@ -9,13 +9,14 @@ export interface EventTypeConfig {
   color: string;
   text_color: string;
   is_active: boolean;
+  is_all_day: boolean;
   sort_order: number;
 }
 
 export const useEventTypeConfigs = () => {
   const { currentTenant } = useAuth();
 
-  return useSupabaseQuery(
+  const { data: eventTypeConfigs, refetch: refetchEventTypeConfigs } = useSupabaseQuery(
     ['event-type-configs'],
     async () => {
       if (!currentTenant?.id) return [];
@@ -31,6 +32,17 @@ export const useEventTypeConfigs = () => {
       return data || [];
     }
   );
+
+  const isEventTypeAllDay = (eventType: string): boolean => {
+    const config = eventTypeConfigs?.find(config => config.event_type === eventType);
+    return config?.is_all_day === true;
+  };
+
+  return {
+    data: eventTypeConfigs,
+    refetch: refetchEventTypeConfigs,
+    isEventTypeAllDay,
+  };
 };
 
 export const getEventColor = (

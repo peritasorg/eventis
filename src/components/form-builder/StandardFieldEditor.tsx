@@ -30,20 +30,6 @@ const FIELD_TYPES = [
   { value: 'text', label: 'Text' }
 ];
 
-const PRICING_BEHAVIORS = [
-  { value: 'none', label: 'No Pricing' },
-  { 
-    value: 'fixed', 
-    label: 'Fixed Price', 
-    example: 'Same price regardless of guest count (e.g., DJ service £500)'
-  },
-  { 
-    value: 'per_person', 
-    label: 'Per Person', 
-    example: 'Price multiplied by guest count (e.g., Menu £25 per person)'
-  }
-];
-
 interface StandardFieldEditorProps {
   isOpen: boolean;
   onClose: () => void;
@@ -64,9 +50,7 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
     label: '',
     category: '',
     field_type: 'toggle',
-    options: [] as string[],
-    pricing_type: 'none',
-    show_notes_field: true
+    options: [] as string[]
   });
   const [newOption, setNewOption] = useState('');
 
@@ -77,9 +61,7 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
         label: field.label || '',
         category: field.category || '',
         field_type: field.field_type || 'toggle',
-        options: field.options || [],
-        pricing_type: field.pricing_behavior || 'none',
-        show_notes_field: field.show_notes_field !== false
+        options: field.options || []
       });
     } else {
       // Create mode - reset form
@@ -87,9 +69,7 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
         label: '',
         category: '',
         field_type: 'toggle',
-        options: [],
-        pricing_type: 'none',
-        show_notes_field: true
+        options: []
       });
     }
     setNewOption('');
@@ -104,8 +84,6 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
         category: data.category,
         field_type: data.field_type,
         options: data.field_type === 'select' ? data.options : [],
-        pricing_behavior: data.pricing_type,
-        show_notes_field: data.show_notes_field,
         active: true,
         required: true,
         sort_order: 0
@@ -164,8 +142,6 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
         category: data.category,
         field_type: data.field_type,
         options: data.field_type === 'select' ? data.options : [],
-        pricing_behavior: data.pricing_type,
-        show_notes_field: data.show_notes_field,
         updated_at: new Date().toISOString()
       };
 
@@ -329,45 +305,6 @@ export const StandardFieldEditor: React.FC<StandardFieldEditorProps> = ({
             </Select>
           </div>
 
-          <div>
-            <Label>Default Pricing Type</Label>
-            <Select 
-              value={formData.pricing_type} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, pricing_type: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRICING_BEHAVIORS.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    <div className="flex flex-col items-start gap-1">
-                      <div className="flex items-center gap-2">
-                        {type.value === 'fixed' ? (
-                          <DollarSign className="h-3 w-3" />
-                        ) : type.value === 'per_person' ? (
-                          <Users className="h-3 w-3" />
-                        ) : null}
-                        {type.label}
-                      </div>
-                      {type.example && (
-                        <span className="text-xs text-muted-foreground">{type.example}</span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="show-notes"
-              checked={formData.show_notes_field}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_notes_field: checked }))}
-            />
-            <Label htmlFor="show-notes" className="text-sm">Show notes field</Label>
-          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

@@ -597,10 +597,13 @@ export type Database = {
           form_responses: Json | null
           form_template_id: string
           form_total: number | null
+          guest_info: Json | null
           id: string
+          individual_guest_info: boolean | null
           is_active: boolean | null
           tab_order: number
           tenant_id: string
+          time_slot_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -610,10 +613,13 @@ export type Database = {
           form_responses?: Json | null
           form_template_id: string
           form_total?: number | null
+          guest_info?: Json | null
           id?: string
+          individual_guest_info?: boolean | null
           is_active?: boolean | null
           tab_order?: number
           tenant_id: string
+          time_slot_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -623,10 +629,13 @@ export type Database = {
           form_responses?: Json | null
           form_template_id?: string
           form_total?: number | null
+          guest_info?: Json | null
           id?: string
+          individual_guest_info?: boolean | null
           is_active?: boolean | null
           tab_order?: number
           tenant_id?: string
+          time_slot_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -649,6 +658,13 @@ export type Database = {
             columns: ["form_template_id"]
             isOneToOne: false
             referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_forms_time_slot_id_fkey"
+            columns: ["time_slot_id"]
+            isOneToOne: false
+            referencedRelation: "event_time_slots"
             referencedColumns: ["id"]
           },
         ]
@@ -816,6 +832,42 @@ export type Database = {
           },
         ]
       }
+      event_time_slots: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          start_time: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          start_time: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          start_time?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_type_configs: {
         Row: {
           color: string
@@ -824,6 +876,7 @@ export type Database = {
           event_type: string
           id: string
           is_active: boolean
+          is_all_day: boolean | null
           sort_order: number
           tenant_id: string
           text_color: string
@@ -836,6 +889,7 @@ export type Database = {
           event_type: string
           id?: string
           is_active?: boolean
+          is_all_day?: boolean | null
           sort_order?: number
           tenant_id: string
           text_color?: string
@@ -848,6 +902,7 @@ export type Database = {
           event_type?: string
           id?: string
           is_active?: boolean
+          is_all_day?: boolean | null
           sort_order?: number
           tenant_id?: string
           text_color?: string
@@ -1165,65 +1220,44 @@ export type Database = {
       field_library: {
         Row: {
           active: boolean | null
-          affects_pricing: boolean | null
           category: string | null
           created_at: string | null
           field_type: string
           id: string
           label: string
-          max_quantity: number | null
-          min_quantity: number | null
           name: string
           options: Json | null
-          pricing_behavior: string | null
-          pricing_type: string | null
           required: boolean | null
-          show_notes_field: boolean | null
           sort_order: number | null
           tenant_id: string | null
-          unit_price: number | null
           updated_at: string | null
         }
         Insert: {
           active?: boolean | null
-          affects_pricing?: boolean | null
           category?: string | null
           created_at?: string | null
           field_type: string
           id?: string
           label: string
-          max_quantity?: number | null
-          min_quantity?: number | null
           name: string
           options?: Json | null
-          pricing_behavior?: string | null
-          pricing_type?: string | null
           required?: boolean | null
-          show_notes_field?: boolean | null
           sort_order?: number | null
           tenant_id?: string | null
-          unit_price?: number | null
           updated_at?: string | null
         }
         Update: {
           active?: boolean | null
-          affects_pricing?: boolean | null
           category?: string | null
           created_at?: string | null
           field_type?: string
           id?: string
           label?: string
-          max_quantity?: number | null
-          min_quantity?: number | null
           name?: string
           options?: Json | null
-          pricing_behavior?: string | null
-          pricing_type?: string | null
           required?: boolean | null
-          show_notes_field?: boolean | null
           sort_order?: number | null
           tenant_id?: string | null
-          unit_price?: number | null
           updated_at?: string | null
         }
         Relationships: [
