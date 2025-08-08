@@ -61,9 +61,7 @@ export const EventFormSection: React.FC<EventFormSectionProps> = ({ event }) => 
             label,
             field_type,
             category,
-            options,
-            pricing_behavior,
-            show_notes_field
+            options
           )
         `)
         .eq('form_template_id', selectedFormId)
