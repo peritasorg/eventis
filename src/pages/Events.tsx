@@ -31,9 +31,12 @@ export const Events = () => {
           event_name,
           event_type,
           event_start_date,
+          event_end_date,
+          event_multiple_days,
           start_time,
           end_time,
           estimated_guests,
+          total_guests,
           status,
           total_amount,
           customers (

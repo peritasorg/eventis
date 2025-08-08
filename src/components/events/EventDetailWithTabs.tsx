@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, X, Edit2, Receipt, Calendar, Trash2, RefreshCw } from 'lucide-react';
+import { useCalendarState } from '@/contexts/CalendarStateContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ export const EventDetailWithTabs = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
+  const { restoreCalendarState } = useCalendarState();
   const { syncEvent } = useManualEventSync();
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
@@ -408,7 +410,10 @@ export const EventDetailWithTabs = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/events')}
+                onClick={() => {
+                  restoreCalendarState();
+                  navigate('/events');
+                }}
                 className="h-9 w-9 p-0 hover:bg-accent rounded-lg"
               >
                 <ArrowLeft className="h-4 w-4" />
