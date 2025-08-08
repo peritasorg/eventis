@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Trash2, Plus, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventTimeSlots } from '@/hooks/useEventTimeSlots';
@@ -31,6 +32,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
   });
   const { currentTenant } = useAuth();
   const { timeSlots } = useEventTimeSlots();
+  const { isEventTypeAllDay } = useEventTypeConfigs();
 
   // Fetch event data to determine if it's an "All Day" event
   const { data: event } = useSupabaseQuery(
@@ -54,7 +56,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
     }
   );
 
-  const isAllDayEvent = event?.event_type === 'All Day';
+  // Determine if this is an "All Day" event using database configuration
+  const isAllDayEvent = event ? isEventTypeAllDay(event.event_type) : false;
 
   // Fetch fields for this form template
   const { data: fields } = useSupabaseQuery(

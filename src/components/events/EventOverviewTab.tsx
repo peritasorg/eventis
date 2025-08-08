@@ -27,7 +27,7 @@ interface EventOverviewTabProps {
 
 export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => {
   const { currentTenant } = useAuth();
-  const { data: eventTypeConfigs } = useEventTypeConfigs();
+  const { data: eventTypeConfigs, isEventTypeAllDay } = useEventTypeConfigs();
 
   // Query to get all customers for the dropdown
   const { data: customers } = useSupabaseQuery(
@@ -146,6 +146,9 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
   const balanceDue = totalEventPrice - totalPaid;
 
   const daysDue = calculateDaysDue();
+
+  // Check if this event type is configured as All Day
+  const isAllDayEvent = isEventTypeAllDay(event.event_type);
 
   return (
     <div className="space-y-4">
@@ -332,7 +335,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              {event.event_type === 'All Day' ? (
+              {isAllDayEvent ? (
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>

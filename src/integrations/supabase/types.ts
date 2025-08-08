@@ -863,6 +863,7 @@ export type Database = {
           event_type: string
           id: string
           is_active: boolean
+          is_all_day: boolean | null
           sort_order: number
           tenant_id: string
           text_color: string
@@ -875,6 +876,7 @@ export type Database = {
           event_type: string
           id?: string
           is_active?: boolean
+          is_all_day?: boolean | null
           sort_order?: number
           tenant_id: string
           text_color?: string
@@ -887,6 +889,7 @@ export type Database = {
           event_type?: string
           id?: string
           is_active?: boolean
+          is_all_day?: boolean | null
           sort_order?: number
           tenant_id?: string
           text_color?: string

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Plus, Settings, Palette } from 'lucide-react';
+import { Trash2, Plus, Settings, Palette, Clock } from 'lucide-react';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +23,7 @@ interface EventTypeConfig {
   color: string;
   text_color: string;
   is_active: boolean;
+  is_all_day: boolean;
   sort_order: number;
 }
 
@@ -250,7 +251,15 @@ export const CalendarSettings = () => {
                           </div>
                         ) : (
                           <>
-                            <span className="font-medium">{config.display_name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{config.display_name}</span>
+                              {config.is_all_day && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  All Day
+                                </Badge>
+                              )}
+                            </div>
                             <Badge variant="outline" className="text-xs">
                               {config.event_type}
                             </Badge>
@@ -258,52 +267,68 @@ export const CalendarSettings = () => {
                         )}
                       </div>
                       
-                      <div className="flex items-center gap-2">
-                        {editingConfig === config.id ? (
-                          <>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleUpdateConfig(config.id)}
-                              disabled={updateConfigMutation.isPending}
-                            >
-                              {updateConfigMutation.isPending ? 'Saving...' : 'Save'}
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => {
-                                setEditingConfig(null);
-                                setEditingData({});
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setEditingConfig(config.id);
-                                setEditingData({
-                                  display_name: config.display_name,
-                                  color: config.color
-                                });
-                              }}
-                            >
-                              <Palette className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteConfig(config.id)}
-                              disabled={deleteConfigMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center space-x-2">
+                          <Label htmlFor={`all-day-${config.id}`} className="text-sm">All Day</Label>
+                          <Switch
+                            id={`all-day-${config.id}`}
+                            checked={config.is_all_day}
+                            onCheckedChange={(checked) => 
+                              updateConfigMutation.mutate({
+                                id: config.id,
+                                is_all_day: checked
+                              })
+                            }
+                          />
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {editingConfig === config.id ? (
+                            <>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleUpdateConfig(config.id)}
+                                disabled={updateConfigMutation.isPending}
+                              >
+                                {updateConfigMutation.isPending ? 'Saving...' : 'Save'}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => {
+                                  setEditingConfig(null);
+                                  setEditingData({});
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingConfig(config.id);
+                                  setEditingData({
+                                    display_name: config.display_name,
+                                    color: config.color
+                                  });
+                                }}
+                              >
+                                <Palette className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteConfig(config.id)}
+                                disabled={deleteConfigMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
