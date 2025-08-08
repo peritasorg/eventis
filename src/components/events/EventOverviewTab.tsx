@@ -332,62 +332,73 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs font-medium text-muted-foreground">Men Count</Label>
-                  <InlineNumber
-                    value={event.men_count || 0}
-                    onSave={(value) => updateEventMutation.mutate({ men_count: value })}
-                    min={0}
-                    className="text-lg font-medium"
-                  />
+              {event.event_type === 'all_day' ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-sm text-blue-700 font-medium">All Day Event</p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Guest information is managed individually in each form tab. Each form represents a separate session with its own guest details.
+                  </p>
                 </div>
-                <div>
-                  <Label className="text-xs font-medium text-muted-foreground">Ladies Count</Label>
-                  <InlineNumber
-                    value={event.ladies_count || 0}
-                    onSave={(value) => updateEventMutation.mutate({ ladies_count: value })}
-                    min={0}
-                    className="text-lg font-medium"
-                  />
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Men Count</Label>
+                      <InlineNumber
+                        value={event.men_count || 0}
+                        onSave={(value) => updateEventMutation.mutate({ men_count: value })}
+                        min={0}
+                        className="text-lg font-medium"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Ladies Count</Label>
+                      <InlineNumber
+                        value={event.ladies_count || 0}
+                        onSave={(value) => updateEventMutation.mutate({ ladies_count: value })}
+                        min={0}
+                        className="text-lg font-medium"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <Label className="text-xs font-medium text-muted-foreground">Event Mix Type</Label>
-                <InlineSelect
-                  value={event.event_mix_type || 'mixed'}
-                  options={[
-                    { value: 'mixed', label: 'Mixed' },
-                    { value: 'men_only', label: 'Men Only' },
-                    { value: 'ladies_only', label: 'Ladies Only' },
-                    { value: 'separate_sections', label: 'Separate Sections' }
-                  ]}
-                  onSave={(value) => updateEventMutation.mutate({ event_mix_type: value })}
-                  className="text-sm capitalize"
-                />
-              </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Event Mix Type</Label>
+                    <InlineSelect
+                      value={event.event_mix_type || 'mixed'}
+                      options={[
+                        { value: 'mixed', label: 'Mixed' },
+                        { value: 'men_only', label: 'Men Only' },
+                        { value: 'ladies_only', label: 'Ladies Only' },
+                        { value: 'separate_sections', label: 'Separate Sections' }
+                      ]}
+                      onSave={(value) => updateEventMutation.mutate({ event_mix_type: value })}
+                      className="text-sm capitalize"
+                    />
+                  </div>
 
-              <div>
-                <Label className="text-xs font-medium text-muted-foreground">Total Guest Count</Label>
-                <InlineNumber
-                  value={event.total_guests || (event.men_count || 0) + (event.ladies_count || 0)}
-                  onSave={(value) => updateEventMutation.mutate({ total_guests: value })}
-                  min={0}
-                  className="text-lg font-medium"
-                />
-              </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Total Guest Count</Label>
+                    <InlineNumber
+                      value={event.total_guests || (event.men_count || 0) + (event.ladies_count || 0)}
+                      onSave={(value) => updateEventMutation.mutate({ total_guests: value })}
+                      min={0}
+                      className="text-lg font-medium"
+                    />
+                  </div>
 
-              <div>
-                <Label className="text-xs font-medium text-muted-foreground">Total Guest Price</Label>
-                <InlineNumber
-                  value={event.total_guest_price || 0}
-                  onSave={(value) => updateEventMutation.mutate({ total_guest_price: value })}
-                  step={0.01}
-                  min={0}
-                  className="text-lg font-medium"
-                />
-              </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Total Guest Price</Label>
+                    <InlineNumber
+                      value={event.total_guest_price || 0}
+                      onSave={(value) => updateEventMutation.mutate({ total_guest_price: value })}
+                      step={0.01}
+                      min={0}
+                      className="text-lg font-medium"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Deposit Amount</Label>

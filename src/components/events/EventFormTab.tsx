@@ -11,6 +11,7 @@ import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils';
 
 interface EventFormTabProps {
   eventForm: any;
@@ -22,6 +23,28 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
   const { currentTenant } = useAuth();
   const [formResponses, setFormResponses] = useState<Record<string, any>>(eventForm.form_responses || {});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Fetch event data to check event type
+  const { data: event } = useSupabaseQuery(
+    ['event', eventId],
+    async () => {
+      if (!eventId || !currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('event_type')
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id)
+        .single();
+      
+      if (error) {
+        console.error('Event error:', error);
+        return null;
+      }
+      
+      return data;
+    }
+  );
 
   // Use the eventForm's form_template_id as the selected form
   const selectedFormId = eventForm.form_template_id || '';
@@ -290,7 +313,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
               {response.pricing_type === 'per_person' && (
                 <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
                   <TrendingUp className="h-3 w-3" />
-                  Total: £{((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1)).toFixed(2)}
+                  Total: £{formatCurrency((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1))}
                 </div>
               )}
             </div>
@@ -319,72 +342,69 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
     // All other field types - simplified unified rendering
     return (
       <div className="space-y-3">
-        {/* Basic field input based on type - only show for pricing fields */}
-        {field.field_type === 'text' && field.affects_pricing && (
-          <div>
-            <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
-              Value
-            </Label>
-            <Input
-              id={`value-${fieldId}`}
-              type="text"
-              value={response.value || ''}
-              onChange={(e) => handleFieldChange(fieldId, 'value', e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-        )}
+        {/* Guest Information Fields for All Day Events */}
+        {event?.event_type === 'all_day' && (
+          <div className="space-y-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor={`men_count-${fieldId}`} className="text-xs font-medium text-muted-foreground">Men Count</Label>
+                <Input
+                  id={`men_count-${fieldId}`}
+                  type="number"
+                  min="0"
+                  value={response.men_count || ''}
+                  onChange={(e) => handleFieldChange(fieldId, 'men_count', parseInt(e.target.value) || 0)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`ladies_count-${fieldId}`} className="text-xs font-medium text-muted-foreground">Ladies Count</Label>
+                <Input
+                  id={`ladies_count-${fieldId}`}
+                  type="number"
+                  min="0"
+                  value={response.ladies_count || ''}
+                  onChange={(e) => handleFieldChange(fieldId, 'ladies_count', parseInt(e.target.value) || 0)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground mb-1 block">Event Mix Type</Label>
+              <Select
+                value={response.event_mix_type || 'mixed'}
+                onValueChange={(value) => handleFieldChange(fieldId, 'event_mix_type', value)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mixed">Mixed</SelectItem>
+                  <SelectItem value="men_only">Men Only</SelectItem>
+                  <SelectItem value="ladies_only">Ladies Only</SelectItem>
+                  <SelectItem value="separate_sections">Separate Sections</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        {field.field_type === 'number' && (
-          <div>
-            <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
-              Value
-            </Label>
-            <Input
-              id={`value-${fieldId}`}
-              type="number"
-              value={response.value || ''}
-              onChange={(e) => handleFieldChange(fieldId, 'value', parseFloat(e.target.value) || 0)}
-              className="h-8 text-sm"
-            />
-          </div>
-        )}
-
-        {field.field_type === 'select' && field.options && (
-          <div>
-            <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
-              Selection
-            </Label>
-            <Select
-              value={response.value || ''}
-              onValueChange={(value) => handleFieldChange(fieldId, 'value', value)}
-            >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select an option" />
-              </SelectTrigger>
-              <SelectContent>
-                {field.options.map((option: any, index: number) => (
-                  <SelectItem key={index} value={option.value || option}>
-                    {option.label || option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {field.field_type === 'textarea' && (
-          <div>
-            <Label htmlFor={`value-${fieldId}`} className="text-xs font-medium text-muted-foreground">
-              Value
-            </Label>
-            <Textarea
-              id={`value-${fieldId}`}
-              value={response.value || ''}
-              onChange={(e) => handleFieldChange(fieldId, 'value', e.target.value)}
-              rows={2}
-              className="text-sm"
-            />
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground mb-1 block">Time Slot</Label>
+              <Select
+                value={response.time_slot || ''}
+                onValueChange={(value) => handleFieldChange(fieldId, 'time_slot', value)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select time slot" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="morning">Morning (9:00 AM - 12:00 PM)</SelectItem>
+                  <SelectItem value="afternoon">Afternoon (12:00 PM - 5:00 PM)</SelectItem>
+                  <SelectItem value="evening">Evening (5:00 PM - 11:00 PM)</SelectItem>
+                  <SelectItem value="night">Night (11:00 PM - 3:00 AM)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
 
@@ -444,7 +464,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
             {response.pricing_type === 'per_person' && (
               <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
                 <TrendingUp className="h-3 w-3" />
-                Total: £{((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1)).toFixed(2)}
+                Total: £{formatCurrency((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1))}
               </div>
             )}
           </div>
@@ -575,9 +595,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Form Responses</h3>
             <div className="flex items-center gap-3">
-              <div className="text-sm font-bold text-green-600">
-                Total: £{calculateFormTotal().toFixed(2)}
-              </div>
+                <div className="text-sm font-bold text-green-600">
+                  Total: £{formatCurrency(calculateFormTotal())}
+                </div>
               {hasUnsavedChanges && (
                 <Button 
                   onClick={handleSaveChanges}
@@ -651,7 +671,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-sm font-bold text-green-600">
-                  Total: £{calculateFormTotal().toFixed(2)}
+                  Total: £{formatCurrency(calculateFormTotal())}
                 </div>
                 {hasUnsavedChanges && (
                   <Button 
@@ -717,7 +737,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
                   </div>
                   <div className="text-right">
                     <span className="font-semibold text-sm">
-                      £{(parseFloat(response.price) || 0).toFixed(2)}
+                      £{formatCurrency(parseFloat(response.price) || 0)}
                     </span>
                   </div>
                 </div>
@@ -726,7 +746,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
               <div className="flex justify-between items-center pt-3 mt-3 border-t-2 border-green-600">
                 <span className="text-base font-bold">Total Amount</span>
                 <span className="text-xl font-bold text-green-600">
-                  £{calculateFormTotal().toFixed(2)}
+                  £{formatCurrency(calculateFormTotal())}
                 </span>
               </div>
             </div>
