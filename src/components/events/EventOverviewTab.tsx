@@ -19,6 +19,7 @@ import { useSupabaseMutation, useSupabaseQuery } from '@/hooks/useSupabaseQuery'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
+import { formatCurrency } from '@/lib/utils';
 
 interface EventOverviewTabProps {
   event: any;
@@ -137,11 +138,12 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
   const depositAmount = event.deposit_amount || 0;
   const totalEventPrice = totalGuestPrice + formTotal;
   
-  // Calculate total paid from finance timeline
-  const totalPaid = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+  // Calculate total paid: Deposit + Finance Timeline Payments
+  const financeTimelinePayments = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+  const totalPaid = depositAmount + financeTimelinePayments;
   
-  // Calculate balance due: Total Event Price - Deposit - Finance Timeline Payments
-  const balanceDue = totalEventPrice - depositAmount - totalPaid;
+  // Calculate balance due: Total Event Price - Total Paid
+  const balanceDue = totalEventPrice - totalPaid;
 
   const daysDue = calculateDaysDue();
 
@@ -386,6 +388,17 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                   className="text-lg font-medium"
                 />
               </div>
+
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Deposit Amount</Label>
+                <InlineNumber
+                  value={event.deposit_amount || 0}
+                  onSave={(value) => updateEventMutation.mutate({ deposit_amount: value })}
+                  step={0.01}
+                  min={0}
+                  className="text-lg font-medium"
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -402,28 +415,28 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               <div className="p-3 bg-blue-50 rounded-md">
                 <Label className="text-xs text-blue-700">Guest Price</Label>
                 <div className="text-lg font-bold text-blue-900">
-                  £{totalGuestPrice.toFixed(2)}
+                  £{formatCurrency(totalGuestPrice)}
                 </div>
               </div>
               
               <div className="p-3 bg-green-50 rounded-md">
                 <Label className="text-xs text-green-700">Form Total</Label>
                 <div className="text-lg font-bold text-green-900">
-                  £{formTotal.toFixed(2)}
+                  £{formatCurrency(formTotal)}
                 </div>
               </div>
               
               <div className="p-3 bg-purple-50 rounded-md">
                 <Label className="text-xs text-purple-700">Total Event Price</Label>
                 <div className="text-lg font-bold text-purple-900">
-                  £{totalEventPrice.toFixed(2)}
+                  £{formatCurrency(totalEventPrice)}
                 </div>
               </div>
               
               <div className="p-3 bg-orange-50 rounded-md">
                 <Label className="text-xs text-orange-700">Deposit</Label>
                 <div className="text-lg font-bold text-orange-900">
-                  £{depositAmount.toFixed(2)}
+                  £{formatCurrency(depositAmount)}
                 </div>
               </div>
             </div>
@@ -432,10 +445,10 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
               <div className="p-3 bg-green-100 rounded-md">
                 <Label className="text-xs text-green-700">Total Paid</Label>
                 <div className="text-lg font-bold text-green-900">
-                  £{totalPaid.toFixed(2)}
+                  £{formatCurrency(totalPaid)}
                 </div>
                 <div className="text-xs text-green-600 mt-1">
-                  Deposit + Finance Timeline
+                  Deposit (£{formatCurrency(depositAmount)}) + Finance Timeline (£{formatCurrency(financeTimelinePayments)})
                 </div>
               </div>
               
@@ -444,7 +457,7 @@ export const EventOverviewTab: React.FC<EventOverviewTabProps> = ({ event }) => 
                   Balance Due
                 </Label>
                 <div className={`text-lg font-bold ${balanceDue > 0 ? 'text-red-900' : 'text-green-900'}`}>
-                  £{balanceDue.toFixed(2)}
+                  £{formatCurrency(balanceDue)}
                 </div>
                 <div className={`text-xs mt-1 ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
                   {balanceDue > 0 ? 'Outstanding amount' : 'Fully paid'}
