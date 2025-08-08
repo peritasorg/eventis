@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Save, Users, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
-import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEventTimeSlots } from '@/hooks/useEventTimeSlots';
-import { formatCurrency } from '@/lib/utils';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 
 interface EventFormTabProps {
   eventForm: any;
@@ -21,121 +19,148 @@ interface EventFormTabProps {
   onFormChange?: (total: number) => void;
 }
 
-export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, onFormChange }) => {
-  const [formResponses, setFormResponses] = useState<any>({});
-  const [formTotal, setFormTotal] = useState(0);
-  const [guestInfo, setGuestInfo] = useState<any>({
-    men_count: 0,
-    ladies_count: 0,
-    event_mix_type: 'mixed',
-    time_slot: ''
-  });
+export const EventFormTab: React.FC<EventFormTabProps> = ({ 
+  eventForm, 
+  eventId,
+  onFormChange 
+}) => {
   const { currentTenant } = useAuth();
-  const { timeSlots } = useEventTimeSlots();
+  const [formResponses, setFormResponses] = useState<Record<string, any>>({});
+  const [formTotal, setFormTotal] = useState(0);
+  const [guestInfo, setGuestInfo] = useState<Record<string, any>>({});
+  const [individualGuestInfo, setIndividualGuestInfo] = useState(false);
   const { isEventTypeAllDay } = useEventTypeConfigs();
 
-  // Fetch event data to determine if it's an "All Day" event
+  // Fetch event details
   const { data: event } = useSupabaseQuery(
-    ['event', eventId],
+    ['event-detail', eventId],
     async () => {
       if (!eventId || !currentTenant?.id) return null;
       
       const { data, error } = await supabase
         .from('events')
-        .select('event_type')
+        .select('*')
         .eq('id', eventId)
         .eq('tenant_id', currentTenant.id)
         .single();
       
-      if (error) {
-        console.error('Event fetch error:', error);
-        return null;
-      }
-      
+      if (error) return null;
       return data;
     }
   );
 
-  // Determine if this is an "All Day" event using database configuration
-  const isAllDayEvent = event ? isEventTypeAllDay(event.event_type) : false;
+  const isAllDay = event ? isEventTypeAllDay(event.event_type) : false;
 
-  // Fetch form sections and fields for this form template
-  const { data: formData } = useSupabaseQuery(
-    ['form-sections-fields', eventForm.form_template_id],
+  // Fetch time slots
+  const { data: timeSlots } = useSupabaseQuery(
+    ['event-time-slots'],
     async () => {
-      if (!eventForm.form_template_id || !currentTenant?.id) return { sections: [], fields: [] };
+      if (!currentTenant?.id) return [];
       
-      // Get form sections
+      const { data, error } = await supabase
+        .from('event_time_slots')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .order('sort_order');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
+  // Fetch form structure with proper relationships
+  const { data: formStructure } = useSupabaseQuery(
+    ['form-structure', eventForm?.form_template_id],
+    async () => {
+      if (!eventForm?.form_template_id || !currentTenant?.id) return [];
+      
+      // Get pages for this template
+      const { data: pages, error: pagesError } = await supabase
+        .from('form_pages')
+        .select('id')
+        .eq('form_template_id', eventForm.form_template_id)
+        .eq('tenant_id', currentTenant.id)
+        .order('page_number');
+      
+      if (pagesError || !pages?.length) return [];
+      
+      // Get sections for these pages
       const { data: sections, error: sectionsError } = await supabase
         .from('form_sections')
         .select('*')
-        .eq('form_page_id', eventForm.form_template_id)
+        .in('form_page_id', pages.map(p => p.id))
         .eq('tenant_id', currentTenant.id)
         .order('section_order');
-
-      // Get form fields
+      
+      if (sectionsError || !sections?.length) return [];
+      
+      // Get fields for these sections
       const { data: fields, error: fieldsError } = await supabase
         .from('form_field_instances')
         .select(`
           *,
           field_library (
-            id,
-            name,
-            label,
-            field_type,
-            required,
-            options,
-            affects_pricing,
-            unit_price,
-            pricing_behavior,
-            pricing_type
+            id, name, label, field_type, required, options, 
+            affects_pricing, unit_price, pricing_behavior, min_quantity, max_quantity
           )
         `)
-        .eq('form_template_id', eventForm.form_template_id)
+        .in('form_section_id', sections.map(s => s.id))
         .eq('tenant_id', currentTenant.id)
         .order('field_order');
-
-      if (sectionsError || fieldsError) {
-        console.error('Form data error:', sectionsError || fieldsError);
-        return { sections: [], fields: [] };
-      }
       
-      return { 
-        sections: sections || [], 
-        fields: fields || [] 
-      };
+      if (fieldsError) return [];
+      
+      // Group fields by section
+      return sections.map(section => ({
+        ...section,
+        fields: fields?.filter(field => field.form_section_id === section.id) || []
+      }));
     }
   );
 
-  const sections = formData?.sections || [];
-  const fields = formData?.fields || [];
-
-  // Load existing responses when component mounts
+  // Load existing data
   useEffect(() => {
     if (eventForm?.form_responses) {
       setFormResponses(eventForm.form_responses);
-      setFormTotal(eventForm.form_total || 0);
     }
     if (eventForm?.guest_info) {
       setGuestInfo(eventForm.guest_info);
     }
+    if (eventForm?.form_total) {
+      setFormTotal(eventForm.form_total);
+    }
+    if (eventForm?.individual_guest_info !== undefined) {
+      setIndividualGuestInfo(eventForm.individual_guest_info);
+    }
   }, [eventForm]);
 
-  const updateFormMutation = useSupabaseMutation(
-    async ({ responses, total, guest_info }: { responses: any; total: number; guest_info?: any }) => {
-      const updateData: any = {
-        form_responses: responses,
-        form_total: total,
-        updated_at: new Date().toISOString()
-      };
-      
-      if (guest_info !== undefined) {
-        updateData.guest_info = guest_info;
+  // Calculate total
+  useEffect(() => {
+    let total = 0;
+    Object.values(formResponses).forEach((response: any) => {
+      if (response?.enabled && response?.price) {
+        const price = parseFloat(response.price) || 0;
+        const quantity = parseInt(response.quantity) || 1;
+        total += price * quantity;
       }
-      
+    });
+    setFormTotal(total);
+    if (onFormChange) onFormChange(total);
+  }, [formResponses, onFormChange]);
+
+  const updateEventFormMutation = useSupabaseMutation(
+    async ({ responses, total, guestInfo, individualGuestInfo, timeSlotId }: any) => {
       const { data, error } = await supabase
         .from('event_forms')
-        .update(updateData)
+        .update({
+          form_responses: responses,
+          form_total: total,
+          guest_info: guestInfo,
+          individual_guest_info: individualGuestInfo,
+          time_slot_id: timeSlotId || null,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', eventForm.id)
         .select()
         .single();
@@ -143,536 +168,237 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventForm, eventId, 
       if (error) throw error;
       return data;
     },
-    {
-      onSuccess: () => {
-        onFormChange?.(formTotal);
-      }
-    }
+    { successMessage: 'Form saved successfully!' }
   );
 
   const handleFieldValueChange = (fieldId: string, value: any) => {
-    const updatedResponses = {
-      ...formResponses,
-      [fieldId]: {
-        ...formResponses[fieldId],
-        value: value,
-        enabled: formResponses[fieldId]?.enabled || true
-      }
-    };
-    
-    setFormResponses(updatedResponses);
-  };
-
-  const handleInputChange = (fieldId: string, property: string, value: any) => {
-    const updatedResponses = {
-      ...formResponses,
-      [fieldId]: {
-        ...formResponses[fieldId],
-        [property]: value
-      }
-    };
-    
-    setFormResponses(updatedResponses);
-    
-    // Recalculate total if pricing-related
-    if (property === 'price' || property === 'quantity' || property === 'enabled') {
-      let newTotal = 0;
-      Object.keys(updatedResponses).forEach(id => {
-        const field = fields?.find(f => f.field_library.id === id);
-        const response = updatedResponses[id];
-        
-        if (response.enabled && field?.field_library.affects_pricing) {
-          const price = parseFloat(response.price || 0);
-          const quantity = parseInt(response.quantity || 1);
-          
-          if (response.pricing_type === 'per_person') {
-            newTotal += price * quantity;
-          } else {
-            newTotal += price;
-          }
-        }
-      });
-      
-      setFormTotal(newTotal);
-    }
-  };
-
-  const handleFieldToggle = (fieldId: string, enabled: boolean) => {
-    const field = fields?.find(f => f.field_library.id === fieldId);
-    
-    const updatedResponses = {
-      ...formResponses,
-      [fieldId]: {
-        ...formResponses[fieldId],
-        enabled,
-        price: enabled ? (formResponses[fieldId]?.price || field?.field_library.unit_price || 0) : 0,
-        quantity: enabled ? (formResponses[fieldId]?.quantity || 1) : 0,
-        pricing_type: formResponses[fieldId]?.pricing_type || 'fixed'
-      }
-    };
-    
-    setFormResponses(updatedResponses);
-    
-    // Recalculate total
-    let newTotal = 0;
-    Object.keys(updatedResponses).forEach(id => {
-      const fieldData = fields?.find(f => f.field_library.id === id);
-      const response = updatedResponses[id];
-      
-      if (response.enabled && fieldData?.field_library.affects_pricing) {
-        const price = parseFloat(response.price || 0);
-        const quantity = parseInt(response.quantity || 1);
-        
-        if (response.pricing_type === 'per_person') {
-          newTotal += price * quantity;
-        } else {
-          newTotal += price;
-        }
-      }
-    });
-    
-    setFormTotal(newTotal);
+    setFormResponses(prev => ({
+      ...prev,
+      [fieldId]: { ...prev[fieldId], value }
+    }));
   };
 
   const handleSaveForm = () => {
-    updateFormMutation.mutate({
+    updateEventFormMutation.mutate({
       responses: formResponses,
       total: formTotal,
-      guest_info: isAllDayEvent ? guestInfo : undefined
+      guestInfo: guestInfo,
+      individualGuestInfo: individualGuestInfo,
+      timeSlotId: guestInfo.time_slot_id
     });
   };
 
-  const handleGuestInfoChange = (field: string, value: any) => {
-    const updatedGuestInfo = {
-      ...guestInfo,
-      [field]: value
-    };
-    setGuestInfo(updatedGuestInfo);
-  };
-
   const renderField = (field: any) => {
-    const fieldId = field.field_library.id;
-    const response = formResponses[fieldId] || {};
-    const fieldLibrary = field.field_library;
+    const fieldId = field.id;
+    const lib = field.field_library;
+    const currentResponse = formResponses[fieldId] || {};
+    const fieldValue = currentResponse.value || '';
     
-    const fieldLabel = field.label_override || fieldLibrary.label;
-    const fieldRequired = field.required_override !== null ? field.required_override : fieldLibrary.required;
-    
-    switch (fieldLibrary.field_type) {
+    if (!lib) return null;
+
+    const label = field.label_override || lib.label || lib.name;
+    const required = field.required_override !== null ? field.required_override : lib.required;
+
+    let input = null;
+    switch (lib.field_type) {
       case 'text':
-        return (
-          <Input
-            value={response.value || ''}
-            onChange={(e) => handleFieldValueChange(fieldId, e.target.value)}
-            placeholder={field.placeholder_override || `Enter ${fieldLabel.toLowerCase()}`}
-            required={fieldRequired}
-          />
-        );
-      
+        input = <Input value={fieldValue} onChange={(e) => handleFieldValueChange(fieldId, e.target.value)} required={required} />;
+        break;
       case 'textarea':
-        return (
-          <Textarea
-            value={response.value || ''}
-            onChange={(e) => handleFieldValueChange(fieldId, e.target.value)}
-            placeholder={field.placeholder_override || `Enter ${fieldLabel.toLowerCase()}`}
-            required={fieldRequired}
-            rows={3}
-          />
-        );
-      
+        input = <Textarea value={fieldValue} onChange={(e) => handleFieldValueChange(fieldId, e.target.value)} required={required} rows={3} />;
+        break;
       case 'select':
-        return (
-          <Select 
-            value={response.value || ''} 
-            onValueChange={(value) => handleFieldValueChange(fieldId, value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={`Select ${fieldLabel.toLowerCase()}`} />
-            </SelectTrigger>
+        input = (
+          <Select value={fieldValue} onValueChange={(value) => handleFieldValueChange(fieldId, value)}>
+            <SelectTrigger><SelectValue placeholder={`Select ${label?.toLowerCase()}`} /></SelectTrigger>
             <SelectContent>
-              {fieldLibrary.options?.map((option: any, index: number) => (
-                <SelectItem key={index} value={option.value || option.label || option}>
+              {Array.isArray(lib.options) && lib.options.map((option: any, index: number) => (
+                <SelectItem key={index} value={option.value || option}>
                   {option.label || option}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         );
-      
+        break;
       case 'checkbox':
-        return (
+        input = (
           <div className="flex items-center space-x-2">
             <Checkbox
               id={fieldId}
-              checked={response.enabled || false}
-              onCheckedChange={(checked) => handleFieldToggle(fieldId, checked as boolean)}
+              checked={!!fieldValue}
+              onCheckedChange={(checked) => handleFieldValueChange(fieldId, checked)}
             />
-            <Label htmlFor={fieldId} className="text-sm">
-              {fieldLabel}
-            </Label>
+            <Label htmlFor={fieldId}>{label}</Label>
           </div>
         );
-      
+        break;
       case 'number':
-        return (
-          <Input
-            type="number"
-            value={response.value || ''}
-            onChange={(e) => handleFieldValueChange(fieldId, parseFloat(e.target.value) || 0)}
-            placeholder={field.placeholder_override || `Enter ${fieldLabel.toLowerCase()}`}
-            required={fieldRequired}
-          />
-        );
-      
+        input = <Input type="number" value={fieldValue} onChange={(e) => handleFieldValueChange(fieldId, e.target.value)} required={required} />;
+        break;
       default:
-        return (
-          <Input
-            value={response.value || ''}
-            onChange={(e) => handleFieldValueChange(fieldId, e.target.value)}
-            placeholder={field.placeholder_override || `Enter ${fieldLabel.toLowerCase()}`}
-            required={fieldRequired}
-          />
-        );
+        input = <Input value={fieldValue} onChange={(e) => handleFieldValueChange(fieldId, e.target.value)} required={required} />;
     }
-  };
 
-  const getFieldsForSection = (sectionId: string) => {
-    return fields.filter(field => field.form_section_id === sectionId);
+    return (
+      <div key={fieldId} className="space-y-3">
+        {lib.field_type !== 'checkbox' && (
+          <Label>{label}{required && <span className="text-red-500 ml-1">*</span>}</Label>
+        )}
+        {input}
+        {field.help_text_override && <p className="text-xs text-muted-foreground">{field.help_text_override}</p>}
+        
+        {lib.affects_pricing && lib.field_type !== 'checkbox' && (
+          <div className="flex items-center space-x-2 pt-2 border-t">
+            <Checkbox
+              checked={currentResponse.enabled || false}
+              onCheckedChange={(checked) => setFormResponses(prev => ({
+                ...prev,
+                [fieldId]: { ...prev[fieldId], enabled: checked }
+              }))}
+            />
+            <Label className="text-xs">Include in pricing</Label>
+            {currentResponse.enabled && (
+              <div className="flex space-x-2 ml-4">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={currentResponse.price || lib.unit_price || ''}
+                  onChange={(e) => setFormResponses(prev => ({
+                    ...prev,
+                    [fieldId]: { ...prev[fieldId], price: e.target.value }
+                  }))}
+                  className="w-20 h-6 text-xs"
+                  placeholder="Price"
+                />
+                {lib.pricing_behavior !== 'fixed' && (
+                  <Input
+                    type="number"
+                    min={lib.min_quantity || 1}
+                    max={lib.max_quantity || undefined}
+                    value={currentResponse.quantity || 1}
+                    onChange={(e) => setFormResponses(prev => ({
+                      ...prev,
+                      [fieldId]: { ...prev[fieldId], quantity: e.target.value }
+                    }))}
+                    className="w-16 h-6 text-xs"
+                    placeholder="Qty"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Form Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">{eventForm.form_label}</h3>
-          <p className="text-sm text-muted-foreground">
-            Form template: {eventForm.form_templates?.name}
-          </p>
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              {eventForm?.form_label || 'Form'}
+              <span className="text-sm font-normal text-muted-foreground">
+                ({eventForm?.form_templates?.name})
+              </span>
+            </CardTitle>
+            {formTotal > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <DollarSign className="w-4 h-4 text-green-600" />
+                <span className="text-lg font-semibold text-green-600">£{formTotal.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isAllDay && (
+              <div className="flex items-center space-x-2">
+                <Switch checked={individualGuestInfo} onCheckedChange={setIndividualGuestInfo} />
+                <Label className="text-sm">Individual Guest Info</Label>
+              </div>
+            )}
+            <Button onClick={handleSaveForm} className="flex items-center gap-2">
+              <Save className="w-4 h-4" />Save Form
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-sm">
-            Total: £{formatCurrency(formTotal)}
-          </Badge>
-          <Button 
-            onClick={handleSaveForm}
-            disabled={updateFormMutation.isPending}
-            size="sm"
-          >
-            {updateFormMutation.isPending ? 'Saving...' : 'Save Form'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Guest Information Section - Only for All Day Events */}
-      {isAllDayEvent && (
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-md font-medium text-foreground">Guest Information</h4>
-                <Badge variant="secondary" className="text-xs">
-                  All Day Event
-                </Badge>
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        {isAllDay && individualGuestInfo && (
+          <Card className="bg-blue-50 dark:bg-blue-950/20">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="w-4 h-4" />Guest Information for {eventForm?.form_label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <Label>Men Count</Label>
+                <Input type="number" value={guestInfo.men_count || ''} 
+                  onChange={(e) => setGuestInfo(prev => ({...prev, men_count: e.target.value}))} />
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="men_count" className="text-sm font-medium">Men Count</Label>
-                  <Input
-                    id="men_count"
-                    type="number"
-                    min="0"
-                    value={guestInfo.men_count || 0}
-                    onChange={(e) => handleGuestInfoChange('men_count', parseInt(e.target.value) || 0)}
-                    className="w-full"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="ladies_count" className="text-sm font-medium">Ladies Count</Label>
-                  <Input
-                    id="ladies_count"
-                    type="number"
-                    min="0"
-                    value={guestInfo.ladies_count || 0}
-                    onChange={(e) => handleGuestInfoChange('ladies_count', parseInt(e.target.value) || 0)}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="event_mix_type" className="text-sm font-medium">Event Mix</Label>
-                  <Select 
-                    value={guestInfo.event_mix_type || 'mixed'} 
-                    onValueChange={(value) => handleGuestInfoChange('event_mix_type', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mixed">Mixed</SelectItem>
-                      <SelectItem value="men_only">Men Only</SelectItem>
-                      <SelectItem value="ladies_only">Ladies Only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="time_slot" className="text-sm font-medium">Time Slot</Label>
-                  <Select 
-                    value={guestInfo.time_slot || ''} 
-                    onValueChange={(value) => handleGuestInfoChange('time_slot', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select time slot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeSlots?.map((slot) => (
-                        <SelectItem key={slot.id} value={slot.id}>
-                          {slot.label} ({slot.start_time} - {slot.end_time})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label>Ladies Count</Label>
+                <Input type="number" value={guestInfo.ladies_count || ''} 
+                  onChange={(e) => setGuestInfo(prev => ({...prev, ladies_count: e.target.value}))} />
               </div>
-
-              <div className="text-sm text-muted-foreground">
-                Total Guests: {(guestInfo.men_count || 0) + (guestInfo.ladies_count || 0)}
+              <div>
+                <Label>Time Slot</Label>
+                <Select value={guestInfo.time_slot_id || ''} 
+                  onValueChange={(value) => setGuestInfo(prev => ({...prev, time_slot_id: value}))}>
+                  <SelectTrigger><SelectValue placeholder="Select time slot" /></SelectTrigger>
+                  <SelectContent>
+                    {timeSlots?.map((slot) => (
+                      <SelectItem key={slot.id} value={slot.id}>
+                        {slot.label} ({slot.start_time} - {slot.end_time})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              <div>
+                <Label>Total Guests</Label>
+                <Input type="number" value={guestInfo.total_guests || ''} 
+                  onChange={(e) => setGuestInfo(prev => ({...prev, total_guests: e.target.value}))} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Form Sections */}
-      <div className="space-y-6">
-        {sections.length > 0 ? (
-          sections.map((section) => {
-            const sectionFields = getFieldsForSection(section.id);
-            
-            if (sectionFields.length === 0) return null;
-            
-            return (
-              <Card key={section.id}>
+        {formStructure && formStructure.length > 0 ? (
+          <div className="space-y-6">
+            {formStructure.map((section) => (
+              <Card key={section.id} className="border-l-4 border-l-primary">
                 <CardHeader>
-                  <CardTitle className="text-lg">{section.section_title}</CardTitle>
+                  <CardTitle className="text-lg">{section.section_title || 'Form Section'}</CardTitle>
                   {section.section_description && (
                     <p className="text-sm text-muted-foreground">{section.section_description}</p>
                   )}
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {sectionFields.map((field) => {
-                    const fieldId = field.field_library.id;
-                    const response = formResponses[fieldId] || {};
-                    const fieldLibrary = field.field_library;
-                    const fieldLabel = field.label_override || fieldLibrary.label;
-                    
-                    return (
-                      <div key={fieldId} className="space-y-3 p-4 border rounded-lg">
-                        {/* Field Label and Input */}
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">
-                            {fieldLabel}
-                            {field.required_override !== null ? field.required_override : fieldLibrary.required && (
-                              <span className="text-destructive ml-1">*</span>
-                            )}
-                          </Label>
-                          
-                          {field.help_text_override || fieldLibrary.help_text && (
-                            <p className="text-xs text-muted-foreground">
-                              {field.help_text_override || fieldLibrary.help_text}
-                            </p>
-                          )}
-                          
-                          {fieldLibrary.field_type !== 'checkbox' && renderField(field)}
-                          
-                          {fieldLibrary.field_type === 'checkbox' && (
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={fieldId}
-                                checked={response.enabled || false}
-                                onCheckedChange={(checked) => handleFieldToggle(fieldId, checked as boolean)}
-                              />
-                              <Label htmlFor={fieldId} className="text-sm">
-                                Enable {fieldLabel}
-                              </Label>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Pricing Fields - Only show for enabled fields that affect pricing */}
-                        {response.enabled && fieldLibrary.affects_pricing && (
-                          <div className="bg-muted/30 rounded-lg p-3 space-y-3">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className="space-y-2">
-                                <Label className="text-sm">Pricing Type</Label>
-                                <Select
-                                  value={response.pricing_type || 'fixed'}
-                                  onValueChange={(value) => handleInputChange(fieldId, 'pricing_type', value)}
-                                >
-                                  <SelectTrigger className="h-8">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="fixed">Fixed Price</SelectItem>
-                                    <SelectItem value="per_person">Per Person</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label className="text-sm">
-                                  {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
-                                </Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={response.price || ''}
-                                  onChange={(e) => handleInputChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                                  className="h-8"
-                                />
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label className="text-sm">
-                                  {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
-                                </Label>
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  value={response.quantity || ''}
-                                  onChange={(e) => handleInputChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
-                                  className="h-8"
-                                />
-                              </div>
-                            </div>
-
-                            {response.pricing_type === 'per_person' && (
-                              <div className="text-sm text-green-600 font-medium">
-                                Subtotal: £{formatCurrency((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            );
-          })
-        ) : (
-          // Fallback for forms without sections - show fields directly
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              {fields.map((field) => {
-                const fieldId = field.field_library.id;
-                const response = formResponses[fieldId] || {};
-                const fieldLibrary = field.field_library;
-                const fieldLabel = field.label_override || fieldLibrary.label;
-                
-                return (
-                  <div key={fieldId} className="space-y-3 p-4 border rounded-lg">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        {fieldLabel}
-                        {field.required_override !== null ? field.required_override : fieldLibrary.required && (
-                          <span className="text-destructive ml-1">*</span>
-                        )}
-                      </Label>
-                      
-                      {field.help_text_override || fieldLibrary.help_text && (
-                        <p className="text-xs text-muted-foreground">
-                          {field.help_text_override || fieldLibrary.help_text}
-                        </p>
-                      )}
-                      
-                      {fieldLibrary.field_type !== 'checkbox' && renderField(field)}
-                      
-                      {fieldLibrary.field_type === 'checkbox' && (
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={fieldId}
-                            checked={response.enabled || false}
-                            onCheckedChange={(checked) => handleFieldToggle(fieldId, checked as boolean)}
-                          />
-                          <Label htmlFor={fieldId} className="text-sm">
-                            Enable {fieldLabel}
-                          </Label>
-                        </div>
-                      )}
-                    </div>
-
-                    {response.enabled && fieldLibrary.affects_pricing && (
-                      <div className="bg-muted/30 rounded-lg p-3 space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="space-y-2">
-                            <Label className="text-sm">Pricing Type</Label>
-                            <Select
-                              value={response.pricing_type || 'fixed'}
-                              onValueChange={(value) => handleInputChange(fieldId, 'pricing_type', value)}
-                            >
-                              <SelectTrigger className="h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="fixed">Fixed Price</SelectItem>
-                                <SelectItem value="per_person">Per Person</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-sm">
-                              {response.pricing_type === 'per_person' ? 'Price per Person (£)' : 'Price (£)'}
-                            </Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={response.price || ''}
-                              onChange={(e) => handleInputChange(fieldId, 'price', parseFloat(e.target.value) || 0)}
-                              className="h-8"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-sm">
-                              {response.pricing_type === 'per_person' ? 'Number of People' : 'Quantity'}
-                            </Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={response.quantity || ''}
-                              onChange={(e) => handleInputChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
-                              className="h-8"
-                            />
-                          </div>
-                        </div>
-
-                        {response.pricing_type === 'per_person' && (
-                          <div className="text-sm text-green-600 font-medium">
-                            Subtotal: £{formatCurrency((parseFloat(response.price) || 0) * (parseInt(response.quantity) || 1))}
-                          </div>
-                        )}
-                      </div>
+                <CardContent>
+                  <div className="grid gap-6">
+                    {section.fields && section.fields.length > 0 ? (
+                      section.fields.map((field) => renderField(field))
+                    ) : (
+                      <p className="text-muted-foreground text-center py-4">No fields in this section</p>
                     )}
                   </div>
-                );
-              })}
-              
-              {fields.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No fields configured for this form template.</p>
-                </div>
-              )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">
+                No form structure found. Please check the form template configuration.
+              </p>
             </CardContent>
           </Card>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

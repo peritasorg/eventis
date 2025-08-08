@@ -599,9 +599,11 @@ export type Database = {
           form_total: number | null
           guest_info: Json | null
           id: string
+          individual_guest_info: boolean | null
           is_active: boolean | null
           tab_order: number
           tenant_id: string
+          time_slot_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -613,9 +615,11 @@ export type Database = {
           form_total?: number | null
           guest_info?: Json | null
           id?: string
+          individual_guest_info?: boolean | null
           is_active?: boolean | null
           tab_order?: number
           tenant_id: string
+          time_slot_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -627,9 +631,11 @@ export type Database = {
           form_total?: number | null
           guest_info?: Json | null
           id?: string
+          individual_guest_info?: boolean | null
           is_active?: boolean | null
           tab_order?: number
           tenant_id?: string
+          time_slot_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -652,6 +658,13 @@ export type Database = {
             columns: ["form_template_id"]
             isOneToOne: false
             referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_forms_time_slot_id_fkey"
+            columns: ["time_slot_id"]
+            isOneToOne: false
+            referencedRelation: "event_time_slots"
             referencedColumns: ["id"]
           },
         ]
