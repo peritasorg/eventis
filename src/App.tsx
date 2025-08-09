@@ -23,6 +23,7 @@ import { EventForm } from "./pages/EventForm";
 import { FormBuilder } from "./pages/FormBuilder";
 import { Customers } from "./pages/Customers";
 import { Settings } from "./pages/Settings";
+import { CalendarSettings } from "./pages/CalendarSettings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Success } from "./pages/success";
@@ -122,6 +123,11 @@ const App: React.FC = () => {
                                 <Route path="/settings" element={
                                   <ErrorBoundary>
                                     <Settings />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/calendar-settings" element={
+                                  <ErrorBoundary>
+                                    <CalendarSettings />
                                   </ErrorBoundary>
                                 } />
                                 <Route path="*" element={
