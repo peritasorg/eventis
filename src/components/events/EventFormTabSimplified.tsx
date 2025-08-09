@@ -269,7 +269,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({
               checked={!!value}
               onCheckedChange={(checked) => handleFieldChange(fieldId, 'value', checked)}
             />
-            <span className="text-sm">Enable {field.label}</span>
+            <span className="text-sm">{field.label}</span>
           </div>
         );
       default:
@@ -333,20 +333,23 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({
               className="h-8 text-sm"
             />
           </div>
-          <div>
-            <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
-              <Hash className="h-3 w-3" />
-              Quantity
-            </Label>
-            <Input
-              type="number"
-              min="1"
-              value={response.quantity || 1}
-              onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
-              placeholder="1"
-              className="h-8 text-sm"
-            />
-          </div>
+          {/* Hide quantity for number fields since it doesn't make sense */}
+          {lib.field_type !== 'number' && (
+            <div>
+              <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
+                <Hash className="h-3 w-3" />
+                Quantity
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                value={response.quantity || 1}
+                onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                placeholder="1"
+                className="h-8 text-sm"
+              />
+            </div>
+          )}
         </div>
         
         {/* Total Display */}

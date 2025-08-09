@@ -93,7 +93,7 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
               onCheckedChange={(checked) => handleFieldChange(fieldId, 'value', checked)}
               disabled={readOnly}
             />
-            <span className="text-sm">Enable {field.label}</span>
+            <span className="text-sm">{field.label}</span>
           </div>
         );
       default:
@@ -198,21 +198,24 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
                     disabled={readOnly}
                   />
                 </div>
-                <div>
-                  <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
-                    <Hash className="h-3 w-3" />
-                    Quantity
-                  </Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={response.quantity || 1}
-                    onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
-                    placeholder="1"
-                    className="h-8 text-sm"
-                    disabled={readOnly}
-                  />
-                </div>
+                {/* Hide quantity for number fields since it doesn't make sense */}
+                {field.field_type !== 'number' && (
+                  <div>
+                    <Label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
+                      <Hash className="h-3 w-3" />
+                      Quantity
+                    </Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={response.quantity || 1}
+                      onChange={(e) => handleFieldChange(fieldId, 'quantity', parseInt(e.target.value) || 1)}
+                      placeholder="1"
+                      className="h-8 text-sm"
+                      disabled={readOnly}
+                    />
+                  </div>
+                )}
               </div>
               
               {/* Total Display */}
