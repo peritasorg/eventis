@@ -19,13 +19,16 @@ interface FormSectionManagerProps {
   selectedSectionId?: string;
 }
 
-interface FormSection {
+interface Section {
   id: string;
-  title: string;
-  description?: string;
+  section_title: string | null;
+  section_description: string | null;
   section_order: number;
-  form_template_id: string;
+  form_page_id: string | null;
+  tenant_id: string | null;
   created_at: string;
+  background_color: string | null;
+  layout_type: string | null;
 }
 
 export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
@@ -35,7 +38,7 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
 }) => {
   const { currentTenant } = useAuth();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingSection, setEditingSection] = useState<FormSection | null>(null);
+  const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // Fetch form sections
@@ -47,7 +50,7 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
       const { data, error } = await supabase
         .from('form_sections')
         .select('*')
-        .eq('form_template_id', formId)
+        .eq('tenant_id', currentTenant?.id)
         .order('section_order');
       
       if (error) {
@@ -61,15 +64,16 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
 
   // Create section mutation
   const createSectionMutation = useSupabaseMutation(
-    async (sectionData: { title: string; description?: string }) => {
+    async (sectionData: { section_title: string; section_description?: string }) => {
       const maxOrder = sections?.length ? Math.max(...sections.map(s => s.section_order)) : 0;
       
       const { data, error } = await supabase
         .from('form_sections')
         .insert([{
-          ...sectionData,
-          form_template_id: formId,
-          section_order: maxOrder + 1
+          section_title: sectionData.section_title,
+          section_description: sectionData.section_description,
+          section_order: maxOrder + 1,
+          tenant_id: currentTenant?.id
         }])
         .select()
         .single();
@@ -88,12 +92,12 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
 
   // Update section mutation
   const updateSectionMutation = useSupabaseMutation(
-    async (variables: { id: string; title: string; description?: string }) => {
+    async (variables: { id: string; section_title: string; section_description?: string }) => {
       const { data, error } = await supabase
         .from('form_sections')
         .update({ 
-          title: variables.title,
-          description: variables.description 
+          section_title: variables.section_title,
+          section_description: variables.section_description 
         })
         .eq('id', variables.id)
         .select()
@@ -129,7 +133,7 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
 
   // Reorder sections mutation
   const reorderSectionsMutation = useSupabaseMutation(
-    async (reorderedSections: FormSection[]) => {
+    async (reorderedSections: Section[]) => {
       const updates = reorderedSections.map((section, index) => ({
         id: section.id,
         section_order: index + 1,
@@ -163,8 +167,8 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
     const formData = new FormData(e.currentTarget);
     
     createSectionMutation.mutate({
-      title: formData.get('title') as string,
-      description: formData.get('description') as string
+      section_title: formData.get('title') as string,
+      section_description: formData.get('description') as string
     });
   };
 
@@ -176,8 +180,8 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
     
     updateSectionMutation.mutate({
       id: editingSection.id,
-      title: formData.get('title') as string,
-      description: formData.get('description') as string
+      section_title: formData.get('title') as string,
+      section_description: formData.get('description') as string
     });
   };
 
@@ -311,10 +315,10 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
                               </Button>
                               
                               <div>
-                                <CardTitle className="text-base">{section.title}</CardTitle>
-                                {section.description && (
+                                <CardTitle className="text-base">{section.section_title || 'Untitled Section'}</CardTitle>
+                                {section.section_description && (
                                   <p className="text-sm text-muted-foreground mt-1">
-                                    {section.description}
+                                    {section.section_description}
                                   </p>
                                 )}
                               </div>
@@ -381,7 +385,7 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
               <Input 
                 id="edit-title" 
                 name="title" 
-                defaultValue={editingSection?.title}
+                defaultValue={editingSection?.section_title || ''}
                 required 
               />
             </div>
@@ -391,7 +395,7 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
               <Textarea 
                 id="edit-description" 
                 name="description" 
-                defaultValue={editingSection?.description || ''}
+                defaultValue={editingSection?.section_description || ''}
                 rows={3}
               />
             </div>

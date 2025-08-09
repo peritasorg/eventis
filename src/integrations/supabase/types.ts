@@ -1582,6 +1582,7 @@ export type Database = {
           label_override: string | null
           placeholder_override: string | null
           required_override: boolean | null
+          section_id: string | null
           tenant_id: string | null
           validation_rules_override: Json | null
         }
@@ -1598,6 +1599,7 @@ export type Database = {
           label_override?: string | null
           placeholder_override?: string | null
           required_override?: boolean | null
+          section_id?: string | null
           tenant_id?: string | null
           validation_rules_override?: Json | null
         }
@@ -1614,6 +1616,7 @@ export type Database = {
           label_override?: string | null
           placeholder_override?: string | null
           required_override?: boolean | null
+          section_id?: string | null
           tenant_id?: string | null
           validation_rules_override?: Json | null
         }
@@ -1635,6 +1638,13 @@ export type Database = {
           {
             foreignKeyName: "form_field_instances_form_section_id_fkey"
             columns: ["form_section_id"]
+            isOneToOne: false
+            referencedRelation: "form_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_field_instances_section_id_fkey"
+            columns: ["section_id"]
             isOneToOne: false
             referencedRelation: "form_sections"
             referencedColumns: ["id"]

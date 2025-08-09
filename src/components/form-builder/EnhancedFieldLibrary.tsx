@@ -138,6 +138,7 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
           tenant_id: currentTenant.id,
           form_template_id: formId,
           field_library_id: fieldId,
+          section_id: sectionId,
           field_order: nextOrder,
         })
         .select()
@@ -199,6 +200,12 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
             Create
           </Button>
         </div>
+        
+        {sectionId && (
+          <div className="p-2 bg-primary/10 rounded text-xs text-primary">
+            Adding to selected section
+          </div>
+        )}
         
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
