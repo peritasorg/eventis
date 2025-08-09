@@ -13,6 +13,7 @@ import { useFieldTypes } from '@/hooks/useFieldTypes';
 
 interface EnhancedFieldLibraryProps {
   formId: string;
+  sectionId?: string | null;
   onFieldAdded: () => void;
 }
 
@@ -48,6 +49,7 @@ const getCategoryDisplayName = (category: string) => {
 
 export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
   formId,
+  sectionId,
   onFieldAdded
 }) => {
   const { currentTenant } = useAuth();

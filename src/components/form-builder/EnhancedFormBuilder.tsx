@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { EnhancedFieldLibrary } from './EnhancedFieldLibrary';
 import { CompactFieldDisplay } from './CompactFieldDisplay';
 import { UniversalFieldEditor } from './UniversalFieldEditor';
+import { FormSectionManager } from './FormSectionManager';
 import { toast } from 'sonner';
 
 interface EnhancedFormBuilderProps {
@@ -29,6 +30,8 @@ export const EnhancedFormBuilder: React.FC<EnhancedFormBuilderProps> = ({
   const [showFieldEditor, setShowFieldEditor] = useState(false);
   const [editingField, setEditingField] = useState<any>(null);
   const [previewResponses, setPreviewResponses] = useState<Record<string, any>>({});
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [showSections, setShowSections] = useState(true);
 
   // Fetch form fields with library data
   const { data: formFields, refetch: refetchFields } = useSupabaseQuery(
@@ -206,12 +209,42 @@ export const EnhancedFormBuilder: React.FC<EnhancedFormBuilderProps> = ({
 
   return (
     <div className="h-full flex bg-background">
-      {/* Field Library Sidebar */}
-      <div className="w-80 border-r bg-card">
-        <EnhancedFieldLibrary
-          formId={form?.id}
-          onFieldAdded={handleFieldAdded}
-        />
+      {/* Left Sidebar - Sections & Field Library */}
+      <div className="w-80 border-r bg-card flex flex-col">
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showSections ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowSections(true)}
+            >
+              Sections
+            </Button>
+            <Button
+              variant={!showSections ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowSections(false)}
+            >
+              Fields
+            </Button>
+          </div>
+        </div>
+        
+        <div className="flex-1 overflow-auto p-4">
+          {showSections ? (
+            <FormSectionManager
+              formId={form?.id}
+              onSectionSelect={setSelectedSectionId}
+              selectedSectionId={selectedSectionId}
+            />
+          ) : (
+            <EnhancedFieldLibrary
+              formId={form?.id}
+              sectionId={selectedSectionId}
+              onFieldAdded={handleFieldAdded}
+            />
+          )}
+        </div>
       </div>
 
       {/* Main Form Builder */}
