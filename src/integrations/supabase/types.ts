@@ -870,40 +870,49 @@ export type Database = {
       }
       event_type_configs: {
         Row: {
+          allow_splitting: boolean | null
           color: string
           created_at: string
+          default_sessions: Json | null
           display_name: string
           event_type: string
           id: string
           is_active: boolean
           is_all_day: boolean | null
           sort_order: number
+          split_naming_pattern: string | null
           tenant_id: string
           text_color: string
           updated_at: string
         }
         Insert: {
+          allow_splitting?: boolean | null
           color?: string
           created_at?: string
+          default_sessions?: Json | null
           display_name: string
           event_type: string
           id?: string
           is_active?: boolean
           is_all_day?: boolean | null
           sort_order?: number
+          split_naming_pattern?: string | null
           tenant_id: string
           text_color?: string
           updated_at?: string
         }
         Update: {
+          allow_splitting?: boolean | null
           color?: string
           created_at?: string
+          default_sessions?: Json | null
           display_name?: string
           event_type?: string
           id?: string
           is_active?: boolean
           is_all_day?: boolean | null
           sort_order?: number
+          split_naming_pattern?: string | null
           tenant_id?: string
           text_color?: string
           updated_at?: string
@@ -1006,9 +1015,11 @@ export type Database = {
           id: string
           inquiry_date: string | null
           internal_notes: string | null
+          is_sub_event: boolean | null
           ladies_count: number | null
           lead_id: string | null
           men_count: number | null
+          parent_event_id: string | null
           parking_required: boolean | null
           primary_contact_name: string | null
           primary_contact_phone: string | null
@@ -1017,6 +1028,8 @@ export type Database = {
           secondary_contact_name: string | null
           secondary_contact_phone: string | null
           secondary_contact_relationship: string | null
+          session_order: number | null
+          session_type: string | null
           setup_time: string | null
           special_requests: string | null
           start_time: string
@@ -1073,9 +1086,11 @@ export type Database = {
           id?: string
           inquiry_date?: string | null
           internal_notes?: string | null
+          is_sub_event?: boolean | null
           ladies_count?: number | null
           lead_id?: string | null
           men_count?: number | null
+          parent_event_id?: string | null
           parking_required?: boolean | null
           primary_contact_name?: string | null
           primary_contact_phone?: string | null
@@ -1084,6 +1099,8 @@ export type Database = {
           secondary_contact_name?: string | null
           secondary_contact_phone?: string | null
           secondary_contact_relationship?: string | null
+          session_order?: number | null
+          session_type?: string | null
           setup_time?: string | null
           special_requests?: string | null
           start_time: string
@@ -1140,9 +1157,11 @@ export type Database = {
           id?: string
           inquiry_date?: string | null
           internal_notes?: string | null
+          is_sub_event?: boolean | null
           ladies_count?: number | null
           lead_id?: string | null
           men_count?: number | null
+          parent_event_id?: string | null
           parking_required?: boolean | null
           primary_contact_name?: string | null
           primary_contact_phone?: string | null
@@ -1151,6 +1170,8 @@ export type Database = {
           secondary_contact_name?: string | null
           secondary_contact_phone?: string | null
           secondary_contact_relationship?: string | null
+          session_order?: number | null
+          session_type?: string | null
           setup_time?: string | null
           special_requests?: string | null
           start_time?: string
@@ -1176,6 +1197,20 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_parent_event_id_fkey"
+            columns: ["parent_event_id"]
+            isOneToOne: false
+            referencedRelation: "event_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_parent_event_id_fkey"
+            columns: ["parent_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -2604,6 +2639,18 @@ export type Database = {
       get_decrypted_token: {
         Args: { encrypted_token: string }
         Returns: string
+      }
+      get_event_with_sessions: {
+        Args: { p_event_id: string }
+        Returns: {
+          event_id: string
+          event_name: string
+          is_parent: boolean
+          is_session: boolean
+          session_type: string
+          session_order: number
+          parent_id: string
+        }[]
       }
       get_next_tab_order: {
         Args: { p_event_id: string; p_tenant_id: string }
