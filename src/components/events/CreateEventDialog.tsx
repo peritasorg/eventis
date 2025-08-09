@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,10 +12,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { useEventTypeFormMappingsForCreation } from '@/hooks/useEventTypeFormMappings';
+import { useEventSessions } from '@/hooks/useEventSessions';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SessionSplittingOption } from './SessionSplittingOption';
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -35,8 +37,14 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   const [isMultipleDays, setIsMultipleDays] = useState(false);
   const [selectedEventType, setSelectedEventType] = useState('');
   const [previewMappings, setPreviewMappings] = useState<any[]>([]);
+  const [shouldSplitSessions, setShouldSplitSessions] = useState(false);
   const { data: eventTypeConfigs } = useEventTypeConfigs();
   const { getFormMappingsForEventType } = useEventTypeFormMappingsForCreation();
+
+  // Get selected event type configuration
+  const selectedEventTypeConfig = useMemo(() => {
+    return eventTypeConfigs?.find(config => config.event_type === selectedEventType);
+  }, [eventTypeConfigs, selectedEventType]);
 
   const { data: customers } = useSupabaseQuery(
     ['customers'],
@@ -60,46 +68,114 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
 
   const createEventMutation = useSupabaseMutation(
     async (eventData: any) => {
-      const { data, error } = await supabase
+      // Create the main/parent event
+      const { data: parentEvent, error } = await supabase
         .from('events')
         .insert([{
           ...eventData,
-          tenant_id: currentTenant?.id
+          tenant_id: currentTenant?.id,
+          is_sub_event: false
         }])
         .select()
         .single();
       
       if (error) throw error;
 
-      // Auto-assign forms if any are mapped to this event type
-      if (previewMappings.length > 0) {
-        const formInserts = previewMappings.map((mapping, index) => ({
-          tenant_id: currentTenant?.id,
-          event_id: data.id,
-          form_template_id: mapping.form_template_id,
-          form_label: mapping.default_label,
-          tab_order: index + 1,
-          form_responses: {},
-          form_total: 0,
-          is_active: true
-        }));
+      // If splitting sessions, create sub-events
+      if (shouldSplitSessions && selectedEventTypeConfig?.default_sessions) {
+        const sessionInserts = selectedEventTypeConfig.default_sessions.map((session, index) => {
+          const sessionName = selectedEventTypeConfig.split_naming_pattern
+            .replace('{Parent}', eventData.event_name)
+            .replace('{Session}', session.name);
 
-        const { error: formsError } = await supabase
-          .from('event_forms')
-          .insert(formInserts);
+          return {
+            tenant_id: currentTenant?.id,
+            parent_event_id: parentEvent.id,
+            is_sub_event: true,
+            session_type: session.name,
+            session_order: index,
+            event_name: sessionName,
+            event_type: eventData.event_type,
+            customer_id: eventData.customer_id,
+            event_start_date: eventData.event_start_date,
+            event_end_date: eventData.event_end_date,
+            start_time: session.start_time,
+            end_time: session.end_time,
+            estimated_guests: 0, // Will be filled by user
+            status: 'inquiry',
+            booking_stage: 'initial'
+          };
+        });
 
-        if (formsError) {
-          console.error('Error auto-assigning forms:', formsError);
-          toast.error('Event created but failed to assign forms');
-        } else if (formInserts.length > 0) {
-          toast.success(`Event created with ${formInserts.length} form(s) auto-assigned!`);
+        const { data: sessions, error: sessionsError } = await supabase
+          .from('events')
+          .insert(sessionInserts)
+          .select();
+
+        if (sessionsError) {
+          console.error('Error creating sessions:', sessionsError);
+          toast.error('Event created but failed to create sessions');
+        } else {
+          // Auto-assign forms to each session
+          if (previewMappings.length > 0 && sessions) {
+            const allFormInserts = [];
+            
+            for (const session of sessions) {
+              const sessionFormInserts = previewMappings.map((mapping, index) => ({
+                tenant_id: currentTenant?.id,
+                event_id: session.id,
+                form_template_id: mapping.form_template_id,
+                form_label: mapping.default_label,
+                tab_order: index + 1,
+                form_responses: {},
+                form_total: 0,
+                is_active: true
+              }));
+              allFormInserts.push(...sessionFormInserts);
+            }
+
+            const { error: formsError } = await supabase
+              .from('event_forms')
+              .insert(allFormInserts);
+
+            if (formsError) {
+              console.error('Error auto-assigning forms to sessions:', formsError);
+            }
+          }
+        }
+      } else {
+        // For single events, auto-assign forms as before
+        if (previewMappings.length > 0) {
+          const formInserts = previewMappings.map((mapping, index) => ({
+            tenant_id: currentTenant?.id,
+            event_id: parentEvent.id,
+            form_template_id: mapping.form_template_id,
+            form_label: mapping.default_label,
+            tab_order: index + 1,
+            form_responses: {},
+            form_total: 0,
+            is_active: true
+          }));
+
+          const { error: formsError } = await supabase
+            .from('event_forms')
+            .insert(formInserts);
+
+          if (formsError) {
+            console.error('Error auto-assigning forms:', formsError);
+            toast.error('Event created but failed to assign forms');
+          } else if (formInserts.length > 0) {
+            toast.success(`Event created with ${formInserts.length} form(s) auto-assigned!`);
+          }
         }
       }
       
-      return data;
+      return parentEvent;
     },
     {
-      successMessage: previewMappings.length === 0 ? 'Event created successfully!' : undefined,
+      successMessage: shouldSplitSessions 
+        ? 'Event created with sessions successfully!' 
+        : (previewMappings.length === 0 ? 'Event created successfully!' : undefined),
       onSuccess: (data) => {
         onSuccess();
         // Navigate to the new event's detail page
@@ -135,6 +211,8 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   // Handle event type selection and fetch form mappings
   const handleEventTypeChange = async (eventType: string) => {
     setSelectedEventType(eventType);
+    setShouldSplitSessions(false); // Reset splitting option when event type changes
+    
     if (eventType) {
       const mappings = await getFormMappingsForEventType(eventType);
       setPreviewMappings(mappings);
@@ -174,6 +252,15 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
               </Select>
             </div>
           </div>
+
+          {/* Session Splitting Option */}
+          {selectedEventTypeConfig && (
+            <SessionSplittingOption
+              eventTypeConfig={selectedEventTypeConfig}
+              onSelectionChange={setShouldSplitSessions}
+              selectedValue={shouldSplitSessions ? 'split' : 'single'}
+            />
+          )}
           
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
