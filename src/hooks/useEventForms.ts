@@ -8,6 +8,7 @@ export const useEventForms = (eventId: string) => {
   const { data: eventForms, refetch: refetchForms } = useSupabaseQuery(
     ['event-forms', eventId],
     async () => {
+      console.log('🐛 useEventForms Debug - eventId:', eventId, 'currentTenant.id:', currentTenant?.id);
       if (!eventId || !currentTenant?.id) return [];
       
       const { data, error } = await supabase
@@ -26,10 +27,11 @@ export const useEventForms = (eventId: string) => {
         .order('tab_order');
       
       if (error) {
-        console.error('Event forms error:', error);
+        console.error('🐛 Event forms error:', error);
         return [];
       }
       
+      console.log('🐛 useEventForms Debug - fetched data:', data);
       return data || [];
     }
   );

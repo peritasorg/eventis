@@ -19,6 +19,9 @@ export const EnhancedEventFormTab: React.FC<EnhancedEventFormTabProps> = ({
   eventId,
   eventForm
 }) => {
+  console.log('🐛 EnhancedEventFormTab Debug - eventId:', eventId);
+  console.log('🐛 EnhancedEventFormTab Debug - eventForm:', eventForm);
+  console.log('🐛 EnhancedEventFormTab Debug - eventForm.form_template_id:', eventForm?.form_template_id);
   const { currentTenant } = useAuth();
   const [responses, setResponses] = useState(eventForm?.form_responses || {});
   const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +30,7 @@ export const EnhancedEventFormTab: React.FC<EnhancedEventFormTabProps> = ({
   const { data: formFields } = useSupabaseQuery(
     ['event-form-fields', eventForm?.form_template_id],
     async () => {
+      console.log('🐛 EnhancedEventFormTab Debug - fetching fields for template_id:', eventForm?.form_template_id);
       if (!eventForm?.form_template_id) return [];
       
       const { data, error } = await supabase
@@ -39,10 +43,11 @@ export const EnhancedEventFormTab: React.FC<EnhancedEventFormTabProps> = ({
         .order('field_order');
       
       if (error) {
-        console.error('Event form fields error:', error);
+        console.error('🐛 Event form fields error:', error);
         return [];
       }
       
+      console.log('🐛 EnhancedEventFormTab Debug - fetched form fields:', data);
       return data || [];
     }
   );

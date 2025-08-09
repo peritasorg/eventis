@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { CreateDefaultFormTemplate } from '../form-builder/CreateDefaultFormTemplate';
 import { toast } from 'sonner';
 
 interface AddFormTabDialogProps {
@@ -53,6 +54,7 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
   const { data: formTemplates } = useSupabaseQuery(
     ['form-templates'],
     async () => {
+      console.log('🐛 AddFormTabDialog Debug - Fetching form templates for tenant:', currentTenant?.id);
       if (!currentTenant?.id) return [];
       
       const { data, error } = await supabase
@@ -67,6 +69,7 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
         return [];
       }
       
+      console.log('🐛 AddFormTabDialog Debug - Form templates fetched:', data);
       return data || [];
     }
   );
@@ -75,9 +78,18 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
   const availableTemplates = formTemplates?.filter(
     template => !usedTemplates?.includes(template.id)
   ) || [];
+  
+  console.log('🐛 AddFormTabDialog Debug - Available templates:', availableTemplates);
+  console.log('🐛 AddFormTabDialog Debug - Used templates:', usedTemplates);
 
   const addFormTabMutation = useSupabaseMutation(
     async () => {
+      console.log('🐛 AddFormTabDialog Debug - Starting mutation');
+      console.log('🐛 AddFormTabDialog Debug - selectedTemplateId:', selectedTemplateId);
+      console.log('🐛 AddFormTabDialog Debug - formLabel:', formLabel);
+      console.log('🐛 AddFormTabDialog Debug - eventId:', eventId);
+      console.log('🐛 AddFormTabDialog Debug - currentTenant.id:', currentTenant?.id);
+      
       if (!selectedTemplateId || !formLabel.trim() || !currentTenant?.id || !eventId) {
         throw new Error('Please fill in all required fields');
       }
@@ -110,9 +122,11 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
         .single();
       
       if (error) {
-        console.error('Insert error:', error);
+        console.error('🐛 AddFormTabDialog Insert error:', error);
         throw error;
       }
+      
+      console.log('🐛 AddFormTabDialog Debug - Successfully created event_form:', data);
       return data;
     },
     {
@@ -149,6 +163,30 @@ export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
     onOpenChange(false);
     resetForm();
   };
+  
+  // If no form templates exist at all, show helper to create one
+  if (formTemplates?.length === 0) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Form Tab</DialogTitle>
+            <DialogDescription>
+              First, you need to create a form template.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <CreateDefaultFormTemplate onSuccess={handleClose} />
+          
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
