@@ -1255,45 +1255,93 @@ export type Database = {
       field_library: {
         Row: {
           active: boolean | null
+          affects_pricing: boolean | null
+          allow_price_override: boolean | null
+          auto_add_notes_field: boolean | null
+          auto_add_price_field: boolean | null
           category: string | null
           created_at: string | null
+          default_quantity: number | null
           field_type: string
+          help_text: string | null
           id: string
           label: string
+          max_quantity: number | null
+          min_quantity: number | null
           name: string
           options: Json | null
+          placeholder: string | null
+          pricing_behavior: string | null
+          pricing_type: string | null
           required: boolean | null
+          show_notes: boolean | null
+          show_quantity: boolean | null
           sort_order: number | null
           tenant_id: string | null
+          unit_price: number | null
+          unit_type: string | null
           updated_at: string | null
+          usage_count: number | null
         }
         Insert: {
           active?: boolean | null
+          affects_pricing?: boolean | null
+          allow_price_override?: boolean | null
+          auto_add_notes_field?: boolean | null
+          auto_add_price_field?: boolean | null
           category?: string | null
           created_at?: string | null
+          default_quantity?: number | null
           field_type: string
+          help_text?: string | null
           id?: string
           label: string
+          max_quantity?: number | null
+          min_quantity?: number | null
           name: string
           options?: Json | null
+          placeholder?: string | null
+          pricing_behavior?: string | null
+          pricing_type?: string | null
           required?: boolean | null
+          show_notes?: boolean | null
+          show_quantity?: boolean | null
           sort_order?: number | null
           tenant_id?: string | null
+          unit_price?: number | null
+          unit_type?: string | null
           updated_at?: string | null
+          usage_count?: number | null
         }
         Update: {
           active?: boolean | null
+          affects_pricing?: boolean | null
+          allow_price_override?: boolean | null
+          auto_add_notes_field?: boolean | null
+          auto_add_price_field?: boolean | null
           category?: string | null
           created_at?: string | null
+          default_quantity?: number | null
           field_type?: string
+          help_text?: string | null
           id?: string
           label?: string
+          max_quantity?: number | null
+          min_quantity?: number | null
           name?: string
           options?: Json | null
+          placeholder?: string | null
+          pricing_behavior?: string | null
+          pricing_type?: string | null
           required?: boolean | null
+          show_notes?: boolean | null
+          show_quantity?: boolean | null
           sort_order?: number | null
           tenant_id?: string | null
+          unit_price?: number | null
+          unit_type?: string | null
           updated_at?: string | null
+          usage_count?: number | null
         }
         Relationships: [
           {
@@ -1401,6 +1449,51 @@ export type Database = {
           updated_at?: string | null
           usage_count?: number | null
           validation_rules?: Json | null
+        }
+        Relationships: []
+      }
+      field_types: {
+        Row: {
+          active: boolean | null
+          category: string
+          created_at: string | null
+          default_config: Json | null
+          description: string | null
+          display_name: string
+          icon: string | null
+          id: string
+          name: string
+          supports_notes: boolean | null
+          supports_pricing: boolean | null
+          supports_quantity: boolean | null
+        }
+        Insert: {
+          active?: boolean | null
+          category: string
+          created_at?: string | null
+          default_config?: Json | null
+          description?: string | null
+          display_name: string
+          icon?: string | null
+          id?: string
+          name: string
+          supports_notes?: boolean | null
+          supports_pricing?: boolean | null
+          supports_quantity?: boolean | null
+        }
+        Update: {
+          active?: boolean | null
+          category?: string
+          created_at?: string | null
+          default_config?: Json | null
+          description?: string | null
+          display_name?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          supports_notes?: boolean | null
+          supports_pricing?: boolean | null
+          supports_quantity?: boolean | null
         }
         Relationships: []
       }
