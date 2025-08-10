@@ -7,6 +7,7 @@ interface Event {
   event_end_date?: string;
   start_time?: string;
   end_time?: string;
+  event_type?: string;
   men_count?: number;
   ladies_count?: number;
   total_guest_price_gbp?: number;
@@ -14,8 +15,7 @@ interface Event {
   deposit_amount_gbp?: number;
   event_payments?: Array<{ amount_gbp: number }>;
   customers?: {
-    first_name?: string;
-    last_name?: string;
+    name?: string;
     email?: string;
     phone?: string;
   };

@@ -34,6 +34,7 @@ export const Events = () => {
           event_end_date,
           start_time,
           end_time,
+          event_type,
           men_count,
           ladies_count,
           ethnicity,

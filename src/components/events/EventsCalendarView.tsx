@@ -13,6 +13,8 @@ interface Event {
   event_end_date?: string;
   start_time?: string;
   end_time?: string;
+  event_type?: string;
+  ethnicity?: string[] | string;
   men_count?: number;
   ladies_count?: number;
   total_guest_price_gbp?: number;
@@ -74,9 +76,41 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
 
   const calculateEventFinancials = (event: Event) => {
     const subtotal = (event.total_guest_price_gbp || 0) + (event.form_total_gbp || 0);
+    const depositAmount = event.deposit_amount_gbp || 0;
     const totalPayments = event.event_payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0;
-    const remainingBalance = subtotal - (event.deposit_amount_gbp || 0) - totalPayments;
-    return { subtotal, remainingBalance, totalPayments };
+    const remainingBalance = subtotal - totalPayments;
+    return { subtotal, remainingBalance, totalPayments, depositAmount };
+  };
+
+  const getEventWarningLevel = (event: Event) => {
+    if (!event.event_date) return null;
+    
+    const eventDate = new Date(event.event_date);
+    const today = new Date();
+    const daysUntilEvent = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Default warning thresholds - these would come from settings in a real implementation
+    if (daysUntilEvent <= 3 && daysUntilEvent >= 0) return 'urgent';
+    if (daysUntilEvent <= 7 && daysUntilEvent >= 0) return 'warning';
+    return null;
+  };
+
+  const getEventTypeColor = (eventType: string | undefined) => {
+    // Default color if no event type or configuration
+    if (!eventType) return { backgroundColor: 'hsl(var(--primary))', textColor: 'hsl(var(--primary-foreground))' };
+    
+    // In a real implementation, this would fetch from event_type_configs
+    // For now, use some default colors based on event type
+    const colorMap: Record<string, { backgroundColor: string; textColor: string }> = {
+      'wedding': { backgroundColor: 'hsl(340 82% 52%)', textColor: 'white' },
+      'birthday': { backgroundColor: 'hsl(280 82% 52%)', textColor: 'white' },
+      'corporate': { backgroundColor: 'hsl(220 82% 52%)', textColor: 'white' },
+      'anniversary': { backgroundColor: 'hsl(350 82% 52%)', textColor: 'white' },
+      'graduation': { backgroundColor: 'hsl(45 82% 52%)', textColor: 'white' },
+      'baby_shower': { backgroundColor: 'hsl(200 82% 52%)', textColor: 'white' },
+    };
+    
+    return colorMap[eventType] || { backgroundColor: 'hsl(var(--primary))', textColor: 'hsl(var(--primary-foreground))' };
   };
 
   const calendarDays = generateCalendar();
@@ -163,12 +197,26 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
                       const displayInfo = getEventDisplayInfo(dayEventInfo);
                       const financials = calculateEventFinancials(event);
                       const totalGuests = (event.men_count || 0) + (event.ladies_count || 0);
+                      const warningLevel = getEventWarningLevel(event);
+                      const eventColors = getEventTypeColor(event.event_type);
+                      
+                      // Apply warning colors if needed
+                      let eventStyle = eventColors;
+                      if (warningLevel === 'urgent') {
+                        eventStyle = { backgroundColor: 'hsl(0 84% 60%)', textColor: 'white' };
+                      } else if (warningLevel === 'warning') {
+                        eventStyle = { backgroundColor: 'hsl(45 93% 47%)', textColor: 'white' };
+                      }
                       
                       return (
                         <Tooltip key={event.id}>
                           <TooltipTrigger asChild>
                             <div
-                              className={`text-xs p-1 bg-primary text-primary-foreground rounded-sm cursor-pointer hover:bg-primary/80 transition-colors ${displayInfo.positionClasses}`}
+                              className={`text-xs p-1 rounded-sm cursor-pointer hover:opacity-80 transition-all relative ${displayInfo.positionClasses}`}
+                              style={{
+                                backgroundColor: eventStyle.backgroundColor,
+                                color: eventStyle.textColor
+                              }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onEventClick(event.id);
@@ -180,22 +228,54 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
                                   {event.start_time.slice(0, 5)}
                                 </div>
                               )}
+                              {warningLevel && (
+                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
+                              )}
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="text-sm">
-                            <div className="space-y-1">
-                              <div className="font-medium">{event.title}</div>
-                              {event.start_time && event.end_time && (
-                                <div>Time: {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</div>
+                          <TooltipContent side="top" className="max-w-sm p-4 bg-card text-card-foreground border shadow-lg">
+                            <div className="space-y-3">
+                              <div className="font-semibold text-base">{event.title}</div>
+                              
+                              {/* Customer Information */}
+                              {event.customers?.name && (
+                                <div className="text-sm">
+                                  <span className="font-medium text-muted-foreground">Customer:</span> {event.customers.name}
+                                </div>
                               )}
-                              {totalGuests > 0 && (
-                                <div>Guests: {totalGuests} people</div>
-                              )}
+                              
+                              {/* Event Details */}
+                              <div className="text-sm space-y-1">
+                                {event.start_time && event.end_time && (
+                                  <div><span className="font-medium text-muted-foreground">Time:</span> {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</div>
+                                )}
+                                {totalGuests > 0 && (
+                                  <div><span className="font-medium text-muted-foreground">Guests:</span> {totalGuests} people</div>
+                                )}
+                                {event.event_type && (
+                                  <div><span className="font-medium text-muted-foreground">Type:</span> {event.event_type}</div>
+                                )}
+                              </div>
+                              
+                              {/* Financial Information */}
                               {financials.subtotal > 0 && (
-                                <div>Subtotal: £{financials.subtotal.toFixed(2)}</div>
+                                <div className="text-sm space-y-1 border-t pt-2">
+                                  <div><span className="font-medium text-muted-foreground">Subtotal:</span> £{financials.subtotal.toFixed(2)}</div>
+                                  {financials.depositAmount > 0 && (
+                                    <div><span className="font-medium text-muted-foreground">Deposit:</span> £{financials.depositAmount.toFixed(2)}</div>
+                                  )}
+                                  <div><span className="font-medium text-muted-foreground">Paid:</span> £{financials.totalPayments.toFixed(2)}</div>
+                                  <div className={`font-medium ${financials.remainingBalance > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                                    <span className="text-muted-foreground">Balance:</span> £{financials.remainingBalance.toFixed(2)}
+                                  </div>
+                                </div>
                               )}
-                              {financials.remainingBalance > 0 && (
-                                <div>Balance: £{financials.remainingBalance.toFixed(2)}</div>
+                              
+                              {/* Warning Message */}
+                              {warningLevel && (
+                                <div className="text-xs bg-orange-100 dark:bg-orange-900/20 p-2 rounded border-l-4 border-orange-500">
+                                  {warningLevel === 'urgent' ? '⚠️ Event is within 3 days!' : '⚡ Event approaching soon'}
+                                </div>
                               )}
                             </div>
                           </TooltipContent>

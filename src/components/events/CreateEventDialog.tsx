@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
+import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -26,11 +28,30 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
     title: '',
     event_date: '',
     event_end_date: '',
+    event_type: '',
     is_multi_day: false
   });
   const [isLoading, setIsLoading] = useState(false);
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch event types for dropdown
+  const { data: eventTypes } = useSupabaseQuery(
+    ['event_type_configs', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('event_type_configs')
+        .select('event_type, display_name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .order('sort_order');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  );
 
   // Update event date when selectedDate changes
   useEffect(() => {
@@ -53,6 +74,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
         title: eventData.title,
         event_date: eventData.event_date,
         tenant_id: currentTenant.id,
+        ...(eventData.event_type && { event_type: eventData.event_type }),
         ...(eventData.is_multi_day && eventData.event_end_date && {
           event_end_date: eventData.event_end_date
         })
@@ -71,7 +93,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
       onSuccess?.();
       
       // Reset form
-      setEventData({ title: '', event_date: '', event_end_date: '', is_multi_day: false });
+      setEventData({ title: '', event_date: '', event_end_date: '', event_type: '', is_multi_day: false });
       
       navigate(`/events/${data.id}`);
     } catch (error) {
@@ -115,6 +137,22 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
               />
             </div>
             
+            <div>
+              <Label htmlFor="event_type">Event Type</Label>
+              <Select value={eventData.event_type} onValueChange={(value) => setEventData(prev => ({ ...prev, event_type: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event type (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eventTypes?.map((type) => (
+                    <SelectItem key={type.event_type} value={type.event_type}>
+                      {type.display_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <Label htmlFor="event_date">Start Date</Label>
               <Input

@@ -399,6 +399,39 @@ export type Database = {
           },
         ]
       }
+      calendar_warning_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          tenant_id: string
+          updated_at: string | null
+          warning_color: string | null
+          warning_days_threshold: number | null
+          warning_message: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          tenant_id: string
+          updated_at?: string | null
+          warning_color?: string | null
+          warning_days_threshold?: number | null
+          warning_message?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string
+          updated_at?: string | null
+          warning_color?: string | null
+          warning_days_threshold?: number | null
+          warning_message?: string | null
+        }
+        Relationships: []
+      }
       communication_timeline: {
         Row: {
           communication_type: string
@@ -943,9 +976,10 @@ export type Database = {
           customer_id: string | null
           deposit_amount_gbp: number | null
           end_time: string | null
-          ethnicity: string | null
+          ethnicity: Json | null
           event_date: string | null
           event_end_date: string | null
+          event_type: string | null
           form_total_gbp: number | null
           id: string
           ladies_count: number | null
@@ -965,9 +999,10 @@ export type Database = {
           customer_id?: string | null
           deposit_amount_gbp?: number | null
           end_time?: string | null
-          ethnicity?: string | null
+          ethnicity?: Json | null
           event_date?: string | null
           event_end_date?: string | null
+          event_type?: string | null
           form_total_gbp?: number | null
           id?: string
           ladies_count?: number | null
@@ -987,9 +1022,10 @@ export type Database = {
           customer_id?: string | null
           deposit_amount_gbp?: number | null
           end_time?: string | null
-          ethnicity?: string | null
+          ethnicity?: Json | null
           event_date?: string | null
           event_end_date?: string | null
+          event_type?: string | null
           form_total_gbp?: number | null
           id?: string
           ladies_count?: number | null
@@ -1740,6 +1776,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      price_warning_rules: {
+        Row: {
+          condition_type: string
+          condition_value: number | null
+          condition_value_max: number | null
+          created_at: string | null
+          field_name: string
+          id: string
+          is_active: boolean | null
+          tenant_id: string
+          updated_at: string | null
+          warning_color: string
+        }
+        Insert: {
+          condition_type: string
+          condition_value?: number | null
+          condition_value_max?: number | null
+          created_at?: string | null
+          field_name: string
+          id?: string
+          is_active?: boolean | null
+          tenant_id: string
+          updated_at?: string | null
+          warning_color: string
+        }
+        Update: {
+          condition_type?: string
+          condition_value?: number | null
+          condition_value_max?: number | null
+          created_at?: string | null
+          field_name?: string
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string
+          updated_at?: string | null
+          warning_color?: string
+        }
+        Relationships: []
       }
       quotes_invoices: {
         Row: {
