@@ -75,10 +75,7 @@ export const FormBuilder = () => {
         });
         toast.success('Form updated successfully');
       } else {
-        const newForm = await new Promise<Form>((resolve, reject) => {
-          createForm(formData);
-          // Since createForm doesn't return a promise, we'll navigate without the id
-        });
+        await createForm(formData);
         navigate('/forms');
         toast.success('Form created successfully');
       }
@@ -100,11 +97,16 @@ export const FormBuilder = () => {
     if (source.droppableId === 'field-library') {
       const draggedField = formFields.find(f => f.id === result.draggableId);
       if (!draggedField) return;
+      
       const targetSectionId = destination.droppableId.replace('section-', '');
+      
       const updatedSections = formData.sections.map(section => {
         if (section.id === targetSectionId) {
           const newFieldIds = [...section.field_ids];
-          newFieldIds.splice(destination.index, 0, draggedField.id);
+          // Don't add if already exists in this section
+          if (!newFieldIds.includes(draggedField.id)) {
+            newFieldIds.splice(destination.index, 0, draggedField.id);
+          }
           return {
             ...section,
             field_ids: newFieldIds
@@ -112,6 +114,7 @@ export const FormBuilder = () => {
         }
         return section;
       });
+      
       setFormData(prev => ({
         ...prev,
         sections: updatedSections

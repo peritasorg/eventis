@@ -674,6 +674,48 @@ export type Database = {
           },
         ]
       }
+      event_forms: {
+        Row: {
+          created_at: string | null
+          event_id: string
+          form_id: string
+          form_label: string
+          form_responses: Json | null
+          form_total: number | null
+          id: string
+          is_active: boolean | null
+          tab_order: number
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id: string
+          form_id: string
+          form_label?: string
+          form_responses?: Json | null
+          form_total?: number | null
+          id?: string
+          is_active?: boolean | null
+          tab_order?: number
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string
+          form_id?: string
+          form_label?: string
+          form_responses?: Json | null
+          form_total?: number | null
+          id?: string
+          is_active?: boolean | null
+          tab_order?: number
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       event_payments: {
         Row: {
           amount_gbp: number
@@ -925,7 +967,7 @@ export type Database = {
           created_at: string
           default_label: string
           event_type_config_id: string
-          form_template_id: string
+          form_id: string
           id: string
           sort_order: number
           tenant_id: string
@@ -936,7 +978,7 @@ export type Database = {
           created_at?: string
           default_label?: string
           event_type_config_id: string
-          form_template_id: string
+          form_id: string
           id?: string
           sort_order?: number
           tenant_id: string
@@ -947,7 +989,7 @@ export type Database = {
           created_at?: string
           default_label?: string
           event_type_config_id?: string
-          form_template_id?: string
+          form_id?: string
           id?: string
           sort_order?: number
           tenant_id?: string

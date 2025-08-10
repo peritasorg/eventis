@@ -80,14 +80,14 @@ export const EventTypeFormMappings = () => {
       
       const { data, error } = await supabase
         .from('event_type_form_mappings')
-        .insert({
-          tenant_id: currentTenant.id,
-          event_type_config_id: selectedEventType,
-          form_template_id: formTemplateId,
-          default_label: defaultLabel,
-          auto_assign: true,
-          sort_order: mappings?.length || 0
-        })
+         .insert({
+           tenant_id: currentTenant.id,
+           event_type_config_id: selectedEventType,
+           form_id: formTemplateId,
+           default_label: defaultLabel,
+           auto_assign: true,
+           sort_order: mappings?.length || 0
+         })
         .select()
         .single();
       

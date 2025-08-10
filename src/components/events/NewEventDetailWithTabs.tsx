@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { EventRecord } from './EventRecord';
 import { CommunicationsTimeline } from './CommunicationsTimeline';
 import { PaymentTimeline } from './PaymentTimeline';
+import { EventFormTab } from './EventFormTab';
 
 export const NewEventDetailWithTabs: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -53,9 +54,7 @@ export const NewEventDetailWithTabs: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="forms">
-          <div className="text-center py-12 text-muted-foreground">
-            <p>Form management coming soon in the next phase.</p>
-          </div>
+          <EventFormTab eventId={eventId} />
         </TabsContent>
       </Tabs>
     </div>

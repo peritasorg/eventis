@@ -6,7 +6,7 @@ export interface EventTypeFormMapping {
   id: string;
   tenant_id: string;
   event_type_config_id: string;
-  form_template_id: string;
+  form_id: string;
   default_label: string;
   auto_assign: boolean;
   sort_order: number;
@@ -42,22 +42,22 @@ export const useEventTypeFormMappings = (eventTypeConfigId?: string) => {
       
       // Now fetch form templates for these mappings
       if (data && data.length > 0) {
-        const formTemplateIds = data.map(m => m.form_template_id);
-        const { data: formTemplates, error: templatesError } = await supabase
+        const formIds = data.map(m => m.form_id);
+        const { data: forms, error: formsError } = await supabase
           .from('forms')
           .select('id, name, description')
-          .in('id', formTemplateIds)
+          .in('id', formIds)
           .eq('tenant_id', currentTenant.id);
         
-        if (templatesError) {
-          console.error('Form templates error:', templatesError);
+        if (formsError) {
+          console.error('Forms error:', formsError);
           return data.map(mapping => ({ ...mapping, forms: null }));
         }
         
         // Combine data
         return data.map(mapping => ({
           ...mapping,
-          forms: formTemplates?.find(ft => ft.id === mapping.form_template_id) || null
+          forms: forms?.find(f => f.id === mapping.form_id) || null
         }));
       }
       
@@ -80,7 +80,7 @@ export const useEventTypeFormMappings = (eventTypeConfigId?: string) => {
         .insert({
           tenant_id: currentTenant.id,
           event_type_config_id: eventTypeConfigId,
-          form_template_id: formTemplateId,
+          form_id: formTemplateId,
           default_label: defaultLabel,
           sort_order: maxOrder + 1,
           auto_assign: true
@@ -195,23 +195,23 @@ export const useEventTypeFormMappingsForCreation = () => {
 
     if (!mappings || mappings.length === 0) return [];
 
-    // Fetch form template details
-    const formTemplateIds = mappings.map(m => m.form_template_id);
-    const { data: formTemplates, error: templatesError } = await supabase
+    // Fetch form details
+    const formIds = mappings.map(m => m.form_id);
+    const { data: forms, error: formsError } = await supabase
       .from('forms')
       .select('id, name, description')
-      .in('id', formTemplateIds)
+      .in('id', formIds)
       .eq('tenant_id', currentTenant.id);
 
-    if (templatesError) {
-      console.error('Error fetching form templates:', templatesError);
+    if (formsError) {
+      console.error('Error fetching forms:', formsError);
       return mappings.map(mapping => ({ ...mapping, forms: null }));
     }
 
     // Combine the data
     return mappings.map(mapping => ({
       ...mapping,
-      forms: formTemplates?.find(ft => ft.id === mapping.form_template_id) || null
+      forms: forms?.find(f => f.id === mapping.form_id) || null
     }));
 
   };
