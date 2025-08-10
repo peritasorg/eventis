@@ -37,7 +37,15 @@ export const useForms = () => {
         return [];
       }
       
-      return data || [];
+      // Parse sections from JSON string to array
+      const parsedData = data?.map(form => ({
+        ...form,
+        sections: typeof form.sections === 'string' 
+          ? JSON.parse(form.sections) 
+          : Array.isArray(form.sections) ? form.sections : []
+      })) || [];
+      
+      return parsedData;
     }
   );
 
@@ -117,13 +125,18 @@ export const useForms = () => {
       
       if (fetchError) throw fetchError;
       
+      // Parse sections if it's a string
+      const parsedSections = typeof originalForm.sections === 'string' 
+        ? JSON.parse(originalForm.sections) 
+        : Array.isArray(originalForm.sections) ? originalForm.sections : [];
+      
       // Create duplicate
       const { data, error } = await supabase
         .from('forms')
         .insert({
           name: `${originalForm.name} (Copy)`,
           description: originalForm.description,
-          sections: originalForm.sections,
+          sections: JSON.stringify(parsedSections),
           tenant_id: currentTenant?.id!,
           is_active: true
         })
