@@ -1622,6 +1622,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_form_field_instances_section"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "form_sections"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_form_field_instances_template"
             columns: ["form_template_id"]
             isOneToOne: false
@@ -1714,6 +1721,7 @@ export type Database = {
           background_color: string | null
           created_at: string | null
           form_page_id: string | null
+          form_template_id: string | null
           id: string
           layout_type: string | null
           section_description: string | null
@@ -1725,6 +1733,7 @@ export type Database = {
           background_color?: string | null
           created_at?: string | null
           form_page_id?: string | null
+          form_template_id?: string | null
           id?: string
           layout_type?: string | null
           section_description?: string | null
@@ -1736,6 +1745,7 @@ export type Database = {
           background_color?: string | null
           created_at?: string | null
           form_page_id?: string | null
+          form_template_id?: string | null
           id?: string
           layout_type?: string | null
           section_description?: string | null
@@ -1744,6 +1754,13 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_form_sections_template"
+            columns: ["form_template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "form_sections_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2726,6 +2743,10 @@ export type Database = {
       check_usage_limits: {
         Args: { tenant_uuid: string; limit_type: string }
         Returns: boolean
+      }
+      create_default_guest_section: {
+        Args: { p_form_template_id: string; p_tenant_id: string }
+        Returns: string
       }
       email_has_used_trial: {
         Args: { email_address: string }
