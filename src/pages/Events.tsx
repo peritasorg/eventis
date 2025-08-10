@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { EventCalendarView } from '@/components/events/EventCalendarView';
-import { EventListView } from '@/components/events/EventListView';
+import { SimpleEventList } from '@/components/events/SimpleEventList';
 import { CreateEventDialog } from '@/components/events/CreateEventDialog';
 import { useNavigate } from 'react-router-dom';
 import { AppControls } from '@/components/AppControls';
@@ -138,21 +137,11 @@ export const Events = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1">
-        {viewMode === 'list' ? (
-          <EventListView 
-            events={events || []}
-            onEventClick={handleEventClick}
-          />
-        ) : (
-          <div className="p-6">
-            <EventCalendarView 
-              events={events || []}
-              onEventClick={handleEventClick}
-              onDateClick={handleDateClick}
-            />
-          </div>
-        )}
+      <div className="flex-1 p-6">
+        <SimpleEventList 
+          events={events || []}
+          onEventClick={handleEventClick}
+        />
       </div>
 
       <CreateEventDialog

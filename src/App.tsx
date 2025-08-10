@@ -7,23 +7,24 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CalendarStateProvider } from "@/contexts/CalendarStateContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SecurityProvider } from "@/components/SecurityProvider";
-import { useCalendarSync } from "./hooks/useCalendarSync";
+
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { Dashboard } from "./pages/Dashboard";
-import { Leads } from "./pages/Leads";
+
 import { LeadView } from "./pages/LeadView";
 import { LeadEdit } from "./pages/LeadEdit";
 import { Events } from "./pages/Events";
 import { EventDetail } from "./pages/EventDetail";
+import { EventSettings } from "./pages/EventSettings";
 
 import { FormBuilder } from "./pages/FormBuilder";
 import { NewFormBuilderPage } from "./pages/NewFormBuilder";
 import { Customers } from "./pages/Customers";
-import { Settings } from "./pages/Settings";
+
 import { CalendarSettings } from "./pages/CalendarSettings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -58,14 +59,11 @@ const App: React.FC = () => {
                   } />
                   <Route path="/success" element={
                     <ErrorBoundary>
-                      <ProtectedRoute>
                         <Success />
-                      </ProtectedRoute>
                     </ErrorBoundary>
                   } />
                   <Route path="/*" element={
                     <ErrorBoundary>
-                      <ProtectedRoute>
                         <div className="flex h-screen w-full bg-gray-50">
                           <ErrorBoundary>
                             <Sidebar />
@@ -79,11 +77,6 @@ const App: React.FC = () => {
                                 <Route path="/" element={
                                   <ErrorBoundary>
                                     <Dashboard />
-                                  </ErrorBoundary>
-                                } />
-                                <Route path="/leads" element={
-                                  <ErrorBoundary>
-                                    <Leads />
                                   </ErrorBoundary>
                                 } />
                                 <Route path="/leads/:leadId/view" element={
@@ -106,6 +99,11 @@ const App: React.FC = () => {
                                     <EventDetail />
                                   </ErrorBoundary>
                                 } />
+                                <Route path="/events/settings" element={
+                                  <ErrorBoundary>
+                                    <EventSettings />
+                                  </ErrorBoundary>
+                                } />
                                 <Route path="/form-builder" element={
                                   <ErrorBoundary>
                                     <FormBuilder />
@@ -119,11 +117,6 @@ const App: React.FC = () => {
                                 <Route path="/customers" element={
                                   <ErrorBoundary>
                                     <Customers />
-                                  </ErrorBoundary>
-                                } />
-                                <Route path="/settings" element={
-                                  <ErrorBoundary>
-                                    <Settings />
                                   </ErrorBoundary>
                                 } />
                                 <Route path="/calendar-settings" element={
@@ -140,7 +133,6 @@ const App: React.FC = () => {
                             </div>
                           </main>
                         </div>
-                      </ProtectedRoute>
                     </ErrorBoundary>
                   } />
                 </Routes>

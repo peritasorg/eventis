@@ -35,15 +35,13 @@ export const Dashboard = () => {
           supabase.from('events').select('*', { count: 'exact', head: true }).eq('tenant_id', currentTenant.id).gte('event_start_date', todayStr).gt('total_amount', 0)
         ]),
         
-        // Revenue query - only select needed field
+        // Revenue query - only select needed fields
         supabase
           .from('events')
-          .select('total_amount')
+          .select('total_guest_price_gbp, form_total_gbp')
           .eq('tenant_id', currentTenant.id)
-          .not('total_amount', 'is', null)
-          .gt('total_amount', 0)
-          .gte('event_start_date', monthStart)
-          .lte('event_start_date', monthEnd),
+          .gte('event_date', monthStart)
+          .lte('event_date', monthEnd),
         
         // New leads this month - count only
         supabase
@@ -54,7 +52,10 @@ export const Dashboard = () => {
       ]);
       
       const [leadsResult, customersResult, eventsResult, upcomingResult] = countsResult;
-      const thisMonthRevenue = revenueResult.data?.reduce((sum, event) => sum + (event.total_amount || 0), 0) || 0;
+      const thisMonthRevenue = revenueResult.data?.reduce((sum, event) => {
+        const subtotal = (event.total_guest_price_gbp || 0) + (event.form_total_gbp || 0);
+        return sum + subtotal;
+      }, 0) || 0;
       
       return {
         total_leads: leadsResult.count || 0,

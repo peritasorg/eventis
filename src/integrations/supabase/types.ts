@@ -338,20 +338,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "calendar_sync_logs_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "calendar_sync_logs_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "calendar_sync_logs_integration_id_fkey"
             columns: ["integration_id"]
             isOneToOne: false
@@ -453,20 +439,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "communication_timeline_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "communication_timeline_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -589,76 +561,124 @@ export type Database = {
           },
         ]
       }
-      event_responses: {
+      event_communications: {
         Row: {
-          calculated_price: number | null
-          completed: boolean | null
-          completed_at: string | null
+          communication_date: string | null
+          communication_type: string | null
           created_at: string | null
-          current_page: number | null
-          event_id: string | null
-          expires_at: string | null
-          form_template_id: string | null
+          event_id: string
           id: string
-          responses: Json
-          session_token: string | null
-          tenant_id: string | null
-          updated_at: string | null
+          note: string
+          tenant_id: string
         }
         Insert: {
-          calculated_price?: number | null
-          completed?: boolean | null
-          completed_at?: string | null
+          communication_date?: string | null
+          communication_type?: string | null
           created_at?: string | null
-          current_page?: number | null
-          event_id?: string | null
-          expires_at?: string | null
-          form_template_id?: string | null
+          event_id: string
           id?: string
-          responses?: Json
-          session_token?: string | null
-          tenant_id?: string | null
-          updated_at?: string | null
+          note: string
+          tenant_id: string
         }
         Update: {
-          calculated_price?: number | null
-          completed?: boolean | null
-          completed_at?: string | null
+          communication_date?: string | null
+          communication_type?: string | null
           created_at?: string | null
-          current_page?: number | null
-          event_id?: string | null
-          expires_at?: string | null
-          form_template_id?: string | null
+          event_id?: string
           id?: string
-          responses?: Json
-          session_token?: string | null
-          tenant_id?: string | null
-          updated_at?: string | null
+          note?: string
+          tenant_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "event_responses_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_responses_event_id_fkey"
+            foreignKeyName: "event_communications_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "event_responses_form_template_id_fkey"
-            columns: ["form_template_id"]
+            foreignKeyName: "event_communications_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: "form_templates"
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_ethnicity_options: {
+        Row: {
+          created_at: string | null
+          ethnicity_name: string
+          id: string
+          is_active: boolean | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          ethnicity_name: string
+          id?: string
+          is_active?: boolean | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          ethnicity_name?: string
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_ethnicity_options_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_payments: {
+        Row: {
+          amount_gbp: number
+          created_at: string | null
+          event_id: string
+          id: string
+          payment_date: string | null
+          payment_note: string | null
+          tenant_id: string
+        }
+        Insert: {
+          amount_gbp: number
+          created_at?: string | null
+          event_id: string
+          id?: string
+          payment_date?: string | null
+          payment_note?: string | null
+          tenant_id: string
+        }
+        Update: {
+          amount_gbp?: number
+          created_at?: string | null
+          event_id?: string
+          id?: string
+          payment_date?: string | null
+          payment_note?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_payments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "event_responses_tenant_id_fkey"
+            foreignKeyName: "event_payments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -723,20 +743,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "event_staff_assignments_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_staff_assignments_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "event_staff_assignments_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
@@ -745,6 +751,47 @@ export type Database = {
           },
           {
             foreignKeyName: "event_staff_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_time_ranges: {
+        Row: {
+          created_at: string | null
+          end_time: string
+          id: string
+          is_active: boolean | null
+          name: string
+          start_time: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          start_time: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          start_time?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_time_ranges_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -892,217 +939,67 @@ export type Database = {
       }
       events: {
         Row: {
-          accessibility_requirements: string | null
-          additional_costs: number | null
-          av_equipment_required: boolean | null
-          balance_cleared: boolean | null
-          balance_cleared_date: string | null
-          balance_due: number | null
-          base_price: number | null
-          booking_stage: string | null
-          cancellation_fee: number | null
-          cancellation_reason: string | null
-          cancelled_at: string | null
-          catering_required: boolean | null
-          cleanup_time: string | null
-          confirmed_date: string | null
-          confirmed_guests: number | null
-          contract_signed_date: string | null
           created_at: string | null
           customer_id: string | null
-          decoration_required: boolean | null
-          deposit_amount: number | null
-          deposit_paid: boolean | null
-          deposit_paid_date: string | null
-          dietary_requirements: string | null
-          discount_amount: number | null
-          end_time: string
-          estimated_guests: number
+          deposit_amount_gbp: number | null
+          end_time: string | null
           ethnicity: string | null
-          event_end_date: string | null
-          event_finalized: boolean | null
-          event_finalized_date: string | null
-          event_mix_type: string | null
-          event_multiple_days: boolean | null
-          event_name: string
-          event_start_date: string | null
-          event_type: string
-          final_payment_due: string | null
-          final_payment_paid: boolean | null
-          form_responses: Json | null
-          form_template_used: string | null
-          form_total: number | null
+          event_date: string | null
+          form_total_gbp: number | null
           id: string
-          inquiry_date: string | null
-          internal_notes: string | null
-          is_sub_event: boolean | null
           ladies_count: number | null
-          lead_id: string | null
           men_count: number | null
-          parent_event_id: string | null
-          parking_required: boolean | null
           primary_contact_name: string | null
-          primary_contact_phone: string | null
-          quote_sent_date: string | null
-          room_layout: string | null
+          primary_contact_number: string | null
           secondary_contact_name: string | null
-          secondary_contact_phone: string | null
-          secondary_contact_relationship: string | null
-          session_order: number | null
-          session_type: string | null
-          setup_time: string | null
-          special_requests: string | null
-          start_time: string
-          status: string | null
-          tax_amount: number | null
-          tenant_id: string | null
-          total_amount: number | null
-          total_guest_price: number | null
-          total_guests: number | null
+          secondary_contact_number: string | null
+          start_time: string | null
+          tenant_id: string
+          title: string
+          total_guest_price_gbp: number | null
           updated_at: string | null
-          venue_area: string | null
         }
         Insert: {
-          accessibility_requirements?: string | null
-          additional_costs?: number | null
-          av_equipment_required?: boolean | null
-          balance_cleared?: boolean | null
-          balance_cleared_date?: string | null
-          balance_due?: number | null
-          base_price?: number | null
-          booking_stage?: string | null
-          cancellation_fee?: number | null
-          cancellation_reason?: string | null
-          cancelled_at?: string | null
-          catering_required?: boolean | null
-          cleanup_time?: string | null
-          confirmed_date?: string | null
-          confirmed_guests?: number | null
-          contract_signed_date?: string | null
           created_at?: string | null
           customer_id?: string | null
-          decoration_required?: boolean | null
-          deposit_amount?: number | null
-          deposit_paid?: boolean | null
-          deposit_paid_date?: string | null
-          dietary_requirements?: string | null
-          discount_amount?: number | null
-          end_time: string
-          estimated_guests: number
+          deposit_amount_gbp?: number | null
+          end_time?: string | null
           ethnicity?: string | null
-          event_end_date?: string | null
-          event_finalized?: boolean | null
-          event_finalized_date?: string | null
-          event_mix_type?: string | null
-          event_multiple_days?: boolean | null
-          event_name: string
-          event_start_date?: string | null
-          event_type: string
-          final_payment_due?: string | null
-          final_payment_paid?: boolean | null
-          form_responses?: Json | null
-          form_template_used?: string | null
-          form_total?: number | null
+          event_date?: string | null
+          form_total_gbp?: number | null
           id?: string
-          inquiry_date?: string | null
-          internal_notes?: string | null
-          is_sub_event?: boolean | null
           ladies_count?: number | null
-          lead_id?: string | null
           men_count?: number | null
-          parent_event_id?: string | null
-          parking_required?: boolean | null
           primary_contact_name?: string | null
-          primary_contact_phone?: string | null
-          quote_sent_date?: string | null
-          room_layout?: string | null
+          primary_contact_number?: string | null
           secondary_contact_name?: string | null
-          secondary_contact_phone?: string | null
-          secondary_contact_relationship?: string | null
-          session_order?: number | null
-          session_type?: string | null
-          setup_time?: string | null
-          special_requests?: string | null
-          start_time: string
-          status?: string | null
-          tax_amount?: number | null
-          tenant_id?: string | null
-          total_amount?: number | null
-          total_guest_price?: number | null
-          total_guests?: number | null
+          secondary_contact_number?: string | null
+          start_time?: string | null
+          tenant_id: string
+          title: string
+          total_guest_price_gbp?: number | null
           updated_at?: string | null
-          venue_area?: string | null
         }
         Update: {
-          accessibility_requirements?: string | null
-          additional_costs?: number | null
-          av_equipment_required?: boolean | null
-          balance_cleared?: boolean | null
-          balance_cleared_date?: string | null
-          balance_due?: number | null
-          base_price?: number | null
-          booking_stage?: string | null
-          cancellation_fee?: number | null
-          cancellation_reason?: string | null
-          cancelled_at?: string | null
-          catering_required?: boolean | null
-          cleanup_time?: string | null
-          confirmed_date?: string | null
-          confirmed_guests?: number | null
-          contract_signed_date?: string | null
           created_at?: string | null
           customer_id?: string | null
-          decoration_required?: boolean | null
-          deposit_amount?: number | null
-          deposit_paid?: boolean | null
-          deposit_paid_date?: string | null
-          dietary_requirements?: string | null
-          discount_amount?: number | null
-          end_time?: string
-          estimated_guests?: number
+          deposit_amount_gbp?: number | null
+          end_time?: string | null
           ethnicity?: string | null
-          event_end_date?: string | null
-          event_finalized?: boolean | null
-          event_finalized_date?: string | null
-          event_mix_type?: string | null
-          event_multiple_days?: boolean | null
-          event_name?: string
-          event_start_date?: string | null
-          event_type?: string
-          final_payment_due?: string | null
-          final_payment_paid?: boolean | null
-          form_responses?: Json | null
-          form_template_used?: string | null
-          form_total?: number | null
+          event_date?: string | null
+          form_total_gbp?: number | null
           id?: string
-          inquiry_date?: string | null
-          internal_notes?: string | null
-          is_sub_event?: boolean | null
           ladies_count?: number | null
-          lead_id?: string | null
           men_count?: number | null
-          parent_event_id?: string | null
-          parking_required?: boolean | null
           primary_contact_name?: string | null
-          primary_contact_phone?: string | null
-          quote_sent_date?: string | null
-          room_layout?: string | null
+          primary_contact_number?: string | null
           secondary_contact_name?: string | null
-          secondary_contact_phone?: string | null
-          secondary_contact_relationship?: string | null
-          session_order?: number | null
-          session_type?: string | null
-          setup_time?: string | null
-          special_requests?: string | null
-          start_time?: string
-          status?: string | null
-          tax_amount?: number | null
-          tenant_id?: string | null
-          total_amount?: number | null
-          total_guest_price?: number | null
-          total_guests?: number | null
+          secondary_contact_number?: string | null
+          start_time?: string | null
+          tenant_id?: string
+          title?: string
+          total_guest_price_gbp?: number | null
           updated_at?: string | null
-          venue_area?: string | null
         }
         Relationships: [
           {
@@ -1110,27 +1007,6 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "events_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "events_parent_event_id_fkey"
-            columns: ["parent_event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "events_parent_event_id_fkey"
-            columns: ["parent_event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -1263,20 +1139,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "finance_timeline_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "finance_timeline_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -1861,20 +1723,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "payment_history_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_history_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "payment_history_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -1990,20 +1838,6 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quotes_invoices_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quotes_invoices_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -2505,32 +2339,6 @@ export type Database = {
       }
     }
     Views: {
-      event_summary: {
-        Row: {
-          customer_email: string | null
-          customer_name: string | null
-          customer_phone: string | null
-          end_time: string | null
-          event_date: string | null
-          event_name: string | null
-          event_type: string | null
-          id: string | null
-          staff_assigned: number | null
-          start_time: string | null
-          status: string | null
-          tenant_id: string | null
-          total_amount: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "events_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       lead_pipeline: {
         Row: {
           avg_budget: number | null
@@ -2542,24 +2350,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "leads_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      monthly_revenue: {
-        Row: {
-          avg_event_value: number | null
-          events_count: number | null
-          revenue_month: string | null
-          tenant_id: string | null
-          total_revenue: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "events_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
