@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,22 +12,29 @@ interface CreateEventDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  selectedDate?: string;
 }
 
 export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  selectedDate
 }) => {
   const [eventData, setEventData] = useState({
-    title: '',
-    description: '',
-    start_date: '',
-    end_date: ''
+    event_name: '',
+    event_start_date: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
+
+  // Update event date when selectedDate changes
+  useEffect(() => {
+    if (selectedDate) {
+      setEventData(prev => ({ ...prev, event_start_date: selectedDate }));
+    }
+  }, [selectedDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,13 +43,11 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('new_events')
+        .from('events')
         .insert({
-          title: eventData.title,
-          description: eventData.description,
-          event_date: eventData.start_date,
-          tenant_id: currentTenant.id,
-          status: 'draft'
+          title: eventData.event_name,
+          event_date: eventData.event_start_date,
+          tenant_id: currentTenant.id
         })
         .select()
         .single();
@@ -53,6 +57,10 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
       toast.success('Event created successfully');
       onClose();
       onSuccess?.();
+      
+      // Reset form
+      setEventData({ event_name: '', event_start_date: '' });
+      
       navigate(`/events/${data.id}`);
     } catch (error) {
       console.error('Error creating event:', error);
@@ -74,41 +82,22 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="title">Event Title</Label>
+            <Label htmlFor="event_name">Event Title</Label>
             <Input
-              id="title"
-              value={eventData.title}
-              onChange={(e) => handleChange('title', e.target.value)}
+              id="event_name"
+              value={eventData.event_name}
+              onChange={(e) => handleChange('event_name', e.target.value)}
               placeholder="Enter event title"
               required
             />
           </div>
           <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={eventData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              placeholder="Enter event description"
-            />
-          </div>
-          <div>
-            <Label htmlFor="start_date">Start Date</Label>
+            <Label htmlFor="event_start_date">Event Date</Label>
             <Input
-              id="start_date"
+              id="event_start_date"
               type="date"
-              value={eventData.start_date}
-              onChange={(e) => handleChange('start_date', e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="end_date">End Date</Label>
-            <Input
-              id="end_date"
-              type="date"
-              value={eventData.end_date}
-              onChange={(e) => handleChange('end_date', e.target.value)}
+              value={eventData.event_start_date}
+              onChange={(e) => handleChange('event_start_date', e.target.value)}
               required
             />
           </div>

@@ -7,6 +7,7 @@ import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SimpleEventList } from '@/components/events/SimpleEventList';
+import { EventsCalendarView } from '@/components/events/EventsCalendarView';
 import { CreateEventDialog } from '@/components/events/CreateEventDialog';
 import { useNavigate } from 'react-router-dom';
 import { AppControls } from '@/components/AppControls';
@@ -27,25 +28,30 @@ export const Events = () => {
         .from('events')
         .select(`
           id,
-          event_name,
-          event_type,
-          event_start_date,
-          event_end_date,
-          event_multiple_days,
+          title,
+          event_date,
           start_time,
           end_time,
-          estimated_guests,
-          total_guests,
-          status,
-          total_amount,
+          men_count,
+          ladies_count,
+          ethnicity,
+          primary_contact_name,
+          primary_contact_number,
+          secondary_contact_name,
+          secondary_contact_number,
+          total_guest_price_gbp,
+          deposit_amount_gbp,
+          form_total_gbp,
+          customer_id,
           customers (
-            name,
+            first_name,
+            last_name,
             email,
             phone
           )
         `)
         .eq('tenant_id', currentTenant.id)
-        .order('event_start_date', { ascending: true });
+        .order('event_date', { ascending: true });
       
       if (error) {
         console.error('Events error:', error);
@@ -138,19 +144,32 @@ export const Events = () => {
 
       {/* Content */}
       <div className="flex-1 p-6">
-        <SimpleEventList 
-          events={events || []}
-          onEventClick={handleEventClick}
-        />
+        {viewMode === 'calendar' ? (
+          <EventsCalendarView 
+            events={events || []}
+            onEventClick={handleEventClick}
+            onDateClick={handleDateClick}
+          />
+        ) : (
+          <SimpleEventList 
+            events={events || []}
+            onEventClick={handleEventClick}
+          />
+        )}
       </div>
 
       <CreateEventDialog
         isOpen={isCreateEventOpen}
-        onClose={() => setIsCreateEventOpen(false)}
+        onClose={() => {
+          setIsCreateEventOpen(false);
+          setSelectedDate('');
+        }}
         onSuccess={() => {
           refetch();
           setIsCreateEventOpen(false);
+          setSelectedDate('');
         }}
+        selectedDate={selectedDate}
       />
     </div>
   );
