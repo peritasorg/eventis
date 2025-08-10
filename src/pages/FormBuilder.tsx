@@ -12,7 +12,7 @@ import { FormPreview } from '@/components/form-builder/FormPreview';
 import { useFormFields, FormField } from '@/hooks/useFormFields';
 import { useForms, Form, FormSection } from '@/hooks/useForms';
 import { toast } from 'sonner';
-import { DropResult } from '@hello-pangea/dnd';
+import { DropResult, DragDropContext } from '@hello-pangea/dnd';
 export const FormBuilder = () => {
   const navigate = useNavigate();
   const {
@@ -178,20 +178,22 @@ export const FormBuilder = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Field Library Sidebar */}
-        <div className="w-80 border-r bg-muted/50">
-          <FieldLibrary onFieldDrag={handleFieldDrag} />
-        </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex-1 flex overflow-hidden">
+          {/* Field Library Sidebar */}
+          <div className="w-80 border-r bg-muted/50">
+            <FieldLibrary onFieldDrag={handleFieldDrag} />
+          </div>
 
-        {/* Form Canvas */}
-        <div className="flex-1">
-          <FormCanvas sections={formData.sections} fields={formFields} onSectionsChange={sections => setFormData(prev => ({
-          ...prev,
-          sections
-        }))} onDragEnd={handleDragEnd} />
+          {/* Form Canvas */}
+          <div className="flex-1">
+            <FormCanvas sections={formData.sections} fields={formFields} onSectionsChange={sections => setFormData(prev => ({
+            ...prev,
+            sections
+          }))} onDragEnd={handleDragEnd} />
+          </div>
         </div>
-      </div>
+      </DragDropContext>
 
       {/* Preview Modal */}
       <FormPreview formName={formData.name || 'Untitled Form'} sections={formData.sections} fields={formFields} open={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} />
