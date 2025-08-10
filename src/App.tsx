@@ -10,23 +10,21 @@ import { CalendarStateProvider } from "@/contexts/CalendarStateContext";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SecurityProvider } from "@/components/SecurityProvider";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AuthRedirect } from "@/components/auth/AuthRedirect";
+import { AppLayout } from "@/components/layout/AppLayout";
 
-import { Sidebar } from "./components/Sidebar";
-import { TopBar } from "./components/TopBar";
 import { Dashboard } from "./pages/Dashboard";
-
 import { LeadView } from "./pages/LeadView";
 import { LeadEdit } from "./pages/LeadEdit";
 import { Events } from "./pages/Events";
 import { EventDetail } from "./pages/EventDetail";
 import { EventSettings } from "./pages/EventSettings";
-
 import { FormBuilder } from "./pages/FormBuilder";
 import { Forms } from "./pages/Forms";
 import { NewFormBuilderPage } from "./pages/NewFormBuilder";
 import { Customers } from "./pages/Customers";
 import { CustomerProfilePage } from "./pages/CustomerProfile";
-
 import { CalendarSettings } from "./pages/CalendarSettings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -52,279 +50,128 @@ const App: React.FC = () => {
               <TooltipProvider>
               <Toaster />
               <Sonner />
-              <BrowserRouter>
+               <BrowserRouter>
                 <Routes>
-                  {/* Authentication Routes */}
+                  {/* Authentication Routes - Redirect if already logged in */}
                   <Route path="/auth" element={
-                    <ErrorBoundary>
-                      <Auth />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/success" element={
-                    <ErrorBoundary>
-                        <Success />
-                    </ErrorBoundary>
+                    <AuthRedirect>
+                      <ErrorBoundary>
+                        <Auth />
+                      </ErrorBoundary>
+                    </AuthRedirect>
                   } />
                   
-                  {/* Main Application Routes */}
+                  <Route path="/success" element={
+                    <AuthRedirect>
+                      <ErrorBoundary>
+                        <Success />
+                      </ErrorBoundary>
+                    </AuthRedirect>
+                  } />
+                  
+                  {/* Protected Application Routes */}
                   <Route path="/" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <Dashboard />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Dashboard />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/leads/:leadId/view" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <LeadView />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <LeadView />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/leads/:leadId/edit" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <LeadEdit />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <LeadEdit />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/events" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <Events />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Events />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/events/:eventId" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <EventDetail />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <EventDetail />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/events/settings" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <EventSettings />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <EventSettings />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/forms" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <Forms />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Forms />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/form-builder" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <FormBuilder />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <FormBuilder />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/form-builder/:formId" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <FormBuilder />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <FormBuilder />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/forms/new" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <NewFormBuilderPage />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <NewFormBuilderPage />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/customers" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <Customers />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Customers />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/customers/:customerId" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <CustomerProfilePage />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <CustomerProfilePage />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   <Route path="/calendar-settings" element={
-                    <ErrorBoundary>
-                        <div className="flex h-screen w-full bg-gray-50">
-                          <ErrorBoundary>
-                            <Sidebar />
-                          </ErrorBoundary>
-                          <main className="flex-1 overflow-auto relative bg-gray-50">
-                            <ErrorBoundary>
-                              <TopBar />
-                            </ErrorBoundary>
-                            <div className="h-full">
-                              <ErrorBoundary>
-                                <CalendarSettings />
-                              </ErrorBoundary>
-                            </div>
-                          </main>
-                        </div>
-                    </ErrorBoundary>
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <CalendarSettings />
+                      </AppLayout>
+                    </ProtectedRoute>
                   } />
                   
                   {/* 404 Fallback */}
