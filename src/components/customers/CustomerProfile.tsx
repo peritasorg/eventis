@@ -240,7 +240,7 @@ export const CustomerProfile: React.FC = () => {
                         {format(new Date(date), 'EEEE, MMMM do, yyyy')}
                       </h3>
                       <div className="space-y-2">
-                        {dayEvents.map((event) => (
+                        {(dayEvents as any[]).map((event: any) => (
                           <div
                             key={event.id}
                             className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
