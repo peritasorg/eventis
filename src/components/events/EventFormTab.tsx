@@ -26,16 +26,24 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
     !eventForms.some(eventForm => eventForm.form_id === form.id)
   );
 
-  // Load form responses when eventForms change
+  // Load form responses when eventForms change (with dependency check)
   useEffect(() => {
     const responses: Record<string, Record<string, any>> = {};
     eventForms.forEach(eventForm => {
-      if (eventForm.form_responses) {
+      if (eventForm.form_responses && Object.keys(eventForm.form_responses).length > 0) {
         responses[eventForm.id] = eventForm.form_responses;
       }
     });
-    setFormResponses(responses);
-  }, [eventForms]);
+    
+    // Only update if responses actually changed
+    const responseKeys = Object.keys(responses).sort();
+    const currentResponseKeys = Object.keys(formResponses).sort();
+    
+    if (responseKeys.join(',') !== currentResponseKeys.join(',') || 
+        JSON.stringify(responses) !== JSON.stringify(formResponses)) {
+      setFormResponses(responses);
+    }
+  }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}`).join(',')]);
 
   const calculateFormTotal = (eventForm: EventForm) => {
     let total = 0;

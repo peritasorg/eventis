@@ -1,5 +1,6 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
@@ -79,12 +80,9 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
               <Label className="text-sm">Price:</Label>
               <div className="flex items-center">
                 <span className="text-sm mr-1">£</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={response.price || ''}
-                  onChange={(e) => updateResponse({ price: parseFloat(e.target.value) || 0 })}
+                <PriceInput
+                  value={response.price || 0}
+                  onChange={(value) => updateResponse({ price: value })}
                   placeholder="0.00"
                   disabled={readOnly}
                   className="w-24"
@@ -136,12 +134,9 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
                 <Label className="text-xs text-muted-foreground">Unit Price</Label>
                 <div className="flex items-center">
                   <span className="text-xs mr-1">£</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={response.price || ''}
-                    onChange={(e) => updateResponse({ price: parseFloat(e.target.value) || 0 })}
+                  <PriceInput
+                    value={response.price || 0}
+                    onChange={(value) => updateResponse({ price: value })}
                     placeholder="0.00"
                     disabled={readOnly}
                     className="w-full"

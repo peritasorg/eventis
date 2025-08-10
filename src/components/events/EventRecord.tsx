@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -132,15 +133,15 @@ export const EventRecord: React.FC = () => {
   // Get live form totals
   const { liveFormTotal, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
 
-  // Fetch payment timeline for remaining balance calculation
+  // Fetch payment timeline for remaining balance calculation (unified with PaymentTimeline)
   const { data: payments } = useSupabaseQuery(
-    ['finance-timeline', eventId],
+    ['event_payments', eventId],
     async () => {
       if (!eventId || !currentTenant?.id) return [];
       
       const { data, error } = await supabase
-        .from('finance_timeline')
-        .select('amount')
+        .from('event_payments')
+        .select('amount_gbp')
         .eq('event_id', eventId)
         .eq('tenant_id', currentTenant.id);
       
@@ -214,7 +215,7 @@ export const EventRecord: React.FC = () => {
   const totalGuestPrice = eventData?.total_guest_price_gbp || 0;
   const totalEventValue = totalGuestPrice + liveFormTotal;
   const depositAmount = eventData?.deposit_amount_gbp || 0;
-  const totalPaid = depositAmount + (payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0);
+  const totalPaid = depositAmount + (payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0);
   const remainingBalanceGbp = totalEventValue - totalPaid;
   
   const daysLeft = eventData?.event_date 
@@ -557,13 +558,10 @@ export const EventRecord: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="total_guest_price_gbp">Total Guest Price</Label>
-                <Input
-                  id="total_guest_price_gbp"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                <PriceInput
                   value={eventData.total_guest_price_gbp || 0}
-                  onChange={(e) => handleFieldChange('total_guest_price_gbp', parseFloat(e.target.value) || 0)}
+                  onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
+                  placeholder="0.00"
                 />
               </div>
               
@@ -579,13 +577,10 @@ export const EventRecord: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="deposit_amount_gbp">Deposit Amount</Label>
-                <Input
-                  id="deposit_amount_gbp"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                <PriceInput
                   value={eventData.deposit_amount_gbp || 0}
-                  onChange={(e) => handleFieldChange('deposit_amount_gbp', parseFloat(e.target.value) || 0)}
+                  onChange={(value) => handleFieldChange('deposit_amount_gbp', value)}
+                  placeholder="0.00"
                 />
               </div>
               

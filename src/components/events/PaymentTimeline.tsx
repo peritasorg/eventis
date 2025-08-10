@@ -88,6 +88,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         setIsDialogOpen(false);
         refetch();
       },
+      invalidateQueries: [['event_payments', eventId], ['event-form-totals', eventId]],
       onError: (error) => {
         toast.error('Failed to record payment: ' + error.message);
       }
