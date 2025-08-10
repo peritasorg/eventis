@@ -39,7 +39,7 @@ export const EventTypeFormMappings = () => {
       if (!currentTenant?.id) return [];
       
       const { data, error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .select('*')
         .eq('tenant_id', currentTenant.id)
         .eq('active', true)

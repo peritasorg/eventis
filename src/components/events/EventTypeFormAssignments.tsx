@@ -37,7 +37,7 @@ export const EventTypeFormAssignments: React.FC<EventTypeFormAssignmentsProps> =
       if (!currentTenant?.id) return [];
       
       const { data, error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .select('id, name, description')
         .eq('tenant_id', currentTenant.id)
         .eq('active', true)
