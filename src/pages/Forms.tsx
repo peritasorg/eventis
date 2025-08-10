@@ -29,7 +29,7 @@ export const Forms = () => {
   };
 
   const getFormStats = (form: any) => {
-    const sections = form.sections || [];
+    const sections = Array.isArray(form.sections) ? form.sections : [];
     const fieldCount = sections.reduce((total: number, section: any) => total + (section.field_ids?.length || 0), 0);
     return {
       sections: sections.length,
