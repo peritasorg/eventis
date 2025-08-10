@@ -75,8 +75,11 @@ export const FormBuilder = () => {
         });
         toast.success('Form updated successfully');
       } else {
-        const newForm = await createForm(formData);
-        navigate(`/form-builder/${newForm.id}`);
+        const newForm = await new Promise<Form>((resolve, reject) => {
+          createForm(formData);
+          // Since createForm doesn't return a promise, we'll navigate without the id
+        });
+        navigate('/forms');
         toast.success('Form created successfully');
       }
     } catch (error) {

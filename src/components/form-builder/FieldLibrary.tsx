@@ -28,13 +28,15 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
     }
   };
 
-  const filteredFields = Object.entries(fieldsByCategory).reduce((acc, [category, fields]) => {
-    const filtered = fields.filter(field =>
-      field.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      field.help_text?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    if (filtered.length > 0) {
-      acc[category] = filtered;
+  const filteredFields = Object.entries(fieldsByCategory || {}).reduce((acc, [category, fields]) => {
+    if (Array.isArray(fields)) {
+      const filtered = fields.filter(field =>
+        field.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        field.help_text?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (filtered.length > 0) {
+        acc[category] = filtered;
+      }
     }
     return acc;
   }, {} as Record<string, FormField[]>);

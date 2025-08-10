@@ -45,13 +45,13 @@ export const useForms = () => {
     async (formData: { name: string; description?: string; sections?: FormSection[] }) => {
       const { data, error } = await supabase
         .from('forms')
-        .insert([{
+        .insert({
           name: formData.name,
           description: formData.description,
-          sections: formData.sections || [],
+          sections: JSON.stringify(formData.sections || []),
           tenant_id: currentTenant?.id!,
           is_active: true
-        }])
+        })
         .select()
         .single();
       
@@ -70,7 +70,10 @@ export const useForms = () => {
     async ({ id, ...updates }: Partial<Form> & { id: string }) => {
       const { data, error } = await supabase
         .from('forms')
-        .update(updates)
+        .update({
+          ...updates,
+          sections: updates.sections ? JSON.stringify(updates.sections) : undefined
+        })
         .eq('id', id)
         .select()
         .single();
@@ -117,13 +120,13 @@ export const useForms = () => {
       // Create duplicate
       const { data, error } = await supabase
         .from('forms')
-        .insert([{
+        .insert({
           name: `${originalForm.name} (Copy)`,
           description: originalForm.description,
           sections: originalForm.sections,
           tenant_id: currentTenant?.id!,
           is_active: true
-        }])
+        })
         .select()
         .single();
       
