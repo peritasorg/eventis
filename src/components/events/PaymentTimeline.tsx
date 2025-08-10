@@ -178,7 +178,10 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium">
-                        {format(new Date(payment.payment_date), 'dd/MM/yyyy')}
+                        {payment.payment_date && !isNaN(new Date(payment.payment_date).getTime()) 
+                          ? format(new Date(payment.payment_date), 'dd/MM/yyyy')
+                          : 'Invalid date'
+                        }
                       </span>
                       <span className="text-sm font-semibold text-green-600">
                         {formatCurrency(payment.amount_gbp)}
