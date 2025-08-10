@@ -25,13 +25,14 @@ export interface EventForm {
 export const useEventForms = (eventId?: string) => {
   const { currentTenant } = useAuth();
 
-  // Fetch event forms for an event
+  // Fetch event forms for an event with complete form data including fields
   const { data: eventForms, ...eventFormsQuery } = useSupabaseQuery(
     ['event-forms', eventId],
     async () => {
       if (!eventId || !currentTenant?.id) return [];
       
-      const { data, error } = await supabase
+      // First get the event forms
+      const { data: eventFormsData, error: eventFormsError } = await supabase
         .from('event_forms')
         .select(`
           id,
@@ -44,40 +45,84 @@ export const useEventForms = (eventId?: string) => {
           form_total,
           is_active,
           created_at,
-          updated_at,
-          forms!inner(
-            id,
-            name,
-            description,
-            sections
-          )
+          updated_at
         `)
         .eq('event_id', eventId)
         .eq('tenant_id', currentTenant.id)
         .eq('is_active', true)
         .order('tab_order');
 
-      if (error) throw error;
-      
-      // Parse sections from JSON string to array for joined forms data
-      const parsedData = (data || []).map(eventForm => {
-        const forms = eventForm.forms as any;
-        return {
-          ...eventForm,
-          forms: forms ? {
-            ...forms,
-            sections: typeof forms.sections === 'string' 
-              ? JSON.parse(forms.sections) 
-              : Array.isArray(forms.sections) ? forms.sections : []
-          } : undefined
-        };
-      }) as unknown as EventForm[];
-      
-      return parsedData;
+      if (eventFormsError) throw eventFormsError;
+      if (!eventFormsData || eventFormsData.length === 0) return [];
+
+      // Get the complete form data with fields for each event form
+      const enrichedEventForms = await Promise.all(
+        eventFormsData.map(async (eventForm) => {
+          // Get the form data
+          const { data: formData, error: formError } = await supabase
+            .from('forms')
+            .select(`
+              id,
+              name,
+              description,
+              sections
+            `)
+            .eq('id', eventForm.form_id)
+            .eq('tenant_id', currentTenant.id)
+            .eq('is_active', true)
+            .single();
+
+          if (formError || !formData) {
+            console.warn(`Could not load form data for form_id: ${eventForm.form_id}`, formError);
+            return null;
+          }
+
+          // Parse sections and get field data for each section
+          const sections = typeof formData.sections === 'string' 
+            ? JSON.parse(formData.sections) 
+            : Array.isArray(formData.sections) ? formData.sections : [];
+
+          // Get all field IDs from all sections
+          const allFieldIds = sections.flatMap((section: any) => section.field_ids || []);
+          
+          // Get field data for all fields in the form
+          let formFields = [];
+          if (allFieldIds.length > 0) {
+            const { data: fieldsData, error: fieldsError } = await supabase
+              .from('form_fields')
+              .select('*')
+              .in('id', allFieldIds)
+              .eq('tenant_id', currentTenant.id)
+              .eq('is_active', true);
+
+            if (fieldsError) {
+              console.warn(`Could not load fields for form: ${formData.name}`, fieldsError);
+            } else {
+              formFields = fieldsData || [];
+            }
+          }
+
+          return {
+            ...eventForm,
+            forms: {
+              ...formData,
+              sections: sections.map((section: any) => ({
+                ...section,
+                fields: (section.field_ids || []).map((fieldId: string) => 
+                  formFields.find(field => field.id === fieldId)
+                ).filter(Boolean)
+              }))
+            }
+          };
+        })
+      );
+
+      // Filter out any null results and return
+      return enrichedEventForms.filter(Boolean) as EventForm[];
     }
   );
 
-  // Create event form
+  // Create event form with duplicate prevention
   const createEventFormMutation = useSupabaseMutation(
     async (formData: {
       event_id: string;
@@ -85,11 +130,27 @@ export const useEventForms = (eventId?: string) => {
       form_label?: string;
       tab_order?: number;
     }) => {
-      console.log('createEventFormMutation called with:', formData);
-      console.log('currentTenant:', currentTenant);
-      
       if (!currentTenant?.id) {
         throw new Error('No tenant ID available');
+      }
+
+      // Check if this form is already added to the event
+      const { data: existingForm, error: checkError } = await supabase
+        .from('event_forms')
+        .select('id')
+        .eq('event_id', formData.event_id)
+        .eq('form_id', formData.form_id)
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking for existing form:', checkError);
+        throw checkError;
+      }
+
+      if (existingForm) {
+        throw new Error('This form is already added to this event');
       }
       
       const insertData = {
@@ -103,15 +164,11 @@ export const useEventForms = (eventId?: string) => {
         is_active: true
       };
       
-      console.log('Inserting data:', insertData);
-      
       const { data, error } = await supabase
         .from('event_forms')
         .insert(insertData)
         .select()
         .single();
-
-      console.log('Insert result:', { data, error });
       
       if (error) {
         console.error('Database insert error:', error);
