@@ -58,7 +58,22 @@ export const useEventForms = (eventId?: string) => {
         .order('tab_order');
 
       if (error) throw error;
-      return (data || []) as unknown as EventForm[];
+      
+      // Parse sections from JSON string to array for joined forms data
+      const parsedData = (data || []).map(eventForm => {
+        const forms = eventForm.forms as any;
+        return {
+          ...eventForm,
+          forms: forms ? {
+            ...forms,
+            sections: typeof forms.sections === 'string' 
+              ? JSON.parse(forms.sections) 
+              : Array.isArray(forms.sections) ? forms.sections : []
+          } : undefined
+        };
+      }) as unknown as EventForm[];
+      
+      return parsedData;
     }
   );
 

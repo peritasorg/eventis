@@ -22,14 +22,32 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
 
-  // Load existing form responses
+  // Load existing form responses - use useMemo to prevent infinite loops
   useEffect(() => {
-    const responses: Record<string, Record<string, any>> = {};
-    eventForms.forEach(eventForm => {
-      responses[eventForm.id] = eventForm.form_responses || {};
+    if (eventForms.length === 0) {
+      setFormResponses({});
+      return;
+    }
+
+    setFormResponses(prevResponses => {
+      const responses: Record<string, Record<string, any>> = {};
+      let hasChanges = false;
+      
+      eventForms.forEach(eventForm => {
+        const currentResponses = eventForm.form_responses || {};
+        responses[eventForm.id] = currentResponses;
+        
+        // Check if this event form's responses have changed
+        if (!prevResponses[eventForm.id] || 
+            JSON.stringify(prevResponses[eventForm.id]) !== JSON.stringify(currentResponses)) {
+          hasChanges = true;
+        }
+      });
+      
+      // Only update if there are actual changes to prevent infinite loops
+      return hasChanges ? responses : prevResponses;
     });
-    setFormResponses(responses);
-  }, [eventForms]);
+  }, [eventForms.length, eventForms.map(ef => ef.id + JSON.stringify(ef.form_responses)).join(',')]);
 
   const calculateFormTotal = (eventFormId: string, responses: Record<string, any>) => {
     let total = 0;
