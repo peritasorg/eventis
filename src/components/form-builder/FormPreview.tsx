@@ -1,12 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormSection } from '@/hooks/useForms';
 import { FormField } from '@/hooks/useFormFields';
+import { UnifiedFieldRenderer } from './UnifiedFieldRenderer';
 
 interface FormPreviewProps {
   formName: string;
@@ -18,9 +16,11 @@ interface FormPreviewProps {
 
 interface FormResponse {
   [fieldId: string]: {
-    value: string | number;
+    value?: string | number;
     quantity?: number;
+    price?: number;
     notes?: string;
+    enabled?: boolean;
   };
 }
 
@@ -45,12 +45,12 @@ export const FormPreview: React.FC<FormPreviewProps> = ({
   const calculateTotal = useMemo(() => {
     return Object.entries(responses).reduce((total, [fieldId, response]) => {
       const field = getFieldById(fieldId);
-      if (!field || !field.has_pricing || !field.default_price_gbp) return total;
+      if (!field || !field.has_pricing) return total;
 
-      if (field.field_type === 'price_fixed') {
-        return total + field.default_price_gbp;
-      } else if (field.field_type === 'price_per_person' && response.quantity) {
-        return total + (field.default_price_gbp * response.quantity);
+      if (field.field_type === 'fixed_price_notes') {
+        return total + (response.price || 0);
+      } else if (field.field_type === 'per_person_price_notes') {
+        return total + ((response.quantity || 0) * (response.price || 0));
       }
       return total;
     }, 0);
@@ -62,88 +62,6 @@ export const FormPreview: React.FC<FormPreviewProps> = ({
     if (lower.includes('menu') || lower.includes('food')) return '🍽️';
     if (lower.includes('note') || lower.includes('additional')) return '📝';
     return '📋';
-  };
-
-  const renderField = (field: FormField) => {
-    const response = responses[field.id] || { value: '', quantity: 1, notes: '' };
-
-    return (
-      <div key={field.id} className="space-y-3">
-        <div>
-          <Label className="text-base font-medium">{field.name}</Label>
-          {field.help_text && (
-            <p className="text-sm text-muted-foreground mt-1">{field.help_text}</p>
-          )}
-        </div>
-
-        {field.field_type === 'text' && (
-          <Textarea
-            value={response.value as string}
-            onChange={(e) => updateResponse(field.id, { value: e.target.value })}
-            placeholder={field.placeholder_text || ''}
-            rows={3}
-          />
-        )}
-
-        {field.field_type === 'counter' && (
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min="0"
-              value={response.value}
-              onChange={(e) => updateResponse(field.id, { value: parseInt(e.target.value) || 0 })}
-              className="w-32"
-            />
-            <span className="text-sm text-muted-foreground">people</span>
-          </div>
-        )}
-
-        {field.field_type === 'price_fixed' && field.has_pricing && (
-          <div className="space-y-2">
-            <div className="p-3 bg-muted rounded-lg">
-              <div className="text-lg font-semibold">£{field.default_price_gbp?.toFixed(2)}</div>
-              <div className="text-sm text-muted-foreground">Fixed Price</div>
-            </div>
-            {field.has_notes && (
-              <Textarea
-                value={response.notes}
-                onChange={(e) => updateResponse(field.id, { notes: e.target.value })}
-                placeholder="Notes (optional)"
-                rows={2}
-              />
-            )}
-          </div>
-        )}
-
-        {field.field_type === 'price_per_person' && field.has_pricing && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Label>Quantity:</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={response.quantity || 1}
-                  onChange={(e) => updateResponse(field.id, { quantity: parseInt(e.target.value) || 0 })}
-                  className="w-24"
-                />
-              </div>
-              <div className="text-sm text-muted-foreground">
-                people × £{field.default_price_gbp?.toFixed(2)} = £{((response.quantity || 0) * (field.default_price_gbp || 0)).toFixed(2)}
-              </div>
-            </div>
-            {field.has_notes && (
-              <Textarea
-                value={response.notes}
-                onChange={(e) => updateResponse(field.id, { notes: e.target.value })}
-                placeholder={field.placeholder_text || 'Notes (optional)'}
-                rows={2}
-              />
-            )}
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -162,10 +80,18 @@ export const FormPreview: React.FC<FormPreviewProps> = ({
                   {section.title.toUpperCase()}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4">
                 {section.field_ids.map((fieldId) => {
                   const field = getFieldById(fieldId);
-                  return field ? renderField(field) : null;
+                  return field ? (
+                    <UnifiedFieldRenderer
+                      key={fieldId}
+                      field={field}
+                      response={responses[fieldId]}
+                      onChange={updateResponse}
+                      showInCard={false}
+                    />
+                  ) : null;
                 })}
                 {section.field_ids.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
@@ -177,7 +103,7 @@ export const FormPreview: React.FC<FormPreviewProps> = ({
           ))}
 
           {calculateTotal > 0 && (
-            <Card className="border-primary">
+            <Card className="border-primary bg-primary/5">
               <CardContent className="pt-6">
                 <div className="flex justify-between items-center text-xl font-semibold">
                   <span>Estimated Total:</span>

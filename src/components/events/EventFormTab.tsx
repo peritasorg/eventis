@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEventForms, EventForm } from '@/hooks/useEventForms';
 import { useForms } from '@/hooks/useForms';
+import { useFormFields } from '@/hooks/useFormFields';
+import { UnifiedFieldRenderer } from '@/components/form-builder/UnifiedFieldRenderer';
 import { toast } from 'sonner';
 
 interface EventFormTabProps {
@@ -17,6 +16,7 @@ interface EventFormTabProps {
 export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
   const { eventForms, isLoading, createEventForm, updateEventForm, deleteEventForm, isCreating } = useEventForms(eventId);
   const { forms } = useForms();
+  const { formFields } = useFormFields();
   
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
@@ -43,22 +43,18 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
     
     if (eventForm.forms?.sections) {
       eventForm.forms.sections.forEach((section: any) => {
-        if (section.fields) {
-          section.fields.forEach((field: any) => {
-            const response = responses[field.id];
-            if (response?.enabled && field.has_pricing && field.default_price_gbp) {
-              switch (field.pricing_type) {
-                case 'fixed':
-                  total += parseFloat(field.default_price_gbp.toString());
+        if (section.field_ids) {
+          section.field_ids.forEach((fieldId: string) => {
+            const field = formFields.find(f => f.id === fieldId);
+            const response = responses[fieldId];
+            
+            if (field && response) {
+              switch (field.field_type) {
+                case 'fixed_price_notes':
+                  total += response.price || 0;
                   break;
-                case 'per_person':
-                  const quantity = parseInt(response.quantity) || parseInt(response.guests) || 1;
-                  total += parseFloat(field.default_price_gbp.toString()) * quantity;
-                  break;
-                case 'variable':
-                  if (response.price) {
-                    total += parseFloat(response.price.toString());
-                  }
+                case 'per_person_price_notes':
+                  total += (response.quantity || 0) * (response.price || 0);
                   break;
               }
             }
@@ -131,192 +127,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
     }
   };
 
-  const renderField = (field: any, eventForm: EventForm) => {
-    const fieldResponse = formResponses[eventForm.id]?.[field.id] || {};
-    const isEnabled = fieldResponse.enabled !== false; // Default to enabled
+  const renderField = (fieldId: string, eventForm: EventForm) => {
+    const field = formFields.find(f => f.id === fieldId);
+    if (!field) return null;
 
-    switch (field.field_type) {
-      case 'text':
-      case 'textarea':
-        return (
-          <div key={field.id} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor={field.id}>{field.name}</Label>
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={(checked) => 
-                  handleResponseChange(eventForm.id, field.id, { ...fieldResponse, enabled: checked })
-                }
-              />
-            </div>
-            {isEnabled && (
-              field.field_type === 'textarea' ? (
-                <Textarea
-                  id={field.id}
-                  placeholder={field.placeholder_text || `Enter ${field.name.toLowerCase()}`}
-                  value={fieldResponse.value || ''}
-                  onChange={(e) => 
-                    handleResponseChange(eventForm.id, field.id, { ...fieldResponse, value: e.target.value })
-                  }
-                />
-              ) : (
-                <Input
-                  id={field.id}
-                  placeholder={field.placeholder_text || `Enter ${field.name.toLowerCase()}`}
-                  value={fieldResponse.value || ''}
-                  onChange={(e) => 
-                    handleResponseChange(eventForm.id, field.id, { ...fieldResponse, value: e.target.value })
-                  }
-                />
-              )
-            )}
-          </div>
-        );
+    const response = formResponses[eventForm.id]?.[fieldId] || {};
 
-      case 'counter':
-        const quantity = parseInt(fieldResponse.quantity) || 0;
-        const unitPrice = parseFloat(field.default_price_gbp) || 0;
-        const lineTotal = quantity * unitPrice;
-
-        return (
-          <div key={field.id} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor={field.id}>{field.name}</Label>
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={(checked) => 
-                  handleResponseChange(eventForm.id, field.id, { ...fieldResponse, enabled: checked })
-                }
-              />
-            </div>
-            {isEnabled && (
-              <div className="space-y-2">
-                <div className="flex items-center space-x-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const newQuantity = Math.max(0, quantity - 1);
-                      const newTotal = newQuantity * unitPrice;
-                      handleResponseChange(eventForm.id, field.id, {
-                        ...fieldResponse,
-                        quantity: newQuantity,
-                        price: newTotal
-                      });
-                    }}
-                  >
-                    -
-                  </Button>
-                  <span className="w-12 text-center font-mono">{quantity}</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const newQuantity = quantity + 1;
-                      const newTotal = newQuantity * unitPrice;
-                      handleResponseChange(eventForm.id, field.id, {
-                        ...fieldResponse,
-                        quantity: newQuantity,
-                        price: newTotal
-                      });
-                    }}
-                  >
-                    +
-                  </Button>
-                </div>
-                {field.has_pricing && (
-                  <div className="text-sm text-muted-foreground">
-                    £{unitPrice.toFixed(2)} × {quantity} = £{lineTotal.toFixed(2)}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-
-      case 'price_fixed':
-        const fixedPrice = parseFloat(field.default_price_gbp) || 0;
-        return (
-          <div key={field.id} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor={field.id}>{field.name}</Label>
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={(checked) => {
-                  const price = checked ? fixedPrice : 0;
-                  handleResponseChange(eventForm.id, field.id, { 
-                    ...fieldResponse, 
-                    enabled: checked, 
-                    price: price 
-                  });
-                }}
-              />
-            </div>
-            {isEnabled && (
-              <div className="text-sm font-medium text-green-600">
-                £{fixedPrice.toFixed(2)}
-              </div>
-            )}
-          </div>
-        );
-
-      case 'price_per_person':
-        const guestCount = parseInt(fieldResponse.guests) || 0;
-        const perPersonPrice = parseFloat(field.default_price_gbp) || 0;
-        const totalPerPersonPrice = guestCount * perPersonPrice;
-
-        return (
-          <div key={field.id} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor={field.id}>{field.name}</Label>
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={(checked) => 
-                  handleResponseChange(eventForm.id, field.id, { ...fieldResponse, enabled: checked })
-                }
-              />
-            </div>
-            {isEnabled && (
-              <div className="space-y-2">
-                <Input
-                  type="number"
-                  placeholder="Number of guests"
-                  value={fieldResponse.guests || ''}
-                  onChange={(e) => {
-                    const guests = parseInt(e.target.value) || 0;
-                    const total = guests * perPersonPrice;
-                    handleResponseChange(eventForm.id, field.id, {
-                      ...fieldResponse,
-                      guests: guests,
-                      price: total
-                    });
-                  }}
-                />
-                <div className="text-sm text-muted-foreground">
-                  £{perPersonPrice.toFixed(2)} × {guestCount} = £{totalPerPersonPrice.toFixed(2)}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      default:
-        return (
-          <div key={field.id} className="space-y-2">
-            <Label htmlFor={field.id}>{field.name}</Label>
-            <Input
-              id={field.id}
-              placeholder={`Enter ${field.name.toLowerCase()}`}
-              value={fieldResponse.value || ''}
-              onChange={(e) => 
-                handleResponseChange(eventForm.id, field.id, { ...fieldResponse, value: e.target.value })
-              }
-            />
-          </div>
-        );
-    }
+    return (
+      <div key={fieldId} className="space-y-2">
+        <UnifiedFieldRenderer
+          field={field}
+          response={response}
+          onChange={(id, updates) => handleResponseChange(eventForm.id, fieldId, updates)}
+          showInCard={false}
+        />
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -373,7 +199,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Total Event Value</h3>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold text-primary">
                 £{totalEventValue.toFixed(2)}
               </div>
             </div>
@@ -405,10 +231,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
               <div className="space-y-6">
                 {eventForm.forms.sections.map((section: any, sectionIndex: number) => (
                   <div key={section.id || sectionIndex} className="space-y-4">
-                    <h4 className="font-medium text-lg border-b pb-2">{section.title}</h4>
-                    <div className="grid gap-6 md:grid-cols-2">
-                      {section.fields && section.fields.length > 0 ? (
-                        section.fields.map((field: any) => renderField(field, eventForm))
+                    <h4 className="font-medium text-lg border-b pb-2 text-foreground">
+                      {section.title}
+                    </h4>
+                    <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+                      {section.field_ids && section.field_ids.length > 0 ? (
+                        section.field_ids.map((fieldId: string) => renderField(fieldId, eventForm))
                       ) : (
                         <p className="text-sm text-muted-foreground col-span-full">
                           No fields configured for this section.

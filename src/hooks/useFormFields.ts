@@ -7,7 +7,7 @@ export interface FormField {
   id: string;
   tenant_id: string;
   name: string;
-  field_type: 'text' | 'price_fixed' | 'price_per_person' | 'counter';
+  field_type: 'text_notes_only' | 'fixed_price_notes' | 'per_person_price_notes' | 'counter_notes';
   has_notes: boolean;
   has_pricing: boolean;
   pricing_type: 'fixed' | 'per_person' | null;
@@ -103,8 +103,8 @@ export const useFormFields = () => {
     if (!formFields || !Array.isArray(formFields)) return {};
     
     return formFields.reduce((acc: Record<string, FormField[]>, field: FormField) => {
-      const category = field.field_type === 'text' ? 'Text Fields' :
-                     field.field_type === 'counter' ? 'Counter Fields' : 'Pricing Fields';
+      const category = field.field_type === 'text_notes_only' ? 'Text Fields' :
+                     field.field_type === 'counter_notes' ? 'Counter Fields' : 'Pricing Fields';
       
       if (!acc[category]) {
         acc[category] = [];
