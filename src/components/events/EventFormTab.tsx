@@ -1,1 +1,1 @@
-export { EventFormTab } from './EventFormTabSimplified';
+export { EnhancedEventFormTab as EventFormTab } from './EnhancedEventFormTab';
