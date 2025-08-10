@@ -12,7 +12,7 @@ export interface EventTypeFormMapping {
   sort_order: number;
   created_at: string;
   updated_at: string;
-  form_templates?: {
+  forms?: {
     id: string;
     name: string;
     description: string;
@@ -44,20 +44,20 @@ export const useEventTypeFormMappings = (eventTypeConfigId?: string) => {
       if (data && data.length > 0) {
         const formTemplateIds = data.map(m => m.form_template_id);
         const { data: formTemplates, error: templatesError } = await supabase
-          .from('form_templates')
+          .from('forms')
           .select('id, name, description')
           .in('id', formTemplateIds)
           .eq('tenant_id', currentTenant.id);
         
         if (templatesError) {
           console.error('Form templates error:', templatesError);
-          return data.map(mapping => ({ ...mapping, form_templates: null }));
+          return data.map(mapping => ({ ...mapping, forms: null }));
         }
         
         // Combine data
         return data.map(mapping => ({
           ...mapping,
-          form_templates: formTemplates?.find(ft => ft.id === mapping.form_template_id) || null
+          forms: formTemplates?.find(ft => ft.id === mapping.form_template_id) || null
         }));
       }
       
@@ -198,20 +198,20 @@ export const useEventTypeFormMappingsForCreation = () => {
     // Fetch form template details
     const formTemplateIds = mappings.map(m => m.form_template_id);
     const { data: formTemplates, error: templatesError } = await supabase
-      .from('form_templates')
+      .from('forms')
       .select('id, name, description')
       .in('id', formTemplateIds)
       .eq('tenant_id', currentTenant.id);
 
     if (templatesError) {
       console.error('Error fetching form templates:', templatesError);
-      return mappings.map(mapping => ({ ...mapping, form_templates: null }));
+      return mappings.map(mapping => ({ ...mapping, forms: null }));
     }
 
     // Combine the data
     return mappings.map(mapping => ({
       ...mapping,
-      form_templates: formTemplates?.find(ft => ft.id === mapping.form_template_id) || null
+      forms: formTemplates?.find(ft => ft.id === mapping.form_template_id) || null
     }));
 
   };

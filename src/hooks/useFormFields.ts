@@ -1,5 +1,6 @@
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export interface FormField {
@@ -19,6 +20,7 @@ export interface FormField {
 }
 
 export const useFormFields = () => {
+  const { currentTenant } = useAuth();
   const { data: formFields, ...rest } = useSupabaseQuery(
     ['form-fields'],
     async () => {
@@ -42,7 +44,10 @@ export const useFormFields = () => {
     async (fieldData: Omit<FormField, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('form_fields')
-        .insert([fieldData])
+        .insert([{
+          ...fieldData,
+          tenant_id: currentTenant?.id!
+        }])
         .select()
         .single();
       

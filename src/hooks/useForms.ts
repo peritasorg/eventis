@@ -1,5 +1,6 @@
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export interface FormSection {
@@ -21,6 +22,7 @@ export interface Form {
 }
 
 export const useForms = () => {
+  const { currentTenant } = useAuth();
   const { data: forms, ...rest } = useSupabaseQuery(
     ['forms'],
     async () => {
@@ -44,8 +46,11 @@ export const useForms = () => {
       const { data, error } = await supabase
         .from('forms')
         .insert([{
-          ...formData,
-          sections: formData.sections || []
+          name: formData.name,
+          description: formData.description,
+          sections: formData.sections || [],
+          tenant_id: currentTenant?.id!,
+          is_active: true
         }])
         .select()
         .single();
@@ -115,7 +120,9 @@ export const useForms = () => {
         .insert([{
           name: `${originalForm.name} (Copy)`,
           description: originalForm.description,
-          sections: originalForm.sections
+          sections: originalForm.sections,
+          tenant_id: currentTenant?.id!,
+          is_active: true
         }])
         .select()
         .single();
