@@ -150,8 +150,9 @@ export const Auth = () => {
     }
     
     try {
-      // Use the custom domain instead of window.location.origin
-      const redirectUrl = 'https://app.eventis.to/auth?tab=reset-password';
+      // Use dynamic domain detection
+      const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/auth?tab=reset-password`;
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
