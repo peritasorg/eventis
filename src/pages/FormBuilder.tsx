@@ -13,13 +13,21 @@ import { useFormFields, FormField } from '@/hooks/useFormFields';
 import { useForms, Form, FormSection } from '@/hooks/useForms';
 import { toast } from 'sonner';
 import { DropResult } from '@hello-pangea/dnd';
-
 export const FormBuilder = () => {
   const navigate = useNavigate();
-  const { formId } = useParams();
-  const { formFields } = useFormFields();
-  const { forms, createForm, updateForm, isCreating, isUpdating } = useForms();
-  
+  const {
+    formId
+  } = useParams();
+  const {
+    formFields
+  } = useFormFields();
+  const {
+    forms,
+    createForm,
+    updateForm,
+    isCreating,
+    isUpdating
+  } = useForms();
   const [formData, setFormData] = useState<{
     name: string;
     description: string;
@@ -29,12 +37,9 @@ export const FormBuilder = () => {
     description: '',
     sections: []
   });
-  
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
   const currentForm = forms.find(f => f.id === formId);
-  
   useEffect(() => {
     if (formId && currentForm) {
       setFormData({
@@ -56,13 +61,11 @@ export const FormBuilder = () => {
       });
     }
   }, [formId, currentForm]);
-
   const handleSave = async () => {
     if (!formData.name.trim()) {
       toast.error('Please enter a form name');
       return;
     }
-
     setIsSaving(true);
     try {
       if (formId) {
@@ -83,28 +86,33 @@ export const FormBuilder = () => {
       setIsSaving(false);
     }
   };
-
   const handleDragEnd = (result: DropResult) => {
-    const { source, destination } = result;
-    
+    const {
+      source,
+      destination
+    } = result;
     if (!destination) return;
-    
+
     // Handle drag from library to section
     if (source.droppableId === 'field-library') {
       const draggedField = formFields.find(f => f.id === result.draggableId);
       if (!draggedField) return;
-      
       const targetSectionId = destination.droppableId.replace('section-', '');
       const updatedSections = formData.sections.map(section => {
         if (section.id === targetSectionId) {
           const newFieldIds = [...section.field_ids];
           newFieldIds.splice(destination.index, 0, draggedField.id);
-          return { ...section, field_ids: newFieldIds };
+          return {
+            ...section,
+            field_ids: newFieldIds
+          };
         }
         return section;
       });
-      
-      setFormData(prev => ({ ...prev, sections: updatedSections }));
+      setFormData(prev => ({
+        ...prev,
+        sections: updatedSections
+      }));
       return;
     }
 
@@ -116,21 +124,23 @@ export const FormBuilder = () => {
           const newFieldIds = [...section.field_ids];
           const [removed] = newFieldIds.splice(source.index, 1);
           newFieldIds.splice(destination.index, 0, removed);
-          return { ...section, field_ids: newFieldIds };
+          return {
+            ...section,
+            field_ids: newFieldIds
+          };
         }
         return section;
       });
-      
-      setFormData(prev => ({ ...prev, sections: updatedSections }));
+      setFormData(prev => ({
+        ...prev,
+        sections: updatedSections
+      }));
     }
   };
-
   const handleFieldDrag = (field: FormField) => {
     // This is handled by the drag and drop context
   };
-
-  return (
-    <div className="h-screen flex flex-col">
+  return <div className="h-screen flex flex-col">
       {/* Header */}
       <div className="border-b p-4">
         <div className="flex items-center gap-4">
@@ -139,12 +149,10 @@ export const FormBuilder = () => {
             Back to Forms
           </Button>
           <div className="flex-1">
-            <Input
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Form Name"
-              className="text-lg font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0"
-            />
+            <Input value={formData.name} onChange={e => setFormData(prev => ({
+            ...prev,
+            name: e.target.value
+          }))} placeholder="Form Name" className="text-lg font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0" />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setIsPreviewOpen(true)}>
@@ -159,13 +167,7 @@ export const FormBuilder = () => {
         </div>
         
         <div className="mt-2">
-          <Textarea
-            value={formData.description}
-            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-            placeholder="Form description (optional)"
-            rows={2}
-            className="resize-none border-none bg-transparent p-0 focus-visible:ring-0"
-          />
+          
         </div>
       </div>
 
@@ -178,23 +180,14 @@ export const FormBuilder = () => {
 
         {/* Form Canvas */}
         <div className="flex-1">
-          <FormCanvas
-            sections={formData.sections}
-            fields={formFields}
-            onSectionsChange={(sections) => setFormData(prev => ({ ...prev, sections }))}
-            onDragEnd={handleDragEnd}
-          />
+          <FormCanvas sections={formData.sections} fields={formFields} onSectionsChange={sections => setFormData(prev => ({
+          ...prev,
+          sections
+        }))} onDragEnd={handleDragEnd} />
         </div>
       </div>
 
       {/* Preview Modal */}
-      <FormPreview
-        formName={formData.name || 'Untitled Form'}
-        sections={formData.sections}
-        fields={formFields}
-        open={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-      />
-    </div>
-  );
+      <FormPreview formName={formData.name || 'Untitled Form'} sections={formData.sections} fields={formFields} open={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} />
+    </div>;
 };
