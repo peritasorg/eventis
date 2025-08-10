@@ -22,6 +22,7 @@ import { EventDetail } from "./pages/EventDetail";
 import { EventSettings } from "./pages/EventSettings";
 
 import { FormBuilder } from "./pages/FormBuilder";
+import { Forms } from "./pages/Forms";
 import { NewFormBuilderPage } from "./pages/NewFormBuilder";
 import { Customers } from "./pages/Customers";
 
@@ -104,11 +105,21 @@ const App: React.FC = () => {
                                     <EventSettings />
                                   </ErrorBoundary>
                                 } />
-                                <Route path="/form-builder" element={
-                                  <ErrorBoundary>
-                                    <FormBuilder />
-                                  </ErrorBoundary>
-                                } />
+                <Route path="/forms" element={
+                  <ErrorBoundary>
+                    <Forms />
+                  </ErrorBoundary>
+                } />
+                <Route path="/form-builder" element={
+                  <ErrorBoundary>
+                    <FormBuilder />
+                  </ErrorBoundary>
+                } />
+                <Route path="/form-builder/:formId" element={
+                  <ErrorBoundary>
+                    <FormBuilder />
+                  </ErrorBoundary>
+                } />
                                 <Route path="/forms/new" element={
                                   <ErrorBoundary>
                                     <NewFormBuilderPage />
