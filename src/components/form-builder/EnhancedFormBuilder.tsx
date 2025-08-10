@@ -158,7 +158,6 @@ export const EnhancedFormBuilder: React.FC<EnhancedFormBuilderProps> = ({ form, 
 
     const sourceIndex = result.source.index;
     const destIndex = result.destination.index;
-    const draggedFieldId = result.draggableId;
 
     // Handle section-to-section field movement
     const sourceSectionId = result.source.droppableId.replace('section-', '');
@@ -168,10 +167,16 @@ export const EnhancedFormBuilder: React.FC<EnhancedFormBuilderProps> = ({ form, 
     const reorderedFields = Array.from(fieldsInSection);
     const [reorderedItem] = reorderedFields.splice(sourceIndex, 1);
     
+    // Ensure reorderedItem exists and is an object
+    if (!reorderedItem || typeof reorderedItem !== 'object') return;
+    
     // If moving between sections
     if (sourceSectionId !== destSectionId) {
       const destFields = formFields.filter(f => f.section_id === destSectionId);
-      destFields.splice(destIndex, 0, { ...reorderedItem, section_id: destSectionId });
+      destFields.splice(destIndex, 0, { 
+        ...reorderedItem as any, 
+        section_id: destSectionId 
+      });
       
       const updates = [
         ...destFields.map((field: any, index: number) => ({
