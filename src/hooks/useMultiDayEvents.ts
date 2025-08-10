@@ -2,20 +2,22 @@ import { useMemo } from 'react';
 
 interface Event {
   id: string;
-  event_name: string;
-  event_type: string;
-  event_start_date: string;
+  title: string;
+  event_date?: string;
   event_end_date?: string;
-  event_multiple_days?: boolean;
-  start_time: string;
-  end_time: string;
-  estimated_guests: number;
-  total_guests?: number;
-  status: string;
+  start_time?: string;
+  end_time?: string;
+  event_type?: string;
+  men_count?: number;
+  ladies_count?: number;
+  total_guest_price_gbp?: number;
+  form_total_gbp?: number;
+  deposit_amount_gbp?: number;
+  event_payments?: Array<{ amount_gbp: number }>;
   customers?: {
-    name: string;
-    email: string;
-    phone: string;
+    name?: string;
+    email?: string;
+    phone?: string;
   };
 }
 
@@ -38,24 +40,24 @@ export const useMultiDayEvents = (events: Event[]) => {
       const dateString = `${year}-${month}-${day}`;
       
       return events?.filter(event => {
-        if (!event.event_start_date) return false;
+        if (!event.event_date) return false;
         
-        const eventStartDate = event.event_start_date;
+        const eventStartDate = event.event_date;
         const eventEndDate = event.event_end_date || eventStartDate;
         
         // Check if the date falls within the event's date range
         return dateString >= eventStartDate && dateString <= eventEndDate;
       }).map(event => {
-        const startDate = new Date(event.event_start_date);
-        const endDate = new Date(event.event_end_date || event.event_start_date);
+        const startDate = new Date(event.event_date);
+        const endDate = new Date(event.event_end_date || event.event_date);
         const currentDate = new Date(dateString);
         
         // Calculate position and metadata
         const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         const dayIndex = Math.ceil((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
         
-        const isFirstDay = dateString === event.event_start_date;
-        const isLastDay = dateString === (event.event_end_date || event.event_start_date);
+        const isFirstDay = dateString === event.event_date;
+        const isLastDay = dateString === (event.event_end_date || event.event_date);
         
         let position: 'start' | 'middle' | 'end' | 'single';
         
@@ -95,8 +97,8 @@ export const useMultiDayEvents = (events: Event[]) => {
     };
     
     const displayName = position === 'middle' 
-      ? `→ ${event.event_name}` 
-      : event.event_name;
+      ? `→ ${event.title}` 
+      : event.title;
     
     const showTime = isFirstDay;
     const showMultiDayIndicator = totalDays > 1;

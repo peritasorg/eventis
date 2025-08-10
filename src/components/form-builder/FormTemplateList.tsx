@@ -32,7 +32,7 @@ export const FormTemplateList: React.FC<FormTemplateListProps> = ({
   const createFormMutation = useSupabaseMutation(
     async (formData: any) => {
       const { data, error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .insert([{
           ...formData,
           tenant_id: currentTenant?.id
@@ -55,7 +55,7 @@ export const FormTemplateList: React.FC<FormTemplateListProps> = ({
   const deleteFormMutation = useSupabaseMutation(
     async (formId: string) => {
       const { error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .delete()
         .eq('id', formId);
       
@@ -70,7 +70,7 @@ export const FormTemplateList: React.FC<FormTemplateListProps> = ({
   const cloneFormMutation = useSupabaseMutation(
     async (formId: string) => {
       const { data: originalForm, error: fetchError } = await supabase
-        .from('form_templates')
+        .from('forms')
         .select('*')
         .eq('id', formId)
         .single();
@@ -78,15 +78,13 @@ export const FormTemplateList: React.FC<FormTemplateListProps> = ({
       if (fetchError) throw fetchError;
       
       const { data, error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .insert([{
           ...originalForm,
           id: undefined,
           name: `${originalForm.name} (Copy)`,
           created_at: undefined,
-          updated_at: undefined,
-          usage_count: 0,
-          last_used_at: null
+          updated_at: undefined
         }])
         .select()
         .single();

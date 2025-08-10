@@ -105,7 +105,7 @@ export const EnhancedFormPreview: React.FC<EnhancedFormPreviewProps> = ({
           <FormPreviewMode
             formFields={formFields}
             formResponses={formResponses}
-            onResponseChange={handleResponseChange}
+            onResponseChange={(fieldId, response) => handleResponseChange(fieldId, 'value', response.value)}
             readOnly={false}
           />
         </CardContent>

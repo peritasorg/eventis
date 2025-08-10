@@ -2,6 +2,12 @@ import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+export interface SessionTemplate {
+  name: string;
+  start_time: string;
+  end_time: string;
+}
+
 export interface EventTypeConfig {
   id: string;
   event_type: string;
@@ -11,6 +17,9 @@ export interface EventTypeConfig {
   is_active: boolean;
   is_all_day: boolean;
   sort_order: number;
+  allow_splitting: boolean;
+  default_sessions: SessionTemplate[];
+  split_naming_pattern: string;
 }
 
 export const useEventTypeConfigs = () => {

@@ -37,10 +37,10 @@ export const EventTypeFormAssignments: React.FC<EventTypeFormAssignmentsProps> =
       if (!currentTenant?.id) return [];
       
       const { data, error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .select('id, name, description')
         .eq('tenant_id', currentTenant.id)
-        .eq('active', true)
+        .eq('is_active', true)
         .order('name');
       
       if (error) throw error;
@@ -104,7 +104,7 @@ export const EventTypeFormAssignments: React.FC<EventTypeFormAssignmentsProps> =
                 
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium">
-                    {mapping.form_templates?.name}
+                    {mapping.forms?.name}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Label: {editingMapping === mapping.id ? (

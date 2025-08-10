@@ -1,130 +1,201 @@
-
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Tablet } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Save, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { FormList } from '@/components/form-builder/FormList';
-import { FormEditor } from '@/components/form-builder/FormEditor';
-
-
-type ViewMode = 'forms' | 'edit-form';
-
+import { FieldLibrary } from '@/components/form-builder/FieldLibrary';
+import { FormCanvas } from '@/components/form-builder/FormCanvas';
+import { FormPreview } from '@/components/form-builder/FormPreview';
+import { useFormFields, FormField } from '@/hooks/useFormFields';
+import { useForms, Form, FormSection } from '@/hooks/useForms';
+import { toast } from 'sonner';
+import { DropResult, DragDropContext } from '@hello-pangea/dnd';
 export const FormBuilder = () => {
-  const { currentTenant } = useAuth();
-  const [viewMode, setViewMode] = useState<ViewMode>('forms');
-  const [editingForm, setEditingForm] = useState<any>(null);
-  const [isMobile, setIsMobile] = useState(false);
-
+  const navigate = useNavigate();
+  const {
+    formId
+  } = useParams();
+  const {
+    formFields
+  } = useFormFields();
+  const {
+    forms,
+    createForm,
+    updateForm,
+    isCreating,
+    isUpdating
+  } = useForms();
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    sections: FormSection[];
+  }>({
+    name: '',
+    description: '',
+    sections: []
+  });
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const currentForm = forms.find(f => f.id === formId);
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-
-    // Check for URL parameter to edit specific form
-    const urlParams = new URLSearchParams(window.location.search);
-    const editFormId = urlParams.get('edit');
-    if (editFormId && forms) {
-      const formToEdit = forms.find(f => f.id === editFormId);
-      if (formToEdit) {
-        handleEditForm(formToEdit);
-      }
+    if (formId && currentForm) {
+      setFormData({
+        name: currentForm.name,
+        description: currentForm.description || '',
+        sections: currentForm.sections || []
+      });
+    } else if (!formId) {
+      // New form - create default section
+      setFormData({
+        name: '',
+        description: '',
+        sections: [{
+          id: 'section-1',
+          title: 'Guest Information',
+          order: 0,
+          field_ids: []
+        }]
+      });
     }
-  }, []);
-
-  const { data: forms, refetch: refetchForms } = useSupabaseQuery(
-    ['form-templates'],
-    async () => {
-      if (!currentTenant?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('form_templates')
-        .select('*')
-        .eq('tenant_id', currentTenant.id)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Forms error:', error);
-        return [];
-      }
-      
-      return data || [];
+  }, [formId, currentForm]);
+  const handleSave = async () => {
+    if (!formData.name.trim()) {
+      toast.error('Please enter a form name');
+      return;
     }
-  );
-
-  const handleEditForm = (form: any) => {
-    setEditingForm(form);
-    setViewMode('edit-form');
+    setIsSaving(true);
+    try {
+      if (formId) {
+        await updateForm({
+          id: formId,
+          ...formData
+        });
+        toast.success('Form updated successfully');
+      } else {
+        await createForm(formData);
+        navigate('/forms');
+        toast.success('Form created successfully');
+      }
+    } catch (error) {
+      console.error('Failed to save form:', error);
+      toast.error('Failed to save form');
+    } finally {
+      setIsSaving(false);
+    }
   };
+  const handleDragEnd = (result: DropResult) => {
+    const {
+      source,
+      destination
+    } = result;
+    if (!destination) return;
 
-  const handleBackToForms = () => {
-    setEditingForm(null);
-    setViewMode('forms');
+    // Handle drag from library to section
+    if (source.droppableId === 'field-library') {
+      const draggedField = formFields.find(f => f.id === result.draggableId);
+      if (!draggedField) return;
+      
+      const targetSectionId = destination.droppableId.replace('section-', '');
+      
+      const updatedSections = formData.sections.map(section => {
+        if (section.id === targetSectionId) {
+          const newFieldIds = [...section.field_ids];
+          // Don't add if already exists in this section
+          if (!newFieldIds.includes(draggedField.id)) {
+            newFieldIds.splice(destination.index, 0, draggedField.id);
+          }
+          return {
+            ...section,
+            field_ids: newFieldIds
+          };
+        }
+        return section;
+      });
+      
+      setFormData(prev => ({
+        ...prev,
+        sections: updatedSections
+      }));
+      return;
+    }
+
+    // Handle reordering within a section
+    if (source.droppableId === destination.droppableId) {
+      const sectionId = source.droppableId.replace('section-', '');
+      const updatedSections = formData.sections.map(section => {
+        if (section.id === sectionId) {
+          const newFieldIds = [...section.field_ids];
+          const [removed] = newFieldIds.splice(source.index, 1);
+          newFieldIds.splice(destination.index, 0, removed);
+          return {
+            ...section,
+            field_ids: newFieldIds
+          };
+        }
+        return section;
+      });
+      setFormData(prev => ({
+        ...prev,
+        sections: updatedSections
+      }));
+    }
   };
-
-  // Show mobile restriction message
-  if (isMobile) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
-        <Card className="max-w-md w-full text-center">
-          <CardHeader>
-            <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
-              <Tablet className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            </div>
-            <CardTitle className="text-xl text-gray-900 dark:text-white">Form Builder Not Available</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-gray-600 dark:text-gray-400">
-              The Form Builder requires a larger screen for the best experience. Please use a tablet or desktop device to access this feature.
-            </p>
-            <div className="text-sm text-gray-500 dark:text-gray-500">
-              <p>Minimum screen width: 768px</p>
-              <p>Your current width: {window.innerWidth}px</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (viewMode === 'edit-form' && editingForm) {
-    return (
-      <FormEditor 
-        form={editingForm}
-        onBack={handleBackToForms}
-      />
-    );
-  }
-
-  return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-      <div className="flex-shrink-0 p-4 sm:p-6 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Form Builder</h1>
-              <p className="text-muted-foreground text-sm">Create questionnaire forms for your events</p>
-            </div>
+  const handleFieldDrag = (field: FormField) => {
+    // This is handled by the drag and drop context
+  };
+  return <div className="h-screen flex flex-col">
+      {/* Header */}
+      <div className="border-b p-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => navigate('/forms')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Forms
+          </Button>
+          <div className="flex-1">
+            <Input value={formData.name} onChange={e => setFormData(prev => ({
+            ...prev,
+            name: e.target.value
+          }))} placeholder="Form Name" className="text-lg font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0" />
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsPreviewOpen(true)}>
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving || isCreating || isUpdating}>
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
           </div>
         </div>
-      </div>
-
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
-        <div className="max-w-6xl mx-auto">
-          <FormList 
-            forms={forms}
-            onEditForm={handleEditForm}
-            refetchForms={refetchForms}
-          />
+        
+        <div className="mt-2">
+          
         </div>
       </div>
 
-    </div>
-  );
+      {/* Main Content */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex-1 flex overflow-hidden">
+          {/* Field Library Sidebar */}
+          <div className="w-80 border-r bg-muted/50">
+            <FieldLibrary onFieldDrag={handleFieldDrag} />
+          </div>
+
+          {/* Form Canvas */}
+          <div className="flex-1">
+            <FormCanvas sections={formData.sections} fields={formFields} onSectionsChange={sections => setFormData(prev => ({
+            ...prev,
+            sections
+          }))} onDragEnd={handleDragEnd} />
+          </div>
+        </div>
+      </DragDropContext>
+
+      {/* Preview Modal */}
+      <FormPreview formName={formData.name || 'Untitled Form'} sections={formData.sections} fields={formFields} open={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} />
+    </div>;
 };

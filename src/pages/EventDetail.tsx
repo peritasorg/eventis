@@ -1,6 +1,6 @@
 import React from 'react';
-import { EventDetailWithTabs } from '@/components/events/EventDetailWithTabs';
+import { NewEventDetailWithTabs } from '@/components/events/NewEventDetailWithTabs';
 
 export const EventDetail = () => {
-  return <EventDetailWithTabs />;
+  return <NewEventDetailWithTabs />;
 };

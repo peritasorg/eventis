@@ -338,20 +338,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "calendar_sync_logs_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "calendar_sync_logs_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "calendar_sync_logs_integration_id_fkey"
             columns: ["integration_id"]
             isOneToOne: false
@@ -413,6 +399,39 @@ export type Database = {
           },
         ]
       }
+      calendar_warning_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          tenant_id: string
+          updated_at: string | null
+          warning_color: string | null
+          warning_days_threshold: number | null
+          warning_message: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          tenant_id: string
+          updated_at?: string | null
+          warning_color?: string | null
+          warning_days_threshold?: number | null
+          warning_message?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string
+          updated_at?: string | null
+          warning_color?: string | null
+          warning_days_threshold?: number | null
+          warning_message?: string | null
+        }
+        Relationships: []
+      }
       communication_timeline: {
         Row: {
           communication_type: string
@@ -453,20 +472,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "communication_timeline_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "communication_timeline_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -589,156 +594,166 @@ export type Database = {
           },
         ]
       }
+      event_communications: {
+        Row: {
+          communication_date: string | null
+          communication_type: string | null
+          created_at: string | null
+          event_id: string
+          id: string
+          note: string
+          tenant_id: string
+        }
+        Insert: {
+          communication_date?: string | null
+          communication_type?: string | null
+          created_at?: string | null
+          event_id: string
+          id?: string
+          note: string
+          tenant_id: string
+        }
+        Update: {
+          communication_date?: string | null
+          communication_type?: string | null
+          created_at?: string | null
+          event_id?: string
+          id?: string
+          note?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_communications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_communications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_ethnicity_options: {
+        Row: {
+          created_at: string | null
+          ethnicity_name: string
+          id: string
+          is_active: boolean | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          ethnicity_name: string
+          id?: string
+          is_active?: boolean | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          ethnicity_name?: string
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_ethnicity_options_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_forms: {
         Row: {
           created_at: string | null
           event_id: string
+          form_id: string
           form_label: string
           form_responses: Json | null
-          form_template_id: string
           form_total: number | null
-          guest_info: Json | null
           id: string
-          individual_guest_info: boolean | null
           is_active: boolean | null
           tab_order: number
           tenant_id: string
-          time_slot_id: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           event_id: string
+          form_id: string
           form_label?: string
           form_responses?: Json | null
-          form_template_id: string
           form_total?: number | null
-          guest_info?: Json | null
           id?: string
-          individual_guest_info?: boolean | null
           is_active?: boolean | null
           tab_order?: number
           tenant_id: string
-          time_slot_id?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           event_id?: string
+          form_id?: string
           form_label?: string
           form_responses?: Json | null
-          form_template_id?: string
           form_total?: number | null
-          guest_info?: Json | null
           id?: string
-          individual_guest_info?: boolean | null
           is_active?: boolean | null
           tab_order?: number
           tenant_id?: string
-          time_slot_id?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "event_forms_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_forms_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_forms_form_template_id_fkey"
-            columns: ["form_template_id"]
-            isOneToOne: false
-            referencedRelation: "form_templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_forms_time_slot_id_fkey"
-            columns: ["time_slot_id"]
-            isOneToOne: false
-            referencedRelation: "event_time_slots"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      event_responses: {
+      event_payments: {
         Row: {
-          calculated_price: number | null
-          completed: boolean | null
-          completed_at: string | null
+          amount_gbp: number
           created_at: string | null
-          current_page: number | null
-          event_id: string | null
-          expires_at: string | null
-          form_template_id: string | null
+          event_id: string
           id: string
-          responses: Json
-          session_token: string | null
-          tenant_id: string | null
-          updated_at: string | null
+          payment_date: string | null
+          payment_note: string | null
+          tenant_id: string
         }
         Insert: {
-          calculated_price?: number | null
-          completed?: boolean | null
-          completed_at?: string | null
+          amount_gbp: number
           created_at?: string | null
-          current_page?: number | null
-          event_id?: string | null
-          expires_at?: string | null
-          form_template_id?: string | null
+          event_id: string
           id?: string
-          responses?: Json
-          session_token?: string | null
-          tenant_id?: string | null
-          updated_at?: string | null
+          payment_date?: string | null
+          payment_note?: string | null
+          tenant_id: string
         }
         Update: {
-          calculated_price?: number | null
-          completed?: boolean | null
-          completed_at?: string | null
+          amount_gbp?: number
           created_at?: string | null
-          current_page?: number | null
-          event_id?: string | null
-          expires_at?: string | null
-          form_template_id?: string | null
+          event_id?: string
           id?: string
-          responses?: Json
-          session_token?: string | null
-          tenant_id?: string | null
-          updated_at?: string | null
+          payment_date?: string | null
+          payment_note?: string | null
+          tenant_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "event_responses_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_responses_event_id_fkey"
+            foreignKeyName: "event_payments_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "event_responses_form_template_id_fkey"
-            columns: ["form_template_id"]
-            isOneToOne: false
-            referencedRelation: "form_templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_responses_tenant_id_fkey"
+            foreignKeyName: "event_payments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -803,20 +818,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "event_staff_assignments_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_staff_assignments_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "event_staff_assignments_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
@@ -825,6 +826,47 @@ export type Database = {
           },
           {
             foreignKeyName: "event_staff_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_time_ranges: {
+        Row: {
+          created_at: string | null
+          end_time: string
+          id: string
+          is_active: boolean | null
+          name: string
+          start_time: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          start_time: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          start_time?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_time_ranges_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -870,40 +912,49 @@ export type Database = {
       }
       event_type_configs: {
         Row: {
+          allow_splitting: boolean | null
           color: string
           created_at: string
+          default_sessions: Json | null
           display_name: string
           event_type: string
           id: string
           is_active: boolean
           is_all_day: boolean | null
           sort_order: number
+          split_naming_pattern: string | null
           tenant_id: string
           text_color: string
           updated_at: string
         }
         Insert: {
+          allow_splitting?: boolean | null
           color?: string
           created_at?: string
+          default_sessions?: Json | null
           display_name: string
           event_type: string
           id?: string
           is_active?: boolean
           is_all_day?: boolean | null
           sort_order?: number
+          split_naming_pattern?: string | null
           tenant_id: string
           text_color?: string
           updated_at?: string
         }
         Update: {
+          allow_splitting?: boolean | null
           color?: string
           created_at?: string
+          default_sessions?: Json | null
           display_name?: string
           event_type?: string
           id?: string
           is_active?: boolean
           is_all_day?: boolean | null
           sort_order?: number
+          split_naming_pattern?: string | null
           tenant_id?: string
           text_color?: string
           updated_at?: string
@@ -916,7 +967,7 @@ export type Database = {
           created_at: string
           default_label: string
           event_type_config_id: string
-          form_template_id: string
+          form_id: string
           id: string
           sort_order: number
           tenant_id: string
@@ -927,7 +978,7 @@ export type Database = {
           created_at?: string
           default_label?: string
           event_type_config_id: string
-          form_template_id: string
+          form_id: string
           id?: string
           sort_order?: number
           tenant_id: string
@@ -938,7 +989,7 @@ export type Database = {
           created_at?: string
           default_label?: string
           event_type_config_id?: string
-          form_template_id?: string
+          form_id?: string
           id?: string
           sort_order?: number
           tenant_id?: string
@@ -952,216 +1003,80 @@ export type Database = {
             referencedRelation: "event_type_configs"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "fk_event_type_form_mappings_form_template_id"
-            columns: ["form_template_id"]
-            isOneToOne: false
-            referencedRelation: "form_templates"
-            referencedColumns: ["id"]
-          },
         ]
       }
       events: {
         Row: {
-          accessibility_requirements: string | null
-          additional_costs: number | null
-          av_equipment_required: boolean | null
-          balance_cleared: boolean | null
-          balance_cleared_date: string | null
-          balance_due: number | null
-          base_price: number | null
-          booking_stage: string | null
-          cancellation_fee: number | null
-          cancellation_reason: string | null
-          cancelled_at: string | null
-          catering_required: boolean | null
-          cleanup_time: string | null
-          confirmed_date: string | null
-          confirmed_guests: number | null
-          contract_signed_date: string | null
           created_at: string | null
           customer_id: string | null
-          decoration_required: boolean | null
-          deposit_amount: number | null
-          deposit_paid: boolean | null
-          deposit_paid_date: string | null
-          dietary_requirements: string | null
-          discount_amount: number | null
-          end_time: string
-          estimated_guests: number
-          ethnicity: string | null
+          deposit_amount_gbp: number | null
+          end_time: string | null
+          ethnicity: Json | null
+          event_date: string | null
           event_end_date: string | null
-          event_finalized: boolean | null
-          event_finalized_date: string | null
-          event_mix_type: string | null
-          event_multiple_days: boolean | null
-          event_name: string
-          event_start_date: string | null
-          event_type: string
-          final_payment_due: string | null
-          final_payment_paid: boolean | null
-          form_responses: Json | null
-          form_template_used: string | null
-          form_total: number | null
+          event_type: string | null
+          form_id: string | null
+          form_total_gbp: number | null
           id: string
-          inquiry_date: string | null
-          internal_notes: string | null
           ladies_count: number | null
-          lead_id: string | null
           men_count: number | null
-          parking_required: boolean | null
           primary_contact_name: string | null
-          primary_contact_phone: string | null
-          quote_sent_date: string | null
-          room_layout: string | null
+          primary_contact_number: string | null
           secondary_contact_name: string | null
-          secondary_contact_phone: string | null
-          secondary_contact_relationship: string | null
-          setup_time: string | null
-          special_requests: string | null
-          start_time: string
-          status: string | null
-          tax_amount: number | null
-          tenant_id: string | null
-          total_amount: number | null
-          total_guest_price: number | null
-          total_guests: number | null
+          secondary_contact_number: string | null
+          start_time: string | null
+          tenant_id: string
+          title: string
+          total_guest_price_gbp: number | null
           updated_at: string | null
-          venue_area: string | null
         }
         Insert: {
-          accessibility_requirements?: string | null
-          additional_costs?: number | null
-          av_equipment_required?: boolean | null
-          balance_cleared?: boolean | null
-          balance_cleared_date?: string | null
-          balance_due?: number | null
-          base_price?: number | null
-          booking_stage?: string | null
-          cancellation_fee?: number | null
-          cancellation_reason?: string | null
-          cancelled_at?: string | null
-          catering_required?: boolean | null
-          cleanup_time?: string | null
-          confirmed_date?: string | null
-          confirmed_guests?: number | null
-          contract_signed_date?: string | null
           created_at?: string | null
           customer_id?: string | null
-          decoration_required?: boolean | null
-          deposit_amount?: number | null
-          deposit_paid?: boolean | null
-          deposit_paid_date?: string | null
-          dietary_requirements?: string | null
-          discount_amount?: number | null
-          end_time: string
-          estimated_guests: number
-          ethnicity?: string | null
+          deposit_amount_gbp?: number | null
+          end_time?: string | null
+          ethnicity?: Json | null
+          event_date?: string | null
           event_end_date?: string | null
-          event_finalized?: boolean | null
-          event_finalized_date?: string | null
-          event_mix_type?: string | null
-          event_multiple_days?: boolean | null
-          event_name: string
-          event_start_date?: string | null
-          event_type: string
-          final_payment_due?: string | null
-          final_payment_paid?: boolean | null
-          form_responses?: Json | null
-          form_template_used?: string | null
-          form_total?: number | null
+          event_type?: string | null
+          form_id?: string | null
+          form_total_gbp?: number | null
           id?: string
-          inquiry_date?: string | null
-          internal_notes?: string | null
           ladies_count?: number | null
-          lead_id?: string | null
           men_count?: number | null
-          parking_required?: boolean | null
           primary_contact_name?: string | null
-          primary_contact_phone?: string | null
-          quote_sent_date?: string | null
-          room_layout?: string | null
+          primary_contact_number?: string | null
           secondary_contact_name?: string | null
-          secondary_contact_phone?: string | null
-          secondary_contact_relationship?: string | null
-          setup_time?: string | null
-          special_requests?: string | null
-          start_time: string
-          status?: string | null
-          tax_amount?: number | null
-          tenant_id?: string | null
-          total_amount?: number | null
-          total_guest_price?: number | null
-          total_guests?: number | null
+          secondary_contact_number?: string | null
+          start_time?: string | null
+          tenant_id: string
+          title: string
+          total_guest_price_gbp?: number | null
           updated_at?: string | null
-          venue_area?: string | null
         }
         Update: {
-          accessibility_requirements?: string | null
-          additional_costs?: number | null
-          av_equipment_required?: boolean | null
-          balance_cleared?: boolean | null
-          balance_cleared_date?: string | null
-          balance_due?: number | null
-          base_price?: number | null
-          booking_stage?: string | null
-          cancellation_fee?: number | null
-          cancellation_reason?: string | null
-          cancelled_at?: string | null
-          catering_required?: boolean | null
-          cleanup_time?: string | null
-          confirmed_date?: string | null
-          confirmed_guests?: number | null
-          contract_signed_date?: string | null
           created_at?: string | null
           customer_id?: string | null
-          decoration_required?: boolean | null
-          deposit_amount?: number | null
-          deposit_paid?: boolean | null
-          deposit_paid_date?: string | null
-          dietary_requirements?: string | null
-          discount_amount?: number | null
-          end_time?: string
-          estimated_guests?: number
-          ethnicity?: string | null
+          deposit_amount_gbp?: number | null
+          end_time?: string | null
+          ethnicity?: Json | null
+          event_date?: string | null
           event_end_date?: string | null
-          event_finalized?: boolean | null
-          event_finalized_date?: string | null
-          event_mix_type?: string | null
-          event_multiple_days?: boolean | null
-          event_name?: string
-          event_start_date?: string | null
-          event_type?: string
-          final_payment_due?: string | null
-          final_payment_paid?: boolean | null
-          form_responses?: Json | null
-          form_template_used?: string | null
-          form_total?: number | null
+          event_type?: string | null
+          form_id?: string | null
+          form_total_gbp?: number | null
           id?: string
-          inquiry_date?: string | null
-          internal_notes?: string | null
           ladies_count?: number | null
-          lead_id?: string | null
           men_count?: number | null
-          parking_required?: boolean | null
           primary_contact_name?: string | null
-          primary_contact_phone?: string | null
-          quote_sent_date?: string | null
-          room_layout?: string | null
+          primary_contact_number?: string | null
           secondary_contact_name?: string | null
-          secondary_contact_phone?: string | null
-          secondary_contact_relationship?: string | null
-          setup_time?: string | null
-          special_requests?: string | null
-          start_time?: string
-          status?: string | null
-          tax_amount?: number | null
-          tenant_id?: string | null
-          total_amount?: number | null
-          total_guest_price?: number | null
-          total_guests?: number | null
+          secondary_contact_number?: string | null
+          start_time?: string | null
+          tenant_id?: string
+          title?: string
+          total_guest_price_gbp?: number | null
           updated_at?: string | null
-          venue_area?: string | null
         }
         Relationships: [
           {
@@ -1172,10 +1087,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "events_lead_id_fkey"
-            columns: ["lead_id"]
+            foreignKeyName: "events_form_id_fkey"
+            columns: ["form_id"]
             isOneToOne: false
-            referencedRelation: "leads"
+            referencedRelation: "forms"
             referencedColumns: ["id"]
           },
           {
@@ -1217,155 +1132,48 @@ export type Database = {
         }
         Relationships: []
       }
-      field_library: {
+      field_types: {
         Row: {
           active: boolean | null
-          category: string | null
+          category: string
           created_at: string | null
-          field_type: string
+          default_config: Json | null
+          description: string | null
+          display_name: string
+          icon: string | null
           id: string
-          label: string
           name: string
-          options: Json | null
-          required: boolean | null
-          sort_order: number | null
-          tenant_id: string | null
-          updated_at: string | null
+          supports_notes: boolean | null
+          supports_pricing: boolean | null
+          supports_quantity: boolean | null
         }
         Insert: {
           active?: boolean | null
-          category?: string | null
+          category: string
           created_at?: string | null
-          field_type: string
+          default_config?: Json | null
+          description?: string | null
+          display_name: string
+          icon?: string | null
           id?: string
-          label: string
           name: string
-          options?: Json | null
-          required?: boolean | null
-          sort_order?: number | null
-          tenant_id?: string | null
-          updated_at?: string | null
+          supports_notes?: boolean | null
+          supports_pricing?: boolean | null
+          supports_quantity?: boolean | null
         }
         Update: {
           active?: boolean | null
-          category?: string | null
+          category?: string
           created_at?: string | null
-          field_type?: string
+          default_config?: Json | null
+          description?: string | null
+          display_name?: string
+          icon?: string | null
           id?: string
-          label?: string
           name?: string
-          options?: Json | null
-          required?: boolean | null
-          sort_order?: number | null
-          tenant_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "field_library_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      field_library_backup: {
-        Row: {
-          active: boolean | null
-          affects_pricing: boolean | null
-          allow_zero_price: boolean | null
-          auto_add_notes_field: boolean | null
-          auto_add_price_field: boolean | null
-          category: string | null
-          created_at: string | null
-          custom_pricing_logic: Json | null
-          default_quantity: number | null
-          default_value: string | null
-          field_type: string | null
-          help_text: string | null
-          id: string | null
-          label: string | null
-          max_quantity: number | null
-          min_quantity: number | null
-          name: string | null
-          options: Json | null
-          placeholder: string | null
-          price_modifier: number | null
-          pricing_behavior: string | null
-          pricing_tiers: Json | null
-          pricing_type: string | null
-          show_notes_field: boolean | null
-          show_quantity_field: boolean | null
-          tenant_id: string | null
-          unit_price: number | null
-          updated_at: string | null
-          usage_count: number | null
-          validation_rules: Json | null
-        }
-        Insert: {
-          active?: boolean | null
-          affects_pricing?: boolean | null
-          allow_zero_price?: boolean | null
-          auto_add_notes_field?: boolean | null
-          auto_add_price_field?: boolean | null
-          category?: string | null
-          created_at?: string | null
-          custom_pricing_logic?: Json | null
-          default_quantity?: number | null
-          default_value?: string | null
-          field_type?: string | null
-          help_text?: string | null
-          id?: string | null
-          label?: string | null
-          max_quantity?: number | null
-          min_quantity?: number | null
-          name?: string | null
-          options?: Json | null
-          placeholder?: string | null
-          price_modifier?: number | null
-          pricing_behavior?: string | null
-          pricing_tiers?: Json | null
-          pricing_type?: string | null
-          show_notes_field?: boolean | null
-          show_quantity_field?: boolean | null
-          tenant_id?: string | null
-          unit_price?: number | null
-          updated_at?: string | null
-          usage_count?: number | null
-          validation_rules?: Json | null
-        }
-        Update: {
-          active?: boolean | null
-          affects_pricing?: boolean | null
-          allow_zero_price?: boolean | null
-          auto_add_notes_field?: boolean | null
-          auto_add_price_field?: boolean | null
-          category?: string | null
-          created_at?: string | null
-          custom_pricing_logic?: Json | null
-          default_quantity?: number | null
-          default_value?: string | null
-          field_type?: string | null
-          help_text?: string | null
-          id?: string | null
-          label?: string | null
-          max_quantity?: number | null
-          min_quantity?: number | null
-          name?: string | null
-          options?: Json | null
-          placeholder?: string | null
-          price_modifier?: number | null
-          pricing_behavior?: string | null
-          pricing_tiers?: Json | null
-          pricing_type?: string | null
-          show_notes_field?: boolean | null
-          show_quantity_field?: boolean | null
-          tenant_id?: string | null
-          unit_price?: number | null
-          updated_at?: string | null
-          usage_count?: number | null
-          validation_rules?: Json | null
+          supports_notes?: boolean | null
+          supports_pricing?: boolean | null
+          supports_quantity?: boolean | null
         }
         Relationships: []
       }
@@ -1418,20 +1226,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "finance_timeline_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "finance_timeline_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "finance_timeline_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1440,245 +1234,153 @@ export type Database = {
           },
         ]
       }
-      form_field_instances: {
+      form_fields: {
         Row: {
-          conditional_logic: Json | null
           created_at: string | null
-          field_library_id: string | null
-          field_order: number
-          field_width: string | null
-          form_section_id: string | null
-          form_template_id: string | null
-          help_text_override: string | null
+          default_price_gbp: number | null
+          field_type: string
+          has_notes: boolean | null
+          has_pricing: boolean | null
+          help_text: string | null
           id: string
-          label_override: string | null
-          placeholder_override: string | null
-          required_override: boolean | null
-          tenant_id: string | null
-          validation_rules_override: Json | null
+          is_active: boolean | null
+          name: string
+          placeholder_text: string | null
+          pricing_type: string | null
+          tenant_id: string
+          updated_at: string | null
         }
         Insert: {
-          conditional_logic?: Json | null
           created_at?: string | null
-          field_library_id?: string | null
-          field_order: number
-          field_width?: string | null
-          form_section_id?: string | null
-          form_template_id?: string | null
-          help_text_override?: string | null
+          default_price_gbp?: number | null
+          field_type: string
+          has_notes?: boolean | null
+          has_pricing?: boolean | null
+          help_text?: string | null
           id?: string
-          label_override?: string | null
-          placeholder_override?: string | null
-          required_override?: boolean | null
-          tenant_id?: string | null
-          validation_rules_override?: Json | null
+          is_active?: boolean | null
+          name: string
+          placeholder_text?: string | null
+          pricing_type?: string | null
+          tenant_id: string
+          updated_at?: string | null
         }
         Update: {
-          conditional_logic?: Json | null
           created_at?: string | null
-          field_library_id?: string | null
-          field_order?: number
-          field_width?: string | null
-          form_section_id?: string | null
-          form_template_id?: string | null
-          help_text_override?: string | null
+          default_price_gbp?: number | null
+          field_type?: string
+          has_notes?: boolean | null
+          has_pricing?: boolean | null
+          help_text?: string | null
           id?: string
-          label_override?: string | null
-          placeholder_override?: string | null
-          required_override?: boolean | null
-          tenant_id?: string | null
-          validation_rules_override?: Json | null
+          is_active?: boolean | null
+          name?: string
+          placeholder_text?: string | null
+          pricing_type?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      form_responses: {
+        Row: {
+          event_id: string
+          field_id: string
+          field_name: string
+          field_type: string
+          form_id: string
+          id: string
+          notes: string | null
+          quantity: number | null
+          total_amount_gbp: number | null
+          unit_price_gbp: number | null
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          event_id: string
+          field_id: string
+          field_name: string
+          field_type: string
+          form_id: string
+          id?: string
+          notes?: string | null
+          quantity?: number | null
+          total_amount_gbp?: number | null
+          unit_price_gbp?: number | null
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          event_id?: string
+          field_id?: string
+          field_name?: string
+          field_type?: string
+          form_id?: string
+          id?: string
+          notes?: string | null
+          quantity?: number | null
+          total_amount_gbp?: number | null
+          unit_price_gbp?: number | null
+          updated_at?: string | null
+          value?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "fk_form_field_instances_template"
-            columns: ["form_template_id"]
+            foreignKeyName: "fk_form_responses_event_id"
+            columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "form_templates"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "form_field_instances_field_library_id_fkey"
-            columns: ["field_library_id"]
+            foreignKeyName: "fk_form_responses_field_id"
+            columns: ["field_id"]
             isOneToOne: false
-            referencedRelation: "field_library"
+            referencedRelation: "form_fields"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "form_field_instances_form_section_id_fkey"
-            columns: ["form_section_id"]
+            foreignKeyName: "fk_form_responses_form_id"
+            columns: ["form_id"]
             isOneToOne: false
-            referencedRelation: "form_sections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "form_field_instances_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
+            referencedRelation: "forms"
             referencedColumns: ["id"]
           },
         ]
       }
-      form_pages: {
+      forms: {
         Row: {
-          created_at: string | null
-          form_template_id: string | null
-          id: string
-          page_description: string | null
-          page_number: number
-          page_title: string
-          required_to_proceed: boolean | null
-          show_progress: boolean | null
-          tenant_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          form_template_id?: string | null
-          id?: string
-          page_description?: string | null
-          page_number: number
-          page_title: string
-          required_to_proceed?: boolean | null
-          show_progress?: boolean | null
-          tenant_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          form_template_id?: string | null
-          id?: string
-          page_description?: string | null
-          page_number?: number
-          page_title?: string
-          required_to_proceed?: boolean | null
-          show_progress?: boolean | null
-          tenant_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "form_pages_form_template_id_fkey"
-            columns: ["form_template_id"]
-            isOneToOne: false
-            referencedRelation: "form_templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "form_pages_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      form_sections: {
-        Row: {
-          background_color: string | null
-          created_at: string | null
-          form_page_id: string | null
-          id: string
-          layout_type: string | null
-          section_description: string | null
-          section_order: number
-          section_title: string | null
-          tenant_id: string | null
-        }
-        Insert: {
-          background_color?: string | null
-          created_at?: string | null
-          form_page_id?: string | null
-          id?: string
-          layout_type?: string | null
-          section_description?: string | null
-          section_order: number
-          section_title?: string | null
-          tenant_id?: string | null
-        }
-        Update: {
-          background_color?: string | null
-          created_at?: string | null
-          form_page_id?: string | null
-          id?: string
-          layout_type?: string | null
-          section_description?: string | null
-          section_order?: number
-          section_title?: string | null
-          tenant_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "form_sections_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      form_templates: {
-        Row: {
-          active: boolean | null
-          allow_save_and_resume: boolean | null
           created_at: string | null
           description: string | null
-          event_types: string[] | null
           id: string
-          is_default: boolean | null
-          is_public: boolean | null
-          last_used_at: string | null
+          is_active: boolean | null
           name: string
-          require_all_pages: boolean | null
-          show_progress_bar: boolean | null
-          tenant_id: string | null
+          sections: Json | null
+          tenant_id: string
           updated_at: string | null
-          usage_count: number | null
-          version: number | null
         }
         Insert: {
-          active?: boolean | null
-          allow_save_and_resume?: boolean | null
           created_at?: string | null
           description?: string | null
-          event_types?: string[] | null
           id?: string
-          is_default?: boolean | null
-          is_public?: boolean | null
-          last_used_at?: string | null
+          is_active?: boolean | null
           name: string
-          require_all_pages?: boolean | null
-          show_progress_bar?: boolean | null
-          tenant_id?: string | null
+          sections?: Json | null
+          tenant_id: string
           updated_at?: string | null
-          usage_count?: number | null
-          version?: number | null
         }
         Update: {
-          active?: boolean | null
-          allow_save_and_resume?: boolean | null
           created_at?: string | null
           description?: string | null
-          event_types?: string[] | null
           id?: string
-          is_default?: boolean | null
-          is_public?: boolean | null
-          last_used_at?: string | null
+          is_active?: boolean | null
           name?: string
-          require_all_pages?: boolean | null
-          show_progress_bar?: boolean | null
-          tenant_id?: string | null
+          sections?: Json | null
+          tenant_id?: string
           updated_at?: string | null
-          usage_count?: number | null
-          version?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "form_templates_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       leads: {
         Row: {
@@ -1776,6 +1478,354 @@ export type Database = {
           },
         ]
       }
+      new_customers: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          postcode: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          postcode?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          postcode?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "new_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      new_events: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          description: string | null
+          end_time: string | null
+          event_date: string
+          form_id: string | null
+          id: string
+          start_time: string | null
+          status: string | null
+          tenant_id: string
+          title: string
+          total_amount_gbp: number | null
+          updated_at: string | null
+          venue_location: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_date: string
+          form_id?: string | null
+          id?: string
+          start_time?: string | null
+          status?: string | null
+          tenant_id: string
+          title: string
+          total_amount_gbp?: number | null
+          updated_at?: string | null
+          venue_location?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_date?: string
+          form_id?: string | null
+          id?: string
+          start_time?: string | null
+          status?: string | null
+          tenant_id?: string
+          title?: string
+          total_amount_gbp?: number | null
+          updated_at?: string | null
+          venue_location?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "new_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "new_events_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "new_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "new_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "new_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      new_form_fields: {
+        Row: {
+          created_at: string | null
+          default_price_gbp: number | null
+          field_type: string
+          has_notes: boolean | null
+          has_pricing: boolean | null
+          id: string
+          is_active: boolean | null
+          name: string
+          placeholder_text: string | null
+          pricing_type: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_price_gbp?: number | null
+          field_type: string
+          has_notes?: boolean | null
+          has_pricing?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          placeholder_text?: string | null
+          pricing_type?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          default_price_gbp?: number | null
+          field_type?: string
+          has_notes?: boolean | null
+          has_pricing?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          placeholder_text?: string | null
+          pricing_type?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_form_fields_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "new_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      new_form_responses: {
+        Row: {
+          event_id: string
+          field_id: string
+          field_name: string
+          field_type: string
+          id: string
+          notes: string | null
+          quantity: number | null
+          total_amount_gbp: number | null
+          unit_price_gbp: number | null
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          event_id: string
+          field_id: string
+          field_name: string
+          field_type: string
+          id?: string
+          notes?: string | null
+          quantity?: number | null
+          total_amount_gbp?: number | null
+          unit_price_gbp?: number | null
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          event_id?: string
+          field_id?: string
+          field_name?: string
+          field_type?: string
+          id?: string
+          notes?: string | null
+          quantity?: number | null
+          total_amount_gbp?: number | null
+          unit_price_gbp?: number | null
+          updated_at?: string | null
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_form_responses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "new_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "new_form_responses_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "new_form_fields"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      new_forms: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sections: Json | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sections?: Json | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sections?: Json | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_forms_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "new_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      new_tenants: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          settings: Json | null
+          status: string | null
+          subdomain: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          settings?: Json | null
+          status?: string | null
+          subdomain: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          settings?: Json | null
+          status?: string | null
+          subdomain?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      new_users: {
+        Row: {
+          created_at: string | null
+          email: string
+          first_name: string | null
+          id: string
+          is_active: boolean | null
+          last_name: string | null
+          role: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          first_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_name?: string | null
+          role?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          first_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_name?: string | null
+          role?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "new_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_history: {
         Row: {
           amount: number
@@ -1840,20 +1890,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "payment_history_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_history_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "payment_history_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -1868,6 +1904,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      price_warning_rules: {
+        Row: {
+          condition_type: string
+          condition_value: number | null
+          condition_value_max: number | null
+          created_at: string | null
+          field_name: string
+          id: string
+          is_active: boolean | null
+          tenant_id: string
+          updated_at: string | null
+          warning_color: string
+        }
+        Insert: {
+          condition_type: string
+          condition_value?: number | null
+          condition_value_max?: number | null
+          created_at?: string | null
+          field_name: string
+          id?: string
+          is_active?: boolean | null
+          tenant_id: string
+          updated_at?: string | null
+          warning_color: string
+        }
+        Update: {
+          condition_type?: string
+          condition_value?: number | null
+          condition_value_max?: number | null
+          created_at?: string | null
+          field_name?: string
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string
+          updated_at?: string | null
+          warning_color?: string
+        }
+        Relationships: []
       }
       quotes_invoices: {
         Row: {
@@ -1969,20 +2044,6 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quotes_invoices_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "event_summary"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quotes_invoices_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -2484,32 +2545,6 @@ export type Database = {
       }
     }
     Views: {
-      event_summary: {
-        Row: {
-          customer_email: string | null
-          customer_name: string | null
-          customer_phone: string | null
-          end_time: string | null
-          event_date: string | null
-          event_name: string | null
-          event_type: string | null
-          id: string | null
-          staff_assigned: number | null
-          start_time: string | null
-          status: string | null
-          tenant_id: string | null
-          total_amount: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "events_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       lead_pipeline: {
         Row: {
           avg_budget: number | null
@@ -2521,24 +2556,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "leads_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      monthly_revenue: {
-        Row: {
-          avg_event_value: number | null
-          events_count: number | null
-          revenue_month: string | null
-          tenant_id: string | null
-          total_revenue: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "events_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2589,6 +2606,10 @@ export type Database = {
         Args: { tenant_uuid: string; limit_type: string }
         Returns: boolean
       }
+      create_default_guest_section: {
+        Args: { p_form_template_id: string; p_tenant_id: string }
+        Returns: string
+      }
       email_has_used_trial: {
         Args: { email_address: string }
         Returns: boolean
@@ -2603,6 +2624,22 @@ export type Database = {
       }
       get_decrypted_token: {
         Args: { encrypted_token: string }
+        Returns: string
+      }
+      get_event_with_sessions: {
+        Args: { p_event_id: string }
+        Returns: {
+          event_id: string
+          event_name: string
+          is_parent: boolean
+          is_session: boolean
+          session_type: string
+          session_order: number
+          parent_id: string
+        }[]
+      }
+      get_new_tenant_id: {
+        Args: Record<PropertyKey, never>
         Returns: string
       }
       get_next_tab_order: {

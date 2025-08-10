@@ -39,10 +39,10 @@ export const EventTypeFormMappings = () => {
       if (!currentTenant?.id) return [];
       
       const { data, error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .select('*')
         .eq('tenant_id', currentTenant.id)
-        .eq('active', true)
+        .eq('is_active', true)
         .order('name');
       
       if (error) throw error;
@@ -59,7 +59,7 @@ export const EventTypeFormMappings = () => {
         .from('event_type_form_mappings')
         .select(`
           *,
-          form_templates (
+          forms (
             id,
             name,
             description
@@ -80,14 +80,14 @@ export const EventTypeFormMappings = () => {
       
       const { data, error } = await supabase
         .from('event_type_form_mappings')
-        .insert({
-          tenant_id: currentTenant.id,
-          event_type_config_id: selectedEventType,
-          form_template_id: formTemplateId,
-          default_label: defaultLabel,
-          auto_assign: true,
-          sort_order: mappings?.length || 0
-        })
+         .insert({
+           tenant_id: currentTenant.id,
+           event_type_config_id: selectedEventType,
+           form_id: formTemplateId,
+           default_label: defaultLabel,
+           auto_assign: true,
+           sort_order: mappings?.length || 0
+         })
         .select()
         .single();
       
@@ -178,7 +178,7 @@ export const EventTypeFormMappings = () => {
                     <div className="flex items-center gap-3">
                       <GripVertical className="w-4 h-4 text-muted-foreground" />
                       <div>
-                        <h5 className="font-medium">{mapping.form_templates?.name}</h5>
+                        <h5 className="font-medium">{mapping.forms?.name}</h5>
                         <p className="text-sm text-muted-foreground">
                           Default label: {mapping.default_label}
                         </p>

@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { EventCalendarView } from '@/components/events/EventCalendarView';
-import { EventListView } from '@/components/events/EventListView';
+import { SimpleEventList } from '@/components/events/SimpleEventList';
+import { EventsCalendarView } from '@/components/events/EventsCalendarView';
 import { CreateEventDialog } from '@/components/events/CreateEventDialog';
 import { useNavigate } from 'react-router-dom';
 import { AppControls } from '@/components/AppControls';
@@ -18,6 +18,7 @@ export const Events = () => {
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const { data: events, refetch } = useSupabaseQuery(
     ['events'],
@@ -28,25 +29,34 @@ export const Events = () => {
         .from('events')
         .select(`
           id,
-          event_name,
-          event_type,
-          event_start_date,
+          title,
+          event_date,
           event_end_date,
-          event_multiple_days,
           start_time,
           end_time,
-          estimated_guests,
-          total_guests,
-          status,
-          total_amount,
+          event_type,
+          men_count,
+          ladies_count,
+          ethnicity,
+          primary_contact_name,
+          primary_contact_number,
+          secondary_contact_name,
+          secondary_contact_number,
+          total_guest_price_gbp,
+          deposit_amount_gbp,
+          form_total_gbp,
+          customer_id,
           customers (
             name,
             email,
             phone
+          ),
+          event_payments (
+            amount_gbp
           )
         `)
         .eq('tenant_id', currentTenant.id)
-        .order('event_start_date', { ascending: true });
+        .order('event_date', { ascending: true });
       
       if (error) {
         console.error('Events error:', error);
@@ -123,6 +133,8 @@ export const Events = () => {
                 <Input
                   placeholder="Search events..."
                   className="pl-10 w-64 h-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <Button variant="outline" size="sm">
@@ -138,31 +150,34 @@ export const Events = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1">
-        {viewMode === 'list' ? (
-          <EventListView 
+      <div className="flex-1 p-6">
+        {viewMode === 'calendar' ? (
+          <EventsCalendarView 
             events={events || []}
             onEventClick={handleEventClick}
+            onDateClick={handleDateClick}
           />
         ) : (
-          <div className="p-6">
-            <EventCalendarView 
-              events={events || []}
-              onEventClick={handleEventClick}
-              onDateClick={handleDateClick}
-            />
-          </div>
+          <SimpleEventList 
+            events={events || []}
+            onEventClick={handleEventClick}
+            searchQuery={searchQuery}
+          />
         )}
       </div>
 
       <CreateEventDialog
-        open={isCreateEventOpen}
-        onOpenChange={setIsCreateEventOpen}
-        selectedDate={selectedDate}
+        isOpen={isCreateEventOpen}
+        onClose={() => {
+          setIsCreateEventOpen(false);
+          setSelectedDate('');
+        }}
         onSuccess={() => {
           refetch();
           setIsCreateEventOpen(false);
+          setSelectedDate('');
         }}
+        selectedDate={selectedDate}
       />
     </div>
   );

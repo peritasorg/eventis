@@ -26,7 +26,7 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
   const createFormMutation = useSupabaseMutation(
     async (formData: any) => {
       const { data, error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .insert([{
           ...formData,
           tenant_id: currentTenant?.id
@@ -49,7 +49,7 @@ export const FormList: React.FC<FormListProps> = ({ forms, onEditForm, refetchFo
   const deleteFormMutation = useSupabaseMutation(
     async (formId: string) => {
       const { error } = await supabase
-        .from('form_templates')
+        .from('forms')
         .delete()
         .eq('id', formId);
       
