@@ -85,22 +85,39 @@ export const useEventForms = (eventId?: string) => {
       form_label?: string;
       tab_order?: number;
     }) => {
+      console.log('createEventFormMutation called with:', formData);
+      console.log('currentTenant:', currentTenant);
+      
+      if (!currentTenant?.id) {
+        throw new Error('No tenant ID available');
+      }
+      
+      const insertData = {
+        tenant_id: currentTenant.id,
+        event_id: formData.event_id,
+        form_id: formData.form_id,
+        form_label: formData.form_label || 'Main Form',
+        tab_order: formData.tab_order || 1,
+        form_responses: {},
+        form_total: 0,
+        is_active: true
+      };
+      
+      console.log('Inserting data:', insertData);
+      
       const { data, error } = await supabase
         .from('event_forms')
-        .insert({
-          tenant_id: currentTenant?.id!,
-          event_id: formData.event_id,
-          form_id: formData.form_id,
-          form_label: formData.form_label || 'Main Form',
-          tab_order: formData.tab_order || 1,
-          form_responses: {},
-          form_total: 0,
-          is_active: true
-        })
+        .insert(insertData)
         .select()
         .single();
 
-      if (error) throw error;
+      console.log('Insert result:', { data, error });
+      
+      if (error) {
+        console.error('Database insert error:', error);
+        throw error;
+      }
+      
       return data;
     },
     {

@@ -112,22 +112,43 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
   };
 
   const handleAddForm = async () => {
+    console.log('handleAddForm called with selectedFormId:', selectedFormId);
+    
     if (!selectedFormId) {
       toast.error('Please select a form to add');
       return;
     }
 
     const selectedForm = forms.find(f => f.id === selectedFormId);
-    if (!selectedForm) return;
+    console.log('selectedForm found:', selectedForm);
+    
+    if (!selectedForm) {
+      toast.error('Selected form not found');
+      return;
+    }
 
-    await createEventForm({
-      event_id: eventId,
-      form_id: selectedFormId,
-      form_label: selectedForm.name,
-      tab_order: eventForms.length + 1
-    });
+    try {
+      console.log('Calling createEventForm with data:', {
+        event_id: eventId,
+        form_id: selectedFormId,
+        form_label: selectedForm.name,
+        tab_order: eventForms.length + 1
+      });
+      
+      await createEventForm({
+        event_id: eventId,
+        form_id: selectedFormId,
+        form_label: selectedForm.name,
+        tab_order: eventForms.length + 1
+      });
 
-    setSelectedFormId('');
+      console.log('createEventForm completed successfully');
+      setSelectedFormId('');
+      toast.success('Form added to event successfully');
+    } catch (error) {
+      console.error('Error adding form to event:', error);
+      toast.error('Failed to add form to event');
+    }
   };
 
   const renderField = (eventForm: EventForm, field: any, response: any = {}) => {
