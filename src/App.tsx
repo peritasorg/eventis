@@ -25,6 +25,7 @@ import { FormBuilder } from "./pages/FormBuilder";
 import { Forms } from "./pages/Forms";
 import { NewFormBuilderPage } from "./pages/NewFormBuilder";
 import { Customers } from "./pages/Customers";
+import { CustomerProfilePage } from "./pages/CustomerProfile";
 
 import { CalendarSettings } from "./pages/CalendarSettings";
 import { Auth } from "./pages/Auth";
@@ -128,6 +129,11 @@ const App: React.FC = () => {
                                 <Route path="/customers" element={
                                   <ErrorBoundary>
                                     <Customers />
+                                  </ErrorBoundary>
+                                } />
+                                <Route path="/customers/:customerId" element={
+                                  <ErrorBoundary>
+                                    <CustomerProfilePage />
                                   </ErrorBoundary>
                                 } />
                                 <Route path="/calendar-settings" element={

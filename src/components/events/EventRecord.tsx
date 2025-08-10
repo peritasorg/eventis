@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard } from 'lucide-react';
+import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
+import { useEventFormTotals } from '@/hooks/useEventFormTotals';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -113,16 +114,35 @@ export const EventRecord: React.FC = () => {
 
   // Fetch customers for lookup
   const { data: customers } = useSupabaseQuery(
-    ['customers', currentTenant?.id],
+    ['new-customers', currentTenant?.id],
     async () => {
       if (!currentTenant?.id) return [];
       
       const { data, error } = await supabase
-        .from('customers')
-        .select('id, name, email, phone')
+        .from('new_customers')
+        .select('id, first_name, last_name, email, phone')
         .eq('tenant_id', currentTenant.id)
-        .eq('active', true)
-        .order('name');
+        .order('last_name');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
+  // Get live form totals
+  const { liveFormTotal, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
+
+  // Fetch payment timeline for remaining balance calculation
+  const { data: payments } = useSupabaseQuery(
+    ['finance-timeline', eventId],
+    async () => {
+      if (!eventId || !currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('finance_timeline')
+        .select('amount')
+        .eq('event_id', eventId)
+        .eq('tenant_id', currentTenant.id);
       
       if (error) throw error;
       return data || [];
@@ -189,10 +209,13 @@ export const EventRecord: React.FC = () => {
     debouncedSave({ [field]: value });
   }, [eventData, debouncedSave]);
 
-  // Calculate derived values
+  // Calculate derived values with live form totals
   const totalGuests = (eventData?.men_count || 0) + (eventData?.ladies_count || 0);
-  const subtotalGbp = (eventData?.total_guest_price_gbp || 0) + (eventData?.form_total_gbp || 0);
-  const remainingBalanceGbp = subtotalGbp - (eventData?.deposit_amount_gbp || 0);
+  const totalGuestPrice = eventData?.total_guest_price_gbp || 0;
+  const totalEventValue = totalGuestPrice + liveFormTotal;
+  const depositAmount = eventData?.deposit_amount_gbp || 0;
+  const totalPaid = depositAmount + (payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0);
+  const remainingBalanceGbp = totalEventValue - totalPaid;
   
   const daysLeft = eventData?.event_date 
     ? Math.floor((new Date(eventData.event_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -206,6 +229,12 @@ export const EventRecord: React.FC = () => {
   };
 
   const selectedCustomer = customers?.find(c => c.id === eventData?.customer_id);
+  
+  const handleCustomerClick = () => {
+    if (selectedCustomer) {
+      navigate(`/customers/${selectedCustomer.id}`);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -351,28 +380,53 @@ export const EventRecord: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Customer *</Label>
-                <Select
-                  value={eventData.customer_id || ''}
-                  onValueChange={(value) => handleFieldChange('customer_id', value || null)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select customer">
-                      {selectedCustomer && (
-                        <div className="flex items-center gap-2">
-                          <span>🔍</span>
-                          <span>{selectedCustomer.name}</span>
-                        </div>
+                {selectedCustomer ? (
+                  <div className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">
+                        {selectedCustomer.first_name} {selectedCustomer.last_name}
+                      </span>
+                      {selectedCustomer.email && (
+                        <span className="text-sm text-muted-foreground">
+                          ({selectedCustomer.email})
+                        </span>
                       )}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers?.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} {customer.email && `(${customer.email})`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCustomerClick}
+                      >
+                        View Profile
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleFieldChange('customer_id', null)}
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Select
+                    value={eventData.customer_id || ''}
+                    onValueChange={(value) => handleFieldChange('customer_id', value || null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers?.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.first_name} {customer.last_name} {customer.email && `(${customer.email})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -514,15 +568,11 @@ export const EventRecord: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="form_total_gbp">Form Total</Label>
-                <Input
-                  id="form_total_gbp"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={eventData.form_total_gbp || 0}
-                  onChange={(e) => handleFieldChange('form_total_gbp', parseFloat(e.target.value) || 0)}
-                />
+                <Label>Live Form Total</Label>
+                <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
+                  {formatCurrency(liveFormTotal)}
+                  {formTotalsLoading && <span className="ml-2 text-xs text-muted-foreground">Loading...</span>}
+                </div>
               </div>
             </div>
 
@@ -547,10 +597,18 @@ export const EventRecord: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-2 border-t">
-              <div className="flex justify-between items-center text-lg font-semibold">
-                <span>Event Subtotal:</span>
-                <span>{formatCurrency(subtotalGbp)}</span>
+            <div className="pt-2 border-t space-y-2">
+              <div className="flex justify-between items-center">
+                <span>Live Form Total:</span>
+                <span className="font-medium">{formatCurrency(liveFormTotal)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Total Paid:</span>
+                <span className="font-medium">{formatCurrency(totalPaid)}</span>
+              </div>
+              <div className="flex justify-between items-center text-lg font-semibold border-t pt-2">
+                <span>Event Total:</span>
+                <span>{formatCurrency(totalEventValue)}</span>
               </div>
             </div>
           </CardContent>
