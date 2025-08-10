@@ -4,7 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface SecurityEvent {
-  type: 'login_failure' | 'suspicious_activity' | 'data_breach_attempt' | 'unauthorized_access';
+  type: 'login_failure' | 'suspicious_activity' | 'data_breach_attempt' | 'unauthorized_access' | 
+        'development_activity' | 'data_access' | 'injection_attempt' | 'security_error' | 
+        'suspicious_navigation' | 'csp_violation' | 'security_init' | 'session_activity';
   description: string;
   metadata?: Record<string, any>;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
@@ -13,13 +15,13 @@ interface SecurityEvent {
 export const useSecurity = () => {
   const { currentTenant, user } = useAuth();
 
-  // Log security events
+  // Log security events with smart rate limiting
   const logSecurityEvent = useCallback(async (event: SecurityEvent) => {
     if (!currentTenant?.id) return;
 
     try {
-      await supabase.rpc('log_security_event', {
-        p_tenant_id: currentTenant.id,
+      // Use the smart audit function to prevent event flooding
+      await supabase.rpc('audit_security_event_smart', {
         p_event_type: event.type,
         p_description: event.description,
         p_metadata: event.metadata || {},
@@ -47,65 +49,56 @@ export const useSecurity = () => {
     }
   }, [currentTenant?.id]);
 
-  // Monitor for suspicious activity patterns
+  // Monitor for suspicious activity patterns with improved thresholds
   useEffect(() => {
     if (!user || !currentTenant?.id) return;
 
+    let requestCount = 0;
+    let lastResetTime = Date.now();
+    
     const monitorActivity = () => {
-      // Check for multiple rapid requests (potential bot behavior)
-      const requestCount = sessionStorage.getItem('request_count');
-      const lastRequestTime = sessionStorage.getItem('last_request_time');
+      requestCount++;
       const now = Date.now();
-
-      if (requestCount && lastRequestTime) {
-        const count = parseInt(requestCount);
-        const timeDiff = now - parseInt(lastRequestTime);
-
-        // If more than 50 requests in 1 minute, flag as suspicious
-        if (count > 50 && timeDiff < 60000) {
-          logSecurityEvent({
-            type: 'suspicious_activity',
-            description: 'Unusually high request frequency detected',
-            metadata: { requestCount: count, timeWindow: timeDiff },
-            riskLevel: 'medium'
-          });
-
-          // Clear the counter after logging
-          sessionStorage.removeItem('request_count');
-          sessionStorage.removeItem('last_request_time');
-        }
+      
+      // Reset counter every 5 minutes
+      if (now - lastResetTime > 300000) {
+        requestCount = 0;
+        lastResetTime = now;
       }
 
-      // Update request tracking
-      sessionStorage.setItem('request_count', (parseInt(requestCount || '0') + 1).toString());
-      sessionStorage.setItem('last_request_time', now.toString());
+      // Only flag if extremely high request count (more than 200 in 5 minutes)
+      if (requestCount > 200) {
+        logSecurityEvent({
+          type: 'suspicious_activity',
+          description: 'Extremely high request frequency detected',
+          metadata: { 
+            requestCount, 
+            timeWindow: '5 minutes',
+            requestsPerMinute: Math.round(requestCount / 5)
+          },
+          riskLevel: 'high'
+        });
+        requestCount = 0; // Reset to prevent spam
+      }
     };
 
-    // Monitor on page visibility changes (potential tab switching attacks)
+    // Monitor on page visibility changes with rate limiting
+    let lastTabSwitch = 0;
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // User switched away from tab - could be suspicious in some contexts
-        sessionStorage.setItem('tab_hidden_time', Date.now().toString());
-      } else if (document.visibilityState === 'visible') {
-        const hiddenTime = sessionStorage.getItem('tab_hidden_time');
-        if (hiddenTime) {
-          const timeAway = Date.now() - parseInt(hiddenTime);
-          // If away for very short time but came back (possible automation)
-          if (timeAway < 1000 && timeAway > 0) {
-            logSecurityEvent({
-              type: 'suspicious_activity',
-              description: 'Rapid tab switching detected',
-              metadata: { timeAway },
-              riskLevel: 'low'
-            });
-          }
-          sessionStorage.removeItem('tab_hidden_time');
-        }
+      const now = Date.now();
+      if (document.visibilityState === 'hidden' && (now - lastTabSwitch > 30000)) {
+        lastTabSwitch = now;
+        logSecurityEvent({
+          type: 'session_activity',
+          description: 'User tab switching detected',
+          metadata: { timestamp: now },
+          riskLevel: 'low'
+        });
       }
     };
 
-    // Set up monitoring
-    const interval = setInterval(monitorActivity, 1000);
+    // Monitor less frequently to reduce noise
+    const interval = setInterval(monitorActivity, 10000); // Every 10 seconds
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
@@ -138,16 +131,18 @@ export const useSecurity = () => {
     }
   }, []);
 
-  // Content Security Policy violation handler
+  // Enhanced Content Security Policy violation handler
   useEffect(() => {
     const handleCSPViolation = (event: any) => {
       logSecurityEvent({
-        type: 'data_breach_attempt',
+        type: 'csp_violation',
         description: 'Content Security Policy violation detected',
         metadata: {
           violatedDirective: event.violatedDirective,
           blockedURI: event.blockedURI,
-          documentURI: event.documentURI
+          documentURI: event.documentURI,
+          sourceFile: event.sourceFile,
+          lineNumber: event.lineNumber
         },
         riskLevel: 'high'
       });

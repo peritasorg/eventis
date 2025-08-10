@@ -2757,6 +2757,10 @@ export type Database = {
           avg_execution_time_ms: number
         }[]
       }
+      schedule_security_cleanup: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       user_has_valid_access: {
         Args: Record<PropertyKey, never>
         Returns: boolean
