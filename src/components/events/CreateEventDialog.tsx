@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,8 +23,10 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   selectedDate
 }) => {
   const [eventData, setEventData] = useState({
-    event_name: '',
-    event_start_date: ''
+    title: '',
+    event_date: '',
+    event_end_date: '',
+    is_multi_day: false
   });
   const [isLoading, setIsLoading] = useState(false);
   const { currentTenant } = useAuth();
@@ -32,7 +35,11 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   // Update event date when selectedDate changes
   useEffect(() => {
     if (selectedDate) {
-      setEventData(prev => ({ ...prev, event_start_date: selectedDate }));
+      setEventData(prev => ({ 
+        ...prev, 
+        event_date: selectedDate,
+        event_end_date: selectedDate 
+      }));
     }
   }, [selectedDate]);
 
@@ -42,13 +49,18 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
 
     setIsLoading(true);
     try {
+      const eventPayload = {
+        title: eventData.title,
+        event_date: eventData.event_date,
+        tenant_id: currentTenant.id,
+        ...(eventData.is_multi_day && eventData.event_end_date && {
+          event_end_date: eventData.event_end_date
+        })
+      };
+
       const { data, error } = await supabase
         .from('events')
-        .insert({
-          title: eventData.event_name,
-          event_date: eventData.event_start_date,
-          tenant_id: currentTenant.id
-        })
+        .insert([eventPayload])
         .select()
         .single();
 
@@ -59,7 +71,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
       onSuccess?.();
       
       // Reset form
-      setEventData({ event_name: '', event_start_date: '' });
+      setEventData({ title: '', event_date: '', event_end_date: '', is_multi_day: false });
       
       navigate(`/events/${data.id}`);
     } catch (error) {
@@ -70,8 +82,17 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
     }
   };
 
-  const handleChange = (field: string, value: string) => {
-    setEventData(prev => ({ ...prev, [field]: value }));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEventData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleMultiDayChange = (checked: boolean) => {
+    setEventData(prev => ({ 
+      ...prev, 
+      is_multi_day: checked,
+      event_end_date: checked ? prev.event_end_date : prev.event_date
+    }));
   };
 
   return (
@@ -81,25 +102,54 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
           <DialogTitle>Create New Event</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="event_name">Event Title</Label>
-            <Input
-              id="event_name"
-              value={eventData.event_name}
-              onChange={(e) => handleChange('event_name', e.target.value)}
-              placeholder="Enter event title"
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="event_start_date">Event Date</Label>
-            <Input
-              id="event_start_date"
-              type="date"
-              value={eventData.event_start_date}
-              onChange={(e) => handleChange('event_start_date', e.target.value)}
-              required
-            />
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Event Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={eventData.title}
+                onChange={handleChange}
+                placeholder="Enter event title"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="event_date">Start Date</Label>
+              <Input
+                id="event_date"
+                name="event_date"
+                type="date"
+                value={eventData.event_date}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="multi_day"
+                checked={eventData.is_multi_day}
+                onCheckedChange={handleMultiDayChange}
+              />
+              <Label htmlFor="multi_day">Multi-day event</Label>
+            </div>
+
+            {eventData.is_multi_day && (
+              <div>
+                <Label htmlFor="event_end_date">End Date</Label>
+                <Input
+                  id="event_end_date"
+                  name="event_end_date"
+                  type="date"
+                  value={eventData.event_end_date}
+                  onChange={handleChange}
+                  min={eventData.event_date}
+                  required
+                />
+              </div>
+            )}
           </div>
           <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={onClose}>

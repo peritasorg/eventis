@@ -945,6 +945,7 @@ export type Database = {
           end_time: string | null
           ethnicity: string | null
           event_date: string | null
+          event_end_date: string | null
           form_total_gbp: number | null
           id: string
           ladies_count: number | null
@@ -966,6 +967,7 @@ export type Database = {
           end_time?: string | null
           ethnicity?: string | null
           event_date?: string | null
+          event_end_date?: string | null
           form_total_gbp?: number | null
           id?: string
           ladies_count?: number | null
@@ -987,6 +989,7 @@ export type Database = {
           end_time?: string | null
           ethnicity?: string | null
           event_date?: string | null
+          event_end_date?: string | null
           form_total_gbp?: number | null
           id?: string
           ladies_count?: number | null

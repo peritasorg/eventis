@@ -167,20 +167,6 @@ export const LeadsCalendarView: React.FC<LeadsCalendarViewProps> = ({
                     </div>
                   )}
                   
-                  {dayLeads.length === 0 && isCurrentMonth && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full h-6 text-xs text-gray-400 hover:text-gray-600"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDateClick(date.toISOString().split('T')[0]);
-                      }}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add
-                    </Button>
-                  )}
                 </div>
               </div>
             );
