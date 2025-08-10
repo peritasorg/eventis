@@ -1,251 +1,60 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { CreateDefaultFormTemplate } from '../form-builder/CreateDefaultFormTemplate';
-import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
 
 interface AddFormTabDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  eventId: string;
-  nextTabOrder: number;
-  onSuccess: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (label: string) => void;
+  existingForms: any[];
 }
 
 export const AddFormTabDialog: React.FC<AddFormTabDialogProps> = ({
-  open,
-  onOpenChange,
-  eventId,
-  nextTabOrder,
-  onSuccess
+  isOpen,
+  onClose,
+  onAdd,
+  existingForms
 }) => {
-  const { currentTenant } = useAuth();
-  const [formLabel, setFormLabel] = useState('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-
-  // Get already used form templates for this event
-  const { data: usedTemplates } = useSupabaseQuery(
-    ['used-form-templates', eventId],
-    async () => {
-      if (!eventId || !currentTenant?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('event_forms')
-        .select('form_template_id')
-        .eq('event_id', eventId)
-        .eq('tenant_id', currentTenant.id)
-        .eq('is_active', true);
-      
-      if (error) {
-        console.error('Used templates error:', error);
-        return [];
-      }
-      
-      return data?.map(item => item.form_template_id) || [];
-    }
-  );
-
-  const { data: formTemplates } = useSupabaseQuery(
-    ['form-templates'],
-    async () => {
-      console.log('🐛 AddFormTabDialog Debug - Fetching form templates for tenant:', currentTenant?.id);
-      if (!currentTenant?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('form_templates')
-        .select('*')
-        .eq('tenant_id', currentTenant.id)
-        .eq('active', true)
-        .order('name');
-      
-      if (error) {
-        console.error('Form templates error:', error);
-        return [];
-      }
-      
-      console.log('🐛 AddFormTabDialog Debug - Form templates fetched:', data);
-      return data || [];
-    }
-  );
-
-  // Filter out already used templates
-  const availableTemplates = formTemplates?.filter(
-    template => !usedTemplates?.includes(template.id)
-  ) || [];
-  
-  console.log('🐛 AddFormTabDialog Debug - Available templates:', availableTemplates);
-  console.log('🐛 AddFormTabDialog Debug - Used templates:', usedTemplates);
-
-  const addFormTabMutation = useSupabaseMutation(
-    async () => {
-      console.log('🐛 AddFormTabDialog Debug - Starting mutation');
-      console.log('🐛 AddFormTabDialog Debug - selectedTemplateId:', selectedTemplateId);
-      console.log('🐛 AddFormTabDialog Debug - formLabel:', formLabel);
-      console.log('🐛 AddFormTabDialog Debug - eventId:', eventId);
-      console.log('🐛 AddFormTabDialog Debug - currentTenant.id:', currentTenant?.id);
-      
-      if (!selectedTemplateId || !formLabel.trim() || !currentTenant?.id || !eventId) {
-        throw new Error('Please fill in all required fields');
-      }
-      
-      // Use the database function to get the correct tab order
-      const { data: nextOrder, error: orderError } = await supabase
-        .rpc('get_next_tab_order', {
-          p_event_id: eventId,
-          p_tenant_id: currentTenant.id
-        });
-      
-      if (orderError) {
-        console.error('Error getting next tab order:', orderError);
-        throw new Error('Failed to calculate tab order');
-      }
-      
-      const { data, error } = await supabase
-        .from('event_forms')
-        .insert({
-          tenant_id: currentTenant.id,
-          event_id: eventId,
-          form_template_id: selectedTemplateId,
-          form_label: formLabel.trim(),
-          tab_order: nextOrder || 1,
-          form_responses: {},
-          form_total: 0,
-          is_active: true
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('🐛 AddFormTabDialog Insert error:', error);
-        throw error;
-      }
-      
-      console.log('🐛 AddFormTabDialog Debug - Successfully created event_form:', data);
-      return data;
-    },
-    {
-      successMessage: 'Form tab added successfully!',
-      onSuccess: () => {
-        onSuccess();
-        resetForm();
-      }
-    }
-  );
-
-  const resetForm = () => {
-    setFormLabel('');
-    setSelectedTemplateId('');
-  };
+  const [label, setLabel] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!selectedTemplateId) {
-      toast.error('Please select a form template');
-      return;
+    if (label.trim()) {
+      onAdd(label.trim());
+      setLabel('');
+      onClose();
     }
-    
-    if (!formLabel.trim()) {
-      toast.error('Please enter a tab label');
-      return;
-    }
-    
-    addFormTabMutation.mutate(undefined);
   };
-
-  const handleClose = () => {
-    onOpenChange(false);
-    resetForm();
-  };
-  
-  // If no form templates exist at all, show helper to create one
-  if (formTemplates?.length === 0) {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Form Tab</DialogTitle>
-            <DialogDescription>
-              First, you need to create a form template.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <CreateDefaultFormTemplate onSuccess={handleClose} />
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Form Tab</DialogTitle>
-          <DialogDescription>
-            Add a new form tab to this event. You can select from your existing form templates.
-          </DialogDescription>
         </DialogHeader>
-        
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="template">Form Template *</Label>
-            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a form template..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableTemplates.length === 0 ? (
-                  <div className="px-2 py-1 text-sm text-gray-500">
-                    All form templates are already used in this event
-                  </div>
-                ) : (
-                  availableTemplates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                      {template.description && (
-                        <span className="text-muted-foreground ml-2">- {template.description}</span>
-                      )}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="label">Tab Label *</Label>
+          <div>
+            <Label htmlFor="label">Tab Label</Label>
             <Input
               id="label"
-              value={formLabel}
-              onChange={(e) => setFormLabel(e.target.value)}
-              placeholder="e.g., Catering Form, Equipment Form..."
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Enter tab label"
               required
             />
           </div>
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={addFormTabMutation.isPending || !selectedTemplateId || !formLabel.trim()}
-            >
-              {addFormTabMutation.isPending ? 'Adding...' : 'Add Form Tab'}
+            <Button type="submit">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Tab
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
