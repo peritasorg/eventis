@@ -1,6 +1,6 @@
 import React from 'react';
 import { EnhancedEventFormTab } from './EnhancedEventFormTab';
-import { useEventForms } from '@/hooks/useEventForms';
+
 
 interface EventFormTabProps {
   eventForm?: any;

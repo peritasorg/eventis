@@ -75,12 +75,15 @@ export const NewFormBuilder: React.FC<NewFormBuilderProps> = ({ formId, onSave }
       if (data) {
         setFormName(data.name);
         setFormDescription(data.description || '');
-        setSections(data.sections || []);
+        // Parse sections from JSON
+        const parsedSections = Array.isArray(data.sections) 
+          ? data.sections as unknown as FormSection[]
+          : [];
+        setSections(parsedSections);
       }
       
       return data;
-    },
-    { enabled: !!formId }
+    }
   );
 
   // Save form mutation
@@ -89,7 +92,7 @@ export const NewFormBuilder: React.FC<NewFormBuilderProps> = ({ formId, onSave }
       const payload = {
         name: formName,
         description: formDescription,
-        sections: sections,
+        sections: sections as any, // Cast to any for JSON compatibility
         tenant_id: currentTenant?.id,
         is_active: true
       };
@@ -99,6 +102,7 @@ export const NewFormBuilder: React.FC<NewFormBuilderProps> = ({ formId, onSave }
           .from('new_forms')
           .update(payload)
           .eq('id', formId)
+          .select()
           .single();
         
         if (error) throw error;
@@ -107,6 +111,7 @@ export const NewFormBuilder: React.FC<NewFormBuilderProps> = ({ formId, onSave }
         const { data, error } = await supabase
           .from('new_forms')
           .insert(payload)
+          .select()
           .single();
         
         if (error) throw error;

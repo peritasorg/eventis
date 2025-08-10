@@ -156,9 +156,8 @@ export const Events = () => {
       </div>
 
       <CreateEventDialog
-        open={isCreateEventOpen}
-        onOpenChange={setIsCreateEventOpen}
-        selectedDate={selectedDate}
+        isOpen={isCreateEventOpen}
+        onClose={() => setIsCreateEventOpen(false)}
         onSuccess={() => {
           refetch();
           setIsCreateEventOpen(false);
