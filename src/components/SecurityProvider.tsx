@@ -39,23 +39,27 @@ export const SecurityProvider: React.FC<SecurityProviderProps> = ({ children }) 
 
     setSecurityHeaders();
 
-    // Monitor for developer tools (basic detection)
+    // Monitor for developer tools (basic detection) with rate limiting
     const detectDevTools = () => {
       const threshold = 160;
       let devtools = false;
+      let lastDevToolsAlert = 0;
 
       const checkDevTools = () => {
+        const now = Date.now();
         if (window.outerHeight - window.innerHeight > threshold || 
             window.outerWidth - window.innerWidth > threshold) {
-          if (!devtools) {
+          if (!devtools && (now - lastDevToolsAlert > 300000)) { // Only alert once per 5 minutes
             devtools = true;
+            lastDevToolsAlert = now;
             if (user) {
               logSecurityEvent({
-                type: 'suspicious_activity',
+                type: 'development_activity',
                 description: 'Developer tools opened detected',
                 metadata: { 
                   userAgent: navigator.userAgent,
-                  viewport: { width: window.innerWidth, height: window.innerHeight }
+                  viewport: { width: window.innerWidth, height: window.innerHeight },
+                  timestamp: now
                 },
                 riskLevel: 'low'
               });
@@ -66,8 +70,8 @@ export const SecurityProvider: React.FC<SecurityProviderProps> = ({ children }) 
         }
       };
 
-      // Check periodically
-      const interval = setInterval(checkDevTools, 1000);
+      // Check less frequently to reduce overhead
+      const interval = setInterval(checkDevTools, 5000); // Every 5 seconds
       return () => clearInterval(interval);
     };
 
@@ -89,15 +93,22 @@ export const SecurityProvider: React.FC<SecurityProviderProps> = ({ children }) 
 
     document.addEventListener('contextmenu', handleContextMenu);
 
-    // Monitor for copy attempts on sensitive data
+    // Monitor for copy attempts on sensitive data with rate limiting
+    let lastCopyAlert = 0;
     const handleCopy = (e: ClipboardEvent) => {
       const selection = window.getSelection()?.toString();
-      if (selection && selection.length > 100) {
+      const now = Date.now();
+      // Only log very large selections (over 500 chars) and rate limit
+      if (selection && selection.length > 500 && (now - lastCopyAlert > 60000)) {
+        lastCopyAlert = now;
         logSecurityEvent({
-          type: 'suspicious_activity',
+          type: 'data_access',
           description: 'Large text selection copied',
-          metadata: { selectionLength: selection.length },
-          riskLevel: 'low'
+          metadata: { 
+            selectionLength: selection.length,
+            timestamp: now
+          },
+          riskLevel: 'medium'
         });
       }
     };
