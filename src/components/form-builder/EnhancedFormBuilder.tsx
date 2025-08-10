@@ -442,7 +442,7 @@ export const EnhancedFormBuilder: React.FC<EnhancedFormBuilderProps> = ({
           ) : (
             <div className="p-6 space-y-6">
               <DragDropContext onDragEnd={handleDragEnd}>
-                {formSections.map((section) => {
+                {formSections?.map((section) => {
                   const sectionFields = getFieldsForSection(section.id);
                   
                   return (
