@@ -392,9 +392,9 @@ export const IntegratedFormBuilder: React.FC<IntegratedFormBuilderProps> = ({ fo
                       formResponses={{}}
                       readOnly={false}
                       removeFieldMutation={removeFieldMutation}
-                      onResponseChange={(fieldId, field, value) => {
+                      onResponseChange={(fieldId, response) => {
                         // Handle field interactions in edit mode if needed
-                        console.log('Field interaction:', { fieldId, field, value });
+                        console.log('Field interaction:', { fieldId, response });
                       }}
                     />
                   ) : (

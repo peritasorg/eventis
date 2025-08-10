@@ -24,12 +24,14 @@ const getFieldIcon = (type: string) => {
     'service_field': Wrench,
     'counter_field': Hash,
     'guest_count': Users,
-    'text_field': FileText,
-    'textarea_field': FileText,
-    'select_field': List,
-    'checkbox_field': CheckSquare,
-    'date_field': Calendar,
-    'time_field': Clock,
+    'text': FileText,
+    'textarea': FileText,
+    'select': List,
+    'toggle': CheckSquare,
+    'checkbox': CheckSquare,
+    'date': Calendar,
+    'time': Clock,
+    'number': Hash,
   };
   return icons[type] || FileText;
 };
@@ -43,6 +45,7 @@ const getCategoryDisplayName = (category: string) => {
     guests: '👥 Guest Info',
     information: '📝 Information',
     selection: '📋 Selection',
+    requirements: '⚠️ Requirements',
   };
   return names[category] || category;
 };
@@ -90,19 +93,20 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
     }
   );
 
-  // Get fields already in the form
-  const { data: formFieldIds } = useSupabaseQuery(
-    ['form-field-instances', formId],
+  // Get fields already in this specific section - CRITICAL FIX
+  const { data: sectionFieldIds } = useSupabaseQuery(
+    ['section-field-instances', formId, sectionId],
     async () => {
-      if (!formId) return [];
+      if (!formId || !sectionId) return [];
       
       const { data, error } = await supabase
         .from('form_field_instances')
         .select('field_library_id')
-        .eq('form_template_id', formId);
+        .eq('form_template_id', formId)
+        .eq('section_id', sectionId); // Only fields in this section
       
       if (error) {
-        console.error('Form field instances error:', error);
+        console.error('Section field instances error:', error);
         return [];
       }
       
@@ -110,23 +114,28 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
     }
   );
 
-  // Add field to form mutation
-  const addFieldToFormMutation = useSupabaseMutation(
+  // Add field to section mutation - CRITICAL FIX
+  const addFieldToSectionMutation = useSupabaseMutation(
     async (fieldId: string) => {
       if (!currentTenant?.id) {
         throw new Error('No tenant found');
       }
       
-      // Check if field is already in form
-      if (formFieldIds?.includes(fieldId)) {
-        throw new Error('This field is already in the form');
+      if (!sectionId) {
+        throw new Error('Please select a section first');
       }
       
-      // Get next order number
+      // Check if field is already in this section
+      if (sectionFieldIds?.includes(fieldId)) {
+        throw new Error('This field is already in this section');
+      }
+      
+      // Get next order number for this section
       const { data: existingFields } = await supabase
         .from('form_field_instances')
         .select('field_order')
         .eq('form_template_id', formId)
+        .eq('section_id', sectionId)
         .order('field_order', { ascending: false })
         .limit(1);
       
@@ -138,7 +147,7 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
           tenant_id: currentTenant.id,
           form_template_id: formId,
           field_library_id: fieldId,
-          section_id: sectionId,
+          section_id: sectionId, // CRITICAL: Assign to specific section
           field_order: nextOrder,
         })
         .select()
@@ -163,8 +172,12 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
       return data;
     },
     {
-      successMessage: 'Field added to form!',
-      invalidateQueries: [['form-field-instances', formId], ['field-library']],
+      successMessage: 'Field added to section!',
+      invalidateQueries: [
+        ['section-field-instances', formId, sectionId], 
+        ['form-field-instances', formId],
+        ['field-library']
+      ],
       onSuccess: () => {
         onFieldAdded();
       }
@@ -173,7 +186,7 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
 
   const categories = Object.keys(fieldTypesByCategory);
   const filteredFields = availableFields?.filter(field => 
-    !formFieldIds?.includes(field.id)
+    !sectionFieldIds?.includes(field.id)
   ) || [];
 
   const handleCreateField = () => {
@@ -201,9 +214,13 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
           </Button>
         </div>
         
-        {sectionId && (
+        {sectionId ? (
           <div className="p-2 bg-primary/10 rounded text-xs text-primary">
-            Adding to selected section
+            ✓ Adding fields to selected section
+          </div>
+        ) : (
+          <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded text-xs text-orange-600 dark:text-orange-400">
+            ⚠️ Select a section first to add fields
           </div>
         )}
         
@@ -228,11 +245,17 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
           </TabsList>
           
           <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
-            {filteredFields.length === 0 ? (
+            {!sectionId ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <List className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Select a section first</p>
+                <p className="text-sm">Choose a section from the left to start adding fields</p>
+              </div>
+            ) : filteredFields.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No fields available</p>
-                <p className="text-sm">Create a custom field or adjust your search</p>
+                <p>No available fields</p>
+                <p className="text-sm">All fields are already in this section or create a new one</p>
               </div>
             ) : (
               filteredFields.map((field) => {
@@ -252,12 +275,22 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
                       </Badge>
                     </div>
                     
+                    {field.help_text && (
+                      <p className="text-xs text-muted-foreground mb-2">{field.help_text}</p>
+                    )}
+                    
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        {field.affects_pricing && <PoundSterling className="w-3 h-3" />}
-                        {field.show_quantity && <Hash className="w-3 h-3" />}
-                        {field.show_notes && <FileText className="w-3 h-3" />}
-                        <span>{field.unit_price > 0 ? `£${field.unit_price}` : 'No price'}</span>
+                        {field.affects_pricing && <PoundSterling className="w-3 h-3 text-green-600" />}
+                        {field.show_quantity && <Hash className="w-3 h-3 text-blue-600" />}
+                        {field.show_notes && <FileText className="w-3 h-3 text-gray-500" />}
+                        <span className="ml-1">
+                          {field.affects_pricing && field.unit_price > 0 ? (
+                            <span className="text-green-600 font-medium">£{field.unit_price}</span>
+                          ) : (
+                            'No pricing'
+                          )}
+                        </span>
                       </div>
                       
                       <div className="flex gap-1">
@@ -271,11 +304,11 @@ export const EnhancedFieldLibrary: React.FC<EnhancedFieldLibraryProps> = ({
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => addFieldToFormMutation.mutate(field.id)}
-                          disabled={addFieldToFormMutation.isPending}
+                          onClick={() => addFieldToSectionMutation.mutate(field.id)}
+                          disabled={addFieldToSectionMutation.isPending || !sectionId}
                           className="h-6 px-2 text-xs"
                         >
-                          Add
+                          {addFieldToSectionMutation.isPending ? 'Adding...' : 'Add'}
                         </Button>
                       </div>
                     </div>

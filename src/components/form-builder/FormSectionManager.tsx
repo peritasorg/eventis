@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit, Trash2, GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, Users } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,11 +24,9 @@ interface Section {
   section_title: string | null;
   section_description: string | null;
   section_order: number;
-  form_page_id: string | null;
+  form_template_id: string | null;
   tenant_id: string | null;
   created_at: string;
-  background_color: string | null;
-  layout_type: string | null;
 }
 
 export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
@@ -41,16 +39,17 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-  // Fetch form sections
+  // Fetch form sections - CRITICAL FIX: Filter by form_template_id
   const { data: sections, refetch: refetchSections } = useSupabaseQuery(
     ['form-sections', formId],
     async () => {
-      if (!formId) return [];
+      if (!formId || !currentTenant?.id) return [];
       
       const { data, error } = await supabase
         .from('form_sections')
         .select('*')
-        .eq('tenant_id', currentTenant?.id)
+        .eq('tenant_id', currentTenant.id)
+        .eq('form_template_id', formId) // CRITICAL: Filter by form
         .order('section_order');
       
       if (error) {
@@ -62,18 +61,45 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
     }
   );
 
-  // Create section mutation
+  // Get field counts per section
+  const { data: fieldCounts } = useSupabaseQuery(
+    ['section-field-counts', formId],
+    async () => {
+      if (!formId || !sections?.length) return {};
+      
+      const { data, error } = await supabase
+        .from('form_field_instances')
+        .select('section_id')
+        .eq('form_template_id', formId);
+      
+      if (error) return {};
+      
+      const counts: Record<string, number> = {};
+      data?.forEach(field => {
+        if (field.section_id) {
+          counts[field.section_id] = (counts[field.section_id] || 0) + 1;
+        }
+      });
+      
+      return counts;
+    }
+  );
+
+  // Create section mutation - CRITICAL FIX: Include form_template_id
   const createSectionMutation = useSupabaseMutation(
     async (sectionData: { section_title: string; section_description?: string }) => {
+      if (!currentTenant?.id) throw new Error('No tenant found');
+      
       const maxOrder = sections?.length ? Math.max(...sections.map(s => s.section_order)) : 0;
       
       const { data, error } = await supabase
         .from('form_sections')
         .insert([{
+          form_template_id: formId, // CRITICAL: Link to form
           section_title: sectionData.section_title,
           section_description: sectionData.section_description,
           section_order: maxOrder + 1,
-          tenant_id: currentTenant?.id
+          tenant_id: currentTenant.id
         }])
         .select()
         .single();
@@ -118,6 +144,15 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
   // Delete section mutation
   const deleteSectionMutation = useSupabaseMutation(
     async (sectionId: string) => {
+      // First delete all field instances in this section
+      const { error: fieldsError } = await supabase
+        .from('form_field_instances')
+        .delete()
+        .eq('section_id', sectionId);
+      
+      if (fieldsError) throw fieldsError;
+      
+      // Then delete the section
       const { error } = await supabase
         .from('form_sections')
         .delete()
@@ -126,7 +161,7 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
       if (error) throw error;
     },
     {
-      successMessage: 'Section deleted successfully!',
+      successMessage: 'Section and all its fields deleted successfully!',
       onSuccess: refetchSections
     }
   );
@@ -197,6 +232,33 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
     });
   };
 
+  // Auto-create Guest Information section if no sections exist
+  React.useEffect(() => {
+    if (sections?.length === 0 && formId && currentTenant?.id) {
+      const createGuestSection = async () => {
+        const { data, error } = await supabase
+          .from('form_sections')
+          .insert([{
+            form_template_id: formId,
+            section_title: 'Guest Information',
+            section_description: 'Basic information about the event and guests',
+            section_order: 1,
+            tenant_id: currentTenant.id
+          }])
+          .select()
+          .single();
+
+        if (!error && data) {
+          // Auto-select the new section
+          onSectionSelect?.(data.id);
+          refetchSections();
+        }
+      };
+
+      createGuestSection();
+    }
+  }, [sections?.length, formId, currentTenant?.id]);
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -255,12 +317,9 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
       {sections?.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
-            <Plus className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-muted-foreground mb-4">No sections created yet</p>
-            <Button onClick={() => setIsCreateOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create First Section
-            </Button>
+            <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-muted-foreground mb-2">Creating Guest Information section...</p>
+            <p className="text-xs text-muted-foreground">This will be auto-created for you.</p>
           </CardContent>
         </Card>
       ) : (
@@ -286,7 +345,7 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
                           snapshot.isDragging ? 'shadow-lg' : ''
                         } ${
                           selectedSectionId === section.id ? 'ring-2 ring-primary' : ''
-                        } cursor-pointer transition-all`}
+                        } cursor-pointer transition-all hover:shadow-md`}
                         onClick={() => onSectionSelect?.(section.id)}
                       >
                         <CardHeader className="pb-3">
@@ -326,6 +385,10 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
                             
                             <div className="flex items-center gap-1">
                               <Badge variant="outline" className="text-xs">
+                                {fieldCounts?.[section.id] || 0} fields
+                              </Badge>
+                              
+                              <Badge variant="secondary" className="text-xs">
                                 #{section.section_order}
                               </Badge>
                               
@@ -345,7 +408,9 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  deleteSectionMutation.mutate(section.id);
+                                  if (window.confirm('Delete this section and all its fields?')) {
+                                    deleteSectionMutation.mutate(section.id);
+                                  }
                                 }}
                                 className="text-destructive hover:text-destructive"
                               >
@@ -358,7 +423,11 @@ export const FormSectionManager: React.FC<FormSectionManagerProps> = ({
                         {!collapsedSections.has(section.id) && (
                           <CardContent className="pt-0">
                             <div className="text-sm text-muted-foreground">
-                              Click to select this section and add fields to it
+                              {selectedSectionId === section.id ? (
+                                <span className="text-primary font-medium">✓ Selected - Fields will be added to this section</span>
+                              ) : (
+                                'Click to select this section and add fields to it'
+                              )}
                             </div>
                           </CardContent>
                         )}
