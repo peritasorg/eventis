@@ -20,8 +20,7 @@ interface Event {
   deposit_amount_gbp?: number;
   event_payments?: Array<{ amount_gbp: number }>;
   customers?: {
-    first_name?: string;
-    last_name?: string;
+    name?: string;
     email?: string;
     phone?: string;
   };

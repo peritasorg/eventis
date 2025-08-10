@@ -18,6 +18,7 @@ export const Events = () => {
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const { data: events, refetch } = useSupabaseQuery(
     ['events'],
@@ -30,6 +31,7 @@ export const Events = () => {
           id,
           title,
           event_date,
+          event_end_date,
           start_time,
           end_time,
           men_count,
@@ -44,10 +46,12 @@ export const Events = () => {
           form_total_gbp,
           customer_id,
           customers (
-            first_name,
-            last_name,
+            name,
             email,
             phone
+          ),
+          event_payments (
+            amount_gbp
           )
         `)
         .eq('tenant_id', currentTenant.id)
@@ -128,6 +132,8 @@ export const Events = () => {
                 <Input
                   placeholder="Search events..."
                   className="pl-10 w-64 h-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <Button variant="outline" size="sm">
@@ -154,6 +160,7 @@ export const Events = () => {
           <SimpleEventList 
             events={events || []}
             onEventClick={handleEventClick}
+            searchQuery={searchQuery}
           />
         )}
       </div>
