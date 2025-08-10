@@ -2055,6 +2055,51 @@ export type Database = {
           },
         ]
       }
+      security_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          is_active: boolean
+          last_activity: string
+          login_at: string
+          logout_at: string | null
+          risk_score: number | null
+          session_token: string
+          tenant_id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean
+          last_activity?: string
+          login_at?: string
+          logout_at?: string | null
+          risk_score?: number | null
+          session_token: string
+          tenant_id: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean
+          last_activity?: string
+          login_at?: string
+          logout_at?: string | null
+          risk_score?: number | null
+          session_token?: string
+          tenant_id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       staff: {
         Row: {
           active: boolean | null
@@ -2574,6 +2619,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      audit_security_event_smart: {
+        Args: {
+          p_event_type: string
+          p_description: string
+          p_metadata?: Json
+          p_risk_level?: string
+        }
+        Returns: undefined
+      }
       calculate_event_form_total: {
         Args: { p_event_form_id: string }
         Returns: number
@@ -2605,6 +2659,10 @@ export type Database = {
       check_usage_limits: {
         Args: { tenant_uuid: string; limit_type: string }
         Returns: boolean
+      }
+      cleanup_old_security_events: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       create_default_guest_section: {
         Args: { p_form_template_id: string; p_tenant_id: string }
