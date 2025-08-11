@@ -57,9 +57,11 @@ export const CalendarSyncSettings = () => {
         return;
       }
 
-      if (data?.url) {
-        window.open(data.url, '_blank');
+      if (data?.authUrl) {
+        window.open(data.authUrl, '_blank');
         toast.info('Please complete authorization in the new window');
+      } else {
+        toast.error('No authorization URL received');
       }
     } catch (error: any) {
       toast.error(`Error: ${error.message}`);
