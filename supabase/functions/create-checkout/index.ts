@@ -42,12 +42,11 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // IMPORTANT: Replace these with your actual Stripe Price IDs from your dashboard
-    // Go to https://dashboard.stripe.com/products to find your actual price IDs
+    // Actual Stripe Price IDs from production dashboard
     const tierPriceIds = {
-      'Professional': 'REPLACE_WITH_YOUR_PROFESSIONAL_PRICE_ID',
-      'Business': 'REPLACE_WITH_YOUR_BUSINESS_PRICE_ID', 
-      'Enterprise': 'REPLACE_WITH_YOUR_ENTERPRISE_PRICE_ID'
+      'Professional': 'price_1RdTvuDjPYkyTVvULZ9k6ZP5',
+      'Business': 'price_1RdTwvDjPYkyTVvULDFYVMYf', 
+      'Enterprise': 'price_1Rv1S7DjPYkyTVvUiuAxCGxd'
     };
 
     const priceId = tierPriceIds[tier as keyof typeof tierPriceIds];
