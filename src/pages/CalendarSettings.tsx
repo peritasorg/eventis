@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, Settings, Clock, Palette, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Settings, Clock, Palette, FileText, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +8,7 @@ import { EventTypeConfigs } from '@/components/calendar-sync/EventTypeConfigs';
 import { EventTypeFormMappings } from '@/components/calendar-sync/EventTypeFormMappings';
 import { TimeSlotManager } from '@/components/events/TimeSlotManager';
 import { DateWarningsSettings } from '@/components/calendar-sync/DateWarningsSettings';
+import { CalendarSyncSettings } from '@/components/settings/CalendarSyncSettings';
 
 export const CalendarSettings = () => {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export const CalendarSettings = () => {
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="event-types" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="event-types" className="flex items-center gap-2">
                 <Palette className="w-4 h-4" />
                 Event Types
@@ -53,6 +54,10 @@ export const CalendarSettings = () => {
               <TabsTrigger value="date-warnings" className="flex items-center gap-2">
                 <Settings className="w-4 h-4" />
                 Date Warnings
+              </TabsTrigger>
+              <TabsTrigger value="calendar-sync" className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Calendar Sync
               </TabsTrigger>
             </TabsList>
 
@@ -110,6 +115,10 @@ export const CalendarSettings = () => {
                   <DateWarningsSettings />
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="calendar-sync" className="space-y-6">
+              <CalendarSyncSettings />
             </TabsContent>
           </Tabs>
         </div>
