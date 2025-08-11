@@ -44,10 +44,10 @@ const tiers = [
     buttonColor: 'bg-white text-black hover:bg-gray-100'
   },
   {
-    name: 'Enterprise',
-    price: 'Custom',
-    description: 'A scalable solution for enterprises requiring tailored features and dedicated support',
-    subtitle: 'For custom operations',
+    name: 'BAH Plan',
+    price: 199,
+    description: 'Premium enterprise solution with advanced features and priority support',
+    subtitle: 'For premium operations',
     category: 'Enterprise',
     features: [
       'Unlimited events.',
@@ -57,8 +57,7 @@ const tiers = [
       'API access and integrations.'
     ],
     bgColor: 'bg-green-100',
-    buttonColor: 'bg-black text-white hover:bg-gray-800',
-    isCustom: true
+    buttonColor: 'bg-black text-white hover:bg-gray-800'
   }
 ];
 
@@ -67,14 +66,9 @@ export const SubscriptionTiers = () => {
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
 
   const handleSubscribe = async (tierName: string) => {
-    if (tierName === 'Enterprise') {
-      // Handle custom Enterprise tier differently
-      toast.info('Please contact us for Enterprise pricing');
-      return;
-    }
-
-    setLoadingTier(tierName);
     try {
+      setLoadingTier(tierName);
+      
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { tier: tierName }
       });
@@ -128,7 +122,7 @@ export const SubscriptionTiers = () => {
                   {tier.name === 'Business' && (
                     <div className="w-6 h-6 bg-black rounded"></div>
                   )}
-                  {tier.name === 'Enterprise' && (
+                  {tier.name === 'BAH Plan' && (
                     <div className="w-6 h-6 bg-green-500 rounded transform rotate-45"></div>
                   )}
                 </div>
@@ -149,14 +143,8 @@ export const SubscriptionTiers = () => {
               </CardDescription>
               
               <div className="mt-6">
-                {tier.isCustom ? (
-                  <div className="text-4xl font-bold">Custom</div>
-                ) : (
-                  <>
-                    <span className="text-4xl font-bold">£{tier.price}</span>
-                    <span className={`text-sm ml-1 ${tier.name === 'Business' ? 'text-gray-400' : 'text-gray-600'}`}>/month</span>
-                  </>
-                )}
+                <span className="text-4xl font-bold">£{tier.price}</span>
+                <span className={`text-sm ml-1 ${tier.name === 'Business' ? 'text-gray-400' : 'text-gray-600'}`}>/month</span>
               </div>
             </CardHeader>
 
@@ -192,8 +180,6 @@ export const SubscriptionTiers = () => {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processing...
                     </>
-                  ) : tier.isCustom ? (
-                    'Contact Us'
                   ) : (
                     'Get Started'
                   )}

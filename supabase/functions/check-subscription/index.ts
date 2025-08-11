@@ -105,7 +105,7 @@ serve(async (req) => {
       } else if (priceId === 'price_1RdTwvDjPYkyTVvULDFYVMYf') {
         subscriptionTier = "Business";
       } else if (priceId === 'price_1Rv1S7DjPYkyTVvUiuAxCGxd') {
-        subscriptionTier = "Enterprise";
+        subscriptionTier = "BAH Plan";
       } else {
         // Fallback to amount-based detection
         if (amount <= 999) {
@@ -113,7 +113,7 @@ serve(async (req) => {
         } else if (amount <= 1999) {
           subscriptionTier = "Business";
         } else {
-          subscriptionTier = "Enterprise";
+          subscriptionTier = "BAH Plan";
         }
       }
       logStep("Determined subscription tier", { priceId, amount, subscriptionTier });

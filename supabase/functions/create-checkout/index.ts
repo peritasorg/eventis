@@ -46,7 +46,7 @@ serve(async (req) => {
     const tierPriceIds = {
       'Professional': 'price_1RdTvuDjPYkyTVvULZ9k6ZP5',
       'Business': 'price_1RdTwvDjPYkyTVvULDFYVMYf', 
-      'Enterprise': 'price_1Rv1S7DjPYkyTVvUiuAxCGxd'
+      'BAH Plan': 'price_1Rv1S7DjPYkyTVvUiuAxCGxd'
     };
 
     const priceId = tierPriceIds[tier as keyof typeof tierPriceIds];
