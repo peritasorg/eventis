@@ -202,8 +202,8 @@ export const FieldEditDialog: React.FC<FieldEditDialogProps> = ({
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="fixed_price_notes" id="fixed_price_notes" />
                   <Label htmlFor="fixed_price_notes" className="cursor-pointer">
-                    <div className="font-medium">Fixed Price Field + Notes</div>
-                    <div className="text-xs text-muted-foreground">Editable price field + optional notes</div>
+                    <div className="font-medium">Fixed Price Field + Quantity + Notes</div>
+                    <div className="text-xs text-muted-foreground">Quantity × fixed price with auto-calculated total + notes</div>
                   </Label>
                 </div>
                 

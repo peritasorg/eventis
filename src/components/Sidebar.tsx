@@ -11,7 +11,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Leads & Appointments', href: '/leads', icon: UserPlus },
   { name: 'Event Calendar', href: '/events', icon: Calendar },
-  { name: 'Form Builder', href: '/form-builder', icon: FileText, desktopOnly: true },
+  { name: 'Form Builder', href: '/forms', icon: FileText, desktopOnly: true },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
