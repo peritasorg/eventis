@@ -115,9 +115,9 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
                                 <div className="text-xs text-muted-foreground space-y-1">
                                   <div className="flex items-center gap-2">
                                     <span>Type: {field.field_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                                     {field.has_pricing && field.unit_price && (
-                                       <span>£{field.unit_price}</span>
-                                     )}
+                                    {field.has_pricing && field.default_price_gbp && (
+                                      <span>£{field.default_price_gbp}</span>
+                                    )}
                                   </div>
                                   {field.help_text && (
                                     <p className="text-xs truncate">{field.help_text}</p>

@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useFormFields, FormField, DropdownOption } from '@/hooks/useFormFields';
-import { useFieldTypes } from '@/hooks/useFieldTypes';
 import { UnifiedFieldRenderer } from '@/components/form-builder/UnifiedFieldRenderer';
 import { toast } from 'sonner';
 
@@ -21,34 +20,20 @@ export const FieldEdit = () => {
   const { id } = useParams();
   const location = useLocation() as Location & { state?: { from?: string } };
   const { formFields, createField, updateField, isCreating, isUpdating } = useFormFields();
-  const { fieldTypes } = useFieldTypes();
-  
-  const fieldTypeOptions = fieldTypes.map(type => ({
-    value: type.name,
-    label: type.display_name
-  }));
   
   const isEditing = !!id;
   const existingField = isEditing ? formFields?.find(f => f.id === id) : null;
   
   const [formData, setFormData] = useState<Partial<FormField>>({
     name: '',
-    label: '',
-    field_type: 'text',
-    category: 'general',
-    required: false,
+    field_type: 'text_notes_only',
     has_pricing: false,
-    pricing_behavior: 'none',
-    unit_price: undefined,
-    affects_pricing: false,
-    has_quantity: false,
     has_notes: true,
+    default_price_gbp: undefined,
+    pricing_type: 'fixed',
     placeholder_text: '',
     help_text: '',
-    dropdown_options: [],
-    field_config: {},
-    sort_order: 0,
-    active: true
+    dropdown_options: []
   });
 
   const [showPreview, setShowPreview] = useState(true);
@@ -62,16 +47,24 @@ export const FieldEdit = () => {
     }
   }, [existingField]);
 
+  const fieldTypeOptions = [
+    { value: 'text', label: 'Text Field' },
+    { value: 'text_notes_only', label: 'Text with Notes Only' },
+    { value: 'fixed_price_notes', label: 'Fixed Price with Notes' },
+    { value: 'per_person_price_notes', label: 'Per Person Price with Notes' },
+    { value: 'counter_notes', label: 'Counter with Notes' },
+    { value: 'dropdown_options', label: 'Dropdown Options' },
+    { value: 'dropdown_options_price_notes', label: 'Dropdown Options with Pricing' }
+  ];
 
   const handleFieldTypeChange = (fieldType: string) => {
-    const fieldTypeInfo = fieldTypes.find(type => type.name === fieldType);
     setFormData(prev => ({
       ...prev,
-      field_type: fieldType,
-      has_pricing: fieldTypeInfo?.supports_pricing || false,
-      has_quantity: fieldTypeInfo?.supports_quantity || false,
-      has_notes: fieldTypeInfo?.supports_notes !== false, // Default to true unless explicitly false
-      field_config: fieldTypeInfo?.default_config || {}
+      field_type: fieldType as FormField['field_type'],
+      has_pricing: ['fixed_price_notes', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
+      has_notes: !['counter_notes'].includes(fieldType),
+      // Only set default price for per_person_price_notes, leave undefined for fixed_price_notes
+      default_price_gbp: fieldType === 'per_person_price_notes' ? 0 : undefined,
     }));
   };
 
@@ -128,9 +121,9 @@ export const FieldEdit = () => {
       return;
     }
 
-    if (['select', 'radio', 'checkbox'].includes(formData.field_type!) && 
+    if (['dropdown_options', 'dropdown_options_price_notes'].includes(formData.field_type!) && 
         (!formData.dropdown_options || formData.dropdown_options.length === 0)) {
-      toast.error('At least one option is required for this field type');
+      toast.error('At least one dropdown option is required');
       return;
     }
 
@@ -152,7 +145,7 @@ export const FieldEdit = () => {
     }
   };
 
-  const isDropdownField = ['select', 'radio', 'checkbox'].includes(formData.field_type!);
+  const isDropdownField = ['dropdown_options', 'dropdown_options_price_notes'].includes(formData.field_type!);
   const isPricingField = formData.has_pricing;
   const isSaving = isCreating || isUpdating;
 
@@ -194,27 +187,16 @@ export const FieldEdit = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Information */}
               <div className="space-y-4">
-                 <div>
-                   <Label htmlFor="name">Internal Name *</Label>
-                   <Input
-                     id="name"
-                     value={formData.name || ''}
-                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                     placeholder="internal_field_name"
-                     required
-                   />
-                 </div>
-
-                 <div>
-                   <Label htmlFor="label">Display Label *</Label>
-                   <Input
-                     id="label"
-                     value={formData.label || ''}
-                     onChange={(e) => setFormData(prev => ({ ...prev, label: e.target.value }))}
-                     placeholder="Field Label"
-                     required
-                   />
-                 </div>
+                <div>
+                  <Label htmlFor="name">Field Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter field name"
+                    required
+                  />
+                </div>
 
                 <div>
                   <Label htmlFor="field_type">Field Type *</Label>
@@ -267,23 +249,23 @@ export const FieldEdit = () => {
                     <Badge variant="secondary">Pricing Enabled</Badge>
                   </div>
 
-                   {!isDropdownField && (
-                     <div>
-                       <Label htmlFor="unit_price">Unit Price (£)</Label>
-                       <Input
-                         id="unit_price"
-                         type="number"
-                         step="0.01"
-                         min="0"
-                         value={formData.unit_price || ''}
-                         onChange={(e) => setFormData(prev => ({ 
-                           ...prev, 
-                           unit_price: parseFloat(e.target.value) || undefined 
-                         }))}
-                         placeholder="0.00"
-                       />
-                     </div>
-                   )}
+                  {!isDropdownField && formData.field_type === 'per_person_price_notes' && (
+                    <div>
+                      <Label htmlFor="default_price_gbp">Default Price (£)</Label>
+                      <Input
+                        id="default_price_gbp"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.default_price_gbp || ''}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          default_price_gbp: parseFloat(e.target.value) || 0 
+                        }))}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -422,28 +404,14 @@ export const FieldEdit = () => {
                     field={{
                       ...formData,
                       id: 'preview-field',
-                      tenant_id: 'preview-tenant',
-                      name: formData.name || 'preview-field',
-                      label: formData.label || 'Preview Field',
-                      field_type: formData.field_type || 'text',
-                      category: formData.category || 'general',
-                      required: formData.required || false,
-                      has_pricing: formData.has_pricing || false,
-                      pricing_behavior: formData.pricing_behavior || 'none',
-                      affects_pricing: formData.affects_pricing || false,
-                      has_quantity: formData.has_quantity || false,
-                      has_notes: formData.has_notes || true,
-                      dropdown_options: formData.dropdown_options || [],
-                      field_config: formData.field_config || {},
-                      sort_order: formData.sort_order || 0,
-                      active: formData.active !== false,
+                      user_id: 'preview-user',
                       created_at: new Date().toISOString(),
                       updated_at: new Date().toISOString()
                     } as FormField}
                     response={{
                       value: '',
                       quantity: 1,
-                      price: formData.unit_price || 0,
+                      price: formData.default_price_gbp || 0,
                       notes: '',
                       enabled: true,
                       selectedOption: ''
@@ -456,9 +424,9 @@ export const FieldEdit = () => {
                 
                 <div className="text-sm text-muted-foreground space-y-2">
                   <div><strong>Type:</strong> {fieldTypeOptions.find(opt => opt.value === formData.field_type)?.label}</div>
-                   {isPricingField && !isDropdownField && (
-                     <div><strong>Unit Price:</strong> £{(formData.unit_price || 0).toFixed(2)}</div>
-                   )}
+                  {isPricingField && !isDropdownField && (
+                    <div><strong>Default Price:</strong> £{(formData.default_price_gbp || 0).toFixed(2)}</div>
+                  )}
                   {isDropdownField && (
                     <div><strong>Options:</strong> {formData.dropdown_options?.length || 0} configured</div>
                   )}

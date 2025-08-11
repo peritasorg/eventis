@@ -127,7 +127,7 @@ export const FormCanvas: React.FC<FormCanvasProps> = ({
                               <div className="font-medium">{field.name}</div>
                               <div className="text-sm text-muted-foreground">
                                 {field.field_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                {field.unit_price && ` • £${field.unit_price}`}
+                                {field.default_price_gbp && ` • £${field.default_price_gbp}`}
                               </div>
                             </div>
                             <Button

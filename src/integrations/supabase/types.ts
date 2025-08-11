@@ -1132,105 +1132,6 @@ export type Database = {
         }
         Relationships: []
       }
-      field_library: {
-        Row: {
-          active: boolean
-          affects_pricing: boolean
-          category: string
-          created_at: string
-          default_quantity: number | null
-          description: string | null
-          dropdown_options: Json | null
-          field_config: Json | null
-          field_type: string
-          has_notes: boolean
-          has_pricing: boolean
-          has_quantity: boolean
-          help_text: string | null
-          id: string
-          label: string
-          max_quantity: number | null
-          min_quantity: number | null
-          name: string
-          placeholder_text: string | null
-          pricing_behavior: string | null
-          required: boolean
-          sort_order: number | null
-          tenant_id: string
-          unit_price: number | null
-          updated_at: string
-        }
-        Insert: {
-          active?: boolean
-          affects_pricing?: boolean
-          category?: string
-          created_at?: string
-          default_quantity?: number | null
-          description?: string | null
-          dropdown_options?: Json | null
-          field_config?: Json | null
-          field_type: string
-          has_notes?: boolean
-          has_pricing?: boolean
-          has_quantity?: boolean
-          help_text?: string | null
-          id?: string
-          label: string
-          max_quantity?: number | null
-          min_quantity?: number | null
-          name: string
-          placeholder_text?: string | null
-          pricing_behavior?: string | null
-          required?: boolean
-          sort_order?: number | null
-          tenant_id: string
-          unit_price?: number | null
-          updated_at?: string
-        }
-        Update: {
-          active?: boolean
-          affects_pricing?: boolean
-          category?: string
-          created_at?: string
-          default_quantity?: number | null
-          description?: string | null
-          dropdown_options?: Json | null
-          field_config?: Json | null
-          field_type?: string
-          has_notes?: boolean
-          has_pricing?: boolean
-          has_quantity?: boolean
-          help_text?: string | null
-          id?: string
-          label?: string
-          max_quantity?: number | null
-          min_quantity?: number | null
-          name?: string
-          placeholder_text?: string | null
-          pricing_behavior?: string | null
-          required?: boolean
-          sort_order?: number | null
-          tenant_id?: string
-          unit_price?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "field_library_field_type_fkey"
-            columns: ["field_type"]
-            isOneToOne: false
-            referencedRelation: "field_types"
-            referencedColumns: ["name"]
-          },
-          {
-            foreignKeyName: "field_library_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       field_types: {
         Row: {
           active: boolean | null
@@ -1326,83 +1227,6 @@ export type Database = {
           },
           {
             foreignKeyName: "finance_timeline_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      form_field_instances: {
-        Row: {
-          created_at: string
-          field_library_id: string
-          field_order: number
-          form_id: string
-          id: string
-          override_config: Json | null
-          override_help_text: string | null
-          override_label: string | null
-          override_placeholder: string | null
-          override_required: boolean | null
-          section_id: string
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          field_library_id: string
-          field_order?: number
-          form_id: string
-          id?: string
-          override_config?: Json | null
-          override_help_text?: string | null
-          override_label?: string | null
-          override_placeholder?: string | null
-          override_required?: boolean | null
-          section_id: string
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          field_library_id?: string
-          field_order?: number
-          form_id?: string
-          id?: string
-          override_config?: Json | null
-          override_help_text?: string | null
-          override_label?: string | null
-          override_placeholder?: string | null
-          override_required?: boolean | null
-          section_id?: string
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "form_field_instances_field_library_id_fkey"
-            columns: ["field_library_id"]
-            isOneToOne: false
-            referencedRelation: "field_library"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "form_field_instances_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "form_field_instances_section_id_fkey"
-            columns: ["section_id"]
-            isOneToOne: false
-            referencedRelation: "form_sections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "form_field_instances_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1524,54 +1348,6 @@ export type Database = {
             columns: ["form_id"]
             isOneToOne: false
             referencedRelation: "forms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      form_sections: {
-        Row: {
-          created_at: string
-          form_id: string
-          id: string
-          section_description: string | null
-          section_order: number
-          section_title: string
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          form_id: string
-          id?: string
-          section_description?: string | null
-          section_order?: number
-          section_title: string
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          form_id?: string
-          id?: string
-          section_description?: string | null
-          section_order?: number
-          section_title?: string
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "form_sections_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "form_sections_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -2973,10 +2749,6 @@ export type Database = {
         Returns: undefined
       }
       migrate_existing_single_forms: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      migrate_form_fields_to_library: {
         Args: Record<PropertyKey, never>
         Returns: number
       }
