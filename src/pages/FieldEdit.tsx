@@ -29,7 +29,7 @@ export const FieldEdit = () => {
     field_type: 'text_notes_only',
     has_pricing: false,
     has_notes: true,
-    default_price_gbp: 0,
+    default_price_gbp: undefined,
     pricing_type: 'fixed',
     placeholder_text: '',
     help_text: '',
@@ -63,6 +63,8 @@ export const FieldEdit = () => {
       field_type: fieldType as FormField['field_type'],
       has_pricing: ['fixed_price_notes', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
       has_notes: !['counter_notes'].includes(fieldType),
+      // Only set default price for per_person_price_notes, leave undefined for fixed_price_notes
+      default_price_gbp: fieldType === 'per_person_price_notes' ? 0 : undefined,
     }));
   };
 
@@ -247,7 +249,7 @@ export const FieldEdit = () => {
                     <Badge variant="secondary">Pricing Enabled</Badge>
                   </div>
 
-                  {!isDropdownField && (
+                  {!isDropdownField && formData.field_type === 'per_person_price_notes' && (
                     <div>
                       <Label htmlFor="default_price_gbp">Default Price (£)</Label>
                       <Input
@@ -255,11 +257,12 @@ export const FieldEdit = () => {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={formData.default_price_gbp || 0}
+                        value={formData.default_price_gbp || ''}
                         onChange={(e) => setFormData(prev => ({ 
                           ...prev, 
                           default_price_gbp: parseFloat(e.target.value) || 0 
                         }))}
+                        placeholder="0.00"
                       />
                     </div>
                   )}
@@ -398,11 +401,17 @@ export const FieldEdit = () => {
               <div className="space-y-4">
                 <div className="p-4 border rounded-lg bg-muted/50">
                   <UnifiedFieldRenderer
-                    field={formData as FormField}
+                    field={{
+                      ...formData,
+                      id: 'preview-field',
+                      user_id: 'preview-user',
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
+                    } as FormField}
                     response={{
                       value: '',
                       quantity: 1,
-                      price: 0,
+                      price: formData.default_price_gbp || 0,
                       notes: '',
                       enabled: true,
                       selectedOption: ''

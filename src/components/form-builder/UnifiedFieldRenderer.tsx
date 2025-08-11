@@ -72,7 +72,6 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
         );
 
       case 'fixed_price_notes':
-        const fixedTotalPrice = (response.quantity || 1) * (response.price || 0);
         return (
           <div className="space-y-3">
             <div>
@@ -82,7 +81,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2 items-end">
+            <div className="grid grid-cols-2 gap-2 items-end">
               <div>
                 <Label className="text-xs text-muted-foreground">Quantity</Label>
                 <Input
@@ -106,12 +105,6 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
                     disabled={readOnly}
                     className="w-full"
                   />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Total</Label>
-                <div className="px-3 py-2 bg-muted rounded-md text-sm font-medium">
-                  £{fixedTotalPrice.toFixed(2)}
                 </div>
               </div>
             </div>
