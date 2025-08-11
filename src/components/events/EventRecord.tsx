@@ -11,7 +11,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search } from 'lucide-react';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search, FileText, Receipt, Calendar as CalendarSyncIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +21,7 @@ import { useEventFormTotals } from '@/hooks/useEventFormTotals';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
 
 interface EventData {
   id: string;
@@ -30,7 +32,7 @@ interface EventData {
   start_time: string | null;
   end_time: string | null;
   customer_id: string | null;
-  ethnicity: string | null;
+  ethnicity: string[] | null; // Changed to support multi-select
   primary_contact_name: string | null;
   primary_contact_number: string | null;
   secondary_contact_name: string | null;
@@ -54,6 +56,8 @@ export const EventRecord: React.FC = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [saveTimeoutId, setSaveTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Get event type configs
   const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -221,7 +225,14 @@ export const EventRecord: React.FC = () => {
   // Initialize event data
   useEffect(() => {
     if (event) {
-      setEventData(event);
+      // Handle ethnicity migration from string to array
+      let processedEvent = { ...event };
+      if (typeof event.ethnicity === 'string' && event.ethnicity) {
+        processedEvent.ethnicity = [event.ethnicity];
+      } else if (!event.ethnicity) {
+        processedEvent.ethnicity = [];
+      }
+      setEventData(processedEvent);
     }
   }, [event]);
 
@@ -277,6 +288,129 @@ export const EventRecord: React.FC = () => {
     }
   };
 
+  // PDF Generation functions
+  const generateQuote = async () => {
+    if (!eventData || !currentTenant) return;
+    
+    try {
+      setIsGeneratingPDF(true);
+      
+      // Convert event data to PDF format
+      const pdfEventData = {
+        id: eventData.id,
+        event_name: eventData.title,
+        event_type: eventData.event_type || 'Event',
+        event_start_date: eventData.event_date || new Date().toISOString(),
+        start_time: eventData.start_time || '00:00',
+        end_time: eventData.end_time || '23:59',
+        estimated_guests: totalGuests,
+        total_guests: totalGuests,
+        total_amount: totalEventValue,
+        deposit_amount: depositAmount,
+        form_responses: {},
+        form_total: liveFormTotal,
+        customers: selectedCustomer ? {
+          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+          email: selectedCustomer.email || '',
+          phone: selectedCustomer.phone || '',
+        } : null
+      };
+
+      const tenantData = {
+        business_name: currentTenant.business_name || 'Business Name',
+        address_line1: currentTenant.address_line1 || 'Address Line 1',
+        address_line2: currentTenant.address_line2,
+        city: currentTenant.city || 'City',
+        postal_code: currentTenant.postal_code || 'Postal Code',
+        country: currentTenant.country || 'GB',
+        contact_email: currentTenant.contact_email || 'contact@business.com',
+        contact_phone: currentTenant.contact_phone || 'Phone Number'
+      };
+
+      generateQuotePDF(pdfEventData, tenantData);
+      toast.success('Quote PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating quote:', error);
+      toast.error('Failed to generate quote PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const generateInvoice = async () => {
+    if (!eventData || !currentTenant) return;
+    
+    try {
+      setIsGeneratingPDF(true);
+      
+      // Convert event data to PDF format
+      const pdfEventData = {
+        id: eventData.id,
+        event_name: eventData.title,
+        event_type: eventData.event_type || 'Event',
+        event_start_date: eventData.event_date || new Date().toISOString(),
+        start_time: eventData.start_time || '00:00',
+        end_time: eventData.end_time || '23:59',
+        estimated_guests: totalGuests,
+        total_guests: totalGuests,
+        total_amount: totalEventValue,
+        deposit_amount: depositAmount,
+        form_responses: {},
+        form_total: liveFormTotal,
+        customers: selectedCustomer ? {
+          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+          email: selectedCustomer.email || '',
+          phone: selectedCustomer.phone || '',
+        } : null
+      };
+
+      const tenantData = {
+        business_name: currentTenant.business_name || 'Business Name',
+        address_line1: currentTenant.address_line1 || 'Address Line 1',
+        address_line2: currentTenant.address_line2,
+        city: currentTenant.city || 'City',
+        postal_code: currentTenant.postal_code || 'Postal Code',
+        country: currentTenant.country || 'GB',
+        contact_email: currentTenant.contact_email || 'contact@business.com',
+        contact_phone: currentTenant.contact_phone || 'Phone Number'
+      };
+
+      generateInvoicePDF(pdfEventData, tenantData);
+      toast.success('Invoice PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      toast.error('Failed to generate invoice PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  // Calendar sync function
+  const syncToCalendar = async () => {
+    if (!eventData || !currentTenant) return;
+    
+    try {
+      setIsSyncing(true);
+      
+      const { data, error } = await supabase.functions.invoke('calendar-sync', {
+        body: {
+          action: 'sync_single_event',
+          eventId: eventData.id,
+          tenantId: currentTenant.id
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success('Event synced to calendar successfully');
+    } catch (error) {
+      console.error('Error syncing to calendar:', error);
+      toast.error('Failed to sync to calendar');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -298,7 +432,7 @@ export const EventRecord: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between border-b pb-4">
         <h1 className="text-2xl font-semibold">Event Record</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {lastSaved && (
             <Badge variant="secondary" className="text-xs">
               Auto-saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
@@ -309,6 +443,40 @@ export const EventRecord: React.FC = () => {
               Saving...
             </Badge>
           )}
+          
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={generateQuote}
+              disabled={isGeneratingPDF}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              {isGeneratingPDF ? 'Generating...' : 'Generate Quote'}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={generateInvoice}
+              disabled={isGeneratingPDF}
+            >
+              <Receipt className="h-4 w-4 mr-2" />
+              {isGeneratingPDF ? 'Generating...' : 'Generate Invoice'}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={syncToCalendar}
+              disabled={isSyncing}
+            >
+              <CalendarSyncIcon className="h-4 w-4 mr-2" />
+              {isSyncing ? 'Syncing...' : 'Sync to Calendar'}
+            </Button>
+          </div>
+          
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm">
@@ -334,6 +502,7 @@ export const EventRecord: React.FC = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          
           <Button variant="ghost" size="sm" onClick={() => navigate('/events')}>
             <X className="h-4 w-4" />
           </Button>
@@ -483,25 +652,27 @@ export const EventRecord: React.FC = () => {
               <div className="space-y-2">
                 <Label>Customer *</Label>
                 {selectedCustomer ? (
-                  <div className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">
-                        {selectedCustomer.first_name} {selectedCustomer.last_name}
-                      </span>
-                      {selectedCustomer.email && (
-                        <span className="text-sm text-muted-foreground">
-                          ({selectedCustomer.email})
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">
+                          {selectedCustomer.first_name} {selectedCustomer.last_name}
+                        </div>
+                        {selectedCustomer.email && (
+                          <div className="text-sm text-muted-foreground truncate">
+                            {selectedCustomer.email}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 flex-shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handleCustomerClick}
                       >
-                        View Profile
+                        View
                       </Button>
                       <Button
                         variant="ghost"
@@ -532,7 +703,7 @@ export const EventRecord: React.FC = () => {
                           filteredCustomers.map((customer) => (
                             <div
                               key={customer.id}
-                              className="p-2 hover:bg-accent cursor-pointer border-b last:border-b-0"
+                              className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
                               onClick={() => {
                                 handleFieldChange('customer_id', customer.id);
                                 setCustomerSearchQuery('');
@@ -549,7 +720,7 @@ export const EventRecord: React.FC = () => {
                             </div>
                           ))
                         ) : (
-                          <div className="p-2 text-sm text-muted-foreground">
+                          <div className="p-3 text-sm text-muted-foreground">
                             No customers found
                           </div>
                         )}
@@ -561,21 +732,16 @@ export const EventRecord: React.FC = () => {
 
               <div className="space-y-2">
                 <Label>Ethnicity</Label>
-                <Select
-                  value={eventData.ethnicity || ''}
-                  onValueChange={(value) => handleFieldChange('ethnicity', value || null)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select ethnicity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ethnicityOptions?.map((option) => (
-                      <SelectItem key={option.id} value={option.ethnicity_name}>
-                        {option.ethnicity_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={ethnicityOptions?.map(option => ({
+                    value: option.ethnicity_name,
+                    label: option.ethnicity_name
+                  })) || []}
+                  value={Array.isArray(eventData.ethnicity) ? eventData.ethnicity : eventData.ethnicity ? [eventData.ethnicity] : []}
+                  onValueChange={(value) => handleFieldChange('ethnicity', value)}
+                  placeholder="Select ethnicities..."
+                  className="w-full"
+                />
               </div>
             </div>
           </CardContent>
