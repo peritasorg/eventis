@@ -18,8 +18,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Use the service role key to perform writes (upsert) in Supabase
-  const supabaseClient = createClient(
+  // Create clients - anon key for auth, service role for DB writes
+  const supabaseAuth = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+  );
+  
+  const supabaseService = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     { auth: { persistSession: false } }
@@ -39,7 +44,7 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     logStep("Authenticating user with token");
     
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
     const user = userData.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
@@ -50,6 +55,18 @@ serve(async (req) => {
     
     if (customers.data.length === 0) {
       logStep("No customer found, returning unsubscribed state");
+      
+      // Still update the database for consistency
+      await supabaseService.from("subscribers").upsert({
+        email: user.email,
+        user_id: user.id,
+        stripe_customer_id: null,
+        subscribed: false,
+        subscription_tier: null,
+        subscription_end: null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'email' });
+      
       return new Response(JSON.stringify({ 
         subscribed: false,
         subscription_tier: null,
@@ -103,6 +120,17 @@ serve(async (req) => {
     } else {
       logStep("No active subscription found");
     }
+
+    // Update database with subscription info
+    await supabaseService.from("subscribers").upsert({
+      email: user.email,
+      user_id: user.id,
+      stripe_customer_id: customerId,
+      subscribed: hasActiveSub,
+      subscription_tier: subscriptionTier,
+      subscription_end: subscriptionEnd,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'email' });
 
     logStep("Returning subscription info", { subscribed: hasActiveSub, subscriptionTier });
     return new Response(JSON.stringify({
