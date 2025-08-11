@@ -18,6 +18,16 @@ export const BillingSettings = () => {
     checkSubscriptionStatus();
   }, []);
 
+  // Determine if user has an active subscription
+  const hasActiveSubscription = subscriptionData?.subscribed === true;
+
+  // Show plans automatically if no active subscription
+  useEffect(() => {
+    if (subscriptionData !== null && !hasActiveSubscription) {
+      setShowPlans(true);
+    }
+  }, [subscriptionData, hasActiveSubscription]);
+
   const handleManageSubscription = async () => {
     setLoading(true);
     try {
@@ -66,51 +76,62 @@ export const BillingSettings = () => {
         <CardContent className="space-y-4">
           {subscriptionData ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-lg">
-                    {subscriptionData.subscription_tier || 'Free Trial'}
-                  </h3>
-                  <p className="text-muted-foreground">
-                    {subscriptionData.subscribed ? 'Active subscription' : 'Trial period'}
-                  </p>
-                </div>
-                <Badge className={getStatusColor(subscriptionData.subscribed ? 'active' : 'trialing')}>
-                  {subscriptionData.subscribed ? 'Active' : 'Trial'}
-                </Badge>
-              </div>
+              {hasActiveSubscription ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        {subscriptionData.subscription_tier || 'Active Subscription'}
+                      </h3>
+                      <p className="text-muted-foreground">Active subscription</p>
+                    </div>
+                    <Badge className={getStatusColor('active')}>
+                      Active
+                    </Badge>
+                  </div>
 
-              {subscriptionData.subscription_end && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  {subscriptionData.subscribed ? 'Renews' : 'Expires'} on{' '}
-                  {new Date(subscriptionData.subscription_end).toLocaleDateString()}
+                  {subscriptionData.subscription_end && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="w-4 h-4" />
+                      Renews on {new Date(subscriptionData.subscription_end).toLocaleDateString()}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <Button 
+                      onClick={handleManageSubscription} 
+                      disabled={loading}
+                      className="flex items-center gap-2"
+                    >
+                      {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ExternalLink className="w-4 h-4" />
+                      )}
+                      Manage Subscription
+                    </Button>
+
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowPlans(!showPlans)}
+                    >
+                      {showPlans ? 'Hide Plans' : 'Change Plan'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">No Active Subscription</h3>
+                    <p className="text-muted-foreground">
+                      Choose a plan below to get started with premium features
+                    </p>
+                  </div>
+                  <Badge className={getStatusColor('canceled')}>
+                    Free Plan
+                  </Badge>
                 </div>
               )}
-
-              <div className="flex gap-3">
-                {subscriptionData.subscribed && (
-                  <Button 
-                    onClick={handleManageSubscription} 
-                    disabled={loading}
-                    className="flex items-center gap-2"
-                  >
-                    {loading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <ExternalLink className="w-4 h-4" />
-                    )}
-                    Manage Subscription
-                  </Button>
-                )}
-
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowPlans(!showPlans)}
-                >
-                  {subscriptionData.subscribed ? 'Change Plan' : 'Upgrade Now'}
-                </Button>
-              </div>
             </div>
           ) : (
             <div className="text-center py-6">
@@ -121,8 +142,8 @@ export const BillingSettings = () => {
         </CardContent>
       </Card>
 
-      {/* Plan Selection */}
-      {showPlans && (
+      {/* Plan Selection - Show automatically if no subscription or when toggled */}
+      {(showPlans || !hasActiveSubscription) && (
         <Card>
           <CardHeader>
             <CardTitle>Available Plans</CardTitle>

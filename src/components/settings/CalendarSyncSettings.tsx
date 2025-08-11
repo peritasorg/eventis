@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,15 +6,17 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Calendar, CheckCircle, XCircle, ExternalLink, RefreshCw } from 'lucide-react';
+import { Loader2, Calendar, CheckCircle, XCircle, ExternalLink, RefreshCw, Search } from 'lucide-react';
 import { CalendarPreview } from './CalendarPreview';
 import { useQuery } from '@tanstack/react-query';
 
 export const CalendarSyncSettings = () => {
   const [loading, setLoading] = useState(false);
   const [testEventId, setTestEventId] = useState<string>('');
+  const [eventSearchTerm, setEventSearchTerm] = useState('');
 
   // Fetch calendar integrations
   const { data: integrations, refetch: refetchIntegrations } = useQuery({
@@ -30,20 +32,32 @@ export const CalendarSyncSettings = () => {
     }
   });
 
-  // Fetch some events for testing
-  const { data: recentEvents } = useQuery({
-    queryKey: ['recent-events-preview'],
+  // Fetch all events for testing
+  const { data: allEvents } = useQuery({
+    queryKey: ['all-events-preview'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
         .select('id, title, event_date, event_type')
-        .order('created_at', { ascending: false })
-        .limit(5);
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       return data || [];
     }
   });
+
+  // Filter events based on search term
+  const filteredEvents = useMemo(() => {
+    if (!allEvents) return [];
+    if (!eventSearchTerm.trim()) return allEvents;
+    
+    const searchLower = eventSearchTerm.toLowerCase();
+    return allEvents.filter(event => 
+      event.title?.toLowerCase().includes(searchLower) ||
+      event.event_type?.toLowerCase().includes(searchLower) ||
+      event.event_date?.includes(eventSearchTerm)
+    );
+  }, [allEvents, eventSearchTerm]);
 
   const handleGoogleConnect = async () => {
     setLoading(true);
@@ -225,24 +239,47 @@ export const CalendarSyncSettings = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="test-event">Select Event to Preview</Label>
-            <select
-              id="test-event"
-              className="w-full p-2 border rounded-md bg-background"
-              value={testEventId}
-              onChange={(e) => setTestEventId(e.target.value)}
-            >
-              <option value="">Select an event...</option>
-              {recentEvents?.map((event: any) => (
-                <option key={event.id} value={event.id}>
-                  {event.title} - {event.event_type} - {new Date(event.event_date).toLocaleDateString()}
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="test-event">Select Event to Preview</Label>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Search events by title, type, or date..."
+                    value={eventSearchTerm}
+                    onChange={(e) => setEventSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={testEventId} onValueChange={setTestEventId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an event to preview" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredEvents?.length > 0 ? (
+                      filteredEvents.map((event: any) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium">{event.title}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {event.event_type} • {new Date(event.event_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-events" disabled>
+                        {eventSearchTerm ? 'No events match your search' : 'No events available'}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-          <CalendarPreview eventId={testEventId} />
+            <CalendarPreview eventId={testEventId} />
+          </div>
         </CardContent>
       </Card>
 
