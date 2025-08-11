@@ -12,8 +12,8 @@ interface PriceInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
 
 export const PriceInput = forwardRef<HTMLInputElement, PriceInputProps>(
   ({ value, onChange, placeholder = "0.00", disabled, className, ...props }, ref) => {
-    const [internalValue, setInternalValue] = useState<string>('');
-    const [isFocused, setIsFocused] = useState(false);
+  const [internalValue, setInternalValue] = useState<string>('');
+  const [isFocused, setIsFocused] = useState(false);
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       setIsFocused(true);
@@ -57,8 +57,8 @@ export const PriceInput = forwardRef<HTMLInputElement, PriceInputProps>(
       }
     };
 
-    // Show internal value when focused, otherwise show the actual value
-    const displayValue = isFocused ? internalValue : (value === 0 ? '' : value.toString());
+  // Show internal value when focused, otherwise show the actual value (empty if 0)
+  const displayValue = isFocused ? internalValue : (value > 0 ? value.toString() : '');
 
     return (
       <Input

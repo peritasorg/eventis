@@ -314,10 +314,19 @@ export const EventRecord: React.FC = () => {
                     <PopoverContent className="w-auto p-0">
                       <Calendar
                         mode="single"
-                        selected={eventData.event_date ? new Date(eventData.event_date) : undefined}
-                        onSelect={(date) => handleFieldChange('event_date', date?.toISOString().split('T')[0] || null)}
+                        selected={eventData.event_date ? new Date(eventData.event_date + 'T00:00:00') : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            handleFieldChange('event_date', `${year}-${month}-${day}`);
+                          } else {
+                            handleFieldChange('event_date', null);
+                          }
+                        }}
                         initialFocus
-                        className="pointer-events-auto"
+                        className="p-3 pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>

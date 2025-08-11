@@ -3,17 +3,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+export interface DropdownOption {
+  label: string;
+  value: string;
+  price?: number;
+}
+
 export interface FormField {
   id: string;
   tenant_id: string;
   name: string;
-  field_type: 'text_notes_only' | 'fixed_price_notes' | 'per_person_price_notes' | 'counter_notes';
+  field_type: 'text_notes_only' | 'fixed_price_notes' | 'per_person_price_notes' | 'counter_notes' | 'dropdown_options' | 'dropdown_options_price_notes';
   has_notes: boolean;
   has_pricing: boolean;
   pricing_type: 'fixed' | 'per_person' | null;
   default_price_gbp: number | null;
   placeholder_text: string | null;
   help_text: string | null;
+  dropdown_options?: DropdownOption[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -36,7 +43,17 @@ export const useFormFields = () => {
         return [];
       }
       
-      return data || [];
+      // Parse dropdown_options JSON
+      const parsedData = (data || []).map(field => ({
+        ...field,
+        dropdown_options: field.dropdown_options ? 
+          (typeof field.dropdown_options === 'string' ? 
+            JSON.parse(field.dropdown_options) : 
+            field.dropdown_options) : 
+          []
+      }));
+      
+      return parsedData;
     }
   );
 
@@ -46,7 +63,8 @@ export const useFormFields = () => {
         .from('form_fields')
         .insert([{
           ...fieldData,
-          tenant_id: currentTenant?.id!
+          tenant_id: currentTenant?.id!,
+          dropdown_options: fieldData.dropdown_options ? JSON.stringify(fieldData.dropdown_options) : null
         }])
         .select()
         .single();
@@ -64,9 +82,13 @@ export const useFormFields = () => {
 
   const updateFieldMutation = useSupabaseMutation(
     async ({ id, ...updates }: Partial<FormField> & { id: string }) => {
+      const updateData = {
+        ...updates,
+        dropdown_options: updates.dropdown_options ? JSON.stringify(updates.dropdown_options) : null
+      };
       const { data, error } = await supabase
         .from('form_fields')
-        .update(updates)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
@@ -104,7 +126,9 @@ export const useFormFields = () => {
     
     return formFields.reduce((acc: Record<string, FormField[]>, field: FormField) => {
       const category = field.field_type === 'text_notes_only' ? 'Text Fields' :
-                     field.field_type === 'counter_notes' ? 'Counter Fields' : 'Pricing Fields';
+                     field.field_type === 'counter_notes' ? 'Counter Fields' :
+                     field.field_type === 'dropdown_options' || field.field_type === 'dropdown_options_price_notes' ? 'Dropdown Fields' :
+                     'Pricing Fields';
       
       if (!acc[category]) {
         acc[category] = [];

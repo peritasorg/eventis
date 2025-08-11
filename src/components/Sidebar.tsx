@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Maximize, Minimize } from 'lucide-react';
+import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Maximize, Minimize, Library } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Leads & Appointments', href: '/leads', icon: UserPlus },
   { name: 'Event Calendar', href: '/events', icon: Calendar },
-  { name: 'Form Builder', href: '/form-builder', icon: FileText, desktopOnly: true },
+  { name: 'Form Builder', href: '/forms', icon: FileText, desktopOnly: true },
+  { name: 'Field Library', href: '/field-library', icon: Library, desktopOnly: true },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

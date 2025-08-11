@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useFormFields, FormField } from '@/hooks/useFormFields';
-import { FieldEditDialog } from './FieldEditDialog';
+import { useNavigate } from 'react-router-dom';
 
 interface FieldLibraryProps {
   onFieldDrag?: (field: FormField) => void;
@@ -18,8 +18,7 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
 }) => {
   const { fieldsByCategory, deleteField, isDeleting } = useFormFields();
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingField, setEditingField] = useState<FormField | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const getFieldIcon = (fieldType: string) => {
     switch (fieldType) {
@@ -56,7 +55,9 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
           {showCreateButton && (
             <Button
               size="sm"
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={() => navigate('/field-library/new', { 
+                state: { from: window.location.pathname } 
+              })}
               className="ml-auto"
             >
               <Plus className="h-4 w-4 mr-1" />
@@ -129,7 +130,9 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
                                   variant="ghost"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setEditingField(field);
+                                    navigate(`/field-library/edit/${field.id}`, { 
+                                      state: { from: window.location.pathname } 
+                                    });
                                   }}
                                   className="h-6 w-6 p-0"
                                 >
@@ -168,16 +171,6 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
         </div>
       )}
 
-      <FieldEditDialog
-        field={editingField}
-        open={!!editingField}
-        onClose={() => setEditingField(null)}
-      />
-
-      <FieldEditDialog
-        open={isCreateDialogOpen}
-        onClose={() => setIsCreateDialogOpen(false)}
-      />
     </div>
 
   );

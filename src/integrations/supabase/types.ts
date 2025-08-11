@@ -1238,6 +1238,7 @@ export type Database = {
         Row: {
           created_at: string | null
           default_price_gbp: number | null
+          dropdown_options: Json | null
           field_type: string
           has_notes: boolean | null
           has_pricing: boolean | null
@@ -1253,6 +1254,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           default_price_gbp?: number | null
+          dropdown_options?: Json | null
           field_type: string
           has_notes?: boolean | null
           has_pricing?: boolean | null
@@ -1268,6 +1270,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           default_price_gbp?: number | null
+          dropdown_options?: Json | null
           field_type?: string
           has_notes?: boolean | null
           has_pricing?: boolean | null

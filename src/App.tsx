@@ -26,6 +26,8 @@ import { NewFormBuilderPage } from "./pages/NewFormBuilder";
 import { Customers } from "./pages/Customers";
 import { CustomerProfilePage } from "./pages/CustomerProfile";
 import { CalendarSettings } from "./pages/CalendarSettings";
+import { FieldLibraryPage } from "./pages/FieldLibrary";
+import { FieldEdit } from "./pages/FieldEdit";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Success } from "./pages/success";
@@ -170,6 +172,30 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <AppLayout>
                         <CalendarSettings />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/field-library" element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <FieldLibraryPage />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/field-library/new" element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <FieldEdit />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/field-library/edit/:id" element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <FieldEdit />
                       </AppLayout>
                     </ProtectedRoute>
                   } />
