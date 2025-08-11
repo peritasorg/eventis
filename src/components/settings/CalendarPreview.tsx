@@ -56,19 +56,20 @@ export const CalendarPreview = ({ eventId }: CalendarPreviewProps) => {
 
   // Fetch form field definitions to map IDs to names
   const { data: formFields } = useQuery({
-    queryKey: ['form-fields-preview', eventId],
+    queryKey: ['form-fields-preview'],
     queryFn: async () => {
-      if (!eventId || !eventForms?.length) return [];
-
       const { data, error } = await supabase
         .from('form_fields')
         .select('id, name, field_type')
         .eq('is_active', true);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching form fields:', error);
+        return [];
+      }
       return data || [];
     },
-    enabled: !!eventId && !!eventForms?.length
+    enabled: true // Always fetch form fields so we can map IDs to names
   });
 
   const formatCalendarDescription = () => {
@@ -109,12 +110,14 @@ export const CalendarPreview = ({ eventId }: CalendarPreviewProps) => {
     description += `Total Guest Count: ${(eventData.men_count || 0) + (eventData.ladies_count || 0)}\n\n`;
 
     // Form data - display fields with their responses
-    if (eventForms && eventForms.length > 0 && formFields && formFields.length > 0) {
+    if (eventForms && eventForms.length > 0) {
       // Create a map of field IDs to field names for quick lookup
-      const fieldMap = formFields.reduce((acc: any, field: any) => {
+      const fieldMap = formFields?.reduce((acc: any, field: any) => {
         acc[field.id] = field.name;
         return acc;
-      }, {});
+      }, {}) || {};
+
+      description += "Form Responses:\n";
 
       eventForms.forEach((eventForm: any) => {
         if (eventForm.form_responses) {
@@ -122,10 +125,10 @@ export const CalendarPreview = ({ eventId }: CalendarPreviewProps) => {
           
           Object.keys(responses).forEach(fieldId => {
             const fieldData = responses[fieldId];
-            const fieldName = fieldMap[fieldId] || 'Unknown Field';
+            const fieldName = fieldMap[fieldId] || fieldId; // Fallback to ID if name not found
             
-            // Only process fields that have some data
-            if (fieldData && (fieldData.notes || fieldData.quantity || fieldData.price || fieldData.selectedOption)) {
+            // Only process fields that are enabled or have some meaningful data
+            if (fieldData && (fieldData.enabled === true || fieldData.notes || fieldData.quantity || fieldData.price || fieldData.selectedOption || fieldData.value)) {
               let fieldLine = fieldName;
               
               // Add quantity if exists and > 0
@@ -134,13 +137,23 @@ export const CalendarPreview = ({ eventId }: CalendarPreviewProps) => {
               }
               
               // Add selected option if exists
-              if (fieldData.selectedOption) {
+              if (fieldData.selectedOption && fieldData.selectedOption.trim()) {
                 fieldLine += ` - ${fieldData.selectedOption}`;
               }
               
-              // Add notes if they exist (exclude pricing info for calendar sync)
+              // Add value if exists (for basic fields)
+              if (fieldData.value && fieldData.value.trim() && !fieldData.selectedOption) {
+                fieldLine += ` - ${fieldData.value}`;
+              }
+              
+              // Add notes if they exist
               if (fieldData.notes && fieldData.notes.trim()) {
                 fieldLine += ` - ${fieldData.notes.trim()}`;
+              }
+              
+              // Add price if exists and field is enabled
+              if (fieldData.enabled && fieldData.price && fieldData.price > 0) {
+                fieldLine += ` - £${fieldData.price}`;
               }
               
               description += fieldLine + '\n';
@@ -148,6 +161,8 @@ export const CalendarPreview = ({ eventId }: CalendarPreviewProps) => {
           });
         }
       });
+      
+      description += '\n';
     }
 
     return description.trim();
