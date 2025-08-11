@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, Location } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, GripVertical, Save } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 export const FieldEdit = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation() as Location & { state?: { from?: string } };
   const { formFields, createField, updateField, isCreating, isUpdating } = useFormFields();
   
   const isEditing = !!id;
@@ -130,7 +131,13 @@ export const FieldEdit = () => {
       } else {
         await createField(formData as Omit<FormField, 'id'>);
       }
-      navigate('/field-library');
+      // Check if we came from form builder and should return there
+      const fromFormBuilder = location.state?.from?.includes('/form-builder');
+      if (fromFormBuilder) {
+        navigate(location.state.from);
+      } else {
+        navigate('/field-library');
+      }
     } catch (error) {
       console.error('Error saving field:', error);
     }
@@ -143,9 +150,20 @@ export const FieldEdit = () => {
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/field-library')}>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => {
+            const fromFormBuilder = location.state?.from?.includes('/form-builder');
+            if (fromFormBuilder) {
+              navigate(location.state.from);
+            } else {
+              navigate('/field-library');
+            }
+          }}
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Field Library
+          {location.state?.from?.includes('/form-builder') ? 'Back to Form Builder' : 'Back to Field Library'}
         </Button>
         <div>
           <h1 className="text-3xl font-bold">
