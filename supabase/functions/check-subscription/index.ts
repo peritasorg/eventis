@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -8,6 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper logging function for enhanced debugging
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
@@ -18,6 +18,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Use the service role key to perform writes (upsert) in Supabase
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -28,22 +29,16 @@ serve(async (req) => {
     logStep("Function started");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    
-    if (!stripeKey) {
-      logStep("ERROR: No Stripe key found", {
-        available_env_vars: Object.keys(Deno.env.toObject()).filter(key => 
-          key.toLowerCase().includes('stripe')
-        )
-      });
-      throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
-    }
-    
-    logStep("Stripe key found", { keyPrefix: stripeKey.substring(0, 8) + "..." });
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    logStep("Stripe key verified");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
+    logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
+    logStep("Authenticating user with token");
+    
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
     const user = userData.user;
@@ -54,17 +49,12 @@ serve(async (req) => {
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
-      logStep("No customer found, updating unsubscribed state");
-      await supabaseClient.from("subscribers").upsert({
-        email: user.email,
-        user_id: user.id,
-        stripe_customer_id: null,
+      logStep("No customer found, returning unsubscribed state");
+      return new Response(JSON.stringify({ 
         subscribed: false,
         subscription_tier: null,
-        subscription_end: null,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'email' });
-      return new Response(JSON.stringify({ subscribed: false }), {
+        subscription_end: null 
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
@@ -87,58 +77,34 @@ serve(async (req) => {
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       
-      // Determine subscription tier from price ID - UPDATED for production prices
+      // Determine subscription tier from price
       const priceId = subscription.items.data[0].price.id;
+      const price = await stripe.prices.retrieve(priceId);
+      const amount = price.unit_amount || 0;
       
-      // Map based on your actual production Stripe price IDs
+      // Map price IDs to tiers
       if (priceId === 'price_1RdTvuDjPYkyTVvULZ9k6ZP5') {
         subscriptionTier = "Professional";
       } else if (priceId === 'price_1RdTwvDjPYkyTVvULDFYVMYf') {
         subscriptionTier = "Business";
+      } else if (priceId === 'price_1Rv1S7DjPYkyTVvUiuAxCGxd') {
+        subscriptionTier = "Enterprise";
       } else {
-        // Fallback: determine by amount for any other prices
-        const price = await stripe.prices.retrieve(priceId);
-        const amount = price.unit_amount || 0;
-        
-        if (amount === 19900) { // £199.00 in pence
+        // Fallback to amount-based detection
+        if (amount <= 999) {
           subscriptionTier = "Professional";
-        } else if (amount === 24900) { // £249.00 in pence
+        } else if (amount <= 1999) {
           subscriptionTier = "Business";
         } else {
           subscriptionTier = "Enterprise";
         }
       }
-      
-      logStep("Determined subscription tier", { priceId, subscriptionTier });
+      logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
     } else {
       logStep("No active subscription found");
     }
 
-    // Update both subscribers table and tenant subscription status
-    await supabaseClient.from("subscribers").upsert({
-      email: user.email,
-      user_id: user.id,
-      stripe_customer_id: customerId,
-      subscribed: hasActiveSub,
-      subscription_tier: subscriptionTier,
-      subscription_end: subscriptionEnd,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'email' });
-
-    // Also update the tenant subscription status
-    if (hasActiveSub) {
-      await supabaseClient
-        .from("tenants")
-        .update({
-          subscription_status: "active",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("contact_email", user.email);
-      
-      logStep("Updated tenant subscription status to active");
-    }
-
-    logStep("Updated database with subscription info", { subscribed: hasActiveSub, subscriptionTier });
+    logStep("Returning subscription info", { subscribed: hasActiveSub, subscriptionTier });
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
       subscription_tier: subscriptionTier,
@@ -149,7 +115,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage, stack: error instanceof Error ? error.stack : undefined });
+    logStep("ERROR in check-subscription", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
