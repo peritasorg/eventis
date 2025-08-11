@@ -28,6 +28,8 @@ import { CustomerProfilePage } from "./pages/CustomerProfile";
 import { CalendarSettings } from "./pages/CalendarSettings";
 import { FieldLibraryPage } from "./pages/FieldLibrary";
 import { FieldEdit } from "./pages/FieldEdit";
+import { Leads } from "./pages/Leads";
+import { Settings } from "./pages/Settings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Success } from "./pages/success";
@@ -92,6 +94,14 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <AppLayout>
                         <LeadEdit />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/leads" element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Leads />
                       </AppLayout>
                     </ProtectedRoute>
                   } />
@@ -196,6 +206,14 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <AppLayout>
                         <FieldEdit />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Settings />
                       </AppLayout>
                     </ProtectedRoute>
                   } />

@@ -5,6 +5,9 @@ import { Calendar, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMultiDayEvents } from '@/hooks/useMultiDayEvents';
 import { useNavigate } from 'react-router-dom';
+import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Event {
   id: string;
@@ -41,7 +44,25 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
+  const { currentTenant } = useAuth();
   const { getEventsForDate, getEventDisplayInfo } = useMultiDayEvents(events);
+
+  // Fetch calendar warning settings
+  const { data: calendarWarningSettings } = useSupabaseQuery(
+    ['calendar_warning_settings', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('calendar_warning_settings')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }
+  );
 
   const generateCalendar = () => {
     const currentMonth = currentDate.getMonth();
@@ -82,16 +103,26 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
     return { subtotal, remainingBalance, totalPayments, depositAmount };
   };
 
-  const getEventWarningLevel = (event: Event) => {
+  const getEventWarningLevel = (event: Event, warningSettings?: any) => {
     if (!event.event_date) return null;
     
     const eventDate = new Date(event.event_date);
     const today = new Date();
     const daysUntilEvent = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Default warning thresholds - these would come from settings in a real implementation
-    if (daysUntilEvent <= 3 && daysUntilEvent >= 0) return 'urgent';
-    if (daysUntilEvent <= 7 && daysUntilEvent >= 0) return 'warning';
+    // Calculate remaining balance
+    const financials = calculateEventFinancials(event);
+    const hasUnpaidBalance = financials.remainingBalance > 0;
+    
+    // Only show warnings if there's an unpaid balance AND event is approaching
+    if (!hasUnpaidBalance) return null;
+    
+    const warningThreshold = warningSettings?.warning_days_threshold || 7;
+    
+    if (daysUntilEvent <= warningThreshold && daysUntilEvent >= 0) {
+      return daysUntilEvent <= 3 ? 'urgent' : 'warning';
+    }
+    
     return null;
   };
 
@@ -197,15 +228,21 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
                       const displayInfo = getEventDisplayInfo(dayEventInfo);
                       const financials = calculateEventFinancials(event);
                       const totalGuests = (event.men_count || 0) + (event.ladies_count || 0);
-                      const warningLevel = getEventWarningLevel(event);
+                      const warningLevel = getEventWarningLevel(event, calendarWarningSettings);
                       const eventColors = getEventTypeColor(event.event_type);
                       
                       // Apply warning colors if needed
                       let eventStyle = eventColors;
                       if (warningLevel === 'urgent') {
-                        eventStyle = { backgroundColor: 'hsl(0 84% 60%)', textColor: 'white' };
+                        eventStyle = { 
+                          backgroundColor: calendarWarningSettings?.warning_color || 'hsl(0 84% 60%)', 
+                          textColor: 'white' 
+                        };
                       } else if (warningLevel === 'warning') {
-                        eventStyle = { backgroundColor: 'hsl(45 93% 47%)', textColor: 'white' };
+                        eventStyle = { 
+                          backgroundColor: calendarWarningSettings?.warning_color || 'hsl(45 93% 47%)', 
+                          textColor: 'white' 
+                        };
                       }
                       
                       return (
@@ -272,9 +309,9 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
                               )}
                               
                               {/* Warning Message */}
-                              {warningLevel && (
+                              {warningLevel && financials.remainingBalance > 0 && (
                                 <div className="text-xs bg-orange-100 dark:bg-orange-900/20 p-2 rounded border-l-4 border-orange-500">
-                                  {warningLevel === 'urgent' ? '⚠️ Event is within 3 days!' : '⚡ Event approaching soon'}
+                                  ⚠️ {calendarWarningSettings?.warning_message || 'Event approaching with unpaid balance'}
                                 </div>
                               )}
                             </div>
