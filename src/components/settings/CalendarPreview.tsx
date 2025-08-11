@@ -33,7 +33,7 @@ export const CalendarPreview = ({ eventId }: CalendarPreviewProps) => {
     enabled: !!eventId
   });
 
-  // Fetch event forms data
+  // Fetch event forms data with field names
   const { data: eventForms } = useQuery({
     queryKey: ['event-forms-preview', eventId],
     queryFn: async () => {
@@ -52,6 +52,23 @@ export const CalendarPreview = ({ eventId }: CalendarPreviewProps) => {
       return data || [];
     },
     enabled: !!eventId
+  });
+
+  // Fetch form field definitions to map IDs to names
+  const { data: formFields } = useQuery({
+    queryKey: ['form-fields-preview', eventId],
+    queryFn: async () => {
+      if (!eventId || !eventForms?.length) return [];
+
+      const { data, error } = await supabase
+        .from('form_fields')
+        .select('id, name, field_type')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!eventId && !!eventForms?.length
   });
 
   const formatCalendarDescription = () => {
@@ -91,35 +108,37 @@ export const CalendarPreview = ({ eventId }: CalendarPreviewProps) => {
     description += `Ladies Count: ${eventData.ladies_count || 0}\n`;
     description += `Total Guest Count: ${(eventData.men_count || 0) + (eventData.ladies_count || 0)}\n\n`;
 
-    // Form data
-    if (eventForms && eventForms.length > 0) {
+    // Form data - display fields with their responses
+    if (eventForms && eventForms.length > 0 && formFields && formFields.length > 0) {
+      // Create a map of field IDs to field names for quick lookup
+      const fieldMap = formFields.reduce((acc: any, field: any) => {
+        acc[field.id] = field.name;
+        return acc;
+      }, {});
+
       eventForms.forEach((eventForm: any) => {
         if (eventForm.form_responses) {
           const responses = eventForm.form_responses;
           
           Object.keys(responses).forEach(fieldId => {
             const fieldData = responses[fieldId];
+            const fieldName = fieldMap[fieldId] || 'Unknown Field';
             
-            if (fieldData && fieldData.enabled && fieldData.value) {
-              let fieldLine = '';
+            // Only process fields that have some data
+            if (fieldData && (fieldData.notes || fieldData.quantity || fieldData.price || fieldData.selectedOption)) {
+              let fieldLine = fieldName;
               
-              // Get field name from the response data
-              const fieldName = fieldData.label || fieldData.name || 'Field';
-              
-              // Add the field name
-              fieldLine += fieldName;
-              
-              // Add quantity if exists and > 1
-              if (fieldData.quantity && fieldData.quantity > 1) {
+              // Add quantity if exists and > 0
+              if (fieldData.quantity && fieldData.quantity > 0) {
                 fieldLine += ` - ${fieldData.quantity}`;
               }
               
-              // Add price if exists (format as currency)
-              if (fieldData.price && fieldData.price > 0) {
-                fieldLine += ` - £${fieldData.price}`;
+              // Add selected option if exists
+              if (fieldData.selectedOption) {
+                fieldLine += ` - ${fieldData.selectedOption}`;
               }
               
-              // Add notes if they exist
+              // Add notes if they exist (exclude pricing info for calendar sync)
               if (fieldData.notes && fieldData.notes.trim()) {
                 fieldLine += ` - ${fieldData.notes.trim()}`;
               }
