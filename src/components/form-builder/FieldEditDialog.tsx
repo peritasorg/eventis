@@ -105,9 +105,14 @@ export const FieldEditDialog: React.FC<FieldEditDialogProps> = ({
   };
 
   const addDropdownOption = () => {
+    const newIndex = formData.dropdown_options.length;
     setFormData(prev => ({
       ...prev,
-      dropdown_options: [...prev.dropdown_options, { label: '', value: '', price: 0 }]
+      dropdown_options: [...prev.dropdown_options, { 
+        label: `Option ${newIndex + 1}`, 
+        value: `option_${newIndex + 1}`, 
+        price: 0 
+      }]
     }));
   };
 

@@ -251,7 +251,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
                 <SelectValue placeholder={field.placeholder_text || 'Select an option...'} />
               </SelectTrigger>
               <SelectContent>
-                {field.dropdown_options?.map((option) => (
+                {field.dropdown_options?.filter(option => option.value.trim() !== '').map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -292,7 +292,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
                     <SelectValue placeholder="Select an option..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {field.dropdown_options?.map((option) => (
+                    {field.dropdown_options?.filter(option => option.value.trim() !== '').map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label} {option.price ? `(£${option.price.toFixed(2)})` : ''}
                       </SelectItem>
