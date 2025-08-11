@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CreditCard, Plus } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { CreditCard, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -91,6 +92,52 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
       invalidateQueries: [['event_payments', eventId], ['event-form-totals', eventId]],
       onError: (error) => {
         toast.error('Failed to record payment: ' + error.message);
+      }
+    }
+  );
+
+  // Delete payment mutation
+  const deletePaymentMutation = useSupabaseMutation(
+    async (paymentId: string) => {
+      if (!currentTenant?.id) throw new Error('Missing tenant ID');
+      
+      // First, get the payment details for logging
+      const { data: payment } = await supabase
+        .from('event_payments')
+        .select('amount_gbp')
+        .eq('id', paymentId)
+        .single();
+      
+      // Delete from event_payments
+      const { error: paymentError } = await supabase
+        .from('event_payments')
+        .delete()
+        .eq('id', paymentId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (paymentError) throw paymentError;
+
+      // Also add deletion note to communications timeline
+      if (payment) {
+        await supabase
+          .from('event_communications')
+          .insert({
+            event_id: eventId,
+            tenant_id: currentTenant.id,
+            communication_date: format(new Date(), 'yyyy-MM-dd'),
+            communication_type: 'payment',
+            note: `Payment deleted: £${payment.amount_gbp.toFixed(2)}`
+          });
+      }
+    },
+    {
+      onSuccess: () => {
+        toast.success('Payment deleted successfully');
+        refetch();
+      },
+      invalidateQueries: [['event_payments', eventId], ['event-form-totals', eventId]],
+      onError: (error) => {
+        toast.error('Failed to delete payment: ' + error.message);
       }
     }
   );
@@ -183,9 +230,35 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                           : 'Invalid date'
                         }
                       </span>
-                      <span className="text-sm font-semibold text-green-600">
-                        {formatCurrency(payment.amount_gbp)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-green-600">
+                          {formatCurrency(payment.amount_gbp)}
+                        </span>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deletePaymentMutation.mutate(payment.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                     {payment.payment_note && (
                       <p className="text-xs text-muted-foreground">{payment.payment_note}</p>

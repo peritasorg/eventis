@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 
 interface Event {
   id: string;
@@ -46,6 +47,7 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
   const { getEventsForDate, getEventDisplayInfo } = useMultiDayEvents(events);
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
 
   // Fetch calendar warning settings
   const { data: calendarWarningSettings } = useSupabaseQuery(
@@ -130,18 +132,17 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
     // Default color if no event type or configuration
     if (!eventType) return { backgroundColor: 'hsl(var(--primary))', textColor: 'hsl(var(--primary-foreground))' };
     
-    // In a real implementation, this would fetch from event_type_configs
-    // For now, use some default colors based on event type
-    const colorMap: Record<string, { backgroundColor: string; textColor: string }> = {
-      'wedding': { backgroundColor: 'hsl(340 82% 52%)', textColor: 'white' },
-      'birthday': { backgroundColor: 'hsl(280 82% 52%)', textColor: 'white' },
-      'corporate': { backgroundColor: 'hsl(220 82% 52%)', textColor: 'white' },
-      'anniversary': { backgroundColor: 'hsl(350 82% 52%)', textColor: 'white' },
-      'graduation': { backgroundColor: 'hsl(45 82% 52%)', textColor: 'white' },
-      'baby_shower': { backgroundColor: 'hsl(200 82% 52%)', textColor: 'white' },
-    };
+    // Look up event type configuration from database
+    const config = eventTypeConfigs?.find(c => c.event_type === eventType);
+    if (config) {
+      return {
+        backgroundColor: config.color,
+        textColor: config.text_color
+      };
+    }
     
-    return colorMap[eventType] || { backgroundColor: 'hsl(var(--primary))', textColor: 'hsl(var(--primary-foreground))' };
+    // Fallback to default primary color
+    return { backgroundColor: 'hsl(var(--primary))', textColor: 'hsl(var(--primary-foreground))' };
   };
 
   const calendarDays = generateCalendar();

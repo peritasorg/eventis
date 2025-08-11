@@ -10,12 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { useEventFormTotals } from '@/hooks/useEventFormTotals';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +25,7 @@ interface EventData {
   id: string;
   tenant_id: string;
   title: string;
+  event_type: string | null;
   event_date: string | null;
   start_time: string | null;
   end_time: string | null;
@@ -50,6 +53,10 @@ export const EventRecord: React.FC = () => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveTimeoutId, setSaveTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+
+  // Get event type configs
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -123,12 +130,21 @@ export const EventRecord: React.FC = () => {
         .from('new_customers')
         .select('id, first_name, last_name, email, phone')
         .eq('tenant_id', currentTenant.id)
-        .order('last_name');
+        .order('first_name', { ascending: true });
       
       if (error) throw error;
       return data || [];
     }
   );
+
+  // Filter customers based on search query
+  const filteredCustomers = customers?.filter(customer => {
+    if (!customerSearchQuery) return true;
+    const query = customerSearchQuery.toLowerCase();
+    const fullName = `${customer.first_name} ${customer.last_name}`.toLowerCase();
+    const email = customer.email?.toLowerCase() || '';
+    return fullName.includes(query) || email.includes(query);
+  }) || [];
 
   // Get live form totals
   const { liveFormTotal, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
@@ -174,6 +190,30 @@ export const EventRecord: React.FC = () => {
       },
       onError: (error) => {
         toast.error('Failed to save changes: ' + error.message);
+      }
+    }
+  );
+
+  // Delete event mutation
+  const deleteEventMutation = useSupabaseMutation(
+    async () => {
+      if (!eventId || !currentTenant?.id) throw new Error('Missing event or tenant ID');
+      
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Event deleted successfully');
+        navigate('/events');
+      },
+      onError: (error) => {
+        toast.error('Failed to delete event: ' + error.message);
       }
     }
   );
@@ -269,6 +309,31 @@ export const EventRecord: React.FC = () => {
               Saving...
             </Badge>
           )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Event
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this event? This action cannot be undone and will remove all associated data including forms, payments, and communications.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => deleteEventMutation.mutate({})}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Button variant="ghost" size="sm" onClick={() => navigate('/events')}>
             <X className="h-4 w-4" />
           </Button>
@@ -387,6 +452,33 @@ export const EventRecord: React.FC = () => {
               )}
             </div>
 
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Event Type</Label>
+                <Select
+                  value={eventData.event_type || ''}
+                  onValueChange={(value) => handleFieldChange('event_type', value || null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select event type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eventTypeConfigs?.map((config) => (
+                      <SelectItem key={config.id} value={config.event_type}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: config.color }}
+                          />
+                          {config.display_name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Customer *</Label>
@@ -414,28 +506,56 @@ export const EventRecord: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleFieldChange('customer_id', null)}
+                        onClick={() => {
+                          handleFieldChange('customer_id', null);
+                          setCustomerSearchQuery('');
+                        }}
                       >
                         Change
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <Select
-                    value={eventData.customer_id || ''}
-                    onValueChange={(value) => handleFieldChange('customer_id', value || null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers?.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.first_name} {customer.last_name} {customer.email && `(${customer.email})`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search customers..."
+                        value={customerSearchQuery}
+                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    {customerSearchQuery && (
+                      <div className="max-h-48 overflow-y-auto border rounded-md bg-background">
+                        {filteredCustomers.length > 0 ? (
+                          filteredCustomers.map((customer) => (
+                            <div
+                              key={customer.id}
+                              className="p-2 hover:bg-accent cursor-pointer border-b last:border-b-0"
+                              onClick={() => {
+                                handleFieldChange('customer_id', customer.id);
+                                setCustomerSearchQuery('');
+                              }}
+                            >
+                              <div className="font-medium">
+                                {customer.first_name} {customer.last_name}
+                              </div>
+                              {customer.email && (
+                                <div className="text-sm text-muted-foreground">
+                                  {customer.email}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-2 text-sm text-muted-foreground">
+                            No customers found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 

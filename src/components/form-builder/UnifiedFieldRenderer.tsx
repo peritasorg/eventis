@@ -226,6 +226,63 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
         );
 
       case 'dropdown_options':
+        // Support for multi-select on specific field types like ethnicity, dining chairs
+        const isMultiSelect = field.name.toLowerCase().includes('ethnicity') || 
+                             field.name.toLowerCase().includes('dining') ||
+                             field.name.toLowerCase().includes('chairs');
+        
+        if (isMultiSelect) {
+          const selectedValues = Array.isArray(response.selectedOption) 
+            ? response.selectedOption 
+            : response.selectedOption ? [response.selectedOption] : [];
+          
+          return (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium">{field.name}</Label>
+                {field.help_text && (
+                  <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {field.dropdown_options?.filter(option => option.value.trim() !== '').map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`${field.id}-${option.value}`}
+                      checked={selectedValues.includes(option.value)}
+                      onChange={(e) => {
+                        let newSelected;
+                        if (e.target.checked) {
+                          newSelected = [...selectedValues, option.value];
+                        } else {
+                          newSelected = selectedValues.filter(v => v !== option.value);
+                        }
+                        updateResponse({ selectedOption: newSelected });
+                      }}
+                      disabled={readOnly}
+                      className="rounded border-gray-300"
+                    />
+                    <label 
+                      htmlFor={`${field.id}-${option.value}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              
+              {selectedValues.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Selected: {selectedValues.join(', ')}
+                </div>
+              )}
+            </div>
+          );
+        }
+        
         return (
           <div className="space-y-3">
             <div>
