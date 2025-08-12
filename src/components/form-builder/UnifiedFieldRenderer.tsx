@@ -39,6 +39,8 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
 
   const calculatePrice = () => {
     if (field.field_type === 'fixed_price_notes') {
+      return response.price || 0;
+    } else if (field.field_type === 'fixed_price_quantity_notes') {
       return (response.quantity || 1) * (response.price || 0);
     } else if (field.field_type === 'per_person_price_notes') {
       return (response.quantity || 0) * (response.price || 0);
@@ -72,6 +74,46 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
         );
 
       case 'fixed_price_notes':
+        return (
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium">{field.name}</Label>
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground">Price</Label>
+              <div className="flex items-center">
+                <span className="text-xs mr-1">£</span>
+                <PriceInput
+                  value={response.price || 0}
+                  onChange={(value) => updateResponse({ price: value })}
+                  placeholder="0.00"
+                  disabled={readOnly}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {field.has_notes && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
+                <Textarea
+                  value={response.notes || ''}
+                  onChange={(e) => updateResponse({ notes: e.target.value })}
+                  placeholder={field.placeholder_text || 'Additional requirements...'}
+                  rows={2}
+                  disabled={readOnly}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </div>
+        );
+
+      case 'fixed_price_quantity_notes':
         return (
           <div className="space-y-3">
             <div>

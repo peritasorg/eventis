@@ -13,7 +13,7 @@ export interface FormField {
   id: string;
   tenant_id: string;
   name: string;
-  field_type: 'text_notes_only' | 'fixed_price_notes' | 'per_person_price_notes' | 'counter_notes' | 'dropdown_options' | 'dropdown_options_price_notes';
+  field_type: 'text_notes_only' | 'fixed_price_notes' | 'fixed_price_quantity_notes' | 'per_person_price_notes' | 'counter_notes' | 'dropdown_options' | 'dropdown_options_price_notes';
   has_notes: boolean;
   has_pricing: boolean;
   pricing_type: 'fixed' | 'per_person' | null;
