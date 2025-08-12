@@ -53,6 +53,7 @@ export const FieldEdit = () => {
     { value: 'fixed_price_notes', label: 'Fixed Price with Notes' },
     { value: 'fixed_price_notes_toggle', label: 'Toggle + Fixed Price with Notes' },
     { value: 'fixed_price_quantity_notes', label: 'Fixed Price with Quantity and Notes' },
+    { value: 'fixed_price_quantity_notes_toggle', label: 'Toggle + Fixed Price with Quantity and Notes' },
     { value: 'per_person_price_notes', label: 'Per Person Price with Notes' },
     { value: 'counter_notes', label: 'Counter with Notes' },
     { value: 'dropdown_options', label: 'Dropdown Options' },
@@ -63,7 +64,7 @@ export const FieldEdit = () => {
     setFormData(prev => ({
       ...prev,
       field_type: fieldType as FormField['field_type'],
-      has_pricing: ['fixed_price_notes', 'fixed_price_notes_toggle', 'fixed_price_quantity_notes', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
+      has_pricing: ['fixed_price_notes', 'fixed_price_notes_toggle', 'fixed_price_quantity_notes', 'fixed_price_quantity_notes_toggle', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
       has_notes: !['counter_notes'].includes(fieldType),
       // Only set default price for per_person_price_notes, leave undefined for fixed_price_notes and fixed_price_quantity_notes
       default_price_gbp: fieldType === 'per_person_price_notes' ? 0 : undefined,
