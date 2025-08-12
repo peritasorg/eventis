@@ -392,20 +392,57 @@ export const EventRecord: React.FC = () => {
     try {
       setIsSyncing(true);
       
+      // First, get the active calendar integration
+      const { data: integration, error: integrationError } = await supabase
+        .from('calendar_integrations')
+        .select('id, provider, calendar_id, is_active')
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .single();
+
+      if (integrationError || !integration) {
+        toast.error('No active calendar integration found. Please configure calendar sync in settings.');
+        return;
+      }
+
+      // Validate event has required fields
+      if (!eventData.event_date || !eventData.start_time || !eventData.title) {
+        toast.error('Event must have a name, date, and time to sync to calendar');
+        return;
+      }
+
+      // Prepare event data for calendar sync
+      const calendarEventData = {
+        id: eventData.id,
+        event_name: eventData.title,
+        event_date: eventData.event_date,
+        event_time: eventData.start_time,
+        end_time: eventData.end_time,
+        event_type: eventData.event_type,
+        guest_count: totalGuests,
+        contact_name: eventData.primary_contact_name,
+        contact_email: selectedCustomer?.email,
+        contact_phone: eventData.primary_contact_number,
+        notes: `Total Guests: ${totalGuests}, Event Type: ${eventData.event_type || 'N/A'}`
+      };
+      
       const { data, error } = await supabase.functions.invoke('calendar-sync', {
         body: {
-          action: 'sync_single_event',
-          eventId: eventData.id,
-          tenantId: currentTenant.id
+          action: 'create',
+          integrationId: integration.id,
+          eventData: calendarEventData
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Calendar sync error:', error);
+        throw new Error(error.message || 'Calendar sync failed');
+      }
       
       toast.success('Event synced to calendar successfully');
     } catch (error) {
       console.error('Error syncing to calendar:', error);
-      toast.error('Failed to sync to calendar');
+      toast.error(error instanceof Error ? error.message : 'Failed to sync to calendar');
     } finally {
       setIsSyncing(false);
     }
