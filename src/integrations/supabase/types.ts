@@ -1165,6 +1165,7 @@ export type Database = {
           affects_pricing: boolean
           category: string
           created_at: string
+          default_enabled: boolean
           default_quantity: number | null
           description: string | null
           dropdown_options: Json | null
@@ -1175,6 +1176,7 @@ export type Database = {
           has_quantity: boolean
           help_text: string | null
           id: string
+          is_toggleable: boolean
           label: string
           max_quantity: number | null
           min_quantity: number | null
@@ -1184,6 +1186,7 @@ export type Database = {
           required: boolean
           sort_order: number | null
           tenant_id: string
+          toggle_label: string | null
           unit_price: number | null
           updated_at: string
         }
@@ -1192,6 +1195,7 @@ export type Database = {
           affects_pricing?: boolean
           category?: string
           created_at?: string
+          default_enabled?: boolean
           default_quantity?: number | null
           description?: string | null
           dropdown_options?: Json | null
@@ -1202,6 +1206,7 @@ export type Database = {
           has_quantity?: boolean
           help_text?: string | null
           id?: string
+          is_toggleable?: boolean
           label: string
           max_quantity?: number | null
           min_quantity?: number | null
@@ -1211,6 +1216,7 @@ export type Database = {
           required?: boolean
           sort_order?: number | null
           tenant_id: string
+          toggle_label?: string | null
           unit_price?: number | null
           updated_at?: string
         }
@@ -1219,6 +1225,7 @@ export type Database = {
           affects_pricing?: boolean
           category?: string
           created_at?: string
+          default_enabled?: boolean
           default_quantity?: number | null
           description?: string | null
           dropdown_options?: Json | null
@@ -1229,6 +1236,7 @@ export type Database = {
           has_quantity?: boolean
           help_text?: string | null
           id?: string
+          is_toggleable?: boolean
           label?: string
           max_quantity?: number | null
           min_quantity?: number | null
@@ -1238,6 +1246,7 @@ export type Database = {
           required?: boolean
           sort_order?: number | null
           tenant_id?: string
+          toggle_label?: string | null
           unit_price?: number | null
           updated_at?: string
         }

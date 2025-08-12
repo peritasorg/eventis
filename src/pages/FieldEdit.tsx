@@ -33,7 +33,10 @@ export const FieldEdit = () => {
     pricing_type: 'fixed',
     placeholder_text: '',
     help_text: '',
-    dropdown_options: []
+    dropdown_options: [],
+    is_toggleable: false,
+    toggle_label: '',
+    default_enabled: true
   });
 
   const [showPreview, setShowPreview] = useState(true);
@@ -235,6 +238,50 @@ export const FieldEdit = () => {
                     placeholder="Optional placeholder text"
                   />
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* Toggle Configuration */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-medium">Toggle Behavior</Label>
+                    <p className="text-sm text-muted-foreground">Configure if this field can be toggled on/off</p>
+                  </div>
+                  <Switch
+                    checked={formData.is_toggleable || false}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_toggleable: checked }))}
+                  />
+                </div>
+
+                {formData.is_toggleable && (
+                  <div className="space-y-3 pl-4 border-l-2 border-muted">
+                    <div>
+                      <Label htmlFor="toggle_label">Toggle Label</Label>
+                      <Input
+                        id="toggle_label"
+                        value={formData.toggle_label || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, toggle_label: e.target.value }))}
+                        placeholder={`Enable ${formData.name || 'this field'}`}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Leave empty to use field name as toggle label
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-sm font-medium">Default State</Label>
+                        <p className="text-xs text-muted-foreground">Should this field be enabled by default?</p>
+                      </div>
+                      <Switch
+                        checked={formData.default_enabled !== false}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, default_enabled: checked }))}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />

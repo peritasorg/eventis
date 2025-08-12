@@ -4,6 +4,7 @@ import { PriceInput } from '@/components/ui/price-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FormField } from '@/hooks/useFormFields';
 
@@ -49,6 +50,28 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
       return selectedDropdownOption?.price || 0;
     }
     return 0;
+  };
+
+  const renderToggleSection = () => {
+    if (!field.is_toggleable) return null;
+
+    return (
+      <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
+        <div>
+          <Label className="text-sm font-medium">
+            {field.toggle_label || field.name}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Toggle to enable this field and its options
+          </p>
+        </div>
+        <Switch
+          checked={response.enabled !== false}
+          onCheckedChange={(enabled) => updateResponse({ enabled })}
+          disabled={readOnly}
+        />
+      </div>
+    );
   };
 
   const renderFieldContent = () => {
@@ -415,21 +438,32 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
     }
   };
 
+  // Don't render sub-fields if field is toggleable but disabled
+  const shouldShowSubFields = !field.is_toggleable || response.enabled !== false;
+
   if (showInCard) {
     return (
       <Card className="w-full">
         <CardContent className="p-4">
-          <div className="grid grid-cols-2 gap-4">
-            {renderFieldContent()}
-          </div>
+          {renderToggleSection()}
+          {shouldShowSubFields && (
+            <div className="grid grid-cols-2 gap-4">
+              {renderFieldContent()}
+            </div>
+          )}
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {renderFieldContent()}
+    <div className="space-y-4">
+      {renderToggleSection()}
+      {shouldShowSubFields && (
+        <div className="grid grid-cols-2 gap-4">
+          {renderFieldContent()}
+        </div>
+      )}
     </div>
   );
 };
