@@ -252,18 +252,17 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
                   className="border-b"
                   data-month={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
                 >
-                  {/* Sticky Month Header */}
-                  <div className="sticky top-0 z-20 bg-card border-b p-6 pb-4">
-                    <h3 className="text-lg font-semibold text-center">
+                  {/* Combined Sticky Header */}
+                  <div className="sticky top-0 z-20 bg-card border-b px-6 py-3">
+                    {/* Month Title */}
+                    <h3 className="text-base font-semibold text-center mb-2">
                       {monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                     </h3>
-                  </div>
-                  
-                  {/* Sticky Day Headers */}
-                  <div className="sticky top-[76px] z-10 bg-card border-b px-6">
-                    <div className="grid grid-cols-7 gap-2 py-2">
+                    
+                    {/* Day Headers */}
+                    <div className="grid grid-cols-7 gap-2">
                       {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                        <div key={day} className="text-center font-semibold text-muted-foreground py-2">
+                        <div key={day} className="text-center text-xs font-semibold text-muted-foreground py-1">
                           {day}
                         </div>
                       ))}
