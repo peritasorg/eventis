@@ -83,12 +83,12 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
 
   const generateMultipleMonths = () => {
     const months = [];
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 3); // Start 3 months ago
+    const today = new Date();
     
-    for (let i = 0; i < 12; i++) { // Generate 12 months total
-      const monthDate = new Date(startDate);
-      monthDate.setMonth(startDate.getMonth() + i);
+    // Start from current month (not 3 months ago)
+    for (let i = 0; i < 12; i++) { // Generate 12 months starting from current month
+      const monthDate = new Date(today);
+      monthDate.setMonth(today.getMonth() + i);
       months.push(monthDate);
     }
     
@@ -142,9 +142,18 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
       month.getMonth() === today.getMonth() && month.getFullYear() === today.getFullYear()
     );
     
-    if (todayMonthIndex !== -1 && scrollContainerRef.current) {
-      const monthHeight = 400; // Approximate height of each month section
-      scrollContainerRef.current.scrollTop = todayMonthIndex * monthHeight;
+    if (scrollContainerRef.current) {
+      if (todayMonthIndex !== -1) {
+        // If today's month is found, scroll to it
+        const monthElements = scrollContainerRef.current.querySelectorAll('[data-month]');
+        const todayElement = monthElements[todayMonthIndex];
+        if (todayElement) {
+          todayElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        // If today's month is not in the list, scroll to top (current month should be first)
+        scrollContainerRef.current.scrollTop = 0;
+      }
     }
   };
 
@@ -238,23 +247,34 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
               const calendarDays = generateCalendarForMonth(monthDate);
               
               return (
-                <div key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`} className="p-6 border-b">
-                  <div className="mb-4">
+                <div 
+                  key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`} 
+                  className="border-b"
+                  data-month={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
+                >
+                  {/* Sticky Month Header */}
+                  <div className="sticky top-0 z-20 bg-card border-b p-6 pb-4">
                     <h3 className="text-lg font-semibold text-center">
                       {monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                     </h3>
                   </div>
                   
-                  <div className="grid grid-cols-7 gap-2 mb-4">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                      <div key={day} className="text-center font-semibold text-muted-foreground py-2">
-                        {day}
-                      </div>
-                    ))}
+                  {/* Sticky Day Headers */}
+                  <div className="sticky top-[76px] z-10 bg-card border-b px-6">
+                    <div className="grid grid-cols-7 gap-2 py-2">
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                        <div key={day} className="text-center font-semibold text-muted-foreground py-2">
+                          {day}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-7 gap-2">
-                    {calendarDays.map((date, index) => {
+                  {/* Calendar Grid */}
+                  <div className="p-6 pt-4">
+                  
+                    <div className="grid grid-cols-7 gap-2">
+                      {calendarDays.map((date, index) => {
                       const isToday = date.toDateString() === today;
                       const isCurrentMonth = date.getMonth() === monthDate.getMonth();
                       const dayEventsInfo = getEventsForDate(date);
@@ -379,7 +399,8 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
                           </div>
                         </div>
                       );
-                    })}
+                      })}
+                    </div>
                   </div>
                 </div>
               );

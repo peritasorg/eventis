@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -86,12 +87,9 @@ export const CompactFieldDisplay: React.FC<CompactFieldDisplayProps> = ({
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">£</span>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={response.price || field.unit_price || ''}
-                onChange={(e) => updateResponse({ price: parseFloat(e.target.value) || 0 })}
+              <PriceInput
+                value={response.price || field.unit_price || 0}
+                onChange={(value) => updateResponse({ price: value })}
                 disabled={readOnly}
                 className="w-32"
               />
@@ -306,12 +304,9 @@ export const CompactFieldDisplay: React.FC<CompactFieldDisplayProps> = ({
                 <Label className="text-xs font-medium">Price</Label>
                 <div className="flex items-center gap-1">
                   <span className="text-xs">£</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={response.price || field.unit_price || ''}
-                    onChange={(e) => updateResponse({ price: parseFloat(e.target.value) || 0 })}
+                  <PriceInput
+                    value={response.price || field.unit_price || 0}
+                    onChange={(value) => updateResponse({ price: value })}
                     disabled={readOnly || !field.allow_price_override}
                     className="h-8 text-sm"
                   />

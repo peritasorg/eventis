@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { useEventForms, EventForm } from '@/hooks/useEventForms';
 import { useForms } from '@/hooks/useForms';
 import { useFormFields } from '@/hooks/useFormFields';
@@ -100,7 +101,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     });
   }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}`).join(',')]);
 
-  // Perfect form total calculation - handles all field types INCLUDING guest_price_total
+  // Perfect form total calculation with proper decimal precision
   const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
     let total = 0;
     const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
@@ -110,8 +111,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       // Skip if toggle is disabled
       if (response.enabled === false) return;
       
-      const price = response.price || 0;
-      const quantity = response.quantity || 1;
+      const price = Number(response.price) || 0;
+      const quantity = Number(response.quantity) || 1;
       
       // All pricing fields contribute to total when enabled
       if (price > 0) {
@@ -121,12 +122,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     
     // CRITICAL: Add guest_price_total to the form total
     const guestPriceTotal = useLocalGuestData 
-      ? (localGuestData[eventForm.id]?.guest_price_total || 0)
-      : (eventForm.guest_price_total || 0);
+      ? (Number(localGuestData[eventForm.id]?.guest_price_total) || 0)
+      : (Number(eventForm.guest_price_total) || 0);
     
     total += guestPriceTotal;
     
-    return total;
+    // Round to 2 decimal places to prevent floating point precision issues
+    return Math.round(total * 100) / 100;
   };
 
   const totalEventValue = eventForms.reduce((sum, eventForm) => {
@@ -379,17 +381,14 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
             <CardContent className="p-4">
               <h3 className="font-medium mb-4">Finance Information</h3>
               <div className="space-y-4">
-                 <div>
-                   <Label>Guest Total Price (£)</Label>
-                   <Input
-                     type="number"
-                     step="0.01"
-                     value={localGuestData[eventForm.id]?.guest_price_total || 0}
-                     onChange={(e) => handleGuestUpdate(eventForm.id, 'guest_price_total', parseFloat(e.target.value) || 0)}
-                     onFocus={(e) => e.target.select()}
-                     placeholder="0.00"
-                   />
-                 </div>
+                   <div>
+                    <Label>Guest Total Price (£)</Label>
+                    <PriceInput
+                      value={localGuestData[eventForm.id]?.guest_price_total || 0}
+                      onChange={(value) => handleGuestUpdate(eventForm.id, 'guest_price_total', value)}
+                      placeholder="0.00"
+                    />
+                  </div>
                  <div>
                    <Label>Form Total (£)</Label>
                    <div className="text-lg font-semibold">

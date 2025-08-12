@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -156,11 +157,9 @@ export const UnifiedFormSection: React.FC<UnifiedFormSectionProps> = ({
                           <DollarSign className="h-3 w-3" />
                           Per Unit (£)
                         </label>
-                        <Input
-                          type="number"
-                          step="0.01"
+                        <PriceInput
                           value={response.unit_price || 0}
-                          onChange={(e) => onFieldChange?.(fieldId, 'unit_price', parseFloat(e.target.value) || 0)}
+                          onChange={(value) => onFieldChange?.(fieldId, 'unit_price', value)}
                           placeholder="0.00"
                           className="h-8 text-sm"
                         />
@@ -169,10 +168,9 @@ export const UnifiedFormSection: React.FC<UnifiedFormSectionProps> = ({
                         <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
                           Total (£)
                         </label>
-                        <Input
-                          type="number"
-                          step="0.01"
+                        <PriceInput
                           value={(response.quantity || 1) * (response.unit_price || 0)}
+                          onChange={() => {}} // Disabled
                           disabled
                           className="h-8 text-sm bg-muted"
                         />
@@ -184,11 +182,9 @@ export const UnifiedFormSection: React.FC<UnifiedFormSectionProps> = ({
                         <DollarSign className="h-3 w-3" />
                         Price (£)
                       </label>
-                      <Input
-                        type="number"
-                        step="0.01"
+                      <PriceInput
                         value={response.price || 0}
-                        onChange={(e) => onFieldChange?.(fieldId, 'price', parseFloat(e.target.value) || 0)}
+                        onChange={(value) => onFieldChange?.(fieldId, 'price', value)}
                         placeholder="0.00"
                         className="h-8 text-sm"
                       />

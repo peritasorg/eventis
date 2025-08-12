@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -122,7 +123,8 @@ export const FinanceTimeline: React.FC<FinanceTimelineProps> = ({
 
                   <div>
                     <Label htmlFor="amount">Amount (£)</Label>
-                    <Input id="amount" name="amount" type="number" step="0.01" required />
+                    <PriceInput value={0} onChange={() => {}} placeholder="0.00" />
+                    <input type="hidden" name="amount" />
                   </div>
                 </div>
 

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -248,12 +249,9 @@ export const LeadDetailsDialog: React.FC<LeadDetailsDialogProps> = ({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
-                <Input
-                  id="estimated_budget"
-                  type="number"
-                  step="0.01"
-                  value={formData.estimated_budget || ''}
-                  onChange={(e) => setFormData({...formData, estimated_budget: e.target.value})}
+                <PriceInput
+                  value={parseFloat(formData.estimated_budget) || 0}
+                  onChange={(value) => setFormData({...formData, estimated_budget: value.toString()})}
                   disabled={!isEditing}
                 />
               </div>
