@@ -1,0 +1,3 @@
+-- Add new field type for toggleable fixed price notes
+INSERT INTO field_types (name, display_name, description, default_config, icon, category, supports_pricing, supports_quantity, supports_notes, active) 
+VALUES ('fixed_price_notes_toggle', 'Toggle + Fixed Price + Notes', 'A toggleable field with fixed pricing and notes - ideal for optional services', '{"has_pricing": true, "has_notes": true, "is_toggleable": true}', 'ToggleLeft', 'pricing', true, false, true, true);
