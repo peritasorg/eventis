@@ -69,11 +69,6 @@ export const Events = () => {
   );
 
   const handleEventClick = (eventId: string, eventDate?: string) => {
-    // Save the event date for calendar state restoration
-    if (eventDate && typeof useCalendarState === 'function') {
-      const { setLastViewedEventDate } = useCalendarState();
-      setLastViewedEventDate(eventDate);
-    }
     navigate(`/events/${eventId}`);
   };
 
@@ -83,6 +78,16 @@ export const Events = () => {
   };
 
   const EventsContent = () => {
+    const { setLastViewedEventDate } = useCalendarState();
+    
+    const handleEventClickWithState = (eventId: string, eventDate?: string) => {
+      // Save the event date for calendar state restoration
+      if (eventDate) {
+        setLastViewedEventDate(eventDate);
+      }
+      handleEventClick(eventId, eventDate);
+    };
+    
     return (
       <div className="min-h-screen bg-background">
       {/* Header */}
@@ -163,7 +168,7 @@ export const Events = () => {
             events={events || []}
             onEventClick={(eventId) => {
               const event = events?.find(e => e.id === eventId);
-              handleEventClick(eventId, event?.event_date);
+              handleEventClickWithState(eventId, event?.event_date);
             }}
             onDateClick={handleDateClick}
           />
@@ -172,7 +177,7 @@ export const Events = () => {
             events={events || []}
             onEventClick={(eventId) => {
               const event = events?.find(e => e.id === eventId);
-              handleEventClick(eventId, event?.event_date);
+              handleEventClickWithState(eventId, event?.event_date);
             }}
             searchQuery={searchQuery}
           />

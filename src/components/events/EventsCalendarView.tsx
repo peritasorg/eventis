@@ -74,6 +74,11 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
   useEffect(() => {
     restoreCalendarState();
     generateMultipleMonths();
+    
+    // Auto-scroll to today after a short delay to ensure months are rendered
+    setTimeout(() => {
+      scrollToToday();
+    }, 100);
   }, []);
 
   const generateMultipleMonths = () => {
