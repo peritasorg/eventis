@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { useEventFormTotals } from '@/hooks/useEventFormTotals';
+import { useEventForms } from '@/hooks/useEventForms';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -156,8 +157,9 @@ export const EventRecord: React.FC = () => {
     return fullName.includes(query) || email.includes(query);
   }) || [];
 
-  // Get live form totals
+  // Get live form totals and individual form data
   const { liveFormTotal, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
+  const { eventForms } = useEventForms(eventId);
 
   // Fetch payment timeline for remaining balance calculation
   const { data: payments } = useSupabaseQuery(
@@ -980,8 +982,37 @@ export const EventRecord: React.FC = () => {
               </div>
 
               <div className="pt-2 border-t space-y-2">
+                {/* Individual Form Breakdown */}
+                {eventForms && eventForms.length > 0 && (
+                  <div className="space-y-1 pb-2 border-b">
+                    <div className="text-sm font-medium text-muted-foreground mb-2">Form Breakdown:</div>
+                    {eventForms.map((eventForm) => (
+                      <div key={eventForm.id} className="flex justify-between items-center text-sm">
+                        <span className="flex items-center gap-2">
+                          {eventForm.form_label}
+                          {eventForm.guest_count && (
+                            <Badge variant="secondary" className="text-xs">
+                              {eventForm.guest_count} guests
+                            </Badge>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {eventForm.guest_price_total && eventForm.guest_price_total > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              Guest: {formatCurrency(eventForm.guest_price_total)}
+                            </span>
+                          )}
+                          <span className="font-medium">
+                            Form: {formatCurrency(eventForm.form_total || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
                 <div className="flex justify-between items-center">
-                  <span>Live Form Total:</span>
+                  <span>Combined Form Total:</span>
                   <span className="font-medium">{formatCurrency(liveFormTotal)}</span>
                 </div>
                 <div className="flex justify-between items-center">

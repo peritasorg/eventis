@@ -677,39 +677,60 @@ export type Database = {
       event_forms: {
         Row: {
           created_at: string | null
+          end_time: string | null
           event_id: string
           form_id: string
           form_label: string
+          form_order: number | null
           form_responses: Json | null
           form_total: number | null
+          guest_count: number | null
+          guest_price_total: number | null
           id: string
           is_active: boolean | null
+          ladies_count: number | null
+          men_count: number | null
+          start_time: string | null
           tab_order: number
           tenant_id: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          end_time?: string | null
           event_id: string
           form_id: string
           form_label?: string
+          form_order?: number | null
           form_responses?: Json | null
           form_total?: number | null
+          guest_count?: number | null
+          guest_price_total?: number | null
           id?: string
           is_active?: boolean | null
+          ladies_count?: number | null
+          men_count?: number | null
+          start_time?: string | null
           tab_order?: number
           tenant_id: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          end_time?: string | null
           event_id?: string
           form_id?: string
           form_label?: string
+          form_order?: number | null
           form_responses?: Json | null
           form_total?: number | null
+          guest_count?: number | null
+          guest_price_total?: number | null
           id?: string
           is_active?: boolean | null
+          ladies_count?: number | null
+          men_count?: number | null
+          start_time?: string | null
           tab_order?: number
           tenant_id?: string
           updated_at?: string | null

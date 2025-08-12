@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 
 export interface FieldResponse {
   value?: any;
@@ -53,6 +54,28 @@ export const CompactFieldDisplay: React.FC<CompactFieldDisplayProps> = ({
     }
     
     onChange(newResponse);
+  };
+
+  const renderToggleSection = () => {
+    if (!field.is_toggleable) return null;
+
+    return (
+      <div className="flex items-center justify-between mb-3 p-2 bg-muted/50 rounded-lg">
+        <div>
+          <Label className="text-sm font-medium">
+            {field.toggle_label || field.label}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Toggle to enable this field
+          </p>
+        </div>
+        <Switch
+          checked={response.enabled !== false}
+          onCheckedChange={(enabled) => updateResponse({ enabled })}
+          disabled={readOnly}
+        />
+      </div>
+    );
   };
 
   const renderMainInput = () => {
@@ -215,13 +238,21 @@ export const CompactFieldDisplay: React.FC<CompactFieldDisplayProps> = ({
     }
   };
 
+  // Don't render sub-fields if field is toggleable but disabled
+  const shouldShowSubFields = !field.is_toggleable || response.enabled !== false;
+
   // Simple inline layout for basic fields
   if (['checkbox'].includes(field.field_type)) {
     return (
       <div className="space-y-2">
-        {renderMainInput()}
-        {field.help_text && (
-          <p className="text-xs text-muted-foreground">{field.help_text}</p>
+        {renderToggleSection()}
+        {shouldShowSubFields && (
+          <>
+            {renderMainInput()}
+            {field.help_text && (
+              <p className="text-xs text-muted-foreground">{field.help_text}</p>
+            )}
+          </>
         )}
       </div>
     );
@@ -230,83 +261,88 @@ export const CompactFieldDisplay: React.FC<CompactFieldDisplayProps> = ({
   // Full card layout for complex fields
   return (
     <div className="space-y-3">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Label className="text-sm font-medium">
-            {field.label}
-            {field.required && <span className="text-destructive ml-1">*</span>}
-          </Label>
-          {field.affects_pricing && (
-            <Badge variant="outline" className="text-xs">
-              {field.pricing_behavior === 'per_person' ? 'Per Person' : 'Pricing'}
-            </Badge>
-          )}
-        </div>
-        
-        {renderMainInput()}
-        
-        {field.help_text && (
-          <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
-        )}
-      </div>
-
-      {/* Pricing & Quantity Section */}
-      {field.affects_pricing && !['price', 'per_person_price', 'quantity'].includes(field.field_type) && (
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-          {field.show_quantity && (
-            <div>
-              <Label className="text-xs font-medium">Quantity</Label>
-              <Input
-                type="number"
-                min={field.min_quantity || 1}
-                max={field.max_quantity || undefined}
-                value={response.quantity || field.default_quantity || 1}
-                onChange={(e) => updateResponse({ quantity: parseInt(e.target.value) || 1 })}
-                disabled={readOnly}
-                className="h-8 text-sm"
-              />
-            </div>
-          )}
-          
+      {renderToggleSection()}
+      {shouldShowSubFields && (
+        <>
           <div>
-            <Label className="text-xs font-medium">Price</Label>
-            <div className="flex items-center gap-1">
-              <span className="text-xs">£</span>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={response.price || field.unit_price || ''}
-                onChange={(e) => updateResponse({ price: parseFloat(e.target.value) || 0 })}
-                disabled={readOnly || !field.allow_price_override}
-                className="h-8 text-sm"
+            <div className="flex items-center gap-2 mb-2">
+              <Label className="text-sm font-medium">
+                {field.label}
+                {field.required && <span className="text-destructive ml-1">*</span>}
+              </Label>
+              {field.affects_pricing && (
+                <Badge variant="outline" className="text-xs">
+                  {field.pricing_behavior === 'per_person' ? 'Per Person' : 'Pricing'}
+                </Badge>
+              )}
+            </div>
+            
+            {renderMainInput()}
+            
+            {field.help_text && (
+              <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+            )}
+          </div>
+
+          {/* Pricing & Quantity Section */}
+          {field.affects_pricing && !['price', 'per_person_price', 'quantity'].includes(field.field_type) && (
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+              {field.show_quantity && (
+                <div>
+                  <Label className="text-xs font-medium">Quantity</Label>
+                  <Input
+                    type="number"
+                    min={field.min_quantity || 1}
+                    max={field.max_quantity || undefined}
+                    value={response.quantity || field.default_quantity || 1}
+                    onChange={(e) => updateResponse({ quantity: parseInt(e.target.value) || 1 })}
+                    disabled={readOnly}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              )}
+              
+              <div>
+                <Label className="text-xs font-medium">Price</Label>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs">£</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={response.price || field.unit_price || ''}
+                    onChange={(e) => updateResponse({ price: parseFloat(e.target.value) || 0 })}
+                    disabled={readOnly || !field.allow_price_override}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notes Section */}
+          {field.show_notes && !readOnly && (
+            <div>
+              <Label className="text-xs font-medium">Notes</Label>
+              <Textarea
+                value={response.notes || ''}
+                onChange={(e) => updateResponse({ notes: e.target.value })}
+                placeholder="Add any notes or special requirements..."
+                rows={2}
+                className="text-sm"
               />
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Notes Section */}
-      {field.show_notes && !readOnly && (
-        <div>
-          <Label className="text-xs font-medium">Notes</Label>
-          <Textarea
-            value={response.notes || ''}
-            onChange={(e) => updateResponse({ notes: e.target.value })}
-            placeholder="Add any notes or special requirements..."
-            rows={2}
-            className="text-sm"
-          />
-        </div>
-      )}
-
-      {/* Total Display */}
-      {field.affects_pricing && response.price && (
-        <div className="text-right pt-2 border-t">
-          <div className="text-sm font-medium">
-            Total: £{((response.price || 0) * (response.quantity || 1)).toFixed(2)}
-          </div>
-        </div>
+          {/* Total Display */}
+          {field.affects_pricing && response.price && (
+            <div className="text-right pt-2 border-t">
+              <div className="text-sm font-medium">
+                Total: £{((response.price || 0) * (response.quantity || 1)).toFixed(2)}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

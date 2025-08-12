@@ -10,6 +10,7 @@ import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useEventTypeFormMappingsForCreation } from '@/hooks/useEventTypeFormMappings';
 
 interface CreateEventDialogProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
+  const { getFormMappingsForEventType } = useEventTypeFormMappingsForCreation();
 
   // Fetch event types for dropdown
   const { data: eventTypes } = useSupabaseQuery(
@@ -87,6 +89,42 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
         .single();
 
       if (error) throw error;
+
+      // Auto-assign forms if event type is selected
+      if (eventData.event_type) {
+        try {
+          const formMappings = await getFormMappingsForEventType(eventData.event_type);
+          console.log('Form mappings for event type:', eventData.event_type, formMappings);
+          
+          if (formMappings && formMappings.length > 0) {
+            for (const mapping of formMappings) {
+              console.log('Creating event form for mapping:', mapping);
+              const { error: formError } = await supabase
+                .from('event_forms')
+                .insert({
+                  tenant_id: currentTenant.id,
+                  event_id: data.id,
+                  form_id: mapping.form_id,
+                  form_label: mapping.default_label,
+                  form_order: mapping.sort_order + 1,
+                  tab_order: mapping.sort_order + 1,
+                  is_active: true,
+                  form_responses: {},
+                  form_total: 0
+                });
+              
+              if (formError) {
+                console.error('Error creating event form:', formError);
+              }
+            }
+          } else {
+            console.log('No form mappings found for event type:', eventData.event_type);
+          }
+        } catch (formError) {
+          console.error('Error auto-assigning forms:', formError);
+          // Don't fail the event creation if form assignment fails
+        }
+      }
 
       toast.success('Event created successfully');
       onClose();
