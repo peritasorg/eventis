@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Perfect All Days Import Script - Updated for New Schema
-Maps every field perfectly with toggles, prices, quantities, and notes
+CORRECTED All Days Import Script - Schema Compliant
+Fixes all critical issues: JSON ethnicity, proper field mappings, correct table structure
 """
 
 import pandas as pd
@@ -21,7 +21,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('all_days_import_perfect.log', encoding='utf-8'),
+        logging.FileHandler('all_days_import_corrected.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -41,7 +41,7 @@ DB_CONFIG = {
 TENANT_ID = 'e2a03656-036e-4041-a24e-c06e85747906'
 ALL_DAY_EVENT_TYPE = 'All Day'
 
-# Form IDs (from database query)
+# Form IDs for Nikkah and Reception forms (will be loaded from DB)
 NIKKAH_FORM_ID = 'b4c302ae-9a3b-45e9-9c0e-95e857a8592f'
 RECEPTION_FORM_ID = '1600029b-735b-4e93-b4a9-baaf20872d70'
 
@@ -189,60 +189,130 @@ def parse_powerapp_datetime(date_str, field_name="unknown"):
         logger.error(traceback.format_exc())
         return None
 
-def get_field_library_mappings(cursor):
-    """Get field library mappings from database."""
-    logger.info("📚 Loading field library mappings from database...")
+def validate_database_schema(cursor):
+    """Validate database schema before import."""
+    logger.info("🔍 Validating database schema...")
     
-    # Check if field library is populated
-    cursor.execute("""
-        SELECT COUNT(*) as count FROM field_library 
-        WHERE tenant_id = %s AND active = true
-    """, (TENANT_ID,))
-    count = cursor.fetchone()['count']
-    
-    if count == 0:
-        logger.warning("⚠️ Field library is empty - will use form_fields table instead")
-        # Get mappings from old form_fields table
+    try:
+        # Check events table structure
         cursor.execute("""
-            SELECT id, name, field_type, has_pricing, default_price_gbp 
-            FROM form_fields 
+            SELECT column_name, data_type, is_nullable 
+            FROM information_schema.columns 
+            WHERE table_name = 'events' AND table_schema = 'public'
+            ORDER BY ordinal_position
+        """)
+        events_columns = cursor.fetchall()
+        
+        required_events_fields = ['id', 'tenant_id', 'title', 'event_date', 'ethnicity']
+        missing_fields = []
+        
+        column_names = [col['column_name'] for col in events_columns]
+        for field in required_events_fields:
+            if field not in column_names:
+                missing_fields.append(field)
+        
+        if missing_fields:
+            raise ValueError(f"Missing required fields in events table: {missing_fields}")
+        
+        logger.info(f"✅ Events table schema validated - {len(events_columns)} columns found")
+        
+        # Check form_fields table
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM form_fields 
             WHERE tenant_id = %s AND is_active = true
-            ORDER BY name
         """, (TENANT_ID,))
-        fields = cursor.fetchall()
         
-        field_mappings = {}
-        for field in fields:
-            field_mappings[field['name']] = {
-                'id': field['id'],
-                'field_type': field['field_type'],
-                'has_pricing': field['has_pricing'],
-                'unit_price': field['default_price_gbp'] or 0
-            }
+        form_fields_count = cursor.fetchone()['count']
+        if form_fields_count == 0:
+            raise ValueError("No active form fields found for tenant")
         
-        logger.info(f"📝 Loaded {len(field_mappings)} fields from form_fields table")
-        return field_mappings
-    else:
-        # Get mappings from field library
+        logger.info(f"✅ Form fields validated - {form_fields_count} active fields found")
+        
+        # Check ethnicity options
         cursor.execute("""
-            SELECT id, name, label, field_type, has_pricing, unit_price
-            FROM field_library 
-            WHERE tenant_id = %s AND active = true
-            ORDER BY name
+            SELECT COUNT(*) as count FROM event_ethnicity_options 
+            WHERE tenant_id = %s AND is_active = true
         """, (TENANT_ID,))
-        fields = cursor.fetchall()
         
-        field_mappings = {}
-        for field in fields:
-            field_mappings[field['name']] = {
-                'id': field['id'],
-                'field_type': field['field_type'],
-                'has_pricing': field['has_pricing'],
-                'unit_price': field['unit_price'] or 0
-            }
+        ethnicity_count = cursor.fetchone()['count']
+        logger.info(f"✅ Ethnicity options validated - {ethnicity_count} options found")
         
-        logger.info(f"📝 Loaded {len(field_mappings)} fields from field_library")
-        return field_mappings
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Schema validation failed: {e}")
+        return False
+
+def load_form_field_mappings(cursor):
+    """Load form field mappings from database."""
+    logger.info("📚 Loading form field mappings...")
+    
+    cursor.execute("""
+        SELECT id, name, field_type, has_pricing, default_price_gbp 
+        FROM form_fields 
+        WHERE tenant_id = %s AND is_active = true
+        ORDER BY name
+    """, (TENANT_ID,))
+    
+    fields = cursor.fetchall()
+    field_mappings = {}
+    
+    for field in fields:
+        field_mappings[field['name'].lower().replace(' ', '_')] = {
+            'id': field['id'],
+            'name': field['name'],
+            'field_type': field['field_type'],
+            'has_pricing': field['has_pricing'],
+            'unit_price': field['default_price_gbp'] or 0
+        }
+    
+    logger.info(f"📝 Loaded {len(field_mappings)} field mappings")
+    return field_mappings
+
+def load_ethnicity_mappings(cursor):
+    """Load ethnicity mappings from database."""
+    logger.info("🌍 Loading ethnicity mappings...")
+    
+    cursor.execute("""
+        SELECT id, ethnicity_name 
+        FROM event_ethnicity_options 
+        WHERE tenant_id = %s AND is_active = true
+        ORDER BY ethnicity_name
+    """, (TENANT_ID,))
+    
+    ethnicities = cursor.fetchall()
+    ethnicity_mappings = {}
+    
+    for ethnicity in ethnicities:
+        ethnicity_mappings[ethnicity['ethnicity_name'].lower()] = ethnicity['id']
+    
+    logger.info(f"🌍 Loaded {len(ethnicity_mappings)} ethnicity mappings")
+    return ethnicity_mappings
+
+def map_ethnicity_to_json(ethnicity_string, ethnicity_mappings):
+    """Convert ethnicity string to JSON array of ethnicity IDs."""
+    if not ethnicity_string or pd.isna(ethnicity_string):
+        return None
+    
+    ethnicity_string = safe_string(ethnicity_string).lower().strip()
+    if not ethnicity_string:
+        return None
+    
+    # Try exact match first
+    if ethnicity_string in ethnicity_mappings:
+        return [ethnicity_mappings[ethnicity_string]]
+    
+    # Try partial matches
+    matches = []
+    for name, id in ethnicity_mappings.items():
+        if ethnicity_string in name or name in ethnicity_string:
+            matches.append(id)
+    
+    if matches:
+        return matches[:1]  # Return first match
+    
+    logger.warning(f"No ethnicity mapping found for: '{ethnicity_string}'")
+    return None
 
 def find_customer_by_contact(cursor, contact_name, contact_phone):
     """Find existing customer by contact information."""
@@ -278,8 +348,8 @@ def find_customer_by_contact(cursor, contact_name, contact_phone):
         logger.warning(f"Error finding customer: {e}")
         return None
 
-def create_form_responses_perfect(row, form_type='nikkah', field_mappings=None):
-    """Create perfect form_responses JSON structure with proper toggle handling."""
+def create_form_responses_corrected(row, form_type='nikkah', field_mappings=None):
+    """Create corrected form_responses JSON structure."""
     form_responses = {}
     form_total = Decimal('0.00')
     
@@ -287,85 +357,74 @@ def create_form_responses_perfect(row, form_type='nikkah', field_mappings=None):
         if not field_mappings:
             return {}, Decimal('0.00')
         
-        # PowerApps to internal field mappings
+        # PowerApps to internal field mappings with correct field names
         if form_type == 'nikkah':
             powerapp_mappings = {
-                'ma_nikahextrahoursyesno': ('extra_hour', 'ma_nikahextrahoursprice', 'fixed_price_quantity_notes_toggle'),
-                'ma_nikahtopuplambyesno': ('top_up_lamb', 'ma_nikahtopuplambprice', 'fixed_price_notes_toggle'),
-                'ma_nikahwelcomedrinksyesno': ('welcome_drinks', 'ma_nikahwelcomedrinksprice', 'fixed_price_notes_toggle'),
-                'ma_nikahchoiceofstage': ('choice_of_stage', None, 'text_field'),
-                'ma_nikahdesserttableyesno': ('dessert_table', 'ma_nikahdesserttableprice', 'fixed_price_notes_toggle'),
-                'ma_nikahfruittableyesno': ('fruit_table', 'ma_nikahfruittableprice', 'fixed_price_notes_toggle'),
-                'ma_nikahfullcutleryyesno': ('full_cutlery', 'ma_nikahfullcutleryprice', 'fixed_price_notes_toggle'),
-                'ma_nikahfogandsparkleyesno': ('fog_and_sparkle', 'ma_nikahfogandsparkleprice', 'fixed_price_notes_toggle'),
-                'ma_nikahfruityesno': ('fruit', 'ma_nikahfruitprice', 'fixed_price_notes_toggle'),
-                'ma_nikahextra1yesno': ('extra_1', 'ma_nikahextra1price', 'fixed_price_notes_toggle'),
-                'ma_nikahextra2yesno': ('extra_2', 'ma_nikahextra2price', 'fixed_price_notes_toggle'),
-                'ma_nikahextra3yesno': ('extra_3', 'ma_nikahextra3price', 'fixed_price_notes_toggle'),
-                'ma_nikahextra4yesno': ('extra_4', 'ma_nikahextra4price', 'fixed_price_notes_toggle'),
-                'ma_nikahnotessection': ('notes', None, 'textarea_field')
+                'ma_nikahextrahoursyesno': ('extra_hour', 'ma_nikahextrahoursprice'),
+                'ma_nikahtopuplambyesno': ('extra_1', 'ma_nikahtopuplambprice'),  # Map to available fields
+                'ma_nikahwelcomedrinksyesno': ('extra_2', 'ma_nikahwelcomedrinksprice'),
+                'ma_nikahdesserttableyesno': ('dessert_table', 'ma_nikahdesserttableprice'),
+                'ma_nikahfruittableyesno': ('fruit_table', 'ma_nikahfruittableprice'),
+                'ma_nikahfullcutleryyesno': ('full_cutlery', 'ma_nikahfullcutleryprice'),
+                'ma_nikahfogandsparkleyesno': ('fog_and_sparkles', 'ma_nikahfogandsparkleprice'),
+                'ma_nikahfruityesno': ('fruit_baskets', 'ma_nikahfruitprice'),
+                'ma_nikahextra1yesno': ('extra_3', 'ma_nikahextra1price'),
+                'ma_nikahextra2yesno': ('extra_4', 'ma_nikahextra2price'),
+                'ma_nikahextra3yesno': ('extra_5', 'ma_nikahextra3price'),
+                'ma_nikahextra4yesno': ('extra_6', 'ma_nikahextra4price'),
+                'ma_nikahnotessection': ('notes_section', None)
             }
         else:  # reception
             powerapp_mappings = {
-                'ma_themecolour': ('theme', None, 'text_field'),
-                'ma_stage': ('stage', None, 'text_field'),
-                'ma_weddingfavours': ('wedding_favours', None, 'text_field'),
-                'ma_centrepieces': ('centerpieces', None, 'text_field'),
-                'ma_setup': ('setup', None, 'text_field'),
-                'ma_dinnertime': ('dinner_time', None, 'text_field'),
-                'ma_starter': ('starter', None, 'text_field'),
-                'ma_maincourse': ('main_course', None, 'text_field'),
-                'ma_dessert': ('dessert', None, 'text_field'),
-                'ma_specialrequest1': ('special_request_1', None, 'text_field'),
-                'ma_specialrequest2': ('special_request_2', None, 'text_field'),
-                'ma_specialrequest3': ('special_request_3', None, 'text_field'),
-                'ma_specialrequest4': ('special_request_4', None, 'text_field'),
-                'ma_specialrequest5': ('special_request_5', None, 'text_field'),
-                'ma_tissuesonplates': ('tissues_on_plates', None, 'text_field'),
-                'ma_napkins': ('napkins', None, 'text_field'),
-                'ma_welcomesign': ('welcome_sign', None, 'text_field'),
-                'ma_djsystem': ('dj_system', None, 'text_field'),
-                'ma_diningchairs': ('dining_chairs', None, 'select_field'),
-                'ma_fullcutlery': ('full_cutlery', None, 'select_field'),
-                'ma_cakefromnarmin': ('cake', 'ma_cakefromnarmin', 'fixed_price_notes_toggle'),
-                'ma_carpetrunner': ('carpet_runner', 'ma_carpetrunner', 'fixed_price_notes_toggle'),
-                'ma_desserttable': ('dessert_table', 'ma_desserttable', 'fixed_price_notes_toggle'),
-                'ma_fruittable': ('fruit_table', 'ma_fruittable', 'fixed_price_notes_toggle'),
-                'ma_teacoffeestation': ('tea_coffee_station', 'ma_teacoffeestation', 'fixed_price_notes_toggle'),
-                'ma_receptionfogandsparkle': ('fog_and_sparkle', 'ma_receptionfogandsparkle', 'fixed_price_notes_toggle'),
-                'ma_welcomedrinks': ('welcome_drinks', 'ma_welcomedrinks', 'fixed_price_notes_toggle'),
-                'ma_invitationbycard': ('invitation_by_card', 'ma_invitationbycard', 'fixed_price_notes_toggle'),
-                'ma_password': ('password', 'ma_password', 'fixed_price_notes_toggle'),
-                'ma_receptionextra1yesno': ('extra_1', 'ma_receptionextra1price', 'fixed_price_notes_toggle'),
-                'ma_receptionextra2yesno': ('extra_2', 'ma_receptionextra2price', 'fixed_price_notes_toggle'),
-                'ma_receptionextra3yesno': ('extra_3', 'ma_receptionextra3price', 'fixed_price_notes_toggle'),
-                'ma_receptionextra4yesno': ('extra_4', 'ma_receptionextra4price', 'fixed_price_notes_toggle'),
-                'ma_notessection': ('notes', None, 'textarea_field')
+                'ma_themecolour': ('notes_section', None),  # Map theme to notes
+                'ma_stage': ('notes_section', None),
+                'ma_weddingfavours': ('notes_section', None),
+                'ma_centrepieces': ('centrepieces', None),
+                'ma_setup': ('setup', None),
+                'ma_dinnertime': ('dinner_time', None),
+                'ma_starter': ('notes_section', None),
+                'ma_maincourse': ('main_course', None),
+                'ma_dessert': ('dessert', None),
+                'ma_specialrequest1': ('special_request_1', None),
+                'ma_specialrequest2': ('special_request_2', None),
+                'ma_diningchairs': ('dining_chairs', None),
+                'ma_fullcutlery': ('full_cutlery', None),
+                'ma_cakefromnarmin': ('cake', 'ma_cakefromnarmin'),
+                'ma_carpetrunner': ('carpet_runner', 'ma_carpetrunner'),
+                'ma_desserttable': ('dessert_table', 'ma_desserttable'),
+                'ma_fruittable': ('fruit_table', 'ma_fruittable'),
+                'ma_receptionfogandsparkle': ('fog_and_sparkles', 'ma_receptionfogandsparkle'),
+                'ma_invitationbycard': ('invitation_by_card', 'ma_invitationbycard'),
+                'ma_password': ('password', 'ma_password'),
+                'ma_receptionextra1yesno': ('extra_1', 'ma_receptionextra1price'),
+                'ma_receptionextra2yesno': ('extra_2', 'ma_receptionextra2price'),
+                'ma_receptionextra3yesno': ('extra_3', 'ma_receptionextra3price'),
+                'ma_receptionextra4yesno': ('extra_4', 'ma_receptionextra4price'),
+                'ma_notessection': ('notes_section', None)
             }
         
         for powerapp_field, mapping_data in powerapp_mappings.items():
-            our_field, price_field, expected_field_type = mapping_data
+            our_field, price_field = mapping_data
             
             if our_field not in field_mappings:
-                logger.debug(f"Field '{our_field}' not found in field library - skipping")
+                logger.debug(f"Field '{our_field}' not found in mappings - skipping")
                 continue
                 
             field_info = field_mappings[our_field]
-            field_library_id = field_info['id']
+            field_id = field_info['id']
+            field_type = field_info['field_type']
             
             # Create base field response structure
             field_response = {
                 'enabled': False,
                 'price': 0,
                 'quantity': 1,
-                'pricing_type': 'fixed',
                 'notes': '',
-                'label': our_field.replace('_', ' ').title(),
                 'selections': []
             }
             
-            # Handle different field types
-            if expected_field_type == 'fixed_price_notes_toggle':
+            # Handle different field types based on actual database schema
+            if field_type == 'fixed_price_notes_toggle' and field_info['has_pricing']:
                 enabled = safe_bool(row.get(powerapp_field, False))
                 price = safe_decimal(row.get(price_field, 0)) if price_field else Decimal('0')
                 
@@ -375,30 +434,18 @@ def create_form_responses_perfect(row, form_type='nikkah', field_mappings=None):
                 if enabled and price > 0:
                     form_total += price
                     
-            elif expected_field_type == 'fixed_price_quantity_notes_toggle':
-                enabled = safe_bool(row.get(powerapp_field, False))
-                quantity = safe_int(row.get(powerapp_field.replace('yesno', 'quantity'), 1))
-                price_per_unit = safe_decimal(row.get(price_field, 0)) if price_field else Decimal('0')
-                
-                field_response['enabled'] = enabled
-                field_response['quantity'] = quantity
-                field_response['price'] = float(price_per_unit * quantity)
-                
-                if enabled and price_per_unit > 0:
-                    form_total += price_per_unit * quantity
-                    
-            elif expected_field_type == 'select_field':
+            elif field_type == 'dropdown_options':
                 selection = safe_string(row.get(powerapp_field, ''))
                 field_response['enabled'] = bool(selection)
                 field_response['selections'] = [selection] if selection else []
                 field_response['notes'] = selection
                 
-            elif expected_field_type in ['text_field', 'textarea_field']:
+            elif field_type == 'text_notes_only':
                 text_value = safe_string(row.get(powerapp_field, ''))
                 field_response['enabled'] = bool(text_value)
                 field_response['notes'] = text_value
             
-            form_responses[field_library_id] = field_response
+            form_responses[field_id] = field_response
         
         logger.debug(f"Created {form_type} responses: {len(form_responses)} fields, total: £{form_total}")
         return form_responses, form_total
@@ -409,8 +456,8 @@ def create_form_responses_perfect(row, form_type='nikkah', field_mappings=None):
         return {}, Decimal('0.00')
 
 def import_all_days_events():
-    """Main import function with perfect field mapping."""
-    logger.info("🚀 Starting PERFECT All Days import process...")
+    """Main import function with schema compliance."""
+    logger.info("🚀 Starting CORRECTED All Days import process...")
     
     try:
         # Load CSV file
@@ -424,14 +471,19 @@ def import_all_days_events():
         conn.autocommit = False
         
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            # Load field mappings from database
-            field_mappings = get_field_library_mappings(cursor)
+            # Validate schema first
+            if not validate_database_schema(cursor):
+                raise ValueError("Database schema validation failed")
+            
+            # Load mappings
+            field_mappings = load_form_field_mappings(cursor)
+            ethnicity_mappings = load_ethnicity_mappings(cursor)
         
         success_count = 0
         error_count = 0
         errors = []
         
-        logger.info("📝 Starting import process...")
+        logger.info("📝 Starting corrected import process...")
         
         for index, row in df.iterrows():
             try:
@@ -480,7 +532,7 @@ def import_all_days_events():
                         errors.append(f"Row {index + 1}: No valid start date for event '{event_name}'")
                         continue
                     
-                    # Guest counts - separate for Nikkah and Reception
+                    # Guest counts
                     nikkah_men = safe_int(row.get('ma_nikahmencount', 0))
                     nikkah_ladies = safe_int(row.get('ma_nikahladiescount', 0))
                     reception_men = safe_int(row.get('ma_receptionmencount', 0))
@@ -489,7 +541,6 @@ def import_all_days_events():
                     # Use reception counts for main event (as it's usually the larger number)
                     event_men_count = reception_men
                     event_ladies_count = reception_ladies
-                    total_guests = event_men_count + event_ladies_count
                     
                     # Financial data
                     nikkah_guest_price = safe_decimal(row.get('ma_nikahtotalguestprice', 0))
@@ -497,10 +548,15 @@ def import_all_days_events():
                     total_guest_price = nikkah_guest_price + reception_guest_price
                     deposit_amount = safe_decimal(row.get('ma_depositamount', 0))
                     
-                    # Create event record
+                    # Handle ethnicity properly as JSON
+                    ethnicity_string = safe_string(row.get('ma_ethnicity', ''))
+                    ethnicity_json = map_ethnicity_to_json(ethnicity_string, ethnicity_mappings)
+                    
+                    # Create event record with correct field names and proper JSON handling
                     event_id = str(uuid.uuid4())
                     
                     logger.info(f"💾 Inserting event: '{event_name}' on {event_start_date}")
+                    logger.debug(f"Ethnicity: '{ethnicity_string}' -> {ethnicity_json}")
                     
                     cursor.execute("""
                         INSERT INTO events (
@@ -529,17 +585,17 @@ def import_all_days_events():
                         event_men_count, event_ladies_count,
                         float(total_guest_price), float(deposit_amount),
                         primary_contact, primary_phone,
-                        safe_string(row.get('ma_ethnicity', '')),
+                        json.dumps(ethnicity_json) if ethnicity_json else None,
                         datetime.now(), datetime.now()
                     ))
                     
                     # Create Nikkah form responses
-                    nikkah_responses, nikkah_total = create_form_responses_perfect(
+                    nikkah_responses, nikkah_total = create_form_responses_corrected(
                         row, 'nikkah', field_mappings
                     )
                     
                     # Create Reception form responses
-                    reception_responses, reception_total = create_form_responses_perfect(
+                    reception_responses, reception_total = create_form_responses_corrected(
                         row, 'reception', field_mappings
                     )
                     
@@ -612,11 +668,16 @@ def import_all_days_events():
                 logger.error(traceback.format_exc())
                 errors.append(error_msg)
                 error_count += 1
+                
+                # Stop after 5 consecutive errors to avoid flooding
+                if error_count >= 5 and success_count == 0:
+                    logger.error("💥 Too many consecutive errors - stopping import")
+                    break
                 continue
         
         # Summary
         logger.info("=" * 80)
-        logger.info("📊 PERFECT IMPORT SUMMARY")
+        logger.info("📊 CORRECTED IMPORT SUMMARY")
         logger.info("=" * 80)
         logger.info(f"✅ Successfully imported: {success_count} events")
         logger.info(f"❌ Failed imports: {error_count} events")
@@ -624,8 +685,10 @@ def import_all_days_events():
         
         if errors:
             logger.info("❌ ERRORS:")
-            for error in errors:
+            for error in errors[:10]:  # Show first 10 errors
                 logger.info(f"  - {error}")
+            if len(errors) > 10:
+                logger.info(f"  ... and {len(errors) - 10} more errors")
         
         return success_count, error_count, errors
         
@@ -643,32 +706,33 @@ if __name__ == "__main__":
         print("❌ Error: ma_alldaies.csv file not found!")
         sys.exit(1)
     
-    print("🚀 PERFECT ALL DAYS IMPORT SCRIPT")
+    print("🚀 CORRECTED ALL DAYS IMPORT SCRIPT")
     print("=" * 50)
-    print("✅ Perfect field mapping with toggles, prices, quantities, and notes")
-    print("✅ Proper guest count handling for Nikkah and Reception forms")
-    print("✅ Financial calculations with form totals")
-    print("✅ All Day event type with automatic form assignment")
+    print("✅ Schema-compliant with proper JSON handling")
+    print("✅ Dynamic field mapping from database")
+    print("✅ Ethnicity conversion to proper JSON format")
+    print("✅ Enhanced error handling and validation")
+    print("✅ Early termination on fundamental errors")
     print("")
     
-    response = input("🤔 Proceed with perfect import? (y/N): ").strip().lower()
+    response = input("🤔 Proceed with corrected import? (y/N): ").strip().lower()
     if response not in ['y', 'yes']:
         print("❌ Import cancelled.")
         sys.exit(0)
     
-    print("\n🚀 Starting perfect import...")
+    print("\n🚀 Starting corrected import...")
     success, errors, error_list = import_all_days_events()
     
     print("\n" + "=" * 50)
     if success > 0:
-        print(f"🎉 Perfect import completed!")
+        print(f"🎉 Corrected import completed!")
         print(f"✅ Records imported: {success}")
         if errors > 0:
             print(f"⚠️  Records with errors: {errors}")
     else:
         print("❌ Import failed.")
         if error_list:
-            print("💥 Errors:")
-            for error in error_list:
+            print("💥 First few errors:")
+            for error in error_list[:5]:
                 print(f"  - {error}")
     print("=" * 50)
