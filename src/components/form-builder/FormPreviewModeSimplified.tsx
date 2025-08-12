@@ -49,7 +49,7 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
           notes: '', 
           price: field.unit_price || 0, 
           quantity: field.default_quantity || 1,
-          enabled: field.field_type === 'toggle' ? false : true
+          enabled: field.field_type?.includes('toggle') ? false : true
         };
         
         return (

@@ -238,8 +238,8 @@ export const CompactFieldDisplay: React.FC<CompactFieldDisplayProps> = ({
     }
   };
 
-  // Don't render sub-fields if field is toggleable but disabled
-  const shouldShowSubFields = !field.is_toggleable || response.enabled !== false;
+  // For toggle fields, always show the field (toggle is always visible)
+  const shouldShowSubFields = !field.field_type?.includes('_toggle') || true;
 
   // Simple inline layout for basic fields
   if (['checkbox'].includes(field.field_type)) {
@@ -324,11 +324,10 @@ export const CompactFieldDisplay: React.FC<CompactFieldDisplayProps> = ({
           {field.show_notes && !readOnly && (
             <div>
               <Label className="text-xs font-medium">Notes</Label>
-              <Textarea
+              <Input
                 value={response.notes || ''}
                 onChange={(e) => updateResponse({ notes: e.target.value })}
                 placeholder="Add any notes or special requirements..."
-                rows={2}
                 className="text-sm"
               />
             </div>
