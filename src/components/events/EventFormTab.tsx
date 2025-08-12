@@ -347,6 +347,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                      type="number"
                      value={localGuestData[eventForm.id]?.men_count || 0}
                      onChange={(e) => handleGuestUpdate(eventForm.id, 'men_count', parseInt(e.target.value) || 0)}
+                     onFocus={(e) => e.target.select()}
                      placeholder="0"
                    />
                  </div>
@@ -356,6 +357,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                      type="number"
                      value={localGuestData[eventForm.id]?.ladies_count || 0}
                      onChange={(e) => handleGuestUpdate(eventForm.id, 'ladies_count', parseInt(e.target.value) || 0)}
+                     onFocus={(e) => e.target.select()}
                      placeholder="0"
                    />
                  </div>
@@ -375,6 +377,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                      step="0.01"
                      value={localGuestData[eventForm.id]?.guest_price_total || 0}
                      onChange={(e) => handleGuestUpdate(eventForm.id, 'guest_price_total', parseFloat(e.target.value) || 0)}
+                     onFocus={(e) => e.target.select()}
                      placeholder="0.00"
                    />
                  </div>
