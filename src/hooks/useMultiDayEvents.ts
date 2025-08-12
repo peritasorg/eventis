@@ -79,6 +79,11 @@ export const useMultiDayEvents = (events: Event[]) => {
           totalDays,
           dayIndex,
         };
+      }).sort((a, b) => {
+        // Sort by start_time in ascending order (earliest first)
+        const timeA = a.event.start_time || '23:59'; // Events without time go to end
+        const timeB = b.event.start_time || '23:59';
+        return timeA.localeCompare(timeB);
       }) || [];
     };
   }, [events]);

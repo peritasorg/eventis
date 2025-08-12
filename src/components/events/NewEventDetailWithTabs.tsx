@@ -4,8 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { EventRecord } from './EventRecord';
-import { CommunicationsTimeline } from './CommunicationsTimeline';
-import { PaymentTimeline } from './PaymentTimeline';
 import { EventFormTab } from './EventFormTab';
 
 export const NewEventDetailWithTabs: React.FC = () => {
@@ -34,23 +32,13 @@ export const NewEventDetailWithTabs: React.FC = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="communications">Communications</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="forms">Forms</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview">
           <EventRecord />
-        </TabsContent>
-        
-        <TabsContent value="communications">
-          <CommunicationsTimeline eventId={eventId} />
-        </TabsContent>
-        
-        <TabsContent value="payments">
-          <PaymentTimeline eventId={eventId} />
         </TabsContent>
         
         <TabsContent value="forms">

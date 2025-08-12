@@ -1009,6 +1009,7 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_id: string | null
+          date_changed_at: string | null
           deposit_amount_gbp: number | null
           end_time: string | null
           ethnicity: Json | null
@@ -1020,6 +1021,7 @@ export type Database = {
           id: string
           ladies_count: number | null
           men_count: number | null
+          original_event_date: string | null
           primary_contact_name: string | null
           primary_contact_number: string | null
           secondary_contact_name: string | null
@@ -1033,6 +1035,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           customer_id?: string | null
+          date_changed_at?: string | null
           deposit_amount_gbp?: number | null
           end_time?: string | null
           ethnicity?: Json | null
@@ -1044,6 +1047,7 @@ export type Database = {
           id?: string
           ladies_count?: number | null
           men_count?: number | null
+          original_event_date?: string | null
           primary_contact_name?: string | null
           primary_contact_number?: string | null
           secondary_contact_name?: string | null
@@ -1057,6 +1061,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           customer_id?: string | null
+          date_changed_at?: string | null
           deposit_amount_gbp?: number | null
           end_time?: string | null
           ethnicity?: Json | null
@@ -1068,6 +1073,7 @@ export type Database = {
           id?: string
           ladies_count?: number | null
           men_count?: number | null
+          original_event_date?: string | null
           primary_contact_name?: string | null
           primary_contact_number?: string | null
           secondary_contact_name?: string | null
