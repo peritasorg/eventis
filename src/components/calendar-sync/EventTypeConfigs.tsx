@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Palette, Clock, Split } from 'lucide-react';
+import { Plus, Edit2, Trash2, Palette, Clock, Split, FileText, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +31,11 @@ interface EventTypeConfig {
   split_naming_pattern: string;
 }
 
+interface FormMapping {
+  form_id: string;
+  default_label: string;
+}
+
 const defaultColors = [
   '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
   '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
@@ -46,7 +53,8 @@ export const EventTypeConfigs = () => {
     is_all_day: false,
     allow_splitting: false,
     split_naming_pattern: '{Parent} - {Session}',
-    default_sessions: [] as SessionTemplate[]
+    default_sessions: [] as SessionTemplate[],
+    form_mappings: [] as FormMapping[]
   });
 
   const { data: configs, refetch } = useSupabaseQuery(
@@ -60,6 +68,23 @@ export const EventTypeConfigs = () => {
         .eq('tenant_id', currentTenant.id)
         .eq('is_active', true)
         .order('sort_order');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
+  const { data: forms } = useSupabaseQuery(
+    ['forms'],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('forms')
+        .select('id, name, description')
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .order('name');
       
       if (error) throw error;
       return data || [];
@@ -158,10 +183,38 @@ export const EventTypeConfigs = () => {
     };
 
     try {
+      let savedConfig;
       if (editingConfig) {
-        await updateMutation.mutateAsync({ ...config, id: editingConfig.id });
+        savedConfig = await updateMutation.mutateAsync({ ...config, id: editingConfig.id });
       } else {
-        await createMutation.mutateAsync(config);
+        savedConfig = await createMutation.mutateAsync(config);
+      }
+
+      // Save form mappings
+      if (formData.form_mappings.length > 0) {
+        const configId = savedConfig?.id || editingConfig?.id;
+        
+        // Delete existing mappings if editing
+        if (editingConfig) {
+          await supabase
+            .from('event_type_form_mappings')
+            .delete()
+            .eq('event_type_config_id', configId);
+        }
+
+        // Insert new mappings
+        const mappings = formData.form_mappings.map((mapping, index) => ({
+          tenant_id: currentTenant!.id,
+          event_type_config_id: configId,
+          form_id: mapping.form_id,
+          default_label: mapping.default_label,
+          sort_order: index + 1,
+          auto_assign: true
+        }));
+
+        await supabase
+          .from('event_type_form_mappings')
+          .insert(mappings);
       }
 
       setIsDialogOpen(false);
@@ -174,15 +227,29 @@ export const EventTypeConfigs = () => {
         is_all_day: false,
         allow_splitting: false,
         split_naming_pattern: '{Parent} - {Session}',
-        default_sessions: []
+        default_sessions: [],
+        form_mappings: []
       });
     } catch (error) {
       console.error('Error saving event type:', error);
     }
   };
 
-  const openDialog = (config?: EventTypeConfig) => {
+  const openDialog = async (config?: EventTypeConfig) => {
     setEditingConfig(config || null);
+    
+    let existingMappings: FormMapping[] = [];
+    if (config?.id) {
+      // Fetch existing form mappings
+      const { data } = await supabase
+        .from('event_type_form_mappings')
+        .select('form_id, default_label')
+        .eq('event_type_config_id', config.id)
+        .order('sort_order');
+      
+      existingMappings = data || [];
+    }
+    
     setFormData({
       event_type: config?.event_type || '',
       display_name: config?.display_name || '',
@@ -191,9 +258,38 @@ export const EventTypeConfigs = () => {
       is_all_day: config?.is_all_day || false,
       allow_splitting: config?.allow_splitting || false,
       split_naming_pattern: config?.split_naming_pattern || '{Parent} - {Session}',
-      default_sessions: config?.default_sessions || []
+      default_sessions: config?.default_sessions || [],
+      form_mappings: existingMappings
     });
     setIsDialogOpen(true);
+  };
+
+  const addFormMapping = () => {
+    if (formData.form_mappings.length >= 2) {
+      toast.error('Maximum 2 forms allowed per event type');
+      return;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      form_mappings: [...prev.form_mappings, { form_id: '', default_label: '' }]
+    }));
+  };
+
+  const removeFormMapping = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      form_mappings: prev.form_mappings.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateFormMapping = (index: number, field: keyof FormMapping, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      form_mappings: prev.form_mappings.map((mapping, i) => 
+        i === index ? { ...mapping, [field]: value } : mapping
+      )
+    }));
   };
 
   return (
@@ -321,6 +417,85 @@ export const EventTypeConfigs = () => {
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_all_day: checked }))}
               />
               <Label htmlFor="is_all_day">All Day Event Type</Label>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Default Forms (Max 2)
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addFormMapping}
+                  disabled={formData.form_mappings.length >= 2}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Form
+                </Button>
+              </div>
+
+              {formData.form_mappings.map((mapping, index) => (
+                <div key={index} className="flex gap-2 items-start p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <Label>Form Template</Label>
+                      <Select
+                        value={mapping.form_id}
+                        onValueChange={(value) => updateFormMapping(index, 'form_id', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a form" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {forms?.filter(f => !formData.form_mappings.some((m, i) => i !== index && m.form_id === f.id))
+                            .map(form => (
+                              <SelectItem key={form.id} value={form.id}>
+                                {form.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Custom Tab Label</Label>
+                      <Input
+                        value={mapping.default_label}
+                        onChange={(e) => updateFormMapping(index, 'default_label', e.target.value)}
+                        placeholder="e.g., Nikkah, Reception"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFormMapping(index)}
+                    className="mt-6"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+
+              {formData.form_mappings.length > 0 && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm font-medium text-blue-900 mb-2">Preview: Event Creation Tabs</p>
+                  <div className="flex gap-2">
+                    <Badge variant="secondary">Overview</Badge>
+                    {formData.form_mappings.map((mapping, index) => (
+                      <Badge key={index} variant="outline">
+                        {mapping.default_label || `Form ${index + 1}`}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator />

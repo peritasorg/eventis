@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { EventTypeConfigs } from '@/components/calendar-sync/EventTypeConfigs';
-import { EventTypeFormMappings } from '@/components/calendar-sync/EventTypeFormMappings';
+
 import { TimeSlotManager } from '@/components/events/TimeSlotManager';
 import { DateWarningsSettings } from '@/components/calendar-sync/DateWarningsSettings';
 import { CalendarSyncSettings } from '@/components/settings/CalendarSyncSettings';
@@ -38,14 +38,10 @@ export const CalendarSettings = () => {
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="event-types" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="event-types" className="flex items-center gap-2">
                 <Palette className="w-4 h-4" />
                 Event Types
-              </TabsTrigger>
-              <TabsTrigger value="form-assignments" className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Form Assignments
               </TabsTrigger>
               <TabsTrigger value="time-slots" className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
@@ -75,19 +71,6 @@ export const CalendarSettings = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="form-assignments" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Default Form Assignments
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <EventTypeFormMappings />
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             <TabsContent value="time-slots" className="space-y-6">
               <Card>
