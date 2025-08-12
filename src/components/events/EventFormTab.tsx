@@ -254,12 +254,14 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   };
 
   const handleGuestUpdate = async (eventFormId: string, field: 'men_count' | 'ladies_count' | 'guest_price_total', value: number) => {
-    // Update local state immediately for responsive UI
+    // Update local state immediately for responsive UI - PRESERVE existing values
     setLocalGuestData(prev => ({
       ...prev,
       [eventFormId]: {
-        ...prev[eventFormId],
-        [field]: value
+        men_count: prev[eventFormId]?.men_count || 0,
+        ladies_count: prev[eventFormId]?.ladies_count || 0,
+        guest_price_total: prev[eventFormId]?.guest_price_total || 0,
+        [field]: value // Override the specific field being updated
       }
     }));
 
