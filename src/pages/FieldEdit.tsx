@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, Trash2, GripVertical, Save } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -53,6 +54,7 @@ export const FieldEdit = () => {
     { value: 'fixed_price_notes', label: 'Fixed Price with Notes' },
     { value: 'fixed_price_notes_toggle', label: 'Toggle + Fixed Price with Notes' },
     { value: 'fixed_price_quantity_notes', label: 'Fixed Price with Quantity and Notes' },
+    { value: 'fixed_price_quantity_notes_toggle', label: 'Toggle + Fixed Price with Quantity and Notes' },
     { value: 'per_person_price_notes', label: 'Per Person Price with Notes' },
     { value: 'counter_notes', label: 'Counter with Notes' },
     { value: 'dropdown_options', label: 'Dropdown Options' },
@@ -63,7 +65,7 @@ export const FieldEdit = () => {
     setFormData(prev => ({
       ...prev,
       field_type: fieldType as FormField['field_type'],
-      has_pricing: ['fixed_price_notes', 'fixed_price_notes_toggle', 'fixed_price_quantity_notes', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
+      has_pricing: ['fixed_price_notes', 'fixed_price_notes_toggle', 'fixed_price_quantity_notes', 'fixed_price_quantity_notes_toggle', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
       has_notes: !['counter_notes'].includes(fieldType),
       // Only set default price for per_person_price_notes, leave undefined for fixed_price_notes and fixed_price_quantity_notes
       default_price_gbp: fieldType === 'per_person_price_notes' ? 0 : undefined,
@@ -254,15 +256,12 @@ export const FieldEdit = () => {
                   {!isDropdownField && formData.field_type === 'per_person_price_notes' && (
                     <div>
                       <Label htmlFor="default_price_gbp">Default Price (£)</Label>
-                      <Input
+                      <PriceInput
                         id="default_price_gbp"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.default_price_gbp || ''}
-                        onChange={(e) => setFormData(prev => ({ 
+                        value={formData.default_price_gbp || 0}
+                        onChange={(value) => setFormData(prev => ({ 
                           ...prev, 
-                          default_price_gbp: parseFloat(e.target.value) || 0 
+                          default_price_gbp: value 
                         }))}
                         placeholder="0.00"
                       />
@@ -337,12 +336,9 @@ export const FieldEdit = () => {
                                       {isPricingField && (
                                         <div>
                                           <Label className="text-xs">Price (£)</Label>
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
+                                          <PriceInput
                                             value={option.price || 0}
-                                            onChange={(e) => updateDropdownOption(index, 'price', e.target.value)}
+                                            onChange={(value) => updateDropdownOption(index, 'price', value)}
                                             placeholder="0.00"
                                           />
                                         </div>

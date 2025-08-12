@@ -134,7 +134,7 @@ export const useEventForms = (eventId?: string) => {
 
   // Create event form with duplicate prevention
   const createEventFormMutation = useSupabaseMutation(
-    async (formData: {
+    async (formInput: {
       event_id: string;
       form_id: string;
       form_label?: string;
@@ -148,8 +148,8 @@ export const useEventForms = (eventId?: string) => {
       const { data: existingForm, error: checkError } = await supabase
         .from('event_forms')
         .select('id')
-        .eq('event_id', formData.event_id)
-        .eq('form_id', formData.form_id)
+        .eq('event_id', formInput.event_id)
+        .eq('form_id', formInput.form_id)
         .eq('tenant_id', currentTenant.id)
         .eq('is_active', true)
         .maybeSingle();
@@ -163,14 +163,48 @@ export const useEventForms = (eventId?: string) => {
         throw new Error('This form is already added to this event');
       }
       
+      // Get form structure to initialize default responses
+      const { data: formStructureData, error: formError } = await supabase
+        .from('forms')
+        .select('sections')
+        .eq('id', formInput.form_id)
+        .eq('tenant_id', currentTenant.id)
+        .single();
+
+      let defaultResponses = {};
+      if (formStructureData && !formError) {
+        const sections = typeof formStructureData.sections === 'string' 
+          ? JSON.parse(formStructureData.sections) 
+          : Array.isArray(formStructureData.sections) ? formStructureData.sections : [];
+        
+        const allFieldIds = sections.flatMap((section: any) => section.field_ids || []);
+        
+        if (allFieldIds.length > 0) {
+          const { data: fieldsData } = await supabase
+            .from('form_fields')
+            .select('*')
+            .in('id', allFieldIds)
+            .eq('tenant_id', currentTenant.id)
+            .eq('is_active', true);
+
+          // Initialize all toggle fields as disabled by default
+          fieldsData?.forEach(field => {
+            if (field.field_type === 'fixed_price_notes_toggle' || 
+                field.field_type === 'fixed_price_quantity_notes_toggle') {
+              defaultResponses[field.id] = { enabled: false };
+            }
+          });
+        }
+      }
+
       const insertData = {
         tenant_id: currentTenant.id,
-        event_id: formData.event_id,
-        form_id: formData.form_id,
-        form_label: formData.form_label || 'Main Form',
-        tab_order: formData.tab_order || 1,
-        form_order: formData.tab_order || 1,
-        form_responses: {},
+        event_id: formInput.event_id,
+        form_id: formInput.form_id,
+        form_label: formInput.form_label || 'Main Form',
+        tab_order: formInput.tab_order || 1,
+        form_order: formInput.tab_order || 1,
+        form_responses: defaultResponses,
         form_total: 0,
         guest_count: 0,
         guest_price_total: 0,
@@ -203,15 +237,25 @@ export const useEventForms = (eventId?: string) => {
       form_responses?: Record<string, any>;
       form_total?: number;
       form_label?: string;
+      men_count?: number;
+      ladies_count?: number;
+      guest_price_total?: number;
     }) => {
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      };
+      
+      // Only include fields that are actually being updated
+      if (data.form_responses !== undefined) updateData.form_responses = data.form_responses;
+      if (data.form_total !== undefined) updateData.form_total = data.form_total;
+      if (data.form_label !== undefined) updateData.form_label = data.form_label;
+      if (data.men_count !== undefined) updateData.men_count = data.men_count;
+      if (data.ladies_count !== undefined) updateData.ladies_count = data.ladies_count;
+      if (data.guest_price_total !== undefined) updateData.guest_price_total = data.guest_price_total;
+
       const { data: result, error } = await supabase
         .from('event_forms')
-        .update({
-          form_responses: data.form_responses,
-          form_total: data.form_total,
-          form_label: data.form_label,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', data.id)
         .select()
         .single();
@@ -220,8 +264,10 @@ export const useEventForms = (eventId?: string) => {
       return result;
     },
     {
-      successMessage: 'Form responses updated',
-      invalidateQueries: [['event-forms', eventId]]
+      invalidateQueries: [['event-forms', eventId]],
+      onSuccess: () => {
+        // No toast for regular updates to avoid spam
+      }
     }
   );
 

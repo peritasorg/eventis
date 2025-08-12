@@ -244,21 +244,26 @@ export const EventRecord: React.FC = () => {
     }
   }, [event]);
 
-  // Auto-save debounced function
-  const debouncedSave = useCallback((data: Partial<EventData>) => {
+  // Smart auto-save with different delays based on field type
+  const debouncedSave = useCallback((data: Partial<EventData>, fieldType: 'text' | 'toggle' | 'number' = 'text') => {
     if (saveTimeoutId) {
       clearTimeout(saveTimeoutId);
     }
     
+    let delay = 500; // default
+    if (fieldType === 'text') delay = 2000; // typing fields
+    if (fieldType === 'number') delay = 1000; // price/quantity fields
+    if (fieldType === 'toggle') delay = 0; // immediate for toggles/selects
+    
     const timeoutId = setTimeout(() => {
       saveEventMutation.mutate(data);
-    }, 500);
+    }, delay);
     
     setSaveTimeoutId(timeoutId);
   }, [saveTimeoutId, saveEventMutation]);
 
-  // Handle field changes with auto-save
-  const handleFieldChange = useCallback((field: keyof EventData, value: any) => {
+  // Handle field changes with smart auto-save
+  const handleFieldChange = useCallback((field: keyof EventData, value: any, fieldType: 'text' | 'toggle' | 'number' = 'text') => {
     if (!eventData) return;
     
     // Track date changes
@@ -277,15 +282,15 @@ export const EventRecord: React.FC = () => {
       setEventData(updatedData);
       setIsDirty(true);
       
-      // Save both fields for date changes
-      debouncedSave(updates);
+      // Save both fields for date changes (immediate for dates)
+      debouncedSave(updates, 'toggle');
     } else {
       const updatedData = { ...eventData, [field]: value };
       setEventData(updatedData);
       setIsDirty(true);
       
-      // Trigger auto-save
-      debouncedSave({ [field]: value });
+      // Trigger smart auto-save based on field type
+      debouncedSave({ [field]: value }, fieldType);
     }
   }, [eventData, debouncedSave]);
 
@@ -496,9 +501,47 @@ export const EventRecord: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b pb-4">
-        <h1 className="text-2xl font-semibold">Event Record</h1>
+      {/* Header with Date Information */}
+      <div className="space-y-4 border-b pb-4">
+        {/* Current Event Date Display */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5 text-primary" />
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-semibold">Event Date:</span>
+                <Badge variant="secondary" className="text-base">
+                  {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
+                </Badge>
+                {eventData.event_date && daysLeft !== null && (
+                  <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm">
+                    {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Date Change Warning */}
+        {eventData.original_event_date && eventData.date_changed_at && (
+          <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <History className="h-5 w-5 text-yellow-600" />
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium text-yellow-800 dark:text-yellow-200">Date Changed:</span>
+              <span className="text-yellow-700 dark:text-yellow-300">
+                was {format(new Date(eventData.original_event_date), 'PPP')} → now {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
+              </span>
+              <span className="text-yellow-600 dark:text-yellow-400">
+                on {format(new Date(eventData.date_changed_at), 'PPp')}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Event Record</h1>
         <div className="flex items-center gap-3">
           {lastSaved && (
             <Badge variant="secondary" className="text-xs">
@@ -570,9 +613,10 @@ export const EventRecord: React.FC = () => {
             </AlertDialogContent>
           </AlertDialog>
           
-          <Button variant="ghost" size="sm" onClick={() => navigate('/events')}>
-            <X className="h-4 w-4" />
-          </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/events')}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -895,46 +939,48 @@ export const EventRecord: React.FC = () => {
 
         {/* Right Column */}
         <div className="space-y-6">
-          {/* Guests Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" /> Guests
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="men_count">Men Count</Label>
-                  <Input
-                    id="men_count"
-                    type="number"
-                    min="0"
-                    value={eventData.men_count || 0}
-                    onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="ladies_count">Ladies Count</Label>
-                  <Input
-                    id="ladies_count"
-                    type="number"
-                    min="0"
-                    value={eventData.ladies_count || 0}
-                    onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0)}
-                  />
-                </div>
+          {/* Guests Section - only show if event has less than 2 forms */}
+          {eventForms.length < 2 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" /> Guests
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="men_count">Men Count</Label>
+                    <Input
+                      id="men_count"
+                      type="number"
+                      min="0"
+                      value={eventData.men_count || 0}
+                      onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0, 'number')}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="ladies_count">Ladies Count</Label>
+                    <Input
+                      id="ladies_count"
+                      type="number"
+                      min="0"
+                      value={eventData.ladies_count || 0}
+                      onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0, 'number')}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>Total Guests</Label>
-                  <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                    {totalGuests}
+                  <div className="space-y-2">
+                    <Label>Total Guests</Label>
+                    <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
+                      {totalGuests}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Finances Section */}
           <Card>

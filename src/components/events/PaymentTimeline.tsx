@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -181,13 +182,9 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="amount">Amount (£)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                  <PriceInput
+                    value={parseFloat(amount) || 0}
+                    onChange={(value) => setAmount(value.toString())}
                     placeholder="0.00"
                   />
                 </div>
