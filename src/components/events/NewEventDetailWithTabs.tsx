@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { EventRecord } from './EventRecord';
 import { EventFormTab } from './EventFormTab';
+import { useEventForms } from '@/hooks/useEventForms';
 
 export const NewEventDetailWithTabs: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
+  const { eventForms } = useEventForms(eventId);
 
   if (!eventId) {
     return (
@@ -32,18 +34,31 @@ export const NewEventDetailWithTabs: React.FC = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className={`grid w-full ${eventForms?.length > 0 ? `grid-cols-${Math.min(eventForms.length + 1, 4)}` : 'grid-cols-2'}`}>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="forms">Forms</TabsTrigger>
+          {eventForms?.length === 0 && <TabsTrigger value="forms">Forms</TabsTrigger>}
+          {eventForms?.map((eventForm, index) => (
+            <TabsTrigger key={eventForm.id} value={`form-${eventForm.id}`}>
+              {eventForm.form_label}
+            </TabsTrigger>
+          ))}
         </TabsList>
         
         <TabsContent value="overview">
           <EventRecord />
         </TabsContent>
         
-        <TabsContent value="forms">
-          <EventFormTab eventId={eventId} />
-        </TabsContent>
+        {eventForms?.length === 0 && (
+          <TabsContent value="forms">
+            <EventFormTab eventId={eventId} />
+          </TabsContent>
+        )}
+        
+        {eventForms?.map((eventForm) => (
+          <TabsContent key={eventForm.id} value={`form-${eventForm.id}`}>
+            <EventFormTab eventId={eventId} eventFormId={eventForm.id} />
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );

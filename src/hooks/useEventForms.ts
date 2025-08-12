@@ -12,6 +12,11 @@ export interface EventForm {
   form_responses: Record<string, any>;
   form_total: number;
   is_active: boolean;
+  start_time?: string;
+  end_time?: string;
+  guest_count?: number;
+  guest_price_total?: number;
+  form_order?: number;
   created_at: string;
   updated_at: string;
   forms?: {
@@ -44,13 +49,18 @@ export const useEventForms = (eventId?: string) => {
           form_responses,
           form_total,
           is_active,
+          start_time,
+          end_time,
+          guest_count,
+          guest_price_total,
+          form_order,
           created_at,
           updated_at
         `)
         .eq('event_id', eventId)
         .eq('tenant_id', currentTenant.id)
         .eq('is_active', true)
-        .order('tab_order');
+        .order('form_order');
 
       if (eventFormsError) throw eventFormsError;
       if (!eventFormsData || eventFormsData.length === 0) return [];
@@ -159,8 +169,11 @@ export const useEventForms = (eventId?: string) => {
         form_id: formData.form_id,
         form_label: formData.form_label || 'Main Form',
         tab_order: formData.tab_order || 1,
+        form_order: formData.tab_order || 1,
         form_responses: {},
         form_total: 0,
+        guest_count: 0,
+        guest_price_total: 0,
         is_active: true
       };
       

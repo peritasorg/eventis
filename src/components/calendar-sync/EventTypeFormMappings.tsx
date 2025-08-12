@@ -78,6 +78,11 @@ export const EventTypeFormMappings = () => {
     async ({ formTemplateId, defaultLabel }: { formTemplateId: string; defaultLabel: string }) => {
       if (!currentTenant?.id || !selectedEventType) throw new Error('Missing required data');
       
+      // Check if we already have 2 forms assigned
+      if (mappings && mappings.length >= 2) {
+        throw new Error('Maximum of 2 forms allowed per event type');
+      }
+      
       const { data, error } = await supabase
         .from('event_type_form_mappings')
          .insert({
@@ -165,7 +170,11 @@ export const EventTypeFormMappings = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="font-medium">Default Forms</h4>
-              <Button onClick={() => setIsDialogOpen(true)} size="sm">
+              <Button 
+                onClick={() => setIsDialogOpen(true)} 
+                size="sm"
+                disabled={mappings && mappings.length >= 2}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Form
               </Button>
@@ -177,11 +186,16 @@ export const EventTypeFormMappings = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <GripVertical className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <h5 className="font-medium">{mapping.forms?.name}</h5>
-                        <p className="text-sm text-muted-foreground">
-                          Default label: {mapping.default_label}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">
+                          Form {mapping.sort_order + 1}
+                        </span>
+                        <div>
+                          <h5 className="font-medium">{mapping.forms?.name}</h5>
+                          <p className="text-sm text-muted-foreground">
+                            Default label: {mapping.default_label}
+                          </p>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -208,6 +222,12 @@ export const EventTypeFormMappings = () => {
                   </div>
                 </Card>
               ))}
+              
+              {mappings && mappings.length >= 2 && (
+                <div className="text-sm text-muted-foreground text-center p-4 bg-secondary/50 rounded">
+                  Maximum of 2 forms reached for this event type
+                </div>
+              )}
             </div>
           </div>
         )}
