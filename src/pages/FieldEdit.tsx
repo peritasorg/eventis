@@ -33,10 +33,7 @@ export const FieldEdit = () => {
     pricing_type: 'fixed',
     placeholder_text: '',
     help_text: '',
-    dropdown_options: [],
-    is_toggleable: false,
-    toggle_label: '',
-    default_enabled: true
+    dropdown_options: []
   });
 
   const [showPreview, setShowPreview] = useState(true);
@@ -54,6 +51,7 @@ export const FieldEdit = () => {
     { value: 'text', label: 'Text Field' },
     { value: 'text_notes_only', label: 'Text with Notes Only' },
     { value: 'fixed_price_notes', label: 'Fixed Price with Notes' },
+    { value: 'fixed_price_notes_toggle', label: 'Toggle + Fixed Price with Notes' },
     { value: 'fixed_price_quantity_notes', label: 'Fixed Price with Quantity and Notes' },
     { value: 'per_person_price_notes', label: 'Per Person Price with Notes' },
     { value: 'counter_notes', label: 'Counter with Notes' },
@@ -65,7 +63,7 @@ export const FieldEdit = () => {
     setFormData(prev => ({
       ...prev,
       field_type: fieldType as FormField['field_type'],
-      has_pricing: ['fixed_price_notes', 'fixed_price_quantity_notes', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
+      has_pricing: ['fixed_price_notes', 'fixed_price_notes_toggle', 'fixed_price_quantity_notes', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
       has_notes: !['counter_notes'].includes(fieldType),
       // Only set default price for per_person_price_notes, leave undefined for fixed_price_notes and fixed_price_quantity_notes
       default_price_gbp: fieldType === 'per_person_price_notes' ? 0 : undefined,
@@ -238,50 +236,6 @@ export const FieldEdit = () => {
                     placeholder="Optional placeholder text"
                   />
                 </div>
-              </div>
-
-              <Separator />
-
-              {/* Toggle Configuration */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base font-medium">Toggle Behavior</Label>
-                    <p className="text-sm text-muted-foreground">Configure if this field can be toggled on/off</p>
-                  </div>
-                  <Switch
-                    checked={formData.is_toggleable || false}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_toggleable: checked }))}
-                  />
-                </div>
-
-                {formData.is_toggleable && (
-                  <div className="space-y-3 pl-4 border-l-2 border-muted">
-                    <div>
-                      <Label htmlFor="toggle_label">Toggle Label</Label>
-                      <Input
-                        id="toggle_label"
-                        value={formData.toggle_label || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, toggle_label: e.target.value }))}
-                        placeholder={`Enable ${formData.name || 'this field'}`}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Leave empty to use field name as toggle label
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-sm font-medium">Default State</Label>
-                        <p className="text-xs text-muted-foreground">Should this field be enabled by default?</p>
-                      </div>
-                      <Switch
-                        checked={formData.default_enabled !== false}
-                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, default_enabled: checked }))}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
 
               <Separator />
