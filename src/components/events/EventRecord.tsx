@@ -10,24 +10,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search, FileText, Receipt, Calendar as CalendarSyncIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { useEventFormTotals } from '@/hooks/useEventFormTotals';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
 
 interface EventData {
   id: string;
   tenant_id: string;
   title: string;
+  event_type: string | null;
   event_date: string | null;
+  event_end_date?: string | null;
   start_time: string | null;
   end_time: string | null;
   customer_id: string | null;
-  ethnicity: string | null;
+  ethnicity: string[] | null; // Changed to support multi-select
   primary_contact_name: string | null;
   primary_contact_number: string | null;
   secondary_contact_name: string | null;
@@ -50,6 +56,12 @@ export const EventRecord: React.FC = () => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveTimeoutId, setSaveTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Get event type configs
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -123,12 +135,21 @@ export const EventRecord: React.FC = () => {
         .from('new_customers')
         .select('id, first_name, last_name, email, phone')
         .eq('tenant_id', currentTenant.id)
-        .order('last_name');
+        .order('first_name', { ascending: true });
       
       if (error) throw error;
       return data || [];
     }
   );
+
+  // Filter customers based on search query
+  const filteredCustomers = customers?.filter(customer => {
+    if (!customerSearchQuery) return true;
+    const query = customerSearchQuery.toLowerCase();
+    const fullName = `${customer.first_name} ${customer.last_name}`.toLowerCase();
+    const email = customer.email?.toLowerCase() || '';
+    return fullName.includes(query) || email.includes(query);
+  }) || [];
 
   // Get live form totals
   const { liveFormTotal, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
@@ -178,10 +199,41 @@ export const EventRecord: React.FC = () => {
     }
   );
 
+  // Delete event mutation
+  const deleteEventMutation = useSupabaseMutation(
+    async () => {
+      if (!eventId || !currentTenant?.id) throw new Error('Missing event or tenant ID');
+      
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Event deleted successfully');
+        navigate('/events');
+      },
+      onError: (error) => {
+        toast.error('Failed to delete event: ' + error.message);
+      }
+    }
+  );
+
   // Initialize event data
   useEffect(() => {
     if (event) {
-      setEventData(event);
+      // Handle ethnicity migration from string to array
+      let processedEvent = { ...event };
+      if (typeof event.ethnicity === 'string' && event.ethnicity) {
+        processedEvent.ethnicity = [event.ethnicity];
+      } else if (!event.ethnicity) {
+        processedEvent.ethnicity = [];
+      }
+      setEventData(processedEvent);
     }
   }, [event]);
 
@@ -237,6 +289,173 @@ export const EventRecord: React.FC = () => {
     }
   };
 
+  // PDF Generation functions
+  const generateQuote = async () => {
+    if (!eventData || !currentTenant) return;
+    
+    try {
+      setIsGeneratingPDF(true);
+      
+      // Convert event data to PDF format
+      const pdfEventData = {
+        id: eventData.id,
+        event_name: eventData.title,
+        event_type: eventData.event_type || 'Event',
+        event_start_date: eventData.event_date || new Date().toISOString(),
+        start_time: eventData.start_time || '00:00',
+        end_time: eventData.end_time || '23:59',
+        estimated_guests: totalGuests,
+        total_guests: totalGuests,
+        total_amount: totalEventValue,
+        deposit_amount: depositAmount,
+        form_responses: {},
+        form_total: liveFormTotal,
+        customers: selectedCustomer ? {
+          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+          email: selectedCustomer.email || '',
+          phone: selectedCustomer.phone || '',
+        } : null
+      };
+
+      const tenantData = {
+        business_name: currentTenant.business_name || 'Business Name',
+        address_line1: currentTenant.address_line1 || 'Address Line 1',
+        address_line2: currentTenant.address_line2,
+        city: currentTenant.city || 'City',
+        postal_code: currentTenant.postal_code || 'Postal Code',
+        country: currentTenant.country || 'GB',
+        contact_email: currentTenant.contact_email || 'contact@business.com',
+        contact_phone: currentTenant.contact_phone || 'Phone Number'
+      };
+
+      generateQuotePDF(pdfEventData, tenantData);
+      toast.success('Quote PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating quote:', error);
+      toast.error('Failed to generate quote PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const generateInvoice = async () => {
+    if (!eventData || !currentTenant) return;
+    
+    try {
+      setIsGeneratingPDF(true);
+      
+      // Convert event data to PDF format
+      const pdfEventData = {
+        id: eventData.id,
+        event_name: eventData.title,
+        event_type: eventData.event_type || 'Event',
+        event_start_date: eventData.event_date || new Date().toISOString(),
+        start_time: eventData.start_time || '00:00',
+        end_time: eventData.end_time || '23:59',
+        estimated_guests: totalGuests,
+        total_guests: totalGuests,
+        total_amount: totalEventValue,
+        deposit_amount: depositAmount,
+        form_responses: {},
+        form_total: liveFormTotal,
+        customers: selectedCustomer ? {
+          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+          email: selectedCustomer.email || '',
+          phone: selectedCustomer.phone || '',
+        } : null
+      };
+
+      const tenantData = {
+        business_name: currentTenant.business_name || 'Business Name',
+        address_line1: currentTenant.address_line1 || 'Address Line 1',
+        address_line2: currentTenant.address_line2,
+        city: currentTenant.city || 'City',
+        postal_code: currentTenant.postal_code || 'Postal Code',
+        country: currentTenant.country || 'GB',
+        contact_email: currentTenant.contact_email || 'contact@business.com',
+        contact_phone: currentTenant.contact_phone || 'Phone Number'
+      };
+
+      generateInvoicePDF(pdfEventData, tenantData);
+      toast.success('Invoice PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      toast.error('Failed to generate invoice PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  // Calendar sync function
+  const syncToCalendar = async () => {
+    if (!eventData || !currentTenant) return;
+    
+    try {
+      setIsSyncing(true);
+      
+      // First, get the active calendar integration
+      const { data: integration, error: integrationError } = await supabase
+        .from('calendar_integrations')
+        .select('id, provider, calendar_id, is_active')
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .single();
+
+      if (integrationError || !integration) {
+        toast.error('No active calendar integration found. Please configure calendar sync in settings.');
+        return;
+      }
+
+      // Validate event has required fields
+      if (!eventData.event_date || !eventData.start_time || !eventData.title) {
+        toast.error('Event must have a name, date, and time to sync to calendar');
+        return;
+      }
+
+      // Prepare event data for calendar sync
+      const calendarEventData = {
+        id: eventData.id,
+        event_name: eventData.title,
+        event_start_date: eventData.event_date,
+        event_end_date: eventData.event_end_date || eventData.event_date,
+        start_time: eventData.start_time,
+        end_time: eventData.end_time,
+        event_type: eventData.event_type,
+        estimated_guests: totalGuests,
+        customers: selectedCustomer ? {
+          name: selectedCustomer.name,
+          email: selectedCustomer.email,
+          phone: selectedCustomer.phone || eventData.primary_contact_number
+        } : {
+          name: eventData.primary_contact_name || 'Unknown',
+          email: null,
+          phone: eventData.primary_contact_number
+        }
+      };
+      
+      const { data, error } = await supabase.functions.invoke('calendar-sync', {
+        body: {
+          action: 'create',
+          eventId: eventData.id,
+          integrationId: integration.id,
+          eventData: calendarEventData
+        }
+      });
+
+      if (error) {
+        console.error('Calendar sync error:', error);
+        throw new Error(error.message || 'Calendar sync failed');
+      }
+      
+      toast.success('Event synced to calendar successfully');
+    } catch (error) {
+      console.error('Error syncing to calendar:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sync to calendar');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -258,7 +477,7 @@ export const EventRecord: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between border-b pb-4">
         <h1 className="text-2xl font-semibold">Event Record</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {lastSaved && (
             <Badge variant="secondary" className="text-xs">
               Auto-saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
@@ -269,6 +488,66 @@ export const EventRecord: React.FC = () => {
               Saving...
             </Badge>
           )}
+          
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={generateQuote}
+              disabled={isGeneratingPDF}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              {isGeneratingPDF ? 'Generating...' : 'Generate Quote'}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={generateInvoice}
+              disabled={isGeneratingPDF}
+            >
+              <Receipt className="h-4 w-4 mr-2" />
+              {isGeneratingPDF ? 'Generating...' : 'Generate Invoice'}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={syncToCalendar}
+              disabled={isSyncing}
+            >
+              <CalendarSyncIcon className="h-4 w-4 mr-2" />
+              {isSyncing ? 'Syncing...' : 'Sync to Calendar'}
+            </Button>
+          </div>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Event
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this event? This action cannot be undone and will remove all associated data including forms, payments, and communications.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => deleteEventMutation.mutate({})}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
           <Button variant="ghost" size="sm" onClick={() => navigate('/events')}>
             <X className="h-4 w-4" />
           </Button>
@@ -387,75 +666,127 @@ export const EventRecord: React.FC = () => {
               )}
             </div>
 
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Event Type</Label>
+                <Select
+                  value={eventData.event_type || ''}
+                  onValueChange={(value) => handleFieldChange('event_type', value || null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select event type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eventTypeConfigs?.map((config) => (
+                      <SelectItem key={config.id} value={config.event_type}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: config.color }}
+                          />
+                          {config.display_name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Customer *</Label>
                 {selectedCustomer ? (
-                  <div className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">
-                        {selectedCustomer.first_name} {selectedCustomer.last_name}
-                      </span>
-                      {selectedCustomer.email && (
-                        <span className="text-sm text-muted-foreground">
-                          ({selectedCustomer.email})
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">
+                          {selectedCustomer.first_name} {selectedCustomer.last_name}
+                        </div>
+                        {selectedCustomer.email && (
+                          <div className="text-sm text-muted-foreground truncate">
+                            {selectedCustomer.email}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 flex-shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handleCustomerClick}
                       >
-                        View Profile
+                        View
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleFieldChange('customer_id', null)}
+                        onClick={() => {
+                          handleFieldChange('customer_id', null);
+                          setCustomerSearchQuery('');
+                        }}
                       >
                         Change
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <Select
-                    value={eventData.customer_id || ''}
-                    onValueChange={(value) => handleFieldChange('customer_id', value || null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers?.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.first_name} {customer.last_name} {customer.email && `(${customer.email})`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search customers..."
+                        value={customerSearchQuery}
+                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    {customerSearchQuery && (
+                      <div className="max-h-48 overflow-y-auto border rounded-md bg-background">
+                        {filteredCustomers.length > 0 ? (
+                          filteredCustomers.map((customer) => (
+                            <div
+                              key={customer.id}
+                              className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
+                              onClick={() => {
+                                handleFieldChange('customer_id', customer.id);
+                                setCustomerSearchQuery('');
+                              }}
+                            >
+                              <div className="font-medium">
+                                {customer.first_name} {customer.last_name}
+                              </div>
+                              {customer.email && (
+                                <div className="text-sm text-muted-foreground">
+                                  {customer.email}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-sm text-muted-foreground">
+                            No customers found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
               <div className="space-y-2">
                 <Label>Ethnicity</Label>
-                <Select
-                  value={eventData.ethnicity || ''}
-                  onValueChange={(value) => handleFieldChange('ethnicity', value || null)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select ethnicity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ethnicityOptions?.map((option) => (
-                      <SelectItem key={option.id} value={option.ethnicity_name}>
-                        {option.ethnicity_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={ethnicityOptions?.map(option => ({
+                    value: option.ethnicity_name,
+                    label: option.ethnicity_name
+                  })) || []}
+                  value={Array.isArray(eventData.ethnicity) ? eventData.ethnicity : eventData.ethnicity ? [eventData.ethnicity] : []}
+                  onValueChange={(value) => handleFieldChange('ethnicity', value)}
+                  placeholder="Select ethnicities..."
+                  className="w-full"
+                />
               </div>
             </div>
           </CardContent>

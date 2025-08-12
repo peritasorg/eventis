@@ -26,12 +26,6 @@ export const EventSettings: React.FC = () => {
   const [ethnicityName, setEthnicityName] = useState('');
   const [editingEthnicity, setEditingEthnicity] = useState<any>(null);
 
-  // Calendar Warning Settings
-  const [isWarningDialogOpen, setIsWarningDialogOpen] = useState(false);
-  const [warningDaysThreshold, setWarningDaysThreshold] = useState('7');
-  const [warningMessage, setWarningMessage] = useState('Event approaching with unpaid balance');
-  const [warningColor, setWarningColor] = useState('#F59E0B');
-
   // Fetch time ranges
   const { data: timeRanges, refetch: refetchTimeRanges } = useSupabaseQuery(
     ['event_time_ranges', currentTenant?.id],
@@ -63,61 +57,6 @@ export const EventSettings: React.FC = () => {
       
       if (error) throw error;
       return data || [];
-    }
-  );
-
-  // Fetch calendar warning settings
-  const { data: calendarWarningSettings, refetch: refetchCalendarWarningSettings } = useSupabaseQuery(
-    ['calendar_warning_settings', currentTenant?.id],
-    async () => {
-      if (!currentTenant?.id) return null;
-      
-      const { data, error } = await supabase
-        .from('calendar_warning_settings')
-        .select('*')
-        .eq('tenant_id', currentTenant.id)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
-    }
-  );
-
-  // Initialize warning settings when data loads
-  useEffect(() => {
-    if (calendarWarningSettings) {
-      setWarningDaysThreshold(calendarWarningSettings.warning_days_threshold?.toString() || '7');
-      setWarningMessage(calendarWarningSettings.warning_message || 'Event approaching with unpaid balance');
-      setWarningColor(calendarWarningSettings.warning_color || '#F59E0B');
-    }
-  }, [calendarWarningSettings]);
-
-  // Calendar warning settings mutation
-  const saveCalendarWarningMutation = useSupabaseMutation(
-    async () => {
-      if (!currentTenant?.id) throw new Error('No tenant');
-      
-      const { data, error } = await supabase
-        .from('calendar_warning_settings')
-        .upsert({
-          tenant_id: currentTenant.id,
-          warning_days_threshold: parseInt(warningDaysThreshold),
-          warning_message: warningMessage,
-          warning_color: warningColor,
-          is_active: true
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    {
-      onSuccess: () => {
-        toast.success('Calendar warning settings saved successfully!');
-        setIsWarningDialogOpen(false);
-        refetchCalendarWarningSettings();
-      }
     }
   );
 
@@ -474,95 +413,6 @@ export const EventSettings: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Calendar Warning Settings */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Calendar Warnings for Unpaid Balances
-            </CardTitle>
-            <Dialog open={isWarningDialogOpen} onOpenChange={setIsWarningDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => setIsWarningDialogOpen(true)}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configure Warnings
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Calendar Warning Settings</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="warning_days">Warning Days Threshold</Label>
-                    <Input
-                      id="warning_days"
-                      type="number"
-                      value={warningDaysThreshold}
-                      onChange={(e) => setWarningDaysThreshold(e.target.value)}
-                      placeholder="7"
-                      min="1"
-                      max="365"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Show warning when event is within this many days and has unpaid balance
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="warning_message">Warning Message</Label>
-                    <Input
-                      id="warning_message"
-                      value={warningMessage}
-                      onChange={(e) => setWarningMessage(e.target.value)}
-                      placeholder="Event approaching with unpaid balance"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="warning_color">Warning Color</Label>
-                    <Input
-                      id="warning_color"
-                      type="color"
-                      value={warningColor}
-                      onChange={(e) => setWarningColor(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    onClick={() => saveCalendarWarningMutation.mutate({})}
-                    disabled={saveCalendarWarningMutation.isPending}
-                    className="w-full"
-                  >
-                    {saveCalendarWarningMutation.isPending ? 'Saving...' : 'Save Warning Settings'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <h4 className="font-medium mb-2">Current Settings</h4>
-              <div className="text-sm space-y-1">
-                <div>Warning threshold: {calendarWarningSettings?.warning_days_threshold || 7} days</div>
-                <div>Warning message: "{calendarWarningSettings?.warning_message || 'Event approaching with unpaid balance'}"</div>
-                <div className="flex items-center gap-2">
-                  Warning color: 
-                  <div 
-                    className="w-4 h-4 rounded border"
-                    style={{ backgroundColor: calendarWarningSettings?.warning_color || '#F59E0B' }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>How it works:</strong> Events will show warnings in the calendar view when they are within the threshold days AND have an unpaid balance (remaining amount &gt; £0). This helps you focus on events that need payment follow-up.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

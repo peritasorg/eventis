@@ -39,6 +39,8 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
 
   const calculatePrice = () => {
     if (field.field_type === 'fixed_price_notes') {
+      return response.price || 0;
+    } else if (field.field_type === 'fixed_price_quantity_notes') {
       return (response.quantity || 1) * (response.price || 0);
     } else if (field.field_type === 'per_person_price_notes') {
       return (response.quantity || 0) * (response.price || 0);
@@ -72,6 +74,46 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
         );
 
       case 'fixed_price_notes':
+        return (
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium">{field.name}</Label>
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground">Price</Label>
+              <div className="flex items-center">
+                <span className="text-xs mr-1">£</span>
+                <PriceInput
+                  value={response.price || 0}
+                  onChange={(value) => updateResponse({ price: value })}
+                  placeholder="0.00"
+                  disabled={readOnly}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {field.has_notes && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
+                <Textarea
+                  value={response.notes || ''}
+                  onChange={(e) => updateResponse({ notes: e.target.value })}
+                  placeholder={field.placeholder_text || 'Additional requirements...'}
+                  rows={2}
+                  disabled={readOnly}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </div>
+        );
+
+      case 'fixed_price_quantity_notes':
         return (
           <div className="space-y-3">
             <div>
@@ -226,6 +268,63 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
         );
 
       case 'dropdown_options':
+        // Support for multi-select on specific field types like ethnicity, dining chairs
+        const isMultiSelect = field.name.toLowerCase().includes('ethnicity') || 
+                             field.name.toLowerCase().includes('dining') ||
+                             field.name.toLowerCase().includes('chairs');
+        
+        if (isMultiSelect) {
+          const selectedValues = Array.isArray(response.selectedOption) 
+            ? response.selectedOption 
+            : response.selectedOption ? [response.selectedOption] : [];
+          
+          return (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium">{field.name}</Label>
+                {field.help_text && (
+                  <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {field.dropdown_options?.filter(option => option.value.trim() !== '').map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`${field.id}-${option.value}`}
+                      checked={selectedValues.includes(option.value)}
+                      onChange={(e) => {
+                        let newSelected;
+                        if (e.target.checked) {
+                          newSelected = [...selectedValues, option.value];
+                        } else {
+                          newSelected = selectedValues.filter(v => v !== option.value);
+                        }
+                        updateResponse({ selectedOption: newSelected });
+                      }}
+                      disabled={readOnly}
+                      className="rounded border-gray-300"
+                    />
+                    <label 
+                      htmlFor={`${field.id}-${option.value}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              
+              {selectedValues.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Selected: {selectedValues.join(', ')}
+                </div>
+              )}
+            </div>
+          );
+        }
+        
         return (
           <div className="space-y-3">
             <div>

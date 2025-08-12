@@ -42,11 +42,11 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // Define the actual Price IDs from your production Stripe dashboard
+    // Actual Stripe Price IDs from production dashboard
     const tierPriceIds = {
       'Professional': 'price_1RdTvuDjPYkyTVvULZ9k6ZP5',
-      'Business': 'price_1RdTwvDjPYkyTVvULDFYVMYf',
-      'Enterprise': 'price_1RdTwvDjPYkyTVvULDFYVMYf' // Using Business price for Enterprise, adjust as needed
+      'Business': 'price_1RdTwvDjPYkyTVvULDFYVMYf', 
+      'BAH Plan': 'price_1Rv1S7DjPYkyTVvUiuAxCGxd'
     };
 
     const priceId = tierPriceIds[tier as keyof typeof tierPriceIds];

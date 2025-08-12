@@ -97,14 +97,14 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId }) => {
     if (eventForm) {
       const newTotal = calculateFormTotal({ ...eventForm, form_responses: newResponses[eventFormId] } as EventForm);
       
-      // Debounced save
+      // Debounced save with increased delay to prevent typing glitches
       setTimeout(() => {
         updateEventForm({
           id: eventFormId,
           form_responses: newResponses[eventFormId],
           form_total: newTotal
         });
-      }, 500);
+      }, 1500);
     }
   };
 

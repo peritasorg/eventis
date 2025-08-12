@@ -30,6 +30,8 @@ import { FieldLibraryPage } from "./pages/FieldLibrary";
 import { FieldEdit } from "./pages/FieldEdit";
 import { Leads } from "./pages/Leads";
 import { Settings } from "./pages/Settings";
+import { BillingSettings } from "./components/settings/BillingSettings";
+import { ProfileSettings } from "./components/settings/ProfileSettings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Success } from "./pages/success";
@@ -214,6 +216,22 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <AppLayout>
                         <Settings />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/settings/billing" element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <BillingSettings />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/settings/profile" element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <ProfileSettings />
                       </AppLayout>
                     </ProtectedRoute>
                   } />

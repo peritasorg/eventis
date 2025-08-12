@@ -50,44 +50,133 @@ class CalendarService {
     const expiresAt = new Date(this.integration.token_expires_at);
     const now = new Date();
     
-    // Refresh if token expires within 5 minutes
-    if (expiresAt.getTime() - now.getTime() < 5 * 60 * 1000) {
-      const refreshUrl = this.integration.provider === 'google'
-        ? `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth?action=refresh`
-        : `${Deno.env.get('SUPABASE_URL')}/functions/v1/outlook-oauth?action=refresh`;
+    console.log('Token check:', { expiresAt, now, timeDiff: expiresAt.getTime() - now.getTime() });
+    
+    // Refresh if token has expired or expires within 5 minutes
+    if (expiresAt.getTime() <= now.getTime() || expiresAt.getTime() - now.getTime() < 5 * 60 * 1000) {
+      console.log('Refreshing token...');
+      
+      if (!this.integration.refresh_token) {
+        throw new Error('No refresh token available. Please re-authenticate with your calendar provider.');
+      }
 
-      const response = await fetch(refreshUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
-        body: JSON.stringify({ refresh_token: this.integration.refresh_token }),
-      });
-
-      if (response.ok) {
-        const tokenData = await response.json();
-        
-        // Update stored tokens
-        await this.supabase
-          .from('calendar_integrations')
-          .update({
-            access_token: tokenData.access_token,
-            token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-          })
-          .eq('id', this.integration.id);
-
-        return tokenData.access_token;
+      if (this.integration.provider === 'google') {
+        return await this.refreshGoogleToken();
+      } else if (this.integration.provider === 'outlook') {
+        return await this.refreshOutlookToken();
+      } else {
+        throw new Error(`Unsupported provider: ${this.integration.provider}`);
       }
     }
 
     return this.integration.access_token;
   }
 
+  private async refreshGoogleToken(): Promise<string> {
+    const refreshData = {
+      client_id: Deno.env.get('GOOGLE_CLIENT_ID'),
+      client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET'),
+      refresh_token: this.integration.refresh_token,
+      grant_type: 'refresh_token',
+    };
+
+    console.log('Attempting Google token refresh...');
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(refreshData),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Google token refresh failed:', response.status, errorText);
+      throw new Error(`Google token refresh failed (${response.status}): ${errorText}`);
+    }
+
+    const tokenData = await response.json();
+    console.log('Google token refresh successful');
+
+    // Update the database with new token
+    const { error: updateError } = await this.supabase
+      .from('calendar_integrations')
+      .update({
+        access_token: tokenData.access_token,
+        token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        // Update refresh token if provided (Google sometimes provides a new one)
+        ...(tokenData.refresh_token && { refresh_token: tokenData.refresh_token }),
+      })
+      .eq('id', this.integration.id);
+
+    if (updateError) {
+      console.error('Failed to update token in database:', updateError);
+      throw new Error('Failed to update token in database');
+    }
+
+    // Update the integration object for subsequent calls
+    this.integration.access_token = tokenData.access_token;
+    this.integration.token_expires_at = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+
+    return tokenData.access_token;
+  }
+
+  private async refreshOutlookToken(): Promise<string> {
+    const refreshData = {
+      client_id: Deno.env.get('MICROSOFT_CLIENT_ID'),
+      client_secret: Deno.env.get('MICROSOFT_CLIENT_SECRET'),
+      refresh_token: this.integration.refresh_token,
+      grant_type: 'refresh_token',
+      scope: 'https://graph.microsoft.com/Calendars.ReadWrite offline_access',
+    };
+
+    console.log('Attempting Outlook token refresh...');
+    const response = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(refreshData),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Outlook token refresh failed:', response.status, errorText);
+      throw new Error(`Outlook token refresh failed (${response.status}): ${errorText}`);
+    }
+
+    const tokenData = await response.json();
+    console.log('Outlook token refresh successful');
+
+    // Update the database with new token
+    const { error: updateError } = await this.supabase
+      .from('calendar_integrations')
+      .update({
+        access_token: tokenData.access_token,
+        token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        // Update refresh token if provided
+        ...(tokenData.refresh_token && { refresh_token: tokenData.refresh_token }),
+      })
+      .eq('id', this.integration.id);
+
+    if (updateError) {
+      console.error('Failed to update token in database:', updateError);
+      throw new Error('Failed to update token in database');
+    }
+
+    // Update the integration object for subsequent calls
+    this.integration.access_token = tokenData.access_token;
+    this.integration.token_expires_at = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+
+    return tokenData.access_token;
+  }
+
   async createEvent(eventData: EventData): Promise<{ success: boolean; externalId?: string; error?: string }> {
     try {
+      console.log('Creating calendar event with data:', eventData);
       const accessToken = await this.refreshTokenIfNeeded();
       const calendarEvent = this.formatEventForCalendar(eventData);
+      console.log('Formatted calendar event:', calendarEvent);
 
       if (this.integration.provider === 'google') {
         return await this.createGoogleEvent(calendarEvent, accessToken);
@@ -198,10 +287,12 @@ class CalendarService {
 
     if (response.ok) {
       const created = await response.json();
+      console.log('Google event created successfully:', created.id);
       return { success: true, externalId: created.id };
     } else {
-      const error = await response.text();
-      return { success: false, error };
+      const errorText = await response.text();
+      console.error('Google Calendar API error:', response.status, errorText);
+      return { success: false, error: `Google Calendar error (${response.status}): ${errorText}` };
     }
   }
 
@@ -269,10 +360,12 @@ class CalendarService {
 
     if (response.ok) {
       const created = await response.json();
+      console.log('Outlook event created successfully:', created.id);
       return { success: true, externalId: created.id };
     } else {
-      const error = await response.text();
-      return { success: false, error };
+      const errorText = await response.text();
+      console.error('Outlook Calendar API error:', response.status, errorText);
+      return { success: false, error: `Outlook Calendar error (${response.status}): ${errorText}` };
     }
   }
 

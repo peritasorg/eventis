@@ -57,9 +57,15 @@ export const Settings = () => {
       title: 'Billing & Subscription',
       description: 'Manage your subscription and billing details',
       icon: CreditCard,
-      path: '#',
-      color: 'text-indigo-600 bg-indigo-100',
-      disabled: true
+      path: '/settings/billing',
+      color: 'text-indigo-600 bg-indigo-100'
+    },
+    {
+      title: 'My Settings',
+      description: 'Manage your personal account settings',
+      icon: SettingsIcon,
+      path: '/settings/profile',
+      color: 'text-gray-600 bg-gray-100'
     }
   ];
 

@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MessageSquare, Plus } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { MessageSquare, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,6 +70,30 @@ export const CommunicationsTimeline: React.FC<CommunicationsTimelineProps> = ({ 
       },
       onError: (error) => {
         toast.error('Failed to add communication: ' + error.message);
+      }
+    }
+  );
+
+  // Delete communication mutation
+  const deleteCommunicationMutation = useSupabaseMutation(
+    async (communicationId: string) => {
+      if (!currentTenant?.id) throw new Error('Missing tenant ID');
+      
+      const { error } = await supabase
+        .from('event_communications')
+        .delete()
+        .eq('id', communicationId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Communication deleted successfully');
+        refetch();
+      },
+      onError: (error) => {
+        toast.error('Failed to delete communication: ' + error.message);
       }
     }
   );
@@ -141,9 +166,35 @@ export const CommunicationsTimeline: React.FC<CommunicationsTimelineProps> = ({ 
                     <span className="text-sm font-medium">
                       {format(new Date(comm.communication_date), 'dd/MM/yyyy')}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(comm.created_at), 'HH:mm')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(comm.created_at), 'HH:mm')}
+                      </span>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Communication</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this communication? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteCommunicationMutation.mutate(comm.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {deleteCommunicationMutation.isPending ? 'Deleting...' : 'Delete'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground">{comm.note}</p>
                 </div>
