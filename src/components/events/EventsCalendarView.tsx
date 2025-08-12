@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { Calendar, Settings } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMultiDayEvents } from '@/hooks/useMultiDayEvents';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
+import { useCalendarState } from '@/contexts/CalendarStateContext';
 
 interface Event {
   id: string;
@@ -43,11 +44,14 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
   onEventClick,
   onDateClick
 }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [monthsData, setMonthsData] = useState<Date[]>([]);
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
   const { getEventsForDate, getEventDisplayInfo } = useMultiDayEvents(events);
   const { data: eventTypeConfigs } = useEventTypeConfigs();
+  const { calendarState, setCurrentMonth, restoreCalendarState } = useCalendarState();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Fetch calendar warning settings
   const { data: calendarWarningSettings } = useSupabaseQuery(
@@ -66,14 +70,36 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
     }
   );
 
-  const generateCalendar = () => {
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
+  // Initialize with multiple months for infinite scroll
+  useEffect(() => {
+    restoreCalendarState();
+    generateMultipleMonths();
+  }, []);
+
+  const generateMultipleMonths = () => {
+    const months = [];
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 3); // Start 3 months ago
+    
+    for (let i = 0; i < 12; i++) { // Generate 12 months total
+      const monthDate = new Date(startDate);
+      monthDate.setMonth(startDate.getMonth() + i);
+      months.push(monthDate);
+    }
+    
+    setMonthsData(months);
+  };
+
+  const generateCalendarForMonth = (monthDate: Date) => {
+    const currentMonth = monthDate.getMonth();
+    const currentYear = monthDate.getFullYear();
     
     const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
     const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    // Start week on Monday (1 = Monday, 0 = Sunday)
+    const firstDayOfWeek = firstDay.getDay();
+    const mondayOffset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+    startDate.setDate(startDate.getDate() - mondayOffset);
     
     const days = [];
     for (let i = 0; i < 42; i++) {
@@ -85,16 +111,36 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
     return days;
   };
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      if (direction === 'prev') {
-        newDate.setMonth(prev.getMonth() - 1);
-      } else {
-        newDate.setMonth(prev.getMonth() + 1);
-      }
-      return newDate;
-    });
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    
+    // Load more months when near bottom
+    if (scrollHeight - scrollTop <= clientHeight * 1.5 && !isLoading) {
+      setIsLoading(true);
+      setTimeout(() => {
+        const lastMonth = monthsData[monthsData.length - 1];
+        const newMonths = [];
+        for (let i = 1; i <= 3; i++) {
+          const newMonth = new Date(lastMonth);
+          newMonth.setMonth(lastMonth.getMonth() + i);
+          newMonths.push(newMonth);
+        }
+        setMonthsData(prev => [...prev, ...newMonths]);
+        setIsLoading(false);
+      }, 100);
+    }
+  };
+
+  const scrollToToday = () => {
+    const today = new Date();
+    const todayMonthIndex = monthsData.findIndex(month => 
+      month.getMonth() === today.getMonth() && month.getFullYear() === today.getFullYear()
+    );
+    
+    if (todayMonthIndex !== -1 && scrollContainerRef.current) {
+      const monthHeight = 400; // Approximate height of each month section
+      scrollContainerRef.current.scrollTop = todayMonthIndex * monthHeight;
+    }
   };
 
   const calculateEventFinancials = (event: Event) => {
@@ -145,7 +191,6 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
     return { backgroundColor: 'hsl(var(--primary))', textColor: 'hsl(var(--primary-foreground))' };
   };
 
-  const calendarDays = generateCalendar();
   const today = new Date().toDateString();
 
   return (
@@ -155,7 +200,7 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              Events Calendar
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -170,166 +215,175 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigateMonth('prev')}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentDate(new Date())}
+                onClick={scrollToToday}
                 className="text-xs px-2 h-8"
               >
                 Today
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateMonth('next')}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-2 mb-4">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="text-center font-semibold text-muted-foreground py-2">
-                {day}
-              </div>
-            ))}
-          </div>
-          
-          <div className="grid grid-cols-7 gap-2">
-            {calendarDays.map((date, index) => {
-              const isToday = date.toDateString() === today;
-              const isCurrentMonth = date.getMonth() === currentDate.getMonth();
-              const dayEventsInfo = getEventsForDate(date);
+        <CardContent className="p-0">
+          <div 
+            ref={scrollContainerRef}
+            className="max-h-[80vh] overflow-y-auto"
+            onScroll={handleScroll}
+          >
+            {monthsData.map((monthDate, monthIndex) => {
+              const calendarDays = generateCalendarForMonth(monthDate);
               
               return (
-                <div
-                  key={index}
-                  className={`
-                    min-h-[120px] p-2 border rounded-lg cursor-pointer transition-all hover:shadow-md
-                    ${isToday ? 'bg-primary/5 border-primary/20 ring-2 ring-primary/10' : 'bg-card border-border hover:bg-accent/50'}
-                    ${!isCurrentMonth ? 'opacity-50' : ''}
-                  `}
-                  onClick={() => onDateClick(date.toISOString().split('T')[0])}
-                >
-                  <div className={`text-sm font-medium mb-2 ${isToday ? 'text-primary' : 'text-foreground'}`}>
-                    {date.getDate()}
+                <div key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`} className="p-6 border-b">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-center">
+                      {monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </h3>
                   </div>
                   
-                  <div className="space-y-1">
-                    {dayEventsInfo.slice(0, 3).map((dayEventInfo) => {
-                      const { event } = dayEventInfo;
-                      const displayInfo = getEventDisplayInfo(dayEventInfo);
-                      const financials = calculateEventFinancials(event);
-                      const totalGuests = (event.men_count || 0) + (event.ladies_count || 0);
-                      const warningLevel = getEventWarningLevel(event, calendarWarningSettings);
-                      const eventColors = getEventTypeColor(event.event_type);
-                      
-                      // Apply warning colors if needed
-                      let eventStyle = eventColors;
-                      if (warningLevel === 'urgent') {
-                        eventStyle = { 
-                          backgroundColor: calendarWarningSettings?.warning_color || 'hsl(0 84% 60%)', 
-                          textColor: 'white' 
-                        };
-                      } else if (warningLevel === 'warning') {
-                        eventStyle = { 
-                          backgroundColor: calendarWarningSettings?.warning_color || 'hsl(45 93% 47%)', 
-                          textColor: 'white' 
-                        };
-                      }
+                  <div className="grid grid-cols-7 gap-2 mb-4">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                      <div key={day} className="text-center font-semibold text-muted-foreground py-2">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="grid grid-cols-7 gap-2">
+                    {calendarDays.map((date, index) => {
+                      const isToday = date.toDateString() === today;
+                      const isCurrentMonth = date.getMonth() === monthDate.getMonth();
+                      const dayEventsInfo = getEventsForDate(date);
                       
                       return (
-                        <Tooltip key={event.id}>
-                          <TooltipTrigger asChild>
-                            <div
-                              className={`text-xs p-1 rounded-sm cursor-pointer hover:opacity-80 transition-all relative ${displayInfo.positionClasses}`}
-                              style={{
-                                backgroundColor: eventStyle.backgroundColor,
-                                color: eventStyle.textColor
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEventClick(event.id);
-                              }}
-                            >
-                              <div className="font-medium truncate">{displayInfo.displayName}</div>
-                              {displayInfo.showTime && event.start_time && (
-                                <div className="text-[10px] opacity-90">
-                                  {event.start_time.slice(0, 5)}
-                                </div>
-                              )}
-                              {warningLevel && (
-                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
-                              )}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-sm p-4 bg-card text-card-foreground border shadow-lg">
-                            <div className="space-y-3">
-                              <div className="font-semibold text-base">{event.title}</div>
+                        <div
+                          key={index}
+                          className={`
+                            min-h-[120px] p-2 border rounded-lg cursor-pointer transition-all hover:shadow-md
+                            ${isToday ? 'bg-primary/5 border-primary/20 ring-2 ring-primary/10' : 'bg-card border-border hover:bg-accent/50'}
+                            ${!isCurrentMonth ? 'opacity-50' : ''}
+                          `}
+                          onClick={() => onDateClick(date.toISOString().split('T')[0])}
+                        >
+                          <div className={`text-sm font-medium mb-2 ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                            {date.getDate()}
+                          </div>
+                          
+                          <div className="space-y-1">
+                            {dayEventsInfo.slice(0, 3).map((dayEventInfo) => {
+                              const { event } = dayEventInfo;
+                              const displayInfo = getEventDisplayInfo(dayEventInfo);
+                              const financials = calculateEventFinancials(event);
+                              const totalGuests = (event.men_count || 0) + (event.ladies_count || 0);
+                              const warningLevel = getEventWarningLevel(event, calendarWarningSettings);
+                              const eventColors = getEventTypeColor(event.event_type);
                               
-                              {/* Customer Information */}
-                              {event.customers?.name && (
-                                <div className="text-sm">
-                                  <span className="font-medium text-muted-foreground">Customer:</span> {event.customers.name}
-                                </div>
-                              )}
+                              // Apply warning colors if needed
+                              let eventStyle = eventColors;
+                              if (warningLevel === 'urgent') {
+                                eventStyle = { 
+                                  backgroundColor: calendarWarningSettings?.warning_color || 'hsl(0 84% 60%)', 
+                                  textColor: 'white' 
+                                };
+                              } else if (warningLevel === 'warning') {
+                                eventStyle = { 
+                                  backgroundColor: calendarWarningSettings?.warning_color || 'hsl(45 93% 47%)', 
+                                  textColor: 'white' 
+                                };
+                              }
                               
-                              {/* Event Details */}
-                              <div className="text-sm space-y-1">
-                                {event.start_time && event.end_time && (
-                                  <div><span className="font-medium text-muted-foreground">Time:</span> {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</div>
-                                )}
-                                {totalGuests > 0 && (
-                                  <div><span className="font-medium text-muted-foreground">Guests:</span> {totalGuests} people</div>
-                                )}
-                                {event.event_type && (
-                                  <div><span className="font-medium text-muted-foreground">Type:</span> {event.event_type}</div>
-                                )}
+                              return (
+                                <Tooltip key={event.id}>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className={`text-xs p-1 rounded-sm cursor-pointer hover:opacity-80 transition-all relative ${displayInfo.positionClasses}`}
+                                      style={{
+                                        backgroundColor: eventStyle.backgroundColor,
+                                        color: eventStyle.textColor
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onEventClick(event.id);
+                                      }}
+                                    >
+                                      <div className="font-medium truncate">{displayInfo.displayName}</div>
+                                      {displayInfo.showTime && event.start_time && (
+                                        <div className="text-[10px] opacity-90">
+                                          {event.start_time.slice(0, 5)}
+                                        </div>
+                                      )}
+                                      {warningLevel && (
+                                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
+                                      )}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-sm p-4 bg-card text-card-foreground border shadow-lg">
+                                    <div className="space-y-3">
+                                      <div className="font-semibold text-base">{event.title}</div>
+                                      
+                                      {/* Customer Information */}
+                                      {event.customers?.name && (
+                                        <div className="text-sm">
+                                          <span className="font-medium text-muted-foreground">Customer:</span> {event.customers.name}
+                                        </div>
+                                      )}
+                                      
+                                      {/* Event Details */}
+                                      <div className="text-sm space-y-1">
+                                        {event.start_time && event.end_time && (
+                                          <div><span className="font-medium text-muted-foreground">Time:</span> {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</div>
+                                        )}
+                                        {totalGuests > 0 && (
+                                          <div><span className="font-medium text-muted-foreground">Guests:</span> {totalGuests} people</div>
+                                        )}
+                                        {event.event_type && (
+                                          <div><span className="font-medium text-muted-foreground">Type:</span> {event.event_type}</div>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Financial Information */}
+                                      {financials.subtotal > 0 && (
+                                        <div className="text-sm space-y-1 border-t pt-2">
+                                          <div><span className="font-medium text-muted-foreground">Subtotal:</span> £{financials.subtotal.toFixed(2)}</div>
+                                          {financials.depositAmount > 0 && (
+                                            <div><span className="font-medium text-muted-foreground">Deposit:</span> £{financials.depositAmount.toFixed(2)}</div>
+                                          )}
+                                          <div><span className="font-medium text-muted-foreground">Paid:</span> £{financials.totalPayments.toFixed(2)}</div>
+                                          <div className={`font-medium ${financials.remainingBalance > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                                            <span className="text-muted-foreground">Balance:</span> £{financials.remainingBalance.toFixed(2)}
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Warning Message */}
+                                      {warningLevel && financials.remainingBalance > 0 && (
+                                        <div className="text-xs bg-orange-100 dark:bg-orange-900/20 p-2 rounded border-l-4 border-orange-500">
+                                          ⚠️ {calendarWarningSettings?.warning_message || 'Event approaching with unpaid balance'}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                            
+                            {dayEventsInfo.length > 3 && (
+                              <div className="text-xs text-muted-foreground text-center">
+                                +{dayEventsInfo.length - 3} more
                               </div>
-                              
-                              {/* Financial Information */}
-                              {financials.subtotal > 0 && (
-                                <div className="text-sm space-y-1 border-t pt-2">
-                                  <div><span className="font-medium text-muted-foreground">Subtotal:</span> £{financials.subtotal.toFixed(2)}</div>
-                                  {financials.depositAmount > 0 && (
-                                    <div><span className="font-medium text-muted-foreground">Deposit:</span> £{financials.depositAmount.toFixed(2)}</div>
-                                  )}
-                                  <div><span className="font-medium text-muted-foreground">Paid:</span> £{financials.totalPayments.toFixed(2)}</div>
-                                  <div className={`font-medium ${financials.remainingBalance > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                                    <span className="text-muted-foreground">Balance:</span> £{financials.remainingBalance.toFixed(2)}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Warning Message */}
-                              {warningLevel && financials.remainingBalance > 0 && (
-                                <div className="text-xs bg-orange-100 dark:bg-orange-900/20 p-2 rounded border-l-4 border-orange-500">
-                                  ⚠️ {calendarWarningSettings?.warning_message || 'Event approaching with unpaid balance'}
-                                </div>
-                              )}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
-                    
-                    {dayEventsInfo.length > 3 && (
-                      <div className="text-xs text-muted-foreground text-center">
-                        +{dayEventsInfo.length - 3} more
-                      </div>
-                    )}
                   </div>
                 </div>
               );
             })}
+            {isLoading && (
+              <div className="text-center py-4 text-muted-foreground">
+                Loading more months...
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

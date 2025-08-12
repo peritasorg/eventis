@@ -11,6 +11,7 @@ import { EventsCalendarView } from '@/components/events/EventsCalendarView';
 import { CreateEventDialog } from '@/components/events/CreateEventDialog';
 import { useNavigate } from 'react-router-dom';
 import { AppControls } from '@/components/AppControls';
+import { CalendarStateProvider, useCalendarState } from '@/contexts/CalendarStateContext';
 
 export const Events = () => {
   const { currentTenant } = useAuth();
@@ -67,7 +68,12 @@ export const Events = () => {
     }
   );
 
-  const handleEventClick = (eventId: string) => {
+  const handleEventClick = (eventId: string, eventDate?: string) => {
+    // Save the event date for calendar state restoration
+    if (eventDate && typeof useCalendarState === 'function') {
+      const { setLastViewedEventDate } = useCalendarState();
+      setLastViewedEventDate(eventDate);
+    }
     navigate(`/events/${eventId}`);
   };
 
@@ -76,8 +82,9 @@ export const Events = () => {
     setIsCreateEventOpen(true);
   };
 
-  return (
-    <div className="min-h-screen bg-background">
+  const EventsContent = () => {
+    return (
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-card border-b border-border">
         <div className="px-6 py-4">
@@ -154,31 +161,44 @@ export const Events = () => {
         {viewMode === 'calendar' ? (
           <EventsCalendarView 
             events={events || []}
-            onEventClick={handleEventClick}
+            onEventClick={(eventId) => {
+              const event = events?.find(e => e.id === eventId);
+              handleEventClick(eventId, event?.event_date);
+            }}
             onDateClick={handleDateClick}
           />
         ) : (
           <SimpleEventList 
             events={events || []}
-            onEventClick={handleEventClick}
+            onEventClick={(eventId) => {
+              const event = events?.find(e => e.id === eventId);
+              handleEventClick(eventId, event?.event_date);
+            }}
             searchQuery={searchQuery}
           />
         )}
-      </div>
+        </div>
 
-      <CreateEventDialog
-        isOpen={isCreateEventOpen}
-        onClose={() => {
-          setIsCreateEventOpen(false);
-          setSelectedDate('');
-        }}
-        onSuccess={() => {
-          refetch();
-          setIsCreateEventOpen(false);
-          setSelectedDate('');
-        }}
-        selectedDate={selectedDate}
-      />
-    </div>
+        <CreateEventDialog
+          isOpen={isCreateEventOpen}
+          onClose={() => {
+            setIsCreateEventOpen(false);
+            setSelectedDate('');
+          }}
+          onSuccess={() => {
+            refetch();
+            setIsCreateEventOpen(false);
+            setSelectedDate('');
+          }}
+          selectedDate={selectedDate}
+        />
+      </div>
+    );
+  };
+
+  return (
+    <CalendarStateProvider>
+      <EventsContent />
+    </CalendarStateProvider>
   );
 };
