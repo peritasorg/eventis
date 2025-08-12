@@ -35,8 +35,11 @@ export const useEventFormTotals = (eventId?: string) => {
     }
   );
 
-  // Calculate live total from all active forms
-  const liveFormTotal = (formTotals || []).reduce((total, form) => total + (form.form_total || 0), 0);
+  // Calculate live total from all active forms - ensure proper math
+  const liveFormTotal = (formTotals || []).reduce((total, form) => {
+    const formTotal = Number(form.form_total || 0);
+    return total + (isNaN(formTotal) ? 0 : formTotal);
+  }, 0);
 
   return {
     formTotals: formTotals || [],

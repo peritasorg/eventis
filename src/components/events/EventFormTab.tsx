@@ -74,31 +74,23 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     }
   }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}`).join(',')]);
 
+  // Perfect form total calculation - handles all field types
   const calculateFormTotal = (eventForm: EventForm) => {
     let total = 0;
     const responses = formResponses[eventForm.id] || {};
     
-    if (eventForm.forms?.sections) {
-      eventForm.forms.sections.forEach((section: any) => {
-        if (section.field_ids) {
-          section.field_ids.forEach((fieldId: string) => {
-            const field = formFields.find(f => f.id === fieldId);
-            const response = responses[fieldId];
-            
-            if (field && response) {
-              switch (field.field_type) {
-                case 'fixed_price_notes':
-                  total += response.price || 0;
-                  break;
-                case 'per_person_price_notes':
-                  total += (response.quantity || 0) * (response.price || 0);
-                  break;
-              }
-            }
-          });
-        }
-      });
-    }
+    Object.entries(responses).forEach(([fieldId, response]) => {
+      // Skip if toggle is disabled
+      if (response.enabled === false) return;
+      
+      const price = response.price || 0;
+      const quantity = response.quantity || 1;
+      
+      // All pricing fields contribute to total when enabled
+      if (price > 0) {
+        total += price; // Price already calculated with quantity in UnifiedFieldRenderer
+      }
+    });
     
     return total;
   };
@@ -107,6 +99,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     return sum + calculateFormTotal(eventForm);
   }, 0);
 
+  // Smart auto-save for form responses
   const handleResponseChange = (eventFormId: string, fieldId: string, updates: any) => {
     const newResponses = {
       ...formResponses,
@@ -126,14 +119,36 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     if (eventForm) {
       const newTotal = calculateFormTotal({ ...eventForm, form_responses: newResponses[eventFormId] } as EventForm);
       
-      // Debounced save with increased delay to prevent typing glitches
+      // Smart debounced save based on field type
+      const isToggleField = updates.hasOwnProperty('enabled');
+      const isPriceField = updates.hasOwnProperty('price') || updates.hasOwnProperty('quantity');
+      const isTextField = updates.hasOwnProperty('notes') && !isToggleField && !isPriceField;
+      
+      let delay = 500; // default
+      if (isTextField) delay = 2000; // typing fields
+      if (isPriceField) delay = 1000; // price/quantity fields  
+      if (isToggleField) delay = 0; // immediate for toggles
+      
       setTimeout(() => {
         updateEventForm({
           id: eventFormId,
           form_responses: newResponses[eventFormId],
           form_total: newTotal
         });
-      }, 1500);
+      }, delay);
+    }
+  };
+
+  // Add blur handler for immediate save on focus loss
+  const handleFieldBlur = (eventFormId: string) => {
+    const eventForm = eventForms.find(ef => ef.id === eventFormId);
+    if (eventForm) {
+      const currentTotal = calculateFormTotal({ ...eventForm, form_responses: formResponses[eventFormId] } as EventForm);
+      updateEventForm({
+        id: eventFormId,
+        form_responses: formResponses[eventFormId],
+        form_total: currentTotal
+      });
     }
   };
 
@@ -172,12 +187,14 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
     return (
       <div key={fieldId} className="space-y-2">
-        <UnifiedFieldRenderer
-          field={field}
-          response={response}
-          onChange={(id, updates) => handleResponseChange(eventForm.id, fieldId, updates)}
-          showInCard={false}
-        />
+        <div onBlur={() => handleFieldBlur(eventForm.id)}>
+          <UnifiedFieldRenderer
+            field={field}
+            response={response}
+            onChange={(id, updates) => handleResponseChange(eventForm.id, fieldId, updates)}
+            showInCard={false}
+          />
+        </div>
       </div>
     );
   };
