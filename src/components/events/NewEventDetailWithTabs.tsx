@@ -37,9 +37,9 @@ export const NewEventDetailWithTabs: React.FC = () => {
         <TabsList className={`grid w-full ${eventForms?.length > 0 ? `grid-cols-${Math.min(eventForms.length + 1, 4)}` : 'grid-cols-2'}`}>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {eventForms?.length === 0 && <TabsTrigger value="forms">Forms</TabsTrigger>}
-          {eventForms?.map((eventForm, index) => (
-            <TabsTrigger key={eventForm.id} value={`form-${eventForm.id}`}>
-              {eventForm.form_label}
+          {eventForms?.map((eventForm) => (
+            <TabsTrigger key={eventForm.id} value={eventForm.id}>
+              {eventForm.form_label || eventForm.forms?.name || `Form ${eventForm.form_order}`}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -55,7 +55,7 @@ export const NewEventDetailWithTabs: React.FC = () => {
         )}
         
         {eventForms?.map((eventForm) => (
-          <TabsContent key={eventForm.id} value={`form-${eventForm.id}`}>
+          <TabsContent key={eventForm.id} value={eventForm.id}>
             <EventFormTab eventId={eventId} eventFormId={eventForm.id} />
           </TabsContent>
         ))}

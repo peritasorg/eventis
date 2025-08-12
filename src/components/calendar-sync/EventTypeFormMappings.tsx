@@ -59,7 +59,7 @@ export const EventTypeFormMappings = () => {
         .from('event_type_form_mappings')
         .select(`
           *,
-          forms (
+          forms!inner (
             id,
             name,
             description
@@ -182,18 +182,23 @@ export const EventTypeFormMappings = () => {
 
             <div className="space-y-2">
               {mappings?.map((mapping, index) => (
-                <Card key={mapping.id} className="p-4">
+                <Card key={mapping.id} className="p-4 border-l-4 border-primary/20">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <GripVertical className="w-4 h-4 text-muted-foreground" />
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">
-                          Form {mapping.sort_order + 1}
-                        </span>
+                      <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+                            Tab {mapping.sort_order + 1}
+                          </span>
+                          <span className="px-2 py-1 bg-secondary text-xs rounded">
+                            {mapping.auto_assign ? 'Auto' : 'Manual'}
+                          </span>
+                        </div>
                         <div>
-                          <h5 className="font-medium">{mapping.forms?.name}</h5>
+                          <h5 className="font-semibold text-foreground">{mapping.forms?.name}</h5>
                           <p className="text-sm text-muted-foreground">
-                            Default label: {mapping.default_label}
+                            Tab Name: <span className="font-medium">{mapping.default_label}</span>
                           </p>
                         </div>
                       </div>
@@ -212,7 +217,7 @@ export const EventTypeFormMappings = () => {
                         <Label className="text-sm">Auto-assign</Label>
                       </div>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
                         onClick={() => removeMappingMutation.mutate(mapping.id)}
                       >
@@ -224,8 +229,33 @@ export const EventTypeFormMappings = () => {
               ))}
               
               {mappings && mappings.length >= 2 && (
-                <div className="text-sm text-muted-foreground text-center p-4 bg-secondary/50 rounded">
-                  Maximum of 2 forms reached for this event type
+                <div className="text-sm text-center p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="text-orange-800 font-medium">Maximum forms reached</div>
+                  <div className="text-orange-600 text-xs mt-1">You can assign up to 2 forms per event type</div>
+                </div>
+              )}
+              
+              {mappings && mappings.length === 0 && (
+                <div className="text-center p-8 bg-secondary/30 rounded-lg border-2 border-dashed border-secondary">
+                  <div className="text-muted-foreground">No forms assigned to this event type</div>
+                  <div className="text-sm text-muted-foreground mt-1">Add forms to automatically include them when creating events</div>
+                </div>
+              )}
+              
+              {mappings && mappings.length > 0 && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h5 className="font-medium text-blue-900 mb-2">Event Creation Preview</h5>
+                  <div className="text-sm text-blue-800">
+                    When creating events of this type, you'll see:
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <span className="px-2 py-1 bg-white border text-xs rounded">Overview</span>
+                    {mappings.map((mapping) => (
+                      <span key={mapping.id} className="px-2 py-1 bg-white border text-xs rounded">
+                        {mapping.default_label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -249,7 +279,9 @@ export const EventTypeFormMappings = () => {
                   <SelectValue placeholder="Select a form template" />
                 </SelectTrigger>
                 <SelectContent>
-                  {formTemplates?.map((template) => (
+                  {formTemplates?.filter(template => 
+                    !mappings?.some(mapping => mapping.form_id === template.id)
+                  ).map((template) => (
                     <SelectItem key={template.id} value={template.id}>
                       {template.name}
                     </SelectItem>
@@ -259,13 +291,16 @@ export const EventTypeFormMappings = () => {
             </div>
             
             <div>
-              <Label htmlFor="default_label">Default Label</Label>
+              <Label htmlFor="default_label">Tab Label</Label>
               <Input
                 id="default_label"
                 name="default_label"
-                placeholder="e.g., Main Form, Catering Options"
+                placeholder="e.g., Nikkah, Reception, Main Event"
                 required
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                This will be the tab name when viewing events of this type
+              </p>
             </div>
 
             <div className="flex justify-end gap-2">
