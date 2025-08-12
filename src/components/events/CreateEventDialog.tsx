@@ -94,10 +94,12 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
       if (eventData.event_type) {
         try {
           const formMappings = await getFormMappingsForEventType(eventData.event_type);
+          console.log('Form mappings for event type:', eventData.event_type, formMappings);
           
-          for (const mapping of formMappings) {
-            if (mapping.forms) {
-              await supabase
+          if (formMappings && formMappings.length > 0) {
+            for (const mapping of formMappings) {
+              console.log('Creating event form for mapping:', mapping);
+              const { error: formError } = await supabase
                 .from('event_forms')
                 .insert({
                   tenant_id: currentTenant.id,
@@ -106,9 +108,17 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
                   form_label: mapping.default_label,
                   form_order: mapping.sort_order + 1,
                   tab_order: mapping.sort_order + 1,
-                  is_active: true
+                  is_active: true,
+                  form_responses: {},
+                  form_total: 0
                 });
+              
+              if (formError) {
+                console.error('Error creating event form:', formError);
+              }
             }
+          } else {
+            console.log('No form mappings found for event type:', eventData.event_type);
           }
         } catch (formError) {
           console.error('Error auto-assigning forms:', formError);

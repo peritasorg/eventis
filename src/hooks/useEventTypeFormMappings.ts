@@ -168,14 +168,18 @@ export const useEventTypeFormMappingsForCreation = () => {
   const getFormMappingsForEventType = async (eventType: string) => {
     if (!currentTenant?.id || !eventType) return [];
 
+    console.log('Looking for form mappings for event type:', eventType, 'tenant:', currentTenant.id);
+
     // First get the event type config ID
-    const { data: eventTypeConfig } = await supabase
+    const { data: eventTypeConfig, error: configError } = await supabase
       .from('event_type_configs')
-      .select('id')
+      .select('id, event_type, display_name')
       .eq('tenant_id', currentTenant.id)
       .eq('event_type', eventType)
       .eq('is_active', true)
       .maybeSingle();
+
+    console.log('Event type config found:', eventTypeConfig, 'error:', configError);
 
     if (!eventTypeConfig) return [];
 
@@ -187,6 +191,8 @@ export const useEventTypeFormMappingsForCreation = () => {
       .eq('tenant_id', currentTenant.id)
       .eq('auto_assign', true)
       .order('sort_order');
+
+    console.log('Form mappings found:', mappings, 'error:', error);
 
     if (error) {
       console.error('Error fetching form mappings for event creation:', error);
@@ -203,17 +209,21 @@ export const useEventTypeFormMappingsForCreation = () => {
       .in('id', formIds)
       .eq('tenant_id', currentTenant.id);
 
+    console.log('Forms found:', forms, 'error:', formsError);
+
     if (formsError) {
       console.error('Error fetching forms:', formsError);
       return mappings.map(mapping => ({ ...mapping, forms: null }));
     }
 
     // Combine the data
-    return mappings.map(mapping => ({
+    const result = mappings.map(mapping => ({
       ...mapping,
       forms: forms?.find(f => f.id === mapping.form_id) || null
     }));
 
+    console.log('Final form mappings result:', result);
+    return result;
   };
 
   return { getFormMappingsForEventType };
