@@ -26,6 +26,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
+  
+  // Local state for guest fields to ensure immediate UI updates
+  const [localGuestData, setLocalGuestData] = useState<Record<string, {
+    men_count: number;
+    ladies_count: number;
+    guest_price_total: number;
+  }>>({});
 
   // Fetch time slots for form timing
   const { data: timeSlots } = useSupabaseQuery(
@@ -58,10 +65,19 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   // Load form responses when eventForms change (with dependency check)
   useEffect(() => {
     const responses: Record<string, Record<string, any>> = {};
+    const guestData: Record<string, { men_count: number; ladies_count: number; guest_price_total: number }> = {};
+    
     eventForms.forEach(eventForm => {
       if (eventForm.form_responses && Object.keys(eventForm.form_responses).length > 0) {
         responses[eventForm.id] = eventForm.form_responses;
       }
+      
+      // Initialize local guest data from database values
+      guestData[eventForm.id] = {
+        men_count: eventForm.men_count || 0,
+        ladies_count: eventForm.ladies_count || 0,
+        guest_price_total: eventForm.guest_price_total || 0
+      };
     });
     
     // Only update if responses actually changed
@@ -72,13 +88,17 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
         JSON.stringify(responses) !== JSON.stringify(formResponses)) {
       setFormResponses(responses);
     }
-  }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}`).join(',')]);
+    
+    // Update local guest data
+    setLocalGuestData(guestData);
+  }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}`).join(',')]);
 
-  // Perfect form total calculation - handles all field types
-  const calculateFormTotal = (eventForm: EventForm) => {
+  // Perfect form total calculation - handles all field types INCLUDING guest_price_total
+  const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
     let total = 0;
     const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
     
+    // Add form field prices
     Object.entries(responses).forEach(([fieldId, response]) => {
       // Skip if toggle is disabled
       if (response.enabled === false) return;
@@ -92,11 +112,18 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       }
     });
     
+    // CRITICAL: Add guest_price_total to the form total
+    const guestPriceTotal = useLocalGuestData 
+      ? (localGuestData[eventForm.id]?.guest_price_total || 0)
+      : (eventForm.guest_price_total || 0);
+    
+    total += guestPriceTotal;
+    
     return total;
   };
 
   const totalEventValue = eventForms.reduce((sum, eventForm) => {
-    return sum + calculateFormTotal(eventForm);
+    return sum + calculateFormTotal(eventForm, true); // Use local guest data for real-time totals
   }, 0);
 
   // Smart auto-save for form responses
@@ -115,10 +142,10 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     // Update local state immediately for responsive UI
     setFormResponses(newResponses);
     
-    // Find the event form and calculate new total
+    // Find the event form and calculate new total (including guest price total)
     const eventForm = eventForms.find(ef => ef.id === eventFormId);
     if (eventForm) {
-      const newTotal = calculateFormTotal({ ...eventForm, form_responses: newResponses[eventFormId] } as EventForm);
+      const newTotal = calculateFormTotal({ ...eventForm, form_responses: newResponses[eventFormId] } as EventForm, true);
       
       // Smart debounced save based on field type
       const isToggleField = updates.hasOwnProperty('enabled');
@@ -227,15 +254,47 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   };
 
   const handleGuestUpdate = async (eventFormId: string, field: 'men_count' | 'ladies_count' | 'guest_price_total', value: number) => {
-    try {
-      // Use the proper mutation to update with automatic refresh
-      await updateEventForm({
-        id: eventFormId,
+    // Update local state immediately for responsive UI
+    setLocalGuestData(prev => ({
+      ...prev,
+      [eventFormId]: {
+        ...prev[eventFormId],
         [field]: value
-      });
+      }
+    }));
+
+    try {
+      // Calculate new form total with guest price included
+      const eventForm = eventForms.find(ef => ef.id === eventFormId);
+      if (eventForm) {
+        const newTotal = calculateFormTotal({
+          ...eventForm,
+          [field]: value
+        } as EventForm, false); // Use actual value, not local state for database save
+        
+        // Update database with both field and new total
+        await updateEventForm({
+          id: eventFormId,
+          [field]: value,
+          form_total: newTotal
+        });
+      }
     } catch (error) {
       console.error('Error updating guest info:', error);
       toast.error('Failed to update guest information');
+      
+      // Revert local state on error
+      const eventForm = eventForms.find(ef => ef.id === eventFormId);
+      if (eventForm) {
+        setLocalGuestData(prev => ({
+          ...prev,
+          [eventFormId]: {
+            men_count: eventForm.men_count || 0,
+            ladies_count: eventForm.ladies_count || 0,
+            guest_price_total: eventForm.guest_price_total || 0
+          }
+        }));
+      }
     }
   };
 
@@ -282,24 +341,24 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
             <CardContent className="p-4">
               <h3 className="font-medium mb-4">Guest Information</h3>
               <div className="space-y-4">
-                <div>
-                  <Label>Men Count</Label>
-                  <Input
-                    type="number"
-                    value={eventForm.men_count || 0}
-                    onChange={(e) => handleGuestUpdate(eventForm.id, 'men_count', parseInt(e.target.value) || 0)}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label>Ladies Count</Label>
-                  <Input
-                    type="number"
-                    value={eventForm.ladies_count || 0}
-                    onChange={(e) => handleGuestUpdate(eventForm.id, 'ladies_count', parseInt(e.target.value) || 0)}
-                    placeholder="0"
-                  />
-                </div>
+                 <div>
+                   <Label>Men Count</Label>
+                   <Input
+                     type="number"
+                     value={localGuestData[eventForm.id]?.men_count || 0}
+                     onChange={(e) => handleGuestUpdate(eventForm.id, 'men_count', parseInt(e.target.value) || 0)}
+                     placeholder="0"
+                   />
+                 </div>
+                 <div>
+                   <Label>Ladies Count</Label>
+                   <Input
+                     type="number"
+                     value={localGuestData[eventForm.id]?.ladies_count || 0}
+                     onChange={(e) => handleGuestUpdate(eventForm.id, 'ladies_count', parseInt(e.target.value) || 0)}
+                     placeholder="0"
+                   />
+                 </div>
               </div>
             </CardContent>
           </Card>
@@ -309,22 +368,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
             <CardContent className="p-4">
               <h3 className="font-medium mb-4">Finance Information</h3>
               <div className="space-y-4">
-                <div>
-                  <Label>Guest Total Price (£)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={eventForm.guest_price_total || 0}
-                    onChange={(e) => handleGuestUpdate(eventForm.id, 'guest_price_total', parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <Label>Form Total (£)</Label>
-                  <div className="text-lg font-semibold">
-                    £{(eventForm.form_total || 0).toFixed(2)}
-                  </div>
-                </div>
+                 <div>
+                   <Label>Guest Total Price (£)</Label>
+                   <Input
+                     type="number"
+                     step="0.01"
+                     value={localGuestData[eventForm.id]?.guest_price_total || 0}
+                     onChange={(e) => handleGuestUpdate(eventForm.id, 'guest_price_total', parseFloat(e.target.value) || 0)}
+                     placeholder="0.00"
+                   />
+                 </div>
+                 <div>
+                   <Label>Form Total (£)</Label>
+                   <div className="text-lg font-semibold">
+                     £{calculateFormTotal(eventForm, true).toFixed(2)}
+                   </div>
+                 </div>
               </div>
             </CardContent>
           </Card>
@@ -336,9 +395,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>{eventForm.form_label}</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Form Total: £{(eventForm.form_total || 0).toFixed(2)}
-                </p>
+                 <p className="text-sm text-muted-foreground mt-1">
+                   Form Total: £{calculateFormTotal(eventForm, true).toFixed(2)}
+                 </p>
               </div>
             </div>
           </CardHeader>
@@ -442,9 +501,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>{eventForm.form_label}</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Form Total: £{(eventForm.form_total || 0).toFixed(2)}
-                </p>
+                 <p className="text-sm text-muted-foreground mt-1">
+                   Form Total: £{calculateFormTotal(eventForm, true).toFixed(2)}
+                 </p>
               </div>
               <Button 
                 variant="destructive" 
