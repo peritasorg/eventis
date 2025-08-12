@@ -53,29 +53,12 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
   };
 
   const renderToggleSection = () => {
-    if (field.field_type !== 'fixed_price_notes_toggle') return null;
-
-    return (
-      <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
-        <div>
-          <Label className="text-sm font-medium">
-            {field.name}
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Toggle to enable this field and its options
-          </p>
-        </div>
-        <Switch
-          checked={response.enabled !== false}
-          onCheckedChange={(enabled) => updateResponse({ enabled })}
-          disabled={readOnly}
-        />
-      </div>
-    );
+    // Remove toggle section for fixed_price_notes_toggle as it's now inline
+    return null;
   };
 
   const renderFieldContent = () => {
-    switch (field.field_type) {
+    switch (field.field_type as string) {
       case 'text_notes_only':
         return (
           <>
@@ -136,40 +119,55 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
 
       case 'fixed_price_notes_toggle':
         return (
-          <>
+          <div className="col-span-2 space-y-3">
             <div>
               <Label className="text-sm font-medium">{field.name}</Label>
               {field.help_text && (
                 <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
               )}
-              <div className="mt-2">
-                <Label className="text-xs text-muted-foreground">Price</Label>
-                <div className="flex items-center">
-                  <span className="text-xs mr-1">£</span>
-                  <PriceInput
-                    value={response.price || 0}
-                    onChange={(value) => updateResponse({ price: value })}
-                    placeholder="0.00"
-                    disabled={readOnly}
-                    className="w-full"
-                  />
-                </div>
-              </div>
             </div>
-            {field.has_notes && (
-              <div>
-                <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
-                <Textarea
-                  value={response.notes || ''}
-                  onChange={(e) => updateResponse({ notes: e.target.value })}
-                  placeholder={field.placeholder_text || 'Additional requirements...'}
-                  rows={2}
+            
+            {/* Single horizontal line: Toggle → Notes → Price */}
+            <div className="flex items-center gap-3">
+              {/* Toggle - always visible */}
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={response.enabled !== false}
+                  onCheckedChange={(enabled) => updateResponse({ enabled })}
                   disabled={readOnly}
-                  className="mt-1"
                 />
+                <Label className="text-xs text-muted-foreground">Enable</Label>
               </div>
-            )}
-          </>
+              
+              {/* Notes and Price - only visible when toggle is ON */}
+              {response.enabled !== false && (
+                <>
+                  {field.has_notes && (
+                    <div className="flex-1">
+                      <Input
+                        value={response.notes || ''}
+                        onChange={(e) => updateResponse({ notes: e.target.value })}
+                        placeholder={field.placeholder_text || 'Notes...'}
+                        disabled={readOnly}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs">£</span>
+                    <PriceInput
+                      value={response.price || 0}
+                      onChange={(value) => updateResponse({ price: value })}
+                      placeholder="0.00"
+                      disabled={readOnly}
+                      className="w-24"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         );
 
       case 'fixed_price_quantity_notes':
@@ -211,17 +209,83 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
             {field.has_notes && (
               <div>
                 <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
-                <Textarea
+                <Input
                   value={response.notes || ''}
                   onChange={(e) => updateResponse({ notes: e.target.value })}
                   placeholder={field.placeholder_text || 'Additional requirements...'}
-                  rows={2}
                   disabled={readOnly}
                   className="mt-1"
                 />
               </div>
             )}
           </>
+        );
+
+      case 'fixed_price_quantity_notes_toggle':
+        return (
+          <div className="col-span-2 space-y-3">
+            <div>
+              <Label className="text-sm font-medium">{field.name}</Label>
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+              )}
+            </div>
+            
+            {/* Single horizontal line: Toggle → Notes → Quantity → Price */}
+            <div className="flex items-center gap-3">
+              {/* Toggle - always visible */}
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={response.enabled !== false}
+                  onCheckedChange={(enabled) => updateResponse({ enabled })}
+                  disabled={readOnly}
+                />
+                <Label className="text-xs text-muted-foreground">Enable</Label>
+              </div>
+              
+              {/* Notes, Quantity and Price - only visible when toggle is ON */}
+              {response.enabled !== false && (
+                <>
+                  {field.has_notes && (
+                    <div className="flex-1">
+                      <Input
+                        value={response.notes || ''}
+                        onChange={(e) => updateResponse({ notes: e.target.value })}
+                        placeholder={field.placeholder_text || 'Notes...'}
+                        disabled={readOnly}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={response.quantity || 1}
+                      onChange={(e) => updateResponse({ quantity: parseInt(e.target.value) || 1 })}
+                       min={1}
+                       max={100}
+                      disabled={readOnly}
+                      className="w-16"
+                      placeholder="Qty"
+                    />
+                    <span className="text-xs">×</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs">£</span>
+                    <PriceInput
+                      value={response.price || 0}
+                      onChange={(value) => updateResponse({ price: value })}
+                      placeholder="0.00"
+                      disabled={readOnly}
+                      className="w-24"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         );
 
       case 'per_person_price_notes':
@@ -476,8 +540,8 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
     }
   };
 
-  // Don't render sub-fields if field is toggleable but disabled
-  const shouldShowSubFields = field.field_type !== 'fixed_price_notes_toggle' || response.enabled !== false;
+  // For toggle fields, always show the field (toggle is always visible)
+  const shouldShowSubFields = !field.field_type.includes('_toggle') || true;
 
   if (showInCard) {
     return (
