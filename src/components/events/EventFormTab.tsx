@@ -77,7 +77,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   // Perfect form total calculation - handles all field types
   const calculateFormTotal = (eventForm: EventForm) => {
     let total = 0;
-    const responses = formResponses[eventForm.id] || {};
+    const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
     
     Object.entries(responses).forEach(([fieldId, response]) => {
       // Skip if toggle is disabled
@@ -112,6 +112,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       }
     };
     
+    // Update local state immediately for responsive UI
     setFormResponses(newResponses);
     
     // Find the event form and calculate new total
@@ -126,15 +127,23 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       
       let delay = 500; // default
       if (isTextField) delay = 2000; // typing fields
-      if (isPriceField) delay = 1000; // price/quantity fields  
+      if (isPriceField) delay = 300; // shorter delay for better UX
       if (isToggleField) delay = 0; // immediate for toggles
       
-      setTimeout(() => {
+      // Clear any existing timeout for this field
+      const timeoutKey = `${eventFormId}-${fieldId}`;
+      if (window[timeoutKey]) {
+        clearTimeout(window[timeoutKey]);
+      }
+      
+      // Set new timeout
+      window[timeoutKey] = setTimeout(() => {
         updateEventForm({
           id: eventFormId,
           form_responses: newResponses[eventFormId],
           form_total: newTotal
         });
+        delete window[timeoutKey];
       }, delay);
     }
   };
@@ -219,28 +228,14 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
   const handleGuestUpdate = async (eventFormId: string, field: 'men_count' | 'ladies_count' | 'guest_price_total', value: number) => {
     try {
-      // Optimistic update - update local state immediately
-      const updatedEventForms = eventForms.map(ef => 
-        ef.id === eventFormId ? { ...ef, [field]: value } : ef
-      );
-      
-      // Update database
-      const { error } = await supabase
-        .from('event_forms')
-        .update({ [field]: value })
-        .eq('id', eventFormId);
-        
-      if (error) throw error;
-      
-      // Force re-render by triggering a small state update
-      setFormResponses(prev => ({ ...prev }));
-      
+      // Use the proper mutation to update with automatic refresh
+      await updateEventForm({
+        id: eventFormId,
+        [field]: value
+      });
     } catch (error) {
       console.error('Error updating guest info:', error);
       toast.error('Failed to update guest information');
-      
-      // Revert optimistic update on error
-      window.location.reload();
     }
   };
 

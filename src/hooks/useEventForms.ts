@@ -237,15 +237,25 @@ export const useEventForms = (eventId?: string) => {
       form_responses?: Record<string, any>;
       form_total?: number;
       form_label?: string;
+      men_count?: number;
+      ladies_count?: number;
+      guest_price_total?: number;
     }) => {
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      };
+      
+      // Only include fields that are actually being updated
+      if (data.form_responses !== undefined) updateData.form_responses = data.form_responses;
+      if (data.form_total !== undefined) updateData.form_total = data.form_total;
+      if (data.form_label !== undefined) updateData.form_label = data.form_label;
+      if (data.men_count !== undefined) updateData.men_count = data.men_count;
+      if (data.ladies_count !== undefined) updateData.ladies_count = data.ladies_count;
+      if (data.guest_price_total !== undefined) updateData.guest_price_total = data.guest_price_total;
+
       const { data: result, error } = await supabase
         .from('event_forms')
-        .update({
-          form_responses: data.form_responses,
-          form_total: data.form_total,
-          form_label: data.form_label,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', data.id)
         .select()
         .single();
@@ -254,8 +264,10 @@ export const useEventForms = (eventId?: string) => {
       return result;
     },
     {
-      successMessage: 'Form responses updated',
-      invalidateQueries: [['event-forms', eventId]]
+      invalidateQueries: [['event-forms', eventId]],
+      onSuccess: () => {
+        // No toast for regular updates to avoid spam
+      }
     }
   );
 
