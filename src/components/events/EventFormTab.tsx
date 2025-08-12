@@ -182,11 +182,17 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     );
   };
 
-  const handleTimeUpdate = async (eventFormId: string, field: 'start_time' | 'end_time', value: string) => {
+  const handleTimeSlotUpdate = async (eventFormId: string, timeSlotId: string) => {
+    const selectedSlot = timeSlots?.find(slot => slot.id === timeSlotId);
+    if (!selectedSlot) return;
+    
     try {
       await supabase
         .from('event_forms')
-        .update({ [field]: value })
+        .update({ 
+          start_time: selectedSlot.start_time,
+          end_time: selectedSlot.end_time
+        })
         .eq('id', eventFormId);
     } catch (error) {
       console.error('Error updating time:', error);
@@ -194,7 +200,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     }
   };
 
-  const handleGuestUpdate = async (eventFormId: string, field: 'guest_count' | 'guest_price_total', value: number) => {
+  const handleGuestUpdate = async (eventFormId: string, field: 'men_count' | 'ladies_count' | 'guest_price_total', value: number) => {
     try {
       await supabase
         .from('event_forms')
@@ -219,82 +225,83 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
     return (
       <div className="space-y-6">
-        {/* Time Management Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Session Timing</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Start Time</Label>
-                <Select 
-                  value={eventForm.start_time || ''} 
-                  onValueChange={(value) => handleTimeUpdate(eventForm.id, 'start_time', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select start time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots?.map((slot) => (
-                      <SelectItem key={`start-${slot.id}`} value={slot.start_time}>
-                        {slot.label} ({slot.start_time})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <div className="grid grid-cols-3 gap-6">
+          {/* Timing Information */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-medium mb-4">Timing Information</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label>Quick Times</Label>
+                  <Select onValueChange={(value) => handleTimeSlotUpdate(eventForm.id, value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select time slot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timeSlots?.map((slot) => (
+                        <SelectItem key={slot.id} value={slot.id}>
+                          {slot.label} ({slot.start_time} - {slot.end_time})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label>End Time</Label>
-                <Select 
-                  value={eventForm.end_time || ''} 
-                  onValueChange={(value) => handleTimeUpdate(eventForm.id, 'end_time', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select end time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots?.map((slot) => (
-                      <SelectItem key={`end-${slot.id}`} value={slot.end_time}>
-                        {slot.label} ({slot.end_time})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Guest Information Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Guest Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Guest Count</Label>
-                <Input
-                  type="number"
-                  value={eventForm.guest_count || 0}
-                  onChange={(e) => handleGuestUpdate(eventForm.id, 'guest_count', parseInt(e.target.value) || 0)}
-                  placeholder="Number of guests"
-                />
+          {/* Guest Information */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-medium mb-4">Guest Information</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label>Men Count</Label>
+                  <Input
+                    type="number"
+                    value={eventForm.men_count || 0}
+                    onChange={(e) => handleGuestUpdate(eventForm.id, 'men_count', parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label>Ladies Count</Label>
+                  <Input
+                    type="number"
+                    value={eventForm.ladies_count || 0}
+                    onChange={(e) => handleGuestUpdate(eventForm.id, 'ladies_count', parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Guest Price Total (£)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={eventForm.guest_price_total || 0}
-                  onChange={(e) => handleGuestUpdate(eventForm.id, 'guest_price_total', parseFloat(e.target.value) || 0)}
-                  placeholder="Total guest pricing"
-                />
+            </CardContent>
+          </Card>
+
+          {/* Finance Information */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-medium mb-4">Finance Information</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label>Guest Total Price (£)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={eventForm.guest_price_total || 0}
+                    onChange={(e) => handleGuestUpdate(eventForm.id, 'guest_price_total', parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label>Form Total (£)</Label>
+                  <div className="text-lg font-semibold">
+                    £{(eventForm.form_total || 0).toFixed(2)}
+                  </div>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Form Content */}
         <Card>
@@ -316,15 +323,15 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                     <h4 className="font-medium text-lg border-b pb-2 text-foreground">
                       {section.title}
                     </h4>
-                    <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
-                      {section.field_ids && section.field_ids.length > 0 ? (
-                        section.field_ids.map((fieldId: string) => renderField(fieldId, eventForm))
-                      ) : (
-                        <p className="text-sm text-muted-foreground col-span-full">
-                          No fields configured for this section.
-                        </p>
-                      )}
-                    </div>
+                     <div className="space-y-4">
+                       {section.field_ids && section.field_ids.length > 0 ? (
+                         section.field_ids.map((fieldId: string) => renderField(fieldId, eventForm))
+                       ) : (
+                         <p className="text-sm text-muted-foreground">
+                           No fields configured for this section.
+                         </p>
+                       )}
+                     </div>
                   </div>
                 ))}
               </div>
@@ -429,15 +436,15 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                     <h4 className="font-medium text-lg border-b pb-2 text-foreground">
                       {section.title}
                     </h4>
-                    <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
-                      {section.field_ids && section.field_ids.length > 0 ? (
-                        section.field_ids.map((fieldId: string) => renderField(fieldId, eventForm))
-                      ) : (
-                        <p className="text-sm text-muted-foreground col-span-full">
-                          No fields configured for this section.
-                        </p>
-                      )}
-                    </div>
+                     <div className="space-y-4">
+                       {section.field_ids && section.field_ids.length > 0 ? (
+                         section.field_ids.map((fieldId: string) => renderField(fieldId, eventForm))
+                       ) : (
+                         <p className="text-sm text-muted-foreground">
+                           No fields configured for this section.
+                         </p>
+                       )}
+                     </div>
                   </div>
                 ))}
               </div>

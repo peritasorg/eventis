@@ -688,6 +688,8 @@ export type Database = {
           guest_price_total: number | null
           id: string
           is_active: boolean | null
+          ladies_count: number | null
+          men_count: number | null
           start_time: string | null
           tab_order: number
           tenant_id: string
@@ -706,6 +708,8 @@ export type Database = {
           guest_price_total?: number | null
           id?: string
           is_active?: boolean | null
+          ladies_count?: number | null
+          men_count?: number | null
           start_time?: string | null
           tab_order?: number
           tenant_id: string
@@ -724,6 +728,8 @@ export type Database = {
           guest_price_total?: number | null
           id?: string
           is_active?: boolean | null
+          ladies_count?: number | null
+          men_count?: number | null
           start_time?: string | null
           tab_order?: number
           tenant_id?: string
