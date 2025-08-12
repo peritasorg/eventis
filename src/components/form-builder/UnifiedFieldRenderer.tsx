@@ -132,7 +132,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
               {/* Toggle - always visible */}
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={response.enabled !== false}
+                  checked={response.enabled === true}
                   onCheckedChange={(enabled) => updateResponse({ enabled })}
                   disabled={readOnly}
                 />
@@ -140,7 +140,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
               </div>
               
               {/* Notes and Price - only visible when toggle is ON */}
-              {response.enabled !== false && (
+              {response.enabled === true && (
                 <>
                   {field.has_notes && (
                     <div className="flex-1">
@@ -236,7 +236,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
               {/* Toggle - always visible */}
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={response.enabled !== false}
+                  checked={response.enabled === true}
                   onCheckedChange={(enabled) => updateResponse({ enabled })}
                   disabled={readOnly}
                 />
@@ -244,7 +244,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
               </div>
               
               {/* Notes, Quantity and Price - only visible when toggle is ON */}
-              {response.enabled !== false && (
+              {response.enabled === true && (
                 <>
                   {field.has_notes && (
                     <div className="flex-1">

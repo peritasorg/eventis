@@ -219,13 +219,28 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
   const handleGuestUpdate = async (eventFormId: string, field: 'men_count' | 'ladies_count' | 'guest_price_total', value: number) => {
     try {
-      await supabase
+      // Optimistic update - update local state immediately
+      const updatedEventForms = eventForms.map(ef => 
+        ef.id === eventFormId ? { ...ef, [field]: value } : ef
+      );
+      
+      // Update database
+      const { error } = await supabase
         .from('event_forms')
         .update({ [field]: value })
         .eq('id', eventFormId);
+        
+      if (error) throw error;
+      
+      // Force re-render by triggering a small state update
+      setFormResponses(prev => ({ ...prev }));
+      
     } catch (error) {
       console.error('Error updating guest info:', error);
       toast.error('Failed to update guest information');
+      
+      // Revert optimistic update on error
+      window.location.reload();
     }
   };
 
