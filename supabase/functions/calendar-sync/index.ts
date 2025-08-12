@@ -50,8 +50,11 @@ class CalendarService {
     const expiresAt = new Date(this.integration.token_expires_at);
     const now = new Date();
     
-    // Refresh if token expires within 5 minutes
-    if (expiresAt.getTime() - now.getTime() < 5 * 60 * 1000) {
+    console.log('Token check:', { expiresAt, now, timeDiff: expiresAt.getTime() - now.getTime() });
+    
+    // Refresh if token has expired or expires within 5 minutes
+    if (expiresAt.getTime() <= now.getTime() || expiresAt.getTime() - now.getTime() < 5 * 60 * 1000) {
+      console.log('Refreshing token...');
       const refreshUrl = this.integration.provider === 'google'
         ? `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth?action=refresh`
         : `${Deno.env.get('SUPABASE_URL')}/functions/v1/outlook-oauth?action=refresh`;
@@ -67,6 +70,7 @@ class CalendarService {
 
       if (response.ok) {
         const tokenData = await response.json();
+        console.log('Token refresh successful');
         
         // Update stored tokens
         await this.supabase
@@ -78,6 +82,10 @@ class CalendarService {
           .eq('id', this.integration.id);
 
         return tokenData.access_token;
+      } else {
+        const errorText = await response.text();
+        console.error('Token refresh failed:', errorText);
+        throw new Error(`Token refresh failed: ${errorText}`);
       }
     }
 
@@ -86,8 +94,10 @@ class CalendarService {
 
   async createEvent(eventData: EventData): Promise<{ success: boolean; externalId?: string; error?: string }> {
     try {
+      console.log('Creating calendar event with data:', eventData);
       const accessToken = await this.refreshTokenIfNeeded();
       const calendarEvent = this.formatEventForCalendar(eventData);
+      console.log('Formatted calendar event:', calendarEvent);
 
       if (this.integration.provider === 'google') {
         return await this.createGoogleEvent(calendarEvent, accessToken);
@@ -198,10 +208,12 @@ class CalendarService {
 
     if (response.ok) {
       const created = await response.json();
+      console.log('Google event created successfully:', created.id);
       return { success: true, externalId: created.id };
     } else {
-      const error = await response.text();
-      return { success: false, error };
+      const errorText = await response.text();
+      console.error('Google Calendar API error:', response.status, errorText);
+      return { success: false, error: `Google Calendar error (${response.status}): ${errorText}` };
     }
   }
 
@@ -269,10 +281,12 @@ class CalendarService {
 
     if (response.ok) {
       const created = await response.json();
+      console.log('Outlook event created successfully:', created.id);
       return { success: true, externalId: created.id };
     } else {
-      const error = await response.text();
-      return { success: false, error };
+      const errorText = await response.text();
+      console.error('Outlook Calendar API error:', response.status, errorText);
+      return { success: false, error: `Outlook Calendar error (${response.status}): ${errorText}` };
     }
   }
 

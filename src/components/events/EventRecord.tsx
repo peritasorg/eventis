@@ -29,6 +29,7 @@ interface EventData {
   title: string;
   event_type: string | null;
   event_date: string | null;
+  event_end_date?: string | null;
   start_time: string | null;
   end_time: string | null;
   customer_id: string | null;
@@ -415,20 +416,27 @@ export const EventRecord: React.FC = () => {
       const calendarEventData = {
         id: eventData.id,
         event_name: eventData.title,
-        event_date: eventData.event_date,
-        event_time: eventData.start_time,
+        event_start_date: eventData.event_date,
+        event_end_date: eventData.event_end_date || eventData.event_date,
+        start_time: eventData.start_time,
         end_time: eventData.end_time,
         event_type: eventData.event_type,
-        guest_count: totalGuests,
-        contact_name: eventData.primary_contact_name,
-        contact_email: selectedCustomer?.email,
-        contact_phone: eventData.primary_contact_number,
-        notes: `Total Guests: ${totalGuests}, Event Type: ${eventData.event_type || 'N/A'}`
+        estimated_guests: totalGuests,
+        customers: selectedCustomer ? {
+          name: selectedCustomer.name,
+          email: selectedCustomer.email,
+          phone: selectedCustomer.phone || eventData.primary_contact_number
+        } : {
+          name: eventData.primary_contact_name || 'Unknown',
+          email: null,
+          phone: eventData.primary_contact_number
+        }
       };
       
       const { data, error } = await supabase.functions.invoke('calendar-sync', {
         body: {
           action: 'create',
+          eventId: eventData.id,
           integrationId: integration.id,
           eventData: calendarEventData
         }
