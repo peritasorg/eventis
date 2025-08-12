@@ -65,19 +65,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   // Load form responses when eventForms change (with dependency check)
   useEffect(() => {
     const responses: Record<string, Record<string, any>> = {};
-    const guestData: Record<string, { men_count: number; ladies_count: number; guest_price_total: number }> = {};
     
     eventForms.forEach(eventForm => {
       if (eventForm.form_responses && Object.keys(eventForm.form_responses).length > 0) {
         responses[eventForm.id] = eventForm.form_responses;
       }
-      
-      // Initialize local guest data from database values
-      guestData[eventForm.id] = {
-        men_count: eventForm.men_count || 0,
-        ladies_count: eventForm.ladies_count || 0,
-        guest_price_total: eventForm.guest_price_total || 0
-      };
     });
     
     // Only update if responses actually changed
@@ -89,8 +81,23 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       setFormResponses(responses);
     }
     
-    // Update local guest data
-    setLocalGuestData(guestData);
+    // Only initialize guest data for NEW forms that don't exist in local state
+    setLocalGuestData(prev => {
+      const updatedGuestData = { ...prev };
+      
+      eventForms.forEach(eventForm => {
+        // Only set if this form doesn't exist in local state yet
+        if (!prev[eventForm.id]) {
+          updatedGuestData[eventForm.id] = {
+            men_count: eventForm.men_count || 0,
+            ladies_count: eventForm.ladies_count || 0,
+            guest_price_total: eventForm.guest_price_total || 0
+          };
+        }
+      });
+      
+      return updatedGuestData;
+    });
   }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}`).join(',')]);
 
   // Perfect form total calculation - handles all field types INCLUDING guest_price_total
