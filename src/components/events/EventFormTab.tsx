@@ -108,15 +108,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     let total = 0;
     const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
     
-    console.log(`Calculating total for form ${eventForm.form_label}:`, { responses, eventFormId: eventForm.id });
-    
     // Add form field prices (only when enabled and has price)
     Object.entries(responses).forEach(([fieldId, response]) => {
       if (response.enabled === true && response.price) {
         const price = Number(response.price) || 0;
         if (price > 0) {
           total += price;
-          console.log(`Added field price: ${price}, running total: ${total}`);
         }
       }
     });
@@ -127,7 +124,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       : (Number(eventForm.guest_price_total) || 0);
     
     total += guestPriceTotal;
-    console.log(`Added guest price total: ${guestPriceTotal}, final total: ${total}`);
     
     // Round to 2 decimal places to prevent floating point precision issues
     return Math.round(total * 100) / 100;
@@ -188,9 +184,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
           if (error) throw error;
           
-          // Invalidate cache to ensure fresh data
+          // CRITICAL: Invalidate all relevant queries to ensure real-time sync
           queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
           queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+          queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+          queryClient.invalidateQueries({ queryKey: ['events'] });
           
         } catch (error) {
           console.error('Error saving form response:', error);
@@ -219,9 +217,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
         if (error) throw error;
         
-        // Invalidate cache to ensure fresh data
+        // CRITICAL: Invalidate all relevant queries to ensure real-time sync
         queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
         queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['events'] });
         
       } catch (error) {
         console.error('Error saving form response:', error);

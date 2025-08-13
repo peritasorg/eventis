@@ -1036,31 +1036,36 @@ export const EventRecord: React.FC = () => {
 
               <div className="pt-2 border-t space-y-2">
                 {/* Individual Form Breakdown */}
-                {eventForms && eventForms.length > 0 && (
+                {formTotals && formTotals.length > 0 && (
                   <div className="space-y-1 pb-2 border-b">
                     <div className="text-sm font-medium text-muted-foreground mb-2">Form Breakdown:</div>
-                    {eventForms.map((eventForm) => (
-                      <div key={eventForm.id} className="flex justify-between items-center text-sm">
-                        <span className="flex items-center gap-2">
-                          {eventForm.form_label}
-                          {eventForm.guest_count && (
-                            <Badge variant="secondary" className="text-xs">
-                              {eventForm.guest_count} guests
-                            </Badge>
-                          )}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {eventForm.guest_price_total && eventForm.guest_price_total > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              Guest: {formatCurrency(eventForm.guest_price_total)}
-                            </span>
-                          )}
-                          <span className="font-medium">
-                            Form: {formatCurrency(eventForm.form_total || 0)}
+                    {formTotals.map((formTotal) => {
+                      // Find matching eventForm for guest data
+                      const eventForm = eventForms?.find(ef => ef.id === formTotal.id);
+                      
+                      return (
+                        <div key={formTotal.id} className="flex justify-between items-center text-sm">
+                          <span className="flex items-center gap-2">
+                            {formTotal.form_label}
+                            {eventForm?.guest_count && (
+                              <Badge variant="secondary" className="text-xs">
+                                {eventForm.guest_count} guests
+                              </Badge>
+                            )}
                           </span>
+                          <div className="flex items-center gap-2">
+                            {eventForm?.guest_price_total && eventForm.guest_price_total > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                Guest: {formatCurrency(eventForm.guest_price_total)}
+                              </span>
+                            )}
+                            <span className="font-medium">
+                              Form: {formatCurrency(formTotal.form_total)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
                 
