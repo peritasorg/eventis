@@ -242,6 +242,44 @@ export const FieldEdit = () => {
 
               <Separator />
 
+              {/* Quote/Invoice Appearance Settings */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium">Document Appearance</Label>
+                  <p className="text-sm text-muted-foreground">Control when this field appears in generated quotes and invoices</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="appears_on_quote"
+                      checked={formData.appears_on_quote || false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, appears_on_quote: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="appears_on_quote" className="text-sm">
+                      Appears on Quotes
+                    </Label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="appears_on_invoice"
+                      checked={formData.appears_on_invoice || false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, appears_on_invoice: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="appears_on_invoice" className="text-sm">
+                      Appears on Invoices
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
               {/* Pricing Configuration */}
               {isPricingField && (
                 <div className="space-y-4">

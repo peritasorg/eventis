@@ -26,6 +26,7 @@ import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
+import { QuoteInvoicePreview } from './QuoteInvoicePreview';
 
 interface EventData {
   id: string;
@@ -65,6 +66,7 @@ export const EventRecord: React.FC = () => {
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Get event type configs
   const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -559,21 +561,11 @@ export const EventRecord: React.FC = () => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={generateQuote}
-              disabled={isGeneratingPDF}
+              onClick={() => setShowPreview(true)}
+              className="flex items-center gap-2"
             >
-              <FileText className="h-4 w-4 mr-2" />
-              {isGeneratingPDF ? 'Generating...' : 'Generate Quote'}
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={generateInvoice}
-              disabled={isGeneratingPDF}
-            >
-              <Receipt className="h-4 w-4 mr-2" />
-              {isGeneratingPDF ? 'Generating...' : 'Generate Invoice'}
+              <FileText className="h-4 w-4" />
+              Preview Quote/Invoice
             </Button>
             
             <Button 
@@ -1080,6 +1072,33 @@ export const EventRecord: React.FC = () => {
           <PaymentTimeline eventId={eventId} />
         </div>
       </div>
+
+      {/* Quote/Invoice Preview Dialog */}
+      <QuoteInvoicePreview
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        eventData={{
+          ...eventData,
+          customers: selectedCustomer ? {
+            name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+            email: selectedCustomer.email || '',
+            phone: selectedCustomer.phone || '',
+          } : null
+        }}
+        tenantData={{
+          business_name: currentTenant?.business_name || '',
+          address_line1: currentTenant?.address_line1 || '',
+          address_line2: currentTenant?.address_line2,
+          city: currentTenant?.city || '',
+          postal_code: currentTenant?.postal_code || '',
+          country: currentTenant?.country || 'GB',
+          contact_email: currentTenant?.contact_email || '',
+          contact_phone: currentTenant?.contact_phone || '',
+          company_logo_url: currentTenant?.company_logo_url
+        }}
+        tenantId={currentTenant?.id || ''}
+        eventForms={eventForms || []}
+      />
     </div>
   );
 };

@@ -1163,6 +1163,8 @@ export type Database = {
         Row: {
           active: boolean
           affects_pricing: boolean
+          appears_on_invoice: boolean | null
+          appears_on_quote: boolean | null
           category: string
           created_at: string
           default_quantity: number | null
@@ -1190,6 +1192,8 @@ export type Database = {
         Insert: {
           active?: boolean
           affects_pricing?: boolean
+          appears_on_invoice?: boolean | null
+          appears_on_quote?: boolean | null
           category?: string
           created_at?: string
           default_quantity?: number | null
@@ -1217,6 +1221,8 @@ export type Database = {
         Update: {
           active?: boolean
           affects_pricing?: boolean
+          appears_on_invoice?: boolean | null
+          appears_on_quote?: boolean | null
           category?: string
           created_at?: string
           default_quantity?: number | null
@@ -2687,6 +2693,7 @@ export type Database = {
           business_name: string
           business_type: string | null
           city: string | null
+          company_logo_url: string | null
           contact_email: string
           contact_phone: string | null
           country: string | null
@@ -2716,6 +2723,7 @@ export type Database = {
           business_name: string
           business_type?: string | null
           city?: string | null
+          company_logo_url?: string | null
           contact_email: string
           contact_phone?: string | null
           country?: string | null
@@ -2745,6 +2753,7 @@ export type Database = {
           business_name?: string
           business_type?: string | null
           city?: string | null
+          company_logo_url?: string | null
           contact_email?: string
           contact_phone?: string | null
           country?: string | null
