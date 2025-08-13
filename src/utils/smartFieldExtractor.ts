@@ -42,8 +42,8 @@ export const extractPopulatedFields = async (
 
     console.log('Found', formFields?.length || 0, 'active form fields');
 
-    // Create lookup map for field data using field name as key
-    const fieldLookup = new Map(formFields?.map(field => [field.name, field]) || []);
+    // Create lookup map for field data using field ID as key (form responses use field IDs)
+    const fieldLookup = new Map(formFields?.map(field => [field.id, field]) || []);
     console.log('Field lookup map keys:', Array.from(fieldLookup.keys()));
 
     // Process each event form
@@ -53,15 +53,15 @@ export const extractPopulatedFields = async (
       
       if (!form_responses || typeof form_responses !== 'object') continue;
 
-      // Process each field response - field names are used as keys in form_responses
-      Object.entries(form_responses).forEach(([fieldName, response]) => {
-        console.log('Processing field:', fieldName, 'with response:', response);
+      // Process each field response - field IDs are used as keys in form_responses
+      Object.entries(form_responses).forEach(([fieldId, response]) => {
+        console.log('Processing field ID:', fieldId, 'with response:', response);
         
         if (!response || typeof response !== 'object') return;
 
-        const fieldConfig = fieldLookup.get(fieldName);
+        const fieldConfig = fieldLookup.get(fieldId);
         if (!fieldConfig) {
-          console.log('No field config found for:', fieldName);
+          console.log('No field config found for field ID:', fieldId);
           return;
         }
 
@@ -77,11 +77,11 @@ export const extractPopulatedFields = async (
 
         // Check if field has any populated data
         const hasValue = isFieldPopulated(response, fieldConfig.field_type);
-        console.log('Field has value:', hasValue, 'for field:', fieldName);
+        console.log('Field has value:', hasValue, 'for field:', fieldConfig.name);
         if (!hasValue) return;
 
-        // Extract field data
-        const extractedField = extractFieldData(fieldName, response, fieldConfig);
+        // Extract field data with form prefix for description
+        const extractedField = extractFieldData(fieldId, response, fieldConfig, eventForm.form_label);
         if (extractedField) {
           console.log('Extracted field data:', extractedField);
           extractedFields.push(extractedField);
@@ -169,20 +169,21 @@ const isFieldPopulated = (response: any, fieldType: string): boolean => {
  * Extract structured data from a populated field
  */
 const extractFieldData = (
-  fieldName: string,
+  fieldId: string,
   response: any,
-  fieldConfig: any
+  fieldConfig: any,
+  formLabel?: string
 ): ExtractedFieldData | null => {
   try {
-    console.log('Extracting field data for:', fieldName, 'config:', fieldConfig);
+    console.log('Extracting field data for field ID:', fieldId, 'config:', fieldConfig);
     
-    const label = fieldConfig.name || fieldName;
+    const label = fieldConfig.name || fieldId;
     const notes = response.notes || '';
     const price = parseFloat(response.price || fieldConfig.default_price_gbp || '0');
     const quantity = parseInt(response.quantity || '1');
     
-    // Build description: field name + notes if available
-    let description = label;
+    // Build description: form name + field name + notes if available
+    let description = formLabel ? `${formLabel} - ${label}` : label;
     if (notes.trim()) {
       description += ` - ${notes.trim()}`;
     }
@@ -201,7 +202,7 @@ const extractFieldData = (
     }
 
     const extractedData = {
-      id: fieldName,
+      id: fieldId,
       label,
       value: value || '',
       notes,
