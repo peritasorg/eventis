@@ -68,13 +68,16 @@ export class WordTemplateGenerator {
     eventForms.forEach(form => {
       if (form.guest_price_total > 0) {
         const guestCount = (form.men_count || 0) + (form.ladies_count || 0);
-        const perPersonPrice = guestCount > 0 ? parseFloat(form.guest_price_total) / guestCount : 0;
+        // guest_price_total is the per-person rate, not total for all guests
+        const perPersonPrice = parseFloat(form.guest_price_total);
+        
+        console.log(`Guest pricing for ${form.form_label}: ${guestCount} guests @ £${perPersonPrice} each = £${guestCount * perPersonPrice} total`);
         
         lineItems.push({
           quantity: guestCount,
           description: `${form.form_label} - Guest Pricing`,
           price: perPersonPrice,
-          total: parseFloat(form.guest_price_total)
+          total: guestCount * perPersonPrice
         });
       }
     });
@@ -217,11 +220,13 @@ export class WordTemplateGenerator {
         ...templateData,
         today: new Date().toLocaleDateString('en-GB'),
         event_type: enrichedEventData.event_type || 'Event',
+        remaining_balance: templateData.balance_due,
         // Add formatted currency values for compatibility
         subtotal_formatted: `£${templateData.subtotal.toFixed(2)}`,
         total_formatted: `£${templateData.total.toFixed(2)}`,
         deposit_formatted: `£${templateData.deposit_amount.toFixed(2)}`,
         balance_formatted: `£${templateData.balance_due.toFixed(2)}`,
+        remaining_balance_formatted: `£${templateData.balance_due.toFixed(2)}`,
       };
 
       // Debug log the data being passed to template
@@ -339,6 +344,7 @@ export class WordTemplateGenerator {
       'total': `£${templateData.total.toFixed(2)}`,
       'deposit_amount': `£${templateData.deposit_amount.toFixed(2)}`,
       'balance_due': `£${templateData.balance_due.toFixed(2)}`,
+      'remaining_balance': `£${templateData.balance_due.toFixed(2)}`,
       
       // Document info
       'document_number': templateData.document_number,
@@ -358,6 +364,7 @@ export class WordTemplateGenerator {
       'Subtotal': `£${templateData.subtotal.toFixed(2)}`,
       'DepositAmount': `£${templateData.deposit_amount.toFixed(2)}`,
       'BalanceDue': `£${templateData.balance_due.toFixed(2)}`,
+      'RemainingBalance': `£${templateData.balance_due.toFixed(2)}`,
       'DocumentNumber': templateData.document_number,
       'DocumentDate': templateData.document_date,
     };
