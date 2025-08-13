@@ -63,9 +63,13 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
         .from('calendar_warning_settings')
         .select('*')
         .eq('tenant_id', currentTenant.id)
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        console.error('Error fetching calendar warning settings:', error);
+        return null;
+      }
+      
       return data;
     }
   );

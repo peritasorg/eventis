@@ -30,9 +30,13 @@ export const DateWarningsSettings = () => {
         .from('calendar_warning_settings')
         .select('*')
         .eq('tenant_id', currentTenant.id)
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        console.error('Error fetching calendar warning settings:', error);
+        return null;
+      }
+      
       return data;
     }
   );
@@ -59,9 +63,11 @@ export const DateWarningsSettings = () => {
           warning_message: warningMessage,
           warning_color: warningColor,
           is_active: true
+        }, {
+          onConflict: 'tenant_id'
         })
         .select()
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data;
@@ -171,8 +177,8 @@ export const DateWarningsSettings = () => {
                   </div>
                 </div>
               </div>
-              <Badge variant={calendarWarningSettings?.is_active === true ? "default" : "secondary"}>
-                {calendarWarningSettings?.is_active === true ? "Active" : "Inactive"}
+              <Badge variant="default">
+                Active
               </Badge>
             </div>
             
