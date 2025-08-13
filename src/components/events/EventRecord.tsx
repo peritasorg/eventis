@@ -160,7 +160,7 @@ export const EventRecord: React.FC = () => {
   }) || [];
 
   // Get live form totals and individual form data
-  const { liveFormTotal, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
+  const { liveFormTotal, formTotals, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
   const { eventForms } = useEventForms(eventId);
 
   // Fetch payment timeline for remaining balance calculation
@@ -298,7 +298,10 @@ export const EventRecord: React.FC = () => {
 
   // Calculate derived values
   const totalGuests = (eventData?.men_count || 0) + (eventData?.ladies_count || 0);
-  const totalGuestPrice = eventData?.total_guest_price_gbp || 0;
+  
+  // CRITICAL FIX: Only include event-level guest pricing when there are NO forms (to prevent double-counting)
+  const hasMultipleForms = (formTotals?.length || 0) > 0;
+  const totalGuestPrice = hasMultipleForms ? 0 : (eventData?.total_guest_price_gbp || 0);
   const totalEventValue = totalGuestPrice + liveFormTotal;
   const depositAmount = eventData?.deposit_amount_gbp || 0;
   const totalPaid = depositAmount + (payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0);
@@ -931,8 +934,8 @@ export const EventRecord: React.FC = () => {
 
         {/* Right Column */}
         <div className="space-y-6">
-          {/* Guests Section - only show if event has less than 2 forms */}
-          {eventForms.length < 2 && (
+          {/* Guests Section - only show if there are NO forms (prevent double-counting) */}
+          {!hasMultipleForms && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -983,14 +986,26 @@ export const EventRecord: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="total_guest_price_gbp">Total Guest Price</Label>
-                  <PriceInput
-                    value={eventData.total_guest_price_gbp || 0}
-                    onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
-                    placeholder="0.00"
-                  />
-                </div>
+                {/* Only show event-level guest pricing when there are NO forms */}
+                {!hasMultipleForms && (
+                  <div className="space-y-2">
+                    <Label htmlFor="total_guest_price_gbp">Total Guest Price</Label>
+                    <PriceInput
+                      value={eventData.total_guest_price_gbp || 0}
+                      onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                )}
+                
+                {hasMultipleForms && (
+                  <div className="space-y-2">
+                    <Label>Event-Level Guest Price</Label>
+                    <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm text-muted-foreground">
+                      Hidden (using form-level pricing)
+                    </div>
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   <Label>Live Form Total</Label>

@@ -35,15 +35,18 @@ export const useEventFormTotals = (eventId?: string) => {
     }
   );
 
-  // Calculate live total from all active forms - ensure proper math
+  // Calculate live total from all active forms - ensure proper math with proper precision
   const liveFormTotal = (formTotals || []).reduce((total, form) => {
     const formTotal = Number(form.form_total || 0);
     return total + (isNaN(formTotal) ? 0 : formTotal);
   }, 0);
+  
+  // Round to 2 decimal places to prevent floating point precision issues
+  const roundedLiveFormTotal = Math.round(liveFormTotal * 100) / 100;
 
   return {
     formTotals: formTotals || [],
-    liveFormTotal,
+    liveFormTotal: roundedLiveFormTotal,
     isLoading: query.isLoading,
     error: query.error
   };

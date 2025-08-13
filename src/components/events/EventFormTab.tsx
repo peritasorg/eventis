@@ -101,7 +101,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     });
   }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}`).join(',')]);
 
-  // Perfect form total calculation with proper decimal precision
+  // Perfect form total calculation with proper decimal precision and debug logging
   const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
     let total = 0;
     const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
@@ -112,9 +112,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       if (response.enabled === false) return;
       
       const price = Number(response.price) || 0;
-      const quantity = Number(response.quantity) || 1;
       
-      // All pricing fields contribute to total when enabled
+      // All pricing fields contribute to total when enabled (and price > 0)
       if (price > 0) {
         total += price; // Price already calculated with quantity in UnifiedFieldRenderer
       }
