@@ -226,11 +226,25 @@ export const generateEnhancedQuotePDF = async (
     doc.text(`Time: ${timeDisplay}`, 20, yPosition);
     yPosition += 5;
     
-    // Calculate total guests from all forms
-    const totalGuests = event.eventForms 
-      ? event.eventForms.reduce((total: number, form: any) => total + (form.men_count || 0) + (form.ladies_count || 0), 0)
-      : (event.total_guests || event.estimated_guests || 0);
-    doc.text(`Guests: ${totalGuests}`, 20, yPosition);
+    // Format guest count for multiple forms or single form  
+    const formatGuestCount = () => {
+      if (!event.eventForms || event.eventForms.length === 0) {
+        return String(event.total_guests || event.estimated_guests || 0);
+      }
+      
+      if (event.eventForms.length === 1) {
+        const form = event.eventForms[0];
+        return String((form.men_count || 0) + (form.ladies_count || 0));
+      }
+      
+      // Multiple forms - show individual counts with " & " separator
+      const counts = event.eventForms.map((form: any) => 
+        String((form.men_count || 0) + (form.ladies_count || 0))
+      );
+      return counts.join(' & ');
+    };
+    
+    doc.text(`Guests: ${formatGuestCount()}`, 20, yPosition);
 
     yPosition += 20;
 
@@ -416,11 +430,25 @@ export const generateEnhancedInvoicePDF = async (
     doc.text(`Time: ${timeDisplay}`, 20, yPosition);
     yPosition += 5;
     
-    // Calculate total guests from all forms
-    const totalGuests = event.eventForms 
-      ? event.eventForms.reduce((total: number, form: any) => total + (form.men_count || 0) + (form.ladies_count || 0), 0)
-      : (event.total_guests || event.estimated_guests || 0);
-    doc.text(`Guests: ${totalGuests}`, 20, yPosition);
+    // Format guest count for multiple forms or single form  
+    const formatGuestCount = () => {
+      if (!event.eventForms || event.eventForms.length === 0) {
+        return String(event.total_guests || event.estimated_guests || 0);
+      }
+      
+      if (event.eventForms.length === 1) {
+        const form = event.eventForms[0];
+        return String((form.men_count || 0) + (form.ladies_count || 0));
+      }
+      
+      // Multiple forms - show individual counts with " & " separator
+      const counts = event.eventForms.map((form: any) => 
+        String((form.men_count || 0) + (form.ladies_count || 0))
+      );
+      return counts.join(' & ');
+    };
+    
+    doc.text(`Guests: ${formatGuestCount()}`, 20, yPosition);
 
     yPosition += 20;
 

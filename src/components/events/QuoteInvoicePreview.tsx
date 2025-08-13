@@ -82,6 +82,22 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
 
   const { subtotal, vatAmount, total } = calculateTotals();
 
+  // Format guest count for multiple forms  
+  const formatGuestCount = () => {
+    if (!eventForms || eventForms.length === 0) return '0';
+    
+    if (eventForms.length === 1) {
+      const form = eventForms[0];
+      return String((form.men_count || 0) + (form.ladies_count || 0));
+    }
+    
+    // Multiple forms - show individual counts with " & " separator
+    const counts = eventForms.map(form => 
+      String((form.men_count || 0) + (form.ladies_count || 0))
+    );
+    return counts.join(' & ');
+  };
+
   const handleGenerate = async (type: 'quote' | 'invoice') => {
     setIsGenerating(true);
     
@@ -233,7 +249,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                   <p><strong>Event:</strong> {editableData.event_name}</p>
                   <p><strong>Type:</strong> {eventData?.event_type}</p>
                   <p><strong>Date:</strong> {eventData?.event_date ? new Date(eventData.event_date).toLocaleDateString('en-GB') : 'TBD'}</p>
-                   <p><strong>Guests:</strong> {eventForms?.reduce((total, form) => total + (form.men_count || 0) + (form.ladies_count || 0), 0) || 0}</p>
+                   <p><strong>Guests:</strong> {formatGuestCount()}</p>
                    <p><strong>Time:</strong> {
                      eventForms && eventForms.length > 1 
                        ? eventForms.map(form => `${form.start_time || 'TBD'} - ${form.end_time || 'TBD'}`).join(' & ')
