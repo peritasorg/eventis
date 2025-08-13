@@ -25,6 +25,7 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
     if (!file || !currentTenant) {
       if (!currentTenant) {
         toast.error('Authentication required. Please refresh and try again.');
+        console.error('Upload failed: No currentTenant available');
       }
       return;
     }
@@ -40,12 +41,22 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
     }
 
     setUploading(true);
-    console.log('Starting upload for tenant:', currentTenant.id);
+    
+    // Enhanced logging for debugging
+    console.log('=== UPLOAD DEBUG INFO ===');
+    console.log('Current tenant:', currentTenant);
+    console.log('User ID from auth:', supabase.auth.getUser());
+    console.log('Session info:', supabase.auth.getSession());
     
     try {
       // Upload to Supabase storage
       const fileName = `${currentTenant.id}-template.docx`;
-      console.log('Uploading file:', fileName);
+      console.log('Attempting upload with filename:', fileName);
+      console.log('File details:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
       
       const { data, error } = await supabase.storage
         .from('word-templates')
@@ -55,11 +66,27 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
         });
 
       if (error) {
-        console.error('Storage upload error:', error);
-        throw new Error(`Upload failed: ${error.message}`);
+        console.error('=== STORAGE UPLOAD ERROR ===');
+        console.error('Error object:', error);
+        console.error('Error message:', error.message);
+        console.error('Error name:', error.name);
+        
+        // More specific error handling
+        if (error.message?.includes('row level security')) {
+          toast.error('Security policy violation. Please contact support.');
+          console.error('RLS Policy failed - filename pattern may not match policy requirements');
+        } else if (error.message?.includes('denied')) {
+          toast.error('Permission denied. Please check your account status.');
+        } else if (error.message?.includes('network')) {
+          toast.error('Network error. Please check your connection and try again.');
+        } else {
+          toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
+        }
+        return;
       }
 
-      console.log('Upload successful:', data);
+      console.log('=== UPLOAD SUCCESSFUL ===');
+      console.log('Upload response:', data);
       setCurrentTemplate(fileName);
       toast.success('✅ Template uploaded successfully!');
       
@@ -68,14 +95,10 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
       
       onTemplateUploaded?.();
     } catch (error: any) {
-      console.error('Error uploading template:', error);
-      if (error.message?.includes('denied')) {
-        toast.error('Permission denied. Please check your account status.');
-      } else if (error.message?.includes('network')) {
-        toast.error('Network error. Please check your connection and try again.');
-      } else {
-        toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
-      }
+      console.error('=== UNEXPECTED ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error stack:', error.stack);
+      toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
       // Clear the file input
