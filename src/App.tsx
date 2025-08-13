@@ -35,6 +35,7 @@ import { ProfileSettings } from "./components/settings/ProfileSettings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Success } from "./pages/success";
+import { PDFEditor } from "./pages/PDFEditor";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -228,15 +229,27 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/settings/profile" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <ProfileSettings />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  
-                  {/* 404 Fallback */}
+                   <Route path="/settings/profile" element={
+                     <ProtectedRoute>
+                       <AppLayout>
+                         <ProfileSettings />
+                       </AppLayout>
+                     </ProtectedRoute>
+                   } />
+                   
+                   <Route path="/pdf-editor" element={
+                     <ProtectedRoute>
+                       <PDFEditor />
+                     </ProtectedRoute>
+                   } />
+                   
+                   <Route path="/pdf-editor/:eventId" element={
+                     <ProtectedRoute>
+                       <PDFEditor />
+                     </ProtectedRoute>
+                   } />
+                   
+                   {/* 404 Fallback */}
                   <Route path="*" element={
                     <ErrorBoundary>
                       <NotFound />
