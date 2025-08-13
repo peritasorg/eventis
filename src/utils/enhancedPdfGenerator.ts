@@ -226,8 +226,8 @@ export const generateEnhancedQuotePDF = async (
     yPosition += 20;
 
     // Services Table
-    const tableHeaders = ['QTY', 'DESCRIPTION', 'UNIT PRICE', 'TOTAL'];
-    const columnWidths = [25, 85, 30, 30];
+    const tableHeaders = ['QTY', 'DESCRIPTION', 'PRICE'];
+    const columnWidths = [25, 105, 40];
     
     // Extract smart field data
     const populatedFields = await extractPopulatedFields(
@@ -246,13 +246,25 @@ export const generateEnhancedQuotePDF = async (
       tableRows.unshift([
         guestCount.toString(),
         `${sanitizeForPDF(event.event_name)} - Base Service`,
-        `£${(basePrice / guestCount).toFixed(2)}`,
         `£${basePrice.toFixed(2)}`
       ]);
     }
 
+    // Add guest price totals from event forms
+    if (event.eventForms) {
+      event.eventForms.forEach((eventForm: any) => {
+        if (eventForm.guest_price_total && eventForm.guest_price_total > 0) {
+          tableRows.push([
+            (eventForm.guest_count || 0).toString(),
+            `${eventForm.form_label} - Guest Pricing`,
+            `£${eventForm.guest_price_total.toFixed(2)}`
+          ]);
+        }
+      });
+    }
+
     if (tableRows.length === 0) {
-      tableRows.push(['1', 'Service to be confirmed', '£0.00', '£0.00']);
+      tableRows.push(['1', 'Service to be confirmed', '£0.00']);
     }
 
     yPosition = drawTable(doc, tableHeaders, tableRows, yPosition, columnWidths);
@@ -414,8 +426,8 @@ export const generateEnhancedInvoicePDF = async (
     yPosition += 20;
 
     // Services Table
-    const tableHeaders = ['QTY', 'DESCRIPTION', 'UNIT PRICE', 'TOTAL'];
-    const columnWidths = [25, 85, 30, 30];
+    const tableHeaders = ['QTY', 'DESCRIPTION', 'PRICE'];
+    const columnWidths = [25, 105, 40];
     
     // Extract smart field data for invoices
     const populatedFields = await extractPopulatedFields(
@@ -434,13 +446,25 @@ export const generateEnhancedInvoicePDF = async (
       tableRows.unshift([
         guestCount.toString(),
         `${sanitizeForPDF(event.event_name)} - Base Service`,
-        `£${(basePrice / guestCount).toFixed(2)}`,
         `£${basePrice.toFixed(2)}`
       ]);
     }
 
+    // Add guest price totals from event forms
+    if (event.eventForms) {
+      event.eventForms.forEach((eventForm: any) => {
+        if (eventForm.guest_price_total && eventForm.guest_price_total > 0) {
+          tableRows.push([
+            (eventForm.guest_count || 0).toString(),
+            `${eventForm.form_label} - Guest Pricing`,
+            `£${eventForm.guest_price_total.toFixed(2)}`
+          ]);
+        }
+      });
+    }
+
     if (tableRows.length === 0) {
-      tableRows.push(['1', 'Service provided', '£0.00', '£0.00']);
+      tableRows.push(['1', 'Service provided', '£0.00']);
     }
 
     yPosition = drawTable(doc, tableHeaders, tableRows, yPosition, columnWidths);

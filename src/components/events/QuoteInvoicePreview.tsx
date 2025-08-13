@@ -234,29 +234,37 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                   </div>
                 ) : (
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted p-2 grid grid-cols-4 gap-2 text-sm font-semibold">
+                    <div className="bg-muted p-2 grid grid-cols-3 gap-2 text-sm font-semibold">
                       <div>QTY</div>
                       <div>DESCRIPTION</div>
-                      <div>UNIT PRICE</div>
-                      <div className="text-right">TOTAL</div>
+                      <div className="text-right">PRICE</div>
                     </div>
                     
                     {/* Base service */}
                     {basePrice > 0 && (
-                      <div className="p-2 grid grid-cols-4 gap-2 text-sm border-b">
+                      <div className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
                         <div>{(eventData?.men_count || 0) + (eventData?.ladies_count || 0)}</div>
                         <div>{editableData.event_name} - Base Service</div>
-                        <div>£{basePrice > 0 ? (basePrice / ((eventData?.men_count || 0) + (eventData?.ladies_count || 0) || 1)).toFixed(2) : '0.00'}</div>
                         <div className="text-right">£{basePrice.toFixed(2)}</div>
                       </div>
                     )}
                     
+                    {/* Guest totals from event forms */}
+                    {eventForms?.map((eventForm) => 
+                      eventForm.guest_price_total > 0 && (
+                        <div key={`guest-${eventForm.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
+                          <div>{eventForm.guest_count || 0}</div>
+                          <div>{eventForm.form_label} - Guest Pricing</div>
+                          <div className="text-right">£{eventForm.guest_price_total.toFixed(2)}</div>
+                        </div>
+                      )
+                    )}
+                    
                     {/* Populated fields */}
                     {populatedFields.map((field) => (
-                      <div key={field.id} className="p-2 grid grid-cols-4 gap-2 text-sm border-b">
+                      <div key={field.id} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
                         <div>{field.quantity}</div>
                         <div>{field.description}</div>
-                        <div>£{(field.price / field.quantity).toFixed(2)}</div>
                         <div className="text-right">£{field.price.toFixed(2)}</div>
                       </div>
                     ))}

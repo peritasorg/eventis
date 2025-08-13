@@ -228,7 +228,6 @@ export const formatFieldsForPDF = (fields: ExtractedFieldData[]): string[][] => 
     .map(field => [
       field.quantity.toString(),
       field.description,
-      `£${(field.price / field.quantity).toFixed(2)}`,
       `£${field.price.toFixed(2)}`
     ]);
 };
