@@ -7,11 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Download, Edit3, Eye, FileText, Receipt, Settings, Plus } from 'lucide-react';
+import { Loader2, Download, Edit3, Eye, FileText, Receipt, ExternalLink } from 'lucide-react';
 import { generateEnhancedQuotePDF, generateEnhancedInvoicePDF } from '@/utils/enhancedPdfGenerator';
 import { extractPopulatedFields } from '@/utils/smartFieldExtractor';
-import { PDFTemplateEditor } from '@/components/pdf/PDFTemplateEditor';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface PDFTemplate {
   id?: string;
@@ -43,10 +43,9 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   tenantId,
   eventForms
 }) => {
+  const navigate = useNavigate();
   const [documentType, setDocumentType] = useState<'quote' | 'invoice'>('quote');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState<'preview' | 'editor'>('preview');
-  const [selectedTemplate, setSelectedTemplate] = useState<PDFTemplate | null>(null);
   const [editableData, setEditableData] = useState({
     business_name: tenantData?.business_name || '',
     event_name: eventData?.title || '',
@@ -149,10 +148,9 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
     }
   };
 
-  const handleSaveTemplate = (template: PDFTemplate) => {
-    // This would normally save to database using the usePDFTemplates hook
-    toast.success('Template saved successfully');
-    setActiveTab('preview');
+  const handleOpenPDFEditor = () => {
+    onClose(); // Close the preview dialog
+    navigate(`/pdf-editor/${eventData?.id}`);
   };
 
   const renderClassicPreview = () => (
@@ -336,6 +334,18 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
               <p className="text-sm bg-muted p-3 rounded">{editableData.notes}</p>
             </div>
           )}
+          
+          {/* PDF Editor Button */}
+          <div className="flex justify-center pt-4 border-t">
+            <Button
+              onClick={handleOpenPDFEditor}
+              className="flex items-center gap-2"
+              size="lg"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open PDF Template Editor
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -351,59 +361,33 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="preview" className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Preview & Generate
-            </TabsTrigger>
-            <TabsTrigger value="editor" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Template Editor
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="preview" className="mt-6">
-            {renderClassicPreview()}
-          </TabsContent>
-
-          <TabsContent value="editor" className="mt-6">
-            <PDFTemplateEditor
-              template={selectedTemplate}
-              eventData={eventData}
-              tenantData={tenantData}
-              eventForms={eventForms}
-              onSave={handleSaveTemplate}
-              onCancel={() => setActiveTab('preview')}
-            />
-          </TabsContent>
-        </Tabs>
+        <div className="mt-6">
+          {renderClassicPreview()}
+        </div>
 
         <DialogFooter className="flex justify-between">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          {activeTab === 'preview' && (
-            <div className="flex space-x-2">
-              <Button
-                onClick={() => handleGenerate('quote')}
-                disabled={isGenerating}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Download Quote
-              </Button>
-              <Button
-                onClick={() => handleGenerate('invoice')}
-                disabled={isGenerating}
-                className="flex items-center gap-2"
-              >
-                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Download Invoice
-              </Button>
-            </div>
-          )}
+          <div className="flex space-x-2">
+            <Button
+              onClick={() => handleGenerate('quote')}
+              disabled={isGenerating}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Download Quote
+            </Button>
+            <Button
+              onClick={() => handleGenerate('invoice')}
+              disabled={isGenerating}
+              className="flex items-center gap-2"
+            >
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Download Invoice
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
