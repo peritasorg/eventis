@@ -219,9 +219,18 @@ export const generateEnhancedQuotePDF = async (
     yPosition += 5;
     doc.text(`Date: ${new Date(event.event_start_date).toLocaleDateString('en-GB')}`, 20, yPosition);
     yPosition += 5;
-    doc.text(`Time: ${sanitizeForPDF(event.start_time)} - ${sanitizeForPDF(event.end_time)}`, 20, yPosition);
+    // Format time for multiple forms or single form
+    const timeDisplay = event.eventForms && event.eventForms.length > 1
+      ? event.eventForms.map((form: any) => `${sanitizeForPDF(form.start_time, 'TBD')} - ${sanitizeForPDF(form.end_time, 'TBD')}`).join(' & ')
+      : `${sanitizeForPDF(event.start_time, 'TBD')} - ${sanitizeForPDF(event.end_time, 'TBD')}`;
+    doc.text(`Time: ${timeDisplay}`, 20, yPosition);
     yPosition += 5;
-    doc.text(`Guests: ${event.total_guests || event.estimated_guests || 0}`, 20, yPosition);
+    
+    // Calculate total guests from all forms
+    const totalGuests = event.eventForms 
+      ? event.eventForms.reduce((total: number, form: any) => total + (form.men_count || 0) + (form.ladies_count || 0), 0)
+      : (event.total_guests || event.estimated_guests || 0);
+    doc.text(`Guests: ${totalGuests}`, 20, yPosition);
 
     yPosition += 20;
 
@@ -238,11 +247,12 @@ export const generateEnhancedQuotePDF = async (
     
     let tableRows = formatFieldsForPDF(populatedFields);
 
-    // Add guest pricing from event forms
+    // Add guest pricing from event forms with calculated guest count
     event.eventForms?.forEach((eventForm: any) => {
       if (eventForm.guest_price_total > 0) {
+        const guestCount = (eventForm.men_count || 0) + (eventForm.ladies_count || 0);
         tableRows.push([
-          (eventForm.guest_count || 0).toString(),
+          guestCount.toString(),
           `${sanitizeForPDF(eventForm.form_label)} - Guest Pricing`,
           `£${Number(eventForm.guest_price_total).toFixed(2)}`
         ]);
@@ -399,9 +409,18 @@ export const generateEnhancedInvoicePDF = async (
     yPosition += 5;
     doc.text(`Date: ${new Date(event.event_start_date).toLocaleDateString('en-GB')}`, 20, yPosition);
     yPosition += 5;
-    doc.text(`Time: ${sanitizeForPDF(event.start_time)} - ${sanitizeForPDF(event.end_time)}`, 20, yPosition);
+    // Format time for multiple forms or single form
+    const timeDisplay = event.eventForms && event.eventForms.length > 1
+      ? event.eventForms.map((form: any) => `${sanitizeForPDF(form.start_time, 'TBD')} - ${sanitizeForPDF(form.end_time, 'TBD')}`).join(' & ')
+      : `${sanitizeForPDF(event.start_time, 'TBD')} - ${sanitizeForPDF(event.end_time, 'TBD')}`;
+    doc.text(`Time: ${timeDisplay}`, 20, yPosition);
     yPosition += 5;
-    doc.text(`Guests: ${event.total_guests || event.estimated_guests || 0}`, 20, yPosition);
+    
+    // Calculate total guests from all forms
+    const totalGuests = event.eventForms 
+      ? event.eventForms.reduce((total: number, form: any) => total + (form.men_count || 0) + (form.ladies_count || 0), 0)
+      : (event.total_guests || event.estimated_guests || 0);
+    doc.text(`Guests: ${totalGuests}`, 20, yPosition);
 
     yPosition += 20;
 
@@ -418,11 +437,12 @@ export const generateEnhancedInvoicePDF = async (
     
     let tableRows = formatFieldsForPDF(populatedFields);
 
-    // Add guest pricing from event forms
+    // Add guest pricing from event forms with calculated guest count
     event.eventForms?.forEach((eventForm: any) => {
       if (eventForm.guest_price_total > 0) {
+        const guestCount = (eventForm.men_count || 0) + (eventForm.ladies_count || 0);
         tableRows.push([
-          (eventForm.guest_count || 0).toString(),
+          guestCount.toString(),
           `${sanitizeForPDF(eventForm.form_label)} - Guest Pricing`,
           `£${Number(eventForm.guest_price_total).toFixed(2)}`
         ]);

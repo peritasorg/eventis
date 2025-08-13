@@ -296,31 +296,51 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
   const handleGuestUpdate = async (eventFormId: string, field: 'men_count' | 'ladies_count' | 'guest_price_total', value: number) => {
     // Update local state immediately for responsive UI - PRESERVE existing values
+    const updatedLocalData = {
+      ...localGuestData[eventFormId],
+      [field]: value
+    };
+    
     setLocalGuestData(prev => ({
       ...prev,
-      [eventFormId]: {
-        men_count: prev[eventFormId]?.men_count || 0,
-        ladies_count: prev[eventFormId]?.ladies_count || 0,
-        guest_price_total: prev[eventFormId]?.guest_price_total || 0,
-        [field]: value // Override the specific field being updated
-      }
+      [eventFormId]: updatedLocalData
     }));
 
     try {
+      // Calculate guest_count when men or ladies count changes
+      const newGuestCount = field === 'men_count' 
+        ? value + (updatedLocalData.ladies_count || 0)
+        : field === 'ladies_count'
+        ? (updatedLocalData.men_count || 0) + value
+        : (updatedLocalData.men_count || 0) + (updatedLocalData.ladies_count || 0);
+
       // Calculate new form total with guest price included
       const eventForm = eventForms.find(ef => ef.id === eventFormId);
       if (eventForm) {
         const newTotal = calculateFormTotal({
           ...eventForm,
           [field]: value
-        } as EventForm, false); // Use actual value, not local state for database save
+        } as EventForm, false);
         
-        // Update database with both field and new total
-        await updateEventForm({
+        // Update database with field, guest_count, and new total
+        const updateData: any = {
           id: eventFormId,
           [field]: value,
           form_total: newTotal
-        });
+        };
+        
+        // Update guest_count when men or ladies count changes
+        if (field === 'men_count' || field === 'ladies_count') {
+          updateData.guest_count = newGuestCount;
+        }
+        
+        await updateEventForm(updateData);
+
+        // CRITICAL: Invalidate all relevant queries to ensure real-time sync
+        queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['events'] });
       }
     } catch (error) {
       console.error('Error updating guest info:', error);

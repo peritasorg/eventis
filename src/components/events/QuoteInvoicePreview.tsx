@@ -233,7 +233,12 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                   <p><strong>Event:</strong> {editableData.event_name}</p>
                   <p><strong>Type:</strong> {eventData?.event_type}</p>
                   <p><strong>Date:</strong> {eventData?.event_date ? new Date(eventData.event_date).toLocaleDateString('en-GB') : 'TBD'}</p>
-                  <p><strong>Guests:</strong> {(eventData?.men_count || 0) + (eventData?.ladies_count || 0)}</p>
+                   <p><strong>Guests:</strong> {eventForms?.reduce((total, form) => total + (form.men_count || 0) + (form.ladies_count || 0), 0) || 0}</p>
+                   <p><strong>Time:</strong> {
+                     eventForms && eventForms.length > 1 
+                       ? eventForms.map(form => `${form.start_time || 'TBD'} - ${form.end_time || 'TBD'}`).join(' & ')
+                       : `${eventData?.start_time || 'TBD'} - ${eventData?.end_time || 'TBD'}`
+                   }</p>
                 </div>
               </div>
 
@@ -257,7 +262,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                     {eventForms?.map((eventForm) => 
                       eventForm.guest_price_total > 0 && (
                         <div key={`guest-${eventForm.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
-                          <div>{eventForm.guest_count || 0}</div>
+                          <div>{(eventForm.men_count || 0) + (eventForm.ladies_count || 0)}</div>
                           <div>{eventForm.form_label} - Guest Pricing</div>
                           <div className="text-right">£{eventForm.guest_price_total.toFixed(2)}</div>
                         </div>
