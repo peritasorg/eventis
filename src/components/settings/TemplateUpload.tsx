@@ -22,27 +22,46 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !currentTenant) return;
+    if (!file || !currentTenant) {
+      if (!currentTenant) {
+        toast.error('Authentication required. Please refresh and try again.');
+      }
+      return;
+    }
 
     if (!file.name.endsWith('.docx')) {
       toast.error('Please upload a .docx file');
       return;
     }
 
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error('File size must be less than 10MB');
+      return;
+    }
+
     setUploading(true);
+    console.log('Starting upload for tenant:', currentTenant.id);
+    
     try {
       // Upload to Supabase storage
       const fileName = `${currentTenant.id}-template.docx`;
-      const { error } = await supabase.storage
+      console.log('Uploading file:', fileName);
+      
+      const { data, error } = await supabase.storage
         .from('word-templates')
         .upload(fileName, file, {
-          upsert: true
+          upsert: true,
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
 
+      console.log('Upload successful:', data);
       setCurrentTemplate(fileName);
-      toast.success('Template uploaded successfully');
+      toast.success('✅ Template uploaded successfully!');
       
       // Analyze the template for placeholders
       await analyzeTemplate(fileName);
@@ -50,24 +69,36 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
       onTemplateUploaded?.();
     } catch (error: any) {
       console.error('Error uploading template:', error);
-      toast.error('Failed to upload template');
+      if (error.message?.includes('denied')) {
+        toast.error('Permission denied. Please check your account status.');
+      } else if (error.message?.includes('network')) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setUploading(false);
+      // Clear the file input
+      event.target.value = '';
     }
   };
 
   const analyzeTemplate = async (templateName: string) => {
     setAnalyzing(true);
     try {
+      console.log('Analyzing template:', templateName);
       const foundPlaceholders = await WordTemplateGenerator.analyzeTemplate(templateName);
       setPlaceholders(foundPlaceholders);
       
       if (foundPlaceholders.length > 0) {
-        toast.success(`Found ${foundPlaceholders.length} placeholders in template`);
+        toast.success(`✅ Found ${foundPlaceholders.length} placeholders in template`);
+        console.log('Placeholders found:', foundPlaceholders);
+      } else {
+        toast.info('No placeholders detected. Make sure your template uses {placeholder} format.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error analyzing template:', error);
-      toast.error('Failed to analyze template');
+      toast.error(`Failed to analyze template: ${error.message || 'Unknown error'}`);
     } finally {
       setAnalyzing(false);
     }
@@ -139,17 +170,20 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
               />
             </div>
             {uploading && (
-              <p className="text-sm text-muted-foreground mt-2">
-                Uploading template...
-              </p>
+              <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <p className="text-sm text-blue-700">
+                  Uploading template... Please wait.
+                </p>
+              </div>
             )}
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-green-50 border-green-200">
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Template uploaded</span>
+                <FileText className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">✅ Template uploaded successfully</span>
               </div>
               <Button
                 variant="outline"
@@ -162,9 +196,12 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
             </div>
 
             {analyzing && (
-              <p className="text-sm text-muted-foreground">
-                Analyzing template placeholders...
-              </p>
+              <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <p className="text-sm text-blue-700">
+                  Analyzing template placeholders...
+                </p>
+              </div>
             )}
 
             {placeholders.length > 0 && (
