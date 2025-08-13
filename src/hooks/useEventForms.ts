@@ -16,6 +16,8 @@ export interface EventForm {
   end_time?: string;
   guest_count?: number;
   guest_price_total?: number;
+  men_count?: number;
+  ladies_count?: number;
   form_order?: number;
   created_at: string;
   updated_at: string;
@@ -53,6 +55,8 @@ export const useEventForms = (eventId?: string) => {
           end_time,
           guest_count,
           guest_price_total,
+          men_count,
+          ladies_count,
           form_order,
           created_at,
           updated_at
@@ -208,6 +212,8 @@ export const useEventForms = (eventId?: string) => {
         form_total: 0,
         guest_count: 0,
         guest_price_total: 0,
+        men_count: 0,
+        ladies_count: 0,
         is_active: true
       };
       
@@ -239,6 +245,7 @@ export const useEventForms = (eventId?: string) => {
       form_label?: string;
       men_count?: number;
       ladies_count?: number;
+      guest_count?: number;
       guest_price_total?: number;
     }) => {
       const updateData: any = {
@@ -251,6 +258,7 @@ export const useEventForms = (eventId?: string) => {
       if (data.form_label !== undefined) updateData.form_label = data.form_label;
       if (data.men_count !== undefined) updateData.men_count = data.men_count;
       if (data.ladies_count !== undefined) updateData.ladies_count = data.ladies_count;
+      if (data.guest_count !== undefined) updateData.guest_count = data.guest_count;
       if (data.guest_price_total !== undefined) updateData.guest_price_total = data.guest_price_total;
 
       const { data: result, error } = await supabase

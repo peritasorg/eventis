@@ -322,17 +322,15 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
           [field]: value
         } as EventForm, false);
         
-        // Update database with field, guest_count, and new total
+        // Update database with all guest fields and new total
         const updateData: any = {
           id: eventFormId,
-          [field]: value,
+          men_count: updatedLocalData.men_count,
+          ladies_count: updatedLocalData.ladies_count,
+          guest_count: newGuestCount,
+          guest_price_total: updatedLocalData.guest_price_total,
           form_total: newTotal
         };
-        
-        // Update guest_count when men or ladies count changes
-        if (field === 'men_count' || field === 'ladies_count') {
-          updateData.guest_count = newGuestCount;
-        }
         
         await updateEventForm(updateData);
 
