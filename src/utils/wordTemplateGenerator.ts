@@ -27,7 +27,7 @@ interface TemplateData {
   event_name: string;
   event_date: string;
   event_time: string;
-  guest_count: number;
+  guest_count: string | number;
   
   // Financial info
   subtotal: number;
@@ -65,6 +65,18 @@ export class WordTemplateGenerator {
     const lineItems: LineItem[] = [];
     
     eventForms.forEach(form => {
+      // Add guest pricing as a line item if present
+      if (form.guest_price_total > 0) {
+        const guestCount = (form.men_count || 0) + (form.ladies_count || 0);
+        lineItems.push({
+          quantity: guestCount,
+          description: `${form.form_label} - Guest Pricing`,
+          price: parseFloat(form.guest_price_total) / guestCount,
+          total: parseFloat(form.guest_price_total)
+        });
+      }
+
+      // Add populated fields from form responses
       if (form.form_responses) {
         Object.entries(form.form_responses).forEach(([fieldId, fieldData]: [string, any]) => {
           if (fieldData?.enabled && fieldData?.price > 0) {
@@ -118,10 +130,12 @@ export class WordTemplateGenerator {
       // Event info
       event_name: eventData.title || 'Event',
       event_date: eventData.event_date ? new Date(eventData.event_date).toLocaleDateString() : '',
-      event_time: eventData.start_time && eventData.end_time 
-        ? `${eventData.start_time} - ${eventData.end_time}`
-        : '',
-      guest_count: eventData.men_count + eventData.ladies_count || 0,
+      event_time: eventForms && eventForms.length > 1 
+        ? eventForms.map(form => `${form.start_time || 'TBD'} - ${form.end_time || 'TBD'}`).join(' & ')
+        : `${eventData.start_time || 'TBD'} - ${eventData.end_time || 'TBD'}`,
+      guest_count: eventForms && eventForms.length > 1
+        ? eventForms.map(form => String((form.men_count || 0) + (form.ladies_count || 0))).join(' & ')
+        : String((eventData.men_count || 0) + (eventData.ladies_count || 0)),
       
       // Financial info
       subtotal: subtotal,

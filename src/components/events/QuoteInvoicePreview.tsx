@@ -7,25 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Download, Edit3, Eye, FileText, Receipt, ExternalLink } from 'lucide-react';
-import { generateEnhancedQuotePDF, generateEnhancedInvoicePDF } from '@/utils/enhancedPdfGenerator';
+import { Loader2, Download, Edit3, Eye, FileText, Receipt, Upload } from 'lucide-react';
 import { extractPopulatedFields } from '@/utils/smartFieldExtractor';
 import { WordTemplateGenerator } from '@/utils/wordTemplateGenerator';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
-interface PDFTemplate {
-  id?: string;
-  name: string;
-  tenant_id: string;
-  document_type: 'quote' | 'invoice' | 'both';
-  sections: any[];
-  page_settings: any;
-  styling: any;
-  is_default: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
 
 interface QuoteInvoicePreviewProps {
   isOpen: boolean;
@@ -44,7 +32,6 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   tenantId,
   eventForms
 }) => {
-  const navigate = useNavigate();
   const [documentType, setDocumentType] = useState<'quote' | 'invoice'>('quote');
   const [isGenerating, setIsGenerating] = useState(false);
   const [editableData, setEditableData] = useState({
@@ -55,12 +42,31 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   });
   const [populatedFields, setPopulatedFields] = useState<any[]>([]);
   const [isLoadingFields, setIsLoadingFields] = useState(true);
+  const [hasTemplate, setHasTemplate] = useState(false);
 
   React.useEffect(() => {
     if (isOpen && eventForms) {
       loadPopulatedFields();
+      checkTemplateExists();
     }
   }, [isOpen, eventForms, documentType]);
+
+  const checkTemplateExists = async () => {
+    if (!tenantId) return;
+    
+    try {
+      const { data } = await supabase.storage
+        .from('word-templates')
+        .list('', {
+          search: `${tenantId}-template.docx`
+        });
+      
+      setHasTemplate(data && data.length > 0);
+    } catch (error) {
+      console.error('Error checking template:', error);
+      setHasTemplate(false);
+    }
+  };
 
   const loadPopulatedFields = async () => {
     setIsLoadingFields(true);
@@ -116,6 +122,11 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   };
 
   const handleGenerate = async (type: 'quote' | 'invoice') => {
+    if (!hasTemplate) {
+      toast.error('Please upload a Word template first');
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
@@ -136,40 +147,23 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
         business_name: editableData.business_name
       };
 
-      // Try Word template first, fallback to PDF generation
-      try {
-        await WordTemplateGenerator.generateDocument(
-          enhancedEventData, 
-          enhancedTenantData, 
-          eventForms || [], 
-          type,
-          `${tenantId}-template.docx`
-        );
-        toast.success(`${type === 'quote' ? 'Quote' : 'Invoice'} generated from Word template!`);
-      } catch (templateError) {
-        console.warn('Word template generation failed, falling back to PDF:', templateError);
-        
-        // Fallback to original PDF generation
-        if (type === 'quote') {
-          await generateEnhancedQuotePDF(enhancedEventData, enhancedTenantData, tenantId);
-          toast.success('Quote PDF downloaded successfully');
-        } else {
-          await generateEnhancedInvoicePDF(enhancedEventData, enhancedTenantData, tenantId);
-          toast.success('Invoice PDF downloaded successfully');
-        }
-      }
+      await WordTemplateGenerator.generateDocument(
+        enhancedEventData, 
+        enhancedTenantData, 
+        eventForms || [], 
+        type,
+        `${tenantId}-template.docx`
+      );
+      
+      toast.success(`${type === 'quote' ? 'Quote' : 'Invoice'} document downloaded!`);
     } catch (error) {
       console.error('Error generating document:', error);
-      toast.error(`Failed to generate ${type}`);
+      toast.error(`Failed to generate ${type}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleOpenPDFEditor = () => {
-    onClose(); // Close the preview dialog
-    navigate(`/pdf-editor/${eventData?.id}`);
-  };
 
   const renderClassicPreview = () => (
     <div className="space-y-6">
@@ -353,17 +347,22 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
             </div>
           )}
           
-          {/* PDF Editor Button */}
-          <div className="flex justify-center pt-4 border-t">
-            <Button
-              onClick={handleOpenPDFEditor}
-              className="flex items-center gap-2"
-              size="lg"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open PDF Template Editor
-            </Button>
-          </div>
+          {/* Template Status */}
+          {!hasTemplate && (
+            <div className="flex justify-center pt-4 border-t">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  No Word template uploaded yet
+                </p>
+                <Link to="/settings/templates">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Upload Template
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -375,7 +374,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5" />
-            PDF Generator & Preview
+            Quote & Invoice Generator
           </DialogTitle>
         </DialogHeader>
 
@@ -390,7 +389,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
           <div className="flex space-x-2">
             <Button
               onClick={() => handleGenerate('quote')}
-              disabled={isGenerating}
+              disabled={isGenerating || !hasTemplate}
               variant="outline"
               className="flex items-center gap-2"
             >
@@ -399,7 +398,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
             </Button>
             <Button
               onClick={() => handleGenerate('invoice')}
-              disabled={isGenerating}
+              disabled={isGenerating || !hasTemplate}
               className="flex items-center gap-2"
             >
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
