@@ -171,8 +171,8 @@ export const DateWarningsSettings = () => {
                   </div>
                 </div>
               </div>
-              <Badge variant={calendarWarningSettings?.is_active ? "default" : "secondary"}>
-                {calendarWarningSettings?.is_active ? "Active" : "Inactive"}
+              <Badge variant={calendarWarningSettings?.is_active === true ? "default" : "secondary"}>
+                {calendarWarningSettings?.is_active === true ? "Active" : "Inactive"}
               </Badge>
             </div>
             

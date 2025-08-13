@@ -13,22 +13,64 @@ export const TopBar = () => {
   const [isTrialVisible, setIsTrialVisible] = React.useState(true);
   const { data: eventTypeConfigs = [] } = useEventTypeConfigs();
 
-  // Get upcoming events
-  const { data: upcomingEvents } = useSupabaseQuery(
-    ['upcoming-events-topbar'],
+  // Get warning settings
+  const { data: warningSettings } = useSupabaseQuery(
+    ['calendar_warning_settings_topbar', currentTenant?.id],
     async () => {
-      if (!currentTenant?.id) return [];
+      if (!currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('calendar_warning_settings')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }
+  );
+
+  // Get unpaid events within warning threshold
+  const { data: unpaidEvents } = useSupabaseQuery(
+    ['unpaid-events-topbar', currentTenant?.id, warningSettings?.warning_days_threshold],
+    async () => {
+      if (!currentTenant?.id || !warningSettings?.is_active) return [];
+      
+      const warningThreshold = warningSettings.warning_days_threshold || 7;
+      const warningDate = new Date();
+      warningDate.setDate(warningDate.getDate() + warningThreshold);
       
       const { data, error } = await supabase
         .from('events')
-        .select('id, event_name, event_type, event_start_date')
+        .select(`
+          id, 
+          title, 
+          event_type, 
+          event_date,
+          total_guest_price_gbp,
+          form_total_gbp,
+          deposit_amount_gbp,
+          event_payments (amount_gbp)
+        `)
         .eq('tenant_id', currentTenant.id)
-        .gte('event_start_date', new Date().toISOString().split('T')[0])
-        .order('event_start_date', { ascending: true })
+        .gte('event_date', new Date().toISOString().split('T')[0])
+        .lte('event_date', warningDate.toISOString().split('T')[0])
+        .order('event_date', { ascending: true })
         .limit(3);
       
       if (error) return [];
-      return data || [];
+      
+      // Filter for events with unpaid balances
+      const eventsWithUnpaidBalances = (data || []).filter(event => {
+        const subtotal = (event.total_guest_price_gbp || 0) + (event.form_total_gbp || 0);
+        const depositAmount = event.deposit_amount_gbp || 0;
+        const eventPaymentsTotal = event.event_payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0;
+        const totalPayments = depositAmount + eventPaymentsTotal;
+        const remainingBalance = subtotal - totalPayments;
+        return remainingBalance > 0;
+      });
+      
+      return eventsWithUnpaidBalances;
     }
   );
 
@@ -46,17 +88,17 @@ export const TopBar = () => {
   return (
     <div className="bg-white border-b border-gray-200 px-6 py-3">
       <div className="flex items-center justify-between">
-        {/* Upcoming Events Widget */}
+        {/* Unpaid Events Widget */}
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Upcoming:</span>
+            <Calendar className="h-4 w-4 text-orange-500" />
+            <span className="text-sm font-medium text-gray-700">Unpaid Events:</span>
           </div>
           <div className="flex items-center space-x-2">
-            {upcomingEvents && upcomingEvents.length > 0 ? (
-              upcomingEvents.map((event) => {
-                const eventColors = getEventColor(event.event_type, event.event_start_date, eventTypeConfigs);
-                const eventDate = new Date(event.event_start_date);
+            {unpaidEvents && unpaidEvents.length > 0 ? (
+              unpaidEvents.map((event) => {
+                const eventColors = getEventColor(event.event_type, event.event_date, eventTypeConfigs);
+                const eventDate = new Date(event.event_date);
                 const isToday = eventDate.toDateString() === new Date().toDateString();
                 const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
                 
@@ -72,20 +114,20 @@ export const TopBar = () => {
                   <button
                     key={event.id}
                     onClick={() => navigate(`/events/${event.id}`)}
-                    className="flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity"
+                    className="flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity border border-orange-200"
                     style={{
-                      backgroundColor: eventColors.backgroundColor,
-                      color: eventColors.textColor,
+                      backgroundColor: warningSettings?.warning_color || '#F59E0B',
+                      color: '#FFFFFF',
                     }}
                   >
-                    <span className="truncate max-w-24">{event.event_name}</span>
+                    <span className="truncate max-w-24">{event.title}</span>
                     <span className="opacity-75">•</span>
                     <span>{dateLabel}</span>
                   </button>
                 );
               })
             ) : (
-              <span className="text-xs text-gray-400">No upcoming events</span>
+              <span className="text-xs text-gray-400">No unpaid events</span>
             )}
           </div>
         </div>
