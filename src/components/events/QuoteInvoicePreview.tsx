@@ -390,7 +390,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                         <div className="flex flex-wrap gap-1 mt-1">
                           {templateInfo.placeholders.slice(0, 8).map((placeholder, index) => (
                             <Badge key={index} variant="outline" className="text-xs">
-                              {placeholder}
+                              {'{' + placeholder + '}'}
                             </Badge>
                           ))}
                           {templateInfo.placeholders.length > 8 && (

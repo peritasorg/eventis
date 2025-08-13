@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, FileText, Trash2 } from 'lucide-react';
+import { Upload, FileText, Trash2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,8 +13,14 @@ interface TemplateUploadProps {
   onTemplateUploaded?: () => void;
 }
 
+// Add tenantData prop interface
+interface TenantData {
+  business_name?: string;
+}
+
 export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUploaded }) => {
-  const { currentTenant } = useAuth();
+  const { currentTenant, user } = useAuth();
+  const [tenantData, setTenantData] = useState<TenantData | null>(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [placeholders, setPlaceholders] = useState<string[]>([]);
@@ -127,6 +133,33 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
     }
   };
 
+  const downloadTemplate = async () => {
+    if (!currentTemplate || !currentTenant) return;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('word-templates')
+        .download(currentTemplate);
+
+      if (error) throw error;
+
+      // Create a download link
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${tenantData?.business_name || 'template'}-document-template.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Template downloaded successfully');
+    } catch (error: any) {
+      console.error('Error downloading template:', error);
+      toast.error('Failed to download template');
+    }
+  };
+
   const deleteTemplate = async () => {
     if (!currentTemplate || !currentTenant) return;
 
@@ -146,7 +179,7 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
     }
   };
 
-  // Check if there's an existing template
+  // Check if there's an existing template and load tenant data
   React.useEffect(() => {
     const checkExistingTemplate = async () => {
       if (!currentTenant) return;
@@ -164,7 +197,26 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
       }
     };
 
+    const loadTenantData = async () => {
+      if (!currentTenant?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('tenants')
+          .select('business_name')
+          .eq('id', currentTenant.id)
+          .single();
+        
+        if (!error && data) {
+          setTenantData(data);
+        }
+      } catch (error) {
+        console.error('Error loading tenant data:', error);
+      }
+    };
+
     checkExistingTemplate();
+    loadTenantData();
   }, [currentTenant]);
 
   return (
@@ -208,14 +260,25 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
                 <FileText className="h-4 w-4 text-green-600" />
                 <span className="text-sm font-medium text-green-800">✅ Template uploaded successfully</span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={deleteTemplate}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadTemplate}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={deleteTemplate}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {analyzing && (
@@ -234,11 +297,16 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
                 </Label>
                 <div className="mt-2 p-3 bg-muted rounded-lg">
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    {placeholders.map((placeholder, index) => (
+                    {placeholders.slice(0, 10).map((placeholder, index) => (
                       <code key={index} className="text-primary">
                         {'{' + placeholder + '}'}
                       </code>
                     ))}
+                    {placeholders.length > 10 && (
+                      <div className="text-xs text-muted-foreground col-span-2">
+                        +{placeholders.length - 10} more placeholders...
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
