@@ -22,8 +22,6 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
   const { currentTenant, user } = useAuth();
   const [tenantData, setTenantData] = useState<TenantData | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [placeholders, setPlaceholders] = useState<string[]>([]);
   const [currentTemplate, setCurrentTemplate] = useState<string | null>(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,9 +94,6 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
       setCurrentTemplate(fileName);
       toast.success('✅ Template uploaded successfully!');
       
-      // Analyze the template for placeholders
-      await analyzeTemplate(fileName);
-      
       onTemplateUploaded?.();
     } catch (error: any) {
       console.error('=== UNEXPECTED ERROR ===');
@@ -112,26 +107,6 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
     }
   };
 
-  const analyzeTemplate = async (templateName: string) => {
-    setAnalyzing(true);
-    try {
-      console.log('Analyzing template:', templateName);
-      const foundPlaceholders = await WordTemplateGenerator.analyzeTemplate(templateName);
-      setPlaceholders(foundPlaceholders);
-      
-      if (foundPlaceholders.length > 0) {
-        toast.success(`✅ Found ${foundPlaceholders.length} placeholders in template`);
-        console.log('Placeholders found:', foundPlaceholders);
-      } else {
-        toast.info('No placeholders detected. Make sure your template uses {placeholder} format.');
-      }
-    } catch (error: any) {
-      console.error('Error analyzing template:', error);
-      toast.error(`Failed to analyze template: ${error.message || 'Unknown error'}`);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
 
   const downloadTemplate = async () => {
     if (!currentTemplate || !currentTenant) return;
@@ -171,7 +146,6 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
       if (error) throw error;
 
       setCurrentTemplate(null);
-      setPlaceholders([]);
       toast.success('Template deleted successfully');
     } catch (error: any) {
       console.error('Error deleting template:', error);
@@ -193,7 +167,6 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
       
       if (data && data.length > 0) {
         setCurrentTemplate(fileName);
-        await analyzeTemplate(fileName);
       }
     };
 
@@ -281,36 +254,6 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
               </div>
             </div>
 
-            {analyzing && (
-              <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <p className="text-sm text-blue-700">
-                  Analyzing template placeholders...
-                </p>
-              </div>
-            )}
-
-            {placeholders.length > 0 && (
-              <div>
-                <Label className="text-sm font-medium">
-                  Detected Placeholders ({placeholders.length})
-                </Label>
-                <div className="mt-2 p-3 bg-muted rounded-lg">
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {placeholders.slice(0, 10).map((placeholder, index) => (
-                      <code key={index} className="text-primary">
-                        {'{' + placeholder + '}'}
-                      </code>
-                    ))}
-                    {placeholders.length > 10 && (
-                      <div className="text-xs text-muted-foreground col-span-2">
-                        +{placeholders.length - 10} more placeholders...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="pt-2">
               <Label htmlFor="replace-template">Replace Template</Label>
