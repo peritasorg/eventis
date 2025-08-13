@@ -1,12 +1,35 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { TemplateUpload } from '@/components/settings/TemplateUpload';
-import { FileText } from 'lucide-react';
+import { FileText, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const TemplateSettings = () => {
+  const navigate = useNavigate();
+
+  const handleGoBack = () => {
+    // Try to go back to the previous page, or fallback to events
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/events');
+    }
+  };
+
   return (
     <div className="p-8 bg-background min-h-screen">
       <div className="mb-8">
+        <div className="flex items-center gap-4 mb-4">
+          <Button 
+            variant="outline" 
+            onClick={handleGoBack}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        </div>
         <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
           <FileText className="h-8 w-8" />
           Document Templates
