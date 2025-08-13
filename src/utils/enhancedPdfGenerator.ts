@@ -238,30 +238,16 @@ export const generateEnhancedQuotePDF = async (
     
     let tableRows = formatFieldsForPDF(populatedFields);
 
-    // Add base guest pricing if applicable
-    const basePrice = event.total_amount - event.form_total;
-    const guestCount = event.total_guests || event.estimated_guests || 0;
-    
-    if (basePrice > 0 && guestCount > 0) {
-      tableRows.unshift([
-        guestCount.toString(),
-        `${sanitizeForPDF(event.event_name)} - Base Service`,
-        `£${basePrice.toFixed(2)}`
-      ]);
-    }
-
-    // Add guest price totals from event forms
-    if (event.eventForms) {
-      event.eventForms.forEach((eventForm: any) => {
-        if (eventForm.guest_price_total && eventForm.guest_price_total > 0) {
-          tableRows.push([
-            (eventForm.guest_count || 0).toString(),
-            `${eventForm.form_label} - Guest Pricing`,
-            `£${eventForm.guest_price_total.toFixed(2)}`
-          ]);
-        }
-      });
-    }
+    // Add guest pricing from event forms
+    event.eventForms?.forEach((eventForm: any) => {
+      if (eventForm.guest_price_total > 0) {
+        tableRows.push([
+          (eventForm.guest_count || 0).toString(),
+          `${sanitizeForPDF(eventForm.form_label)} - Guest Pricing`,
+          `£${Number(eventForm.guest_price_total).toFixed(2)}`
+        ]);
+      }
+    });
 
     if (tableRows.length === 0) {
       tableRows.push(['1', 'Service to be confirmed', '£0.00']);
@@ -270,32 +256,26 @@ export const generateEnhancedQuotePDF = async (
     yPosition = drawTable(doc, tableHeaders, tableRows, yPosition, columnWidths);
     yPosition += 15;
 
-    // Totals
-    const subtotal = event.total_amount;
-    const vatRate = 0.20;
-    const vatAmount = subtotal * vatRate;
-    const total = subtotal + vatAmount;
+    // Calculate totals - no VAT
+    const subtotal = tableRows.reduce((sum, row) => {
+      const price = parseFloat(row[2].replace('£', ''));
+      return sum + (isNaN(price) ? 0 : price);
+    }, 0);
+    
+    const total = subtotal;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    let totalsY = yPosition;
     
-    doc.text('Subtotal:', 130, yPosition);
-    doc.text(`£${subtotal.toFixed(2)}`, 170, yPosition, { align: 'right' });
-    yPosition += 8;
-
-    doc.text(`VAT (${(vatRate * 100).toFixed(0)}%):`, 130, yPosition);
-    doc.text(`£${vatAmount.toFixed(2)}`, 170, yPosition, { align: 'right' });
-    yPosition += 8;
-
+    doc.text(`Subtotal: £${subtotal.toFixed(2)}`, 130, totalsY);
+    totalsY += 5;
+    
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.line(130, yPosition, 190, yPosition);
-    yPosition += 8;
-    doc.text('TOTAL:', 130, yPosition);
-    doc.text(`£${total.toFixed(2)}`, 170, yPosition, { align: 'right' });
+    doc.text(`TOTAL: £${total.toFixed(2)}`, 130, totalsY);
 
     if (event.deposit_amount > 0) {
-      yPosition += 15;
+      yPosition += 25;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Deposit Required: £${event.deposit_amount.toFixed(2)}`, 20, yPosition);
@@ -438,30 +418,16 @@ export const generateEnhancedInvoicePDF = async (
     
     let tableRows = formatFieldsForPDF(populatedFields);
 
-    // Add base guest pricing if applicable
-    const basePrice = event.total_amount - event.form_total;
-    const guestCount = event.total_guests || event.estimated_guests || 0;
-    
-    if (basePrice > 0 && guestCount > 0) {
-      tableRows.unshift([
-        guestCount.toString(),
-        `${sanitizeForPDF(event.event_name)} - Base Service`,
-        `£${basePrice.toFixed(2)}`
-      ]);
-    }
-
-    // Add guest price totals from event forms
-    if (event.eventForms) {
-      event.eventForms.forEach((eventForm: any) => {
-        if (eventForm.guest_price_total && eventForm.guest_price_total > 0) {
-          tableRows.push([
-            (eventForm.guest_count || 0).toString(),
-            `${eventForm.form_label} - Guest Pricing`,
-            `£${eventForm.guest_price_total.toFixed(2)}`
-          ]);
-        }
-      });
-    }
+    // Add guest pricing from event forms
+    event.eventForms?.forEach((eventForm: any) => {
+      if (eventForm.guest_price_total > 0) {
+        tableRows.push([
+          (eventForm.guest_count || 0).toString(),
+          `${sanitizeForPDF(eventForm.form_label)} - Guest Pricing`,
+          `£${Number(eventForm.guest_price_total).toFixed(2)}`
+        ]);
+      }
+    });
 
     if (tableRows.length === 0) {
       tableRows.push(['1', 'Service provided', '£0.00']);
@@ -470,32 +436,30 @@ export const generateEnhancedInvoicePDF = async (
     yPosition = drawTable(doc, tableHeaders, tableRows, yPosition, columnWidths);
     yPosition += 15;
 
-    // Totals
-    const subtotal = event.total_amount;
-    const vatRate = 0.20;
-    const vatAmount = subtotal * vatRate;
-    const total = subtotal + vatAmount;
+    // Calculate totals - no VAT
+    const subtotal = tableRows.reduce((sum, row) => {
+      const price = parseFloat(row[2].replace('£', ''));
+      return sum + (isNaN(price) ? 0 : price);
+    }, 0);
+    
+    const total = subtotal;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    let totalsY = yPosition;
     
-    doc.text('Subtotal:', 130, yPosition);
-    doc.text(`£${subtotal.toFixed(2)}`, 170, yPosition, { align: 'right' });
-    yPosition += 8;
-
-    doc.text(`VAT (${(vatRate * 100).toFixed(0)}%):`, 130, yPosition);
-    doc.text(`£${vatAmount.toFixed(2)}`, 170, yPosition, { align: 'right' });
-    yPosition += 8;
-
+    doc.text(`Subtotal: £${subtotal.toFixed(2)}`, 130, totalsY);
+    totalsY += 5;
+    
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.line(130, yPosition, 190, yPosition);
-    yPosition += 10;
-    doc.text('AMOUNT DUE:', 130, yPosition);
-    doc.text(`£${total.toFixed(2)}`, 170, yPosition, { align: 'right' });
+    doc.line(130, totalsY, 190, totalsY);
+    totalsY += 10;
+    doc.text('AMOUNT DUE:', 130, totalsY);
+    doc.text(`£${total.toFixed(2)}`, 170, totalsY, { align: 'right' });
 
     // Payment Instructions
-    yPosition += 20;
+    yPosition += 40;
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text('Payment Instructions:', 20, yPosition);

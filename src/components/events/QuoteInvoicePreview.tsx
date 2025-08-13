@@ -58,17 +58,29 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   };
 
   const calculateTotals = () => {
-    const formTotal = populatedFields.reduce((sum, field) => sum + field.price, 0);
-    const basePrice = (eventData?.total_amount || 0) - (eventData?.form_total || 0);
-    const subtotal = basePrice + formTotal;
-    const vatRate = 0.20;
-    const vatAmount = subtotal * vatRate;
-    const total = subtotal + vatAmount;
+    // Calculate subtotal from only populated fields prices and guest pricing
+    let subtotal = 0;
+    
+    // Add populated field prices
+    populatedFields.forEach(field => {
+      subtotal += field.price || 0;
+    });
+    
+    // Add guest pricing from event forms
+    eventForms?.forEach(eventForm => {
+      if (eventForm.guest_price_total > 0) {
+        subtotal += Number(eventForm.guest_price_total);
+      }
+    });
+    
+    // No VAT calculation - set to 0
+    const vatAmount = 0;
+    const total = subtotal;
 
-    return { subtotal, vatAmount, total, basePrice, formTotal };
+    return { subtotal, vatAmount, total, basePrice: 0, formTotal: subtotal };
   };
 
-  const { subtotal, vatAmount, total, basePrice } = calculateTotals();
+  const { subtotal, vatAmount, total } = calculateTotals();
 
   const handleGenerate = async (type: 'quote' | 'invoice') => {
     setIsGenerating(true);
@@ -240,14 +252,6 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                       <div className="text-right">PRICE</div>
                     </div>
                     
-                    {/* Base service */}
-                    {basePrice > 0 && (
-                      <div className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
-                        <div>{(eventData?.men_count || 0) + (eventData?.ladies_count || 0)}</div>
-                        <div>{editableData.event_name} - Base Service</div>
-                        <div className="text-right">£{basePrice.toFixed(2)}</div>
-                      </div>
-                    )}
                     
                     {/* Guest totals from event forms */}
                     {eventForms?.map((eventForm) => 
@@ -269,7 +273,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                       </div>
                     ))}
                     
-                    {populatedFields.length === 0 && basePrice === 0 && (
+                    {populatedFields.length === 0 && !eventForms?.some(f => f.guest_price_total > 0) && (
                       <div className="p-2 text-sm text-muted-foreground text-center">
                         No services configured yet
                       </div>
@@ -284,10 +288,6 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>£{subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>VAT (20%):</span>
-                    <span>£{vatAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-base border-t pt-2">
                     <span>TOTAL:</span>

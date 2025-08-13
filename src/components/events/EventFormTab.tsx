@@ -13,6 +13,7 @@ import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface EventFormTabProps {
   eventId: string;
@@ -24,6 +25,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   const { forms } = useForms();
   const { formFields } = useFormFields();
   const { currentTenant } = useAuth();
+  const queryClient = useQueryClient();
   
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
@@ -171,28 +173,58 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
         clearTimeout(window[timeoutKey]);
       }
       
-      // Set new timeout
-      window[timeoutKey] = setTimeout(() => {
-        updateEventForm({
-          id: eventFormId,
-          form_responses: newResponses[eventFormId],
-          form_total: newTotal
-        });
+      // Set new timeout with proper form total calculation
+      window[timeoutKey] = setTimeout(async () => {
+        try {
+          const { error } = await supabase
+            .from('event_forms')
+            .update({ 
+              form_responses: newResponses[eventFormId],
+              form_total: newTotal,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', eventFormId);
+
+          if (error) throw error;
+          
+          // Invalidate cache to ensure fresh data
+          queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
+          queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+          
+        } catch (error) {
+          console.error('Error saving form response:', error);
+          toast.error('Failed to save changes');
+        }
         delete window[timeoutKey];
       }, delay);
     }
   };
 
   // Add blur handler for immediate save on focus loss
-  const handleFieldBlur = (eventFormId: string) => {
+  const handleFieldBlur = async (eventFormId: string) => {
     const eventForm = eventForms.find(ef => ef.id === eventFormId);
     if (eventForm) {
       const currentTotal = calculateFormTotal({ ...eventForm, form_responses: formResponses[eventFormId] } as EventForm);
-      updateEventForm({
-        id: eventFormId,
-        form_responses: formResponses[eventFormId],
-        form_total: currentTotal
-      });
+      
+      try {
+        const { error } = await supabase
+          .from('event_forms')
+          .update({ 
+            form_responses: formResponses[eventFormId],
+            form_total: currentTotal,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', eventFormId);
+
+        if (error) throw error;
+        
+        // Invalidate cache to ensure fresh data
+        queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+        
+      } catch (error) {
+        console.error('Error saving form response:', error);
+      }
     }
   };
 
