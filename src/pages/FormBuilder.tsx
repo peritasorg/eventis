@@ -94,7 +94,7 @@ export const FormBuilder = () => {
     if (!destination) return;
 
     // Handle drag from library to section
-    if (source.droppableId === 'field-library') {
+    if (source.droppableId === 'field-types') {
       const draggedField = formFields.find(f => f.id === result.draggableId);
       if (!draggedField) return;
       

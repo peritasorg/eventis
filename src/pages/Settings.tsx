@@ -23,8 +23,8 @@ export const Settings = () => {
       color: 'text-green-600 bg-green-100'
     },
     {
-      title: 'Field Library',
-      description: 'Manage custom fields and form components',
+      title: 'Form Fields',
+      description: 'Manage reusable form fields and field types',
       icon: FileText,
       path: '/field-library',
       color: 'text-purple-600 bg-purple-100'

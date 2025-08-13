@@ -170,7 +170,7 @@ export const FieldEdit = () => {
           }}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          {location.state?.from?.includes('/form-builder') ? 'Back to Form Builder' : 'Back to Field Library'}
+          {location.state?.from?.includes('/form-builder') ? 'Back to Form Builder' : 'Back to Form Fields'}
         </Button>
         <div>
           <h1 className="text-3xl font-bold">
