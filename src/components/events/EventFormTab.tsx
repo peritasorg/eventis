@@ -108,25 +108,26 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     let total = 0;
     const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
     
-    // Add form field prices
+    console.log(`Calculating total for form ${eventForm.form_label}:`, { responses, eventFormId: eventForm.id });
+    
+    // Add form field prices (only when enabled and has price)
     Object.entries(responses).forEach(([fieldId, response]) => {
-      // Skip if toggle is disabled
-      if (response.enabled === false) return;
-      
-      const price = Number(response.price) || 0;
-      
-      // All pricing fields contribute to total when enabled (and price > 0)
-      if (price > 0) {
-        total += price; // Price already calculated with quantity in UnifiedFieldRenderer
+      if (response.enabled === true && response.price) {
+        const price = Number(response.price) || 0;
+        if (price > 0) {
+          total += price;
+          console.log(`Added field price: ${price}, running total: ${total}`);
+        }
       }
     });
     
-    // CRITICAL: Add guest_price_total to the form total
+    // Add guest_price_total to the form total
     const guestPriceTotal = useLocalGuestData 
       ? (Number(localGuestData[eventForm.id]?.guest_price_total) || 0)
       : (Number(eventForm.guest_price_total) || 0);
     
     total += guestPriceTotal;
+    console.log(`Added guest price total: ${guestPriceTotal}, final total: ${total}`);
     
     // Round to 2 decimal places to prevent floating point precision issues
     return Math.round(total * 100) / 100;
