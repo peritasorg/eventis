@@ -175,20 +175,27 @@ export class WordTemplateGenerator {
       // Load template into PizZip
       const zip = new PizZip(templateBuffer);
       
-      // Create Docxtemplater instance
-      const doc = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-      });
-      
       // Map event data to template format
       const templateData = this.mapEventDataToTemplate(eventData, tenantData, eventForms, documentType);
       
-      // Render the document
-      doc.render(templateData);
+      // Check if template uses Content Controls or placeholders
+      const documentXml = zip.files['word/document.xml']?.asText() || '';
+      const hasContentControls = documentXml.includes('<w:sdt');
+      
+      if (hasContentControls) {
+        // Process Content Controls directly
+        await this.processContentControls(zip, templateData);
+      } else {
+        // Use docxtemplater for traditional placeholders
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
+        doc.render(templateData);
+      }
       
       // Generate the document
-      const output = doc.getZip().generate({
+      const output = zip.generate({
         type: 'blob',
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
@@ -203,16 +210,139 @@ export class WordTemplateGenerator {
     }
   }
 
+  private static async processContentControls(zip: PizZip, templateData: TemplateData): Promise<void> {
+    try {
+      let documentXml = zip.files['word/document.xml']?.asText() || '';
+      
+      // Create a mapping from Content Control names to values
+      const dataMapping = this.createContentControlMapping(templateData);
+      
+      // Replace Content Controls with actual values
+      const sdtRegex = /<w:sdt[^>]*>.*?<\/w:sdt>/gs;
+      
+      documentXml = documentXml.replace(sdtRegex, (match) => {
+        // Extract the Content Control identifier (alias, tag, or ID)
+        let controlName = '';
+        
+        // Try alias first
+        const aliasMatch = match.match(/<w:alias\s+w:val="([^"]+)"/);
+        if (aliasMatch) {
+          controlName = aliasMatch[1];
+        } else {
+          // Try tag as fallback
+          const tagMatch = match.match(/<w:tag\s+w:val="([^"]+)"/);
+          if (tagMatch) {
+            controlName = tagMatch[1];
+          }
+        }
+        
+        // Get the value for this control
+        const value = dataMapping[controlName] || '';
+        
+        // Extract the existing text content to preserve formatting
+        const textMatch = match.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+        if (textMatch) {
+          // Replace the text content while preserving the structure
+          return match.replace(/<w:t[^>]*>[^<]*<\/w:t>/, `<w:t>${this.escapeXml(String(value))}</w:t>`);
+        }
+        
+        // If no text element found, create one
+        const runMatch = match.match(/<w:r[^>]*>.*?<\/w:r>/s);
+        if (runMatch) {
+          return match.replace(runMatch[0], `<w:r><w:t>${this.escapeXml(String(value))}</w:t></w:r>`);
+        }
+        
+        return match; // Return unchanged if we can't process it
+      });
+      
+      // Update the document XML in the zip
+      zip.files['word/document.xml'] = {
+        ...zip.files['word/document.xml'],
+        asText: () => documentXml
+      } as any;
+      
+    } catch (error) {
+      console.error('Error processing Content Controls:', error);
+      throw error;
+    }
+  }
+
+  private static createContentControlMapping(templateData: TemplateData): Record<string, string | number> {
+    // Create a comprehensive mapping of all possible Content Control names to template data
+    return {
+      // Business/Tenant info
+      'business_name': templateData.business_name,
+      'business_address': templateData.business_address,
+      'business_phone': templateData.business_phone,
+      'business_email': templateData.business_email,
+      
+      // Customer info
+      'customer_name': templateData.customer_name,
+      'customer_address': templateData.customer_address,
+      'customer_phone': templateData.customer_phone,
+      'customer_email': templateData.customer_email,
+      
+      // Event info
+      'event_name': templateData.event_name,
+      'event_date': templateData.event_date,
+      'event_time': templateData.event_time,
+      'guest_count': templateData.guest_count,
+      
+      // Financial info
+      'subtotal': `£${templateData.subtotal.toFixed(2)}`,
+      'total': `£${templateData.total.toFixed(2)}`,
+      'deposit_amount': `£${templateData.deposit_amount.toFixed(2)}`,
+      'balance_due': `£${templateData.balance_due.toFixed(2)}`,
+      
+      // Document info
+      'document_number': templateData.document_number,
+      'document_date': templateData.document_date,
+      'due_date': templateData.due_date || '',
+      
+      // Additional fields
+      'notes': templateData.notes || '',
+      'terms': templateData.terms || '',
+      
+      // Common alternative naming patterns
+      'BusinessName': templateData.business_name,
+      'CustomerName': templateData.customer_name,
+      'EventName': templateData.event_name,
+      'EventDate': templateData.event_date,
+      'Total': `£${templateData.total.toFixed(2)}`,
+      'Subtotal': `£${templateData.subtotal.toFixed(2)}`,
+      'DepositAmount': `£${templateData.deposit_amount.toFixed(2)}`,
+      'BalanceDue': `£${templateData.balance_due.toFixed(2)}`,
+      'DocumentNumber': templateData.document_number,
+      'DocumentDate': templateData.document_date,
+    };
+  }
+
+  private static escapeXml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
   static async analyzeTemplate(templateName: string): Promise<string[]> {
     try {
       const templateBuffer = await this.downloadTemplate(templateName);
       const zip = new PizZip(templateBuffer);
-      const doc = new Docxtemplater(zip);
       
-      // Extract content controls/placeholders
+      // Extract Word document content
       const content = zip.files['word/document.xml']?.asText() || '';
-      const placeholderRegex = /\{([^}]+)\}/g;
       const placeholders: string[] = [];
+      
+      // First, try to extract Content Controls (Word's native controls)
+      const contentControls = this.extractContentControls(content);
+      if (contentControls.length > 0) {
+        return contentControls;
+      }
+      
+      // Fallback to traditional {placeholder} format if no Content Controls found
+      const placeholderRegex = /\{([^}]+)\}/g;
       let match;
       
       while ((match = placeholderRegex.exec(content)) !== null) {
@@ -225,6 +355,54 @@ export class WordTemplateGenerator {
       return placeholders;
     } catch (error) {
       console.error('Error analyzing template:', error);
+      return [];
+    }
+  }
+
+  private static extractContentControls(xmlContent: string): string[] {
+    const contentControls: string[] = [];
+    
+    try {
+      // Extract Content Controls using regex patterns
+      // Look for <w:sdt> elements which represent Content Controls
+      const sdtRegex = /<w:sdt[^>]*>.*?<\/w:sdt>/gs;
+      const sdtMatches = xmlContent.match(sdtRegex) || [];
+      
+      for (const sdtMatch of sdtMatches) {
+        // Extract alias (user-friendly name)
+        const aliasMatch = sdtMatch.match(/<w:alias\s+w:val="([^"]+)"/);
+        if (aliasMatch) {
+          const alias = aliasMatch[1];
+          if (!contentControls.includes(alias)) {
+            contentControls.push(alias);
+          }
+          continue;
+        }
+        
+        // Extract tag (developer name) as fallback
+        const tagMatch = sdtMatch.match(/<w:tag\s+w:val="([^"]+)"/);
+        if (tagMatch) {
+          const tag = tagMatch[1];
+          if (!contentControls.includes(tag)) {
+            contentControls.push(tag);
+          }
+          continue;
+        }
+        
+        // Extract ID as last resort
+        const idMatch = sdtMatch.match(/<w:id\s+w:val="([^"]+)"/);
+        if (idMatch) {
+          const id = `ContentControl_${idMatch[1]}`;
+          if (!contentControls.includes(id)) {
+            contentControls.push(id);
+          }
+        }
+      }
+      
+      console.log('Found Content Controls:', contentControls);
+      return contentControls;
+    } catch (error) {
+      console.error('Error extracting Content Controls:', error);
       return [];
     }
   }
