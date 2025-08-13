@@ -160,7 +160,8 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
   const calculateEventFinancials = (event: Event) => {
     const subtotal = (event.total_guest_price_gbp || 0) + (event.form_total_gbp || 0);
     const depositAmount = event.deposit_amount_gbp || 0;
-    const totalPayments = event.event_payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0;
+    const eventPaymentsTotal = event.event_payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0;
+    const totalPayments = depositAmount + eventPaymentsTotal;
     const remainingBalance = subtotal - totalPayments;
     return { subtotal, remainingBalance, totalPayments, depositAmount };
   };
