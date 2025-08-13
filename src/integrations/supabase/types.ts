@@ -1445,6 +1445,8 @@ export type Database = {
       }
       form_fields: {
         Row: {
+          appears_on_invoice: boolean | null
+          appears_on_quote: boolean | null
           created_at: string | null
           default_price_gbp: number | null
           dropdown_options: Json | null
@@ -1461,6 +1463,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          appears_on_invoice?: boolean | null
+          appears_on_quote?: boolean | null
           created_at?: string | null
           default_price_gbp?: number | null
           dropdown_options?: Json | null
@@ -1477,6 +1481,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          appears_on_invoice?: boolean | null
+          appears_on_quote?: boolean | null
           created_at?: string | null
           default_price_gbp?: number | null
           dropdown_options?: Json | null
