@@ -178,21 +178,18 @@ export class WordTemplateGenerator {
       // Map event data to template format
       const templateData = this.mapEventDataToTemplate(eventData, tenantData, eventForms, documentType);
       
-      // Check if template uses Content Controls or placeholders
-      const documentXml = zip.files['word/document.xml']?.asText() || '';
-      const hasContentControls = documentXml.includes('<w:sdt');
+      // Enhanced template data for today's date
+      const enhancedTemplateData = {
+        ...templateData,
+        today: new Date().toLocaleDateString('en-GB'), // Add today's date
+      };
       
-      if (hasContentControls) {
-        // Process Content Controls directly
-        await this.processContentControls(zip, templateData);
-      } else {
-        // Use docxtemplater for traditional placeholders
-        const doc = new Docxtemplater(zip, {
-          paragraphLoop: true,
-          linebreaks: true,
-        });
-        doc.render(templateData);
-      }
+      // Use docxtemplater for simple {placeholder} format
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      });
+      doc.render(enhancedTemplateData);
       
       // Generate the document
       const output = zip.generate({
@@ -331,27 +328,31 @@ export class WordTemplateGenerator {
       const templateBuffer = await this.downloadTemplate(templateName);
       const zip = new PizZip(templateBuffer);
       
-      // Extract Word document content
-      const content = zip.files['word/document.xml']?.asText() || '';
+      // Extract Word document content from all relevant parts
+      const documentXml = zip.files['word/document.xml']?.asText() || '';
+      const headerXml = zip.files['word/header1.xml']?.asText() || '';
+      const footerXml = zip.files['word/footer1.xml']?.asText() || '';
+      
+      // Combine all content to search for placeholders
+      const allContent = documentXml + headerXml + footerXml;
       const placeholders: string[] = [];
       
-      // First, try to extract Content Controls (Word's native controls)
-      const contentControls = this.extractContentControls(content);
-      if (contentControls.length > 0) {
-        return contentControls;
-      }
-      
-      // Fallback to traditional {placeholder} format if no Content Controls found
+      // Search for {placeholder} format
       const placeholderRegex = /\{([^}]+)\}/g;
       let match;
       
-      while ((match = placeholderRegex.exec(content)) !== null) {
+      while ((match = placeholderRegex.exec(allContent)) !== null) {
         const placeholder = match[1];
-        if (!placeholders.includes(placeholder)) {
+        // Filter out docxtemplater control structures
+        if (!placeholder.startsWith('#') && 
+            !placeholder.startsWith('/') && 
+            !placeholder.startsWith('^') &&
+            !placeholders.includes(placeholder)) {
           placeholders.push(placeholder);
         }
       }
       
+      console.log('Found placeholders in template:', placeholders);
       return placeholders;
     } catch (error) {
       console.error('Error analyzing template:', error);

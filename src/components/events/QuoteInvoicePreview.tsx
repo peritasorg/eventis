@@ -43,6 +43,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   const [populatedFields, setPopulatedFields] = useState<any[]>([]);
   const [isLoadingFields, setIsLoadingFields] = useState(true);
   const [hasTemplate, setHasTemplate] = useState(false);
+  const [templateInfo, setTemplateInfo] = useState<{ name: string; placeholders: string[] } | null>(null);
 
   React.useEffect(() => {
     if (isOpen && eventForms) {
@@ -55,16 +56,38 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
     if (!tenantId) return;
     
     try {
+      const templateName = `${tenantId}-template.docx`;
       const { data } = await supabase.storage
         .from('word-templates')
         .list('', {
-          search: `${tenantId}-template.docx`
+          search: templateName
         });
       
-      setHasTemplate(data && data.length > 0);
+      const templateExists = data && data.length > 0;
+      setHasTemplate(templateExists);
+      
+      if (templateExists) {
+        // Analyze template for placeholders
+        try {
+          const placeholders = await WordTemplateGenerator.analyzeTemplate(templateName);
+          setTemplateInfo({
+            name: templateName,
+            placeholders: placeholders
+          });
+        } catch (error) {
+          console.error('Error analyzing template:', error);
+          setTemplateInfo({
+            name: templateName,
+            placeholders: []
+          });
+        }
+      } else {
+        setTemplateInfo(null);
+      }
     } catch (error) {
       console.error('Error checking template:', error);
       setHasTemplate(false);
+      setTemplateInfo(null);
     }
   };
 
@@ -347,22 +370,58 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
             </div>
           )}
           
-          {/* Template Status */}
-          {!hasTemplate && (
-            <div className="flex justify-center pt-4 border-t">
-              <div className="text-center space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  No Word template uploaded yet
-                </p>
-                <Link to="/settings/templates">
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Upload Template
-                  </Button>
-                </Link>
+          {/* Template Status - Always Show */}
+          <div className="pt-4 border-t">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <h3 className="font-semibold">Word Template Status</h3>
+                {hasTemplate && templateInfo ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        Template Active
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">{templateInfo.name}</span>
+                    </div>
+                    {templateInfo.placeholders.length > 0 ? (
+                      <div>
+                        <p className="text-sm font-medium">Detected Placeholders ({templateInfo.placeholders.length}):</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {templateInfo.placeholders.slice(0, 8).map((placeholder, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {placeholder}
+                            </Badge>
+                          ))}
+                          {templateInfo.placeholders.length > 8 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{templateInfo.placeholders.length - 8} more
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-amber-600">No placeholders detected - check template format</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Badge variant="secondary" className="bg-red-100 text-red-800">
+                      No Template
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">
+                      Upload a Word template to enable document generation
+                    </p>
+                  </div>
+                )}
               </div>
+              <Link to="/settings/templates">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  {hasTemplate ? 'Manage Template' : 'Upload Template'}
+                </Button>
+              </Link>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>
