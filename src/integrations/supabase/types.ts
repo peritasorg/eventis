@@ -1159,105 +1159,6 @@ export type Database = {
         }
         Relationships: []
       }
-      field_library: {
-        Row: {
-          active: boolean
-          affects_pricing: boolean
-          category: string
-          created_at: string
-          default_quantity: number | null
-          description: string | null
-          dropdown_options: Json | null
-          field_config: Json | null
-          field_type: string
-          has_notes: boolean
-          has_pricing: boolean
-          has_quantity: boolean
-          help_text: string | null
-          id: string
-          label: string
-          max_quantity: number | null
-          min_quantity: number | null
-          name: string
-          placeholder_text: string | null
-          pricing_behavior: string | null
-          required: boolean
-          sort_order: number | null
-          tenant_id: string
-          unit_price: number | null
-          updated_at: string
-        }
-        Insert: {
-          active?: boolean
-          affects_pricing?: boolean
-          category?: string
-          created_at?: string
-          default_quantity?: number | null
-          description?: string | null
-          dropdown_options?: Json | null
-          field_config?: Json | null
-          field_type: string
-          has_notes?: boolean
-          has_pricing?: boolean
-          has_quantity?: boolean
-          help_text?: string | null
-          id?: string
-          label: string
-          max_quantity?: number | null
-          min_quantity?: number | null
-          name: string
-          placeholder_text?: string | null
-          pricing_behavior?: string | null
-          required?: boolean
-          sort_order?: number | null
-          tenant_id: string
-          unit_price?: number | null
-          updated_at?: string
-        }
-        Update: {
-          active?: boolean
-          affects_pricing?: boolean
-          category?: string
-          created_at?: string
-          default_quantity?: number | null
-          description?: string | null
-          dropdown_options?: Json | null
-          field_config?: Json | null
-          field_type?: string
-          has_notes?: boolean
-          has_pricing?: boolean
-          has_quantity?: boolean
-          help_text?: string | null
-          id?: string
-          label?: string
-          max_quantity?: number | null
-          min_quantity?: number | null
-          name?: string
-          placeholder_text?: string | null
-          pricing_behavior?: string | null
-          required?: boolean
-          sort_order?: number | null
-          tenant_id?: string
-          unit_price?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "field_library_field_type_fkey"
-            columns: ["field_type"]
-            isOneToOne: false
-            referencedRelation: "field_types"
-            referencedColumns: ["name"]
-          },
-          {
-            foreignKeyName: "field_library_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       field_types: {
         Row: {
           active: boolean | null
@@ -1363,7 +1264,6 @@ export type Database = {
       form_field_instances: {
         Row: {
           created_at: string
-          field_library_id: string
           field_order: number
           form_id: string
           id: string
@@ -1378,7 +1278,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          field_library_id: string
           field_order?: number
           form_id: string
           id?: string
@@ -1393,7 +1292,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          field_library_id?: string
           field_order?: number
           form_id?: string
           id?: string
@@ -1407,13 +1305,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "form_field_instances_field_library_id_fkey"
-            columns: ["field_library_id"]
-            isOneToOne: false
-            referencedRelation: "field_library"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "form_field_instances_form_id_fkey"
             columns: ["form_id"]
@@ -1439,6 +1330,8 @@ export type Database = {
       }
       form_fields: {
         Row: {
+          appears_on_invoice: boolean | null
+          appears_on_quote: boolean | null
           created_at: string | null
           default_price_gbp: number | null
           dropdown_options: Json | null
@@ -1455,6 +1348,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          appears_on_invoice?: boolean | null
+          appears_on_quote?: boolean | null
           created_at?: string | null
           default_price_gbp?: number | null
           dropdown_options?: Json | null
@@ -1471,6 +1366,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          appears_on_invoice?: boolean | null
+          appears_on_quote?: boolean | null
           created_at?: string | null
           default_price_gbp?: number | null
           dropdown_options?: Json | null
@@ -2159,6 +2056,56 @@ export type Database = {
           },
         ]
       }
+      pdf_templates: {
+        Row: {
+          active: boolean
+          created_at: string
+          document_type: string
+          id: string
+          is_default: boolean
+          name: string
+          page_settings: Json
+          sections: Json
+          styling: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          document_type: string
+          id?: string
+          is_default?: boolean
+          name: string
+          page_settings?: Json
+          sections?: Json
+          styling?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          document_type?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          page_settings?: Json
+          sections?: Json
+          styling?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_warning_rules: {
         Row: {
           condition_type: string
@@ -2687,6 +2634,7 @@ export type Database = {
           business_name: string
           business_type: string | null
           city: string | null
+          company_logo_url: string | null
           contact_email: string
           contact_phone: string | null
           country: string | null
@@ -2716,6 +2664,7 @@ export type Database = {
           business_name: string
           business_type?: string | null
           city?: string | null
+          company_logo_url?: string | null
           contact_email: string
           contact_phone?: string | null
           country?: string | null
@@ -2745,6 +2694,7 @@ export type Database = {
           business_name?: string
           business_type?: string | null
           city?: string | null
+          company_logo_url?: string | null
           contact_email?: string
           contact_phone?: string | null
           country?: string | null

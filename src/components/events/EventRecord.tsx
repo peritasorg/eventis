@@ -26,6 +26,7 @@ import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
+import { QuoteInvoicePreview } from './QuoteInvoicePreview';
 
 interface EventData {
   id: string;
@@ -65,6 +66,7 @@ export const EventRecord: React.FC = () => {
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Get event type configs
   const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -158,7 +160,7 @@ export const EventRecord: React.FC = () => {
   }) || [];
 
   // Get live form totals and individual form data
-  const { liveFormTotal, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
+  const { liveFormTotal, formTotals, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
   const { eventForms } = useEventForms(eventId);
 
   // Fetch payment timeline for remaining balance calculation
@@ -296,7 +298,10 @@ export const EventRecord: React.FC = () => {
 
   // Calculate derived values
   const totalGuests = (eventData?.men_count || 0) + (eventData?.ladies_count || 0);
-  const totalGuestPrice = eventData?.total_guest_price_gbp || 0;
+  
+  // CRITICAL FIX: Only include event-level guest pricing when there are NO forms (to prevent double-counting)
+  const hasMultipleForms = (formTotals?.length || 0) > 0;
+  const totalGuestPrice = hasMultipleForms ? 0 : (eventData?.total_guest_price_gbp || 0);
   const totalEventValue = totalGuestPrice + liveFormTotal;
   const depositAmount = eventData?.deposit_amount_gbp || 0;
   const totalPaid = depositAmount + (payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0);
@@ -559,21 +564,11 @@ export const EventRecord: React.FC = () => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={generateQuote}
-              disabled={isGeneratingPDF}
+              onClick={() => setShowPreview(true)}
+              className="flex items-center gap-2"
             >
-              <FileText className="h-4 w-4 mr-2" />
-              {isGeneratingPDF ? 'Generating...' : 'Generate Quote'}
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={generateInvoice}
-              disabled={isGeneratingPDF}
-            >
-              <Receipt className="h-4 w-4 mr-2" />
-              {isGeneratingPDF ? 'Generating...' : 'Generate Invoice'}
+              <FileText className="h-4 w-4" />
+              Preview Quote/Invoice
             </Button>
             
             <Button 
@@ -939,8 +934,8 @@ export const EventRecord: React.FC = () => {
 
         {/* Right Column */}
         <div className="space-y-6">
-          {/* Guests Section - only show if event has less than 2 forms */}
-          {eventForms.length < 2 && (
+          {/* Guests Section - only show if there are NO forms (prevent double-counting) */}
+          {!hasMultipleForms && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -991,14 +986,26 @@ export const EventRecord: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="total_guest_price_gbp">Total Guest Price</Label>
-                  <PriceInput
-                    value={eventData.total_guest_price_gbp || 0}
-                    onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
-                    placeholder="0.00"
-                  />
-                </div>
+                {/* Only show event-level guest pricing when there are NO forms */}
+                {!hasMultipleForms && (
+                  <div className="space-y-2">
+                    <Label htmlFor="total_guest_price_gbp">Total Guest Price</Label>
+                    <PriceInput
+                      value={eventData.total_guest_price_gbp || 0}
+                      onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                )}
+                
+                {hasMultipleForms && (
+                  <div className="space-y-2">
+                    <Label>Event-Level Guest Price</Label>
+                    <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm text-muted-foreground">
+                      Hidden (using form-level pricing)
+                    </div>
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   <Label>Live Form Total</Label>
@@ -1029,31 +1036,36 @@ export const EventRecord: React.FC = () => {
 
               <div className="pt-2 border-t space-y-2">
                 {/* Individual Form Breakdown */}
-                {eventForms && eventForms.length > 0 && (
+                {formTotals && formTotals.length > 0 && (
                   <div className="space-y-1 pb-2 border-b">
                     <div className="text-sm font-medium text-muted-foreground mb-2">Form Breakdown:</div>
-                    {eventForms.map((eventForm) => (
-                      <div key={eventForm.id} className="flex justify-between items-center text-sm">
-                        <span className="flex items-center gap-2">
-                          {eventForm.form_label}
-                          {eventForm.guest_count && (
-                            <Badge variant="secondary" className="text-xs">
-                              {eventForm.guest_count} guests
-                            </Badge>
-                          )}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {eventForm.guest_price_total && eventForm.guest_price_total > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              Guest: {formatCurrency(eventForm.guest_price_total)}
-                            </span>
-                          )}
-                          <span className="font-medium">
-                            Form: {formatCurrency(eventForm.form_total || 0)}
+                    {formTotals.map((formTotal) => {
+                      // Find matching eventForm for guest data
+                      const eventForm = eventForms?.find(ef => ef.id === formTotal.id);
+                      
+                      return (
+                        <div key={formTotal.id} className="flex justify-between items-center text-sm">
+                          <span className="flex items-center gap-2">
+                            {formTotal.form_label}
+                            {eventForm?.guest_count && (
+                              <Badge variant="secondary" className="text-xs">
+                                {eventForm.guest_count} guests
+                              </Badge>
+                            )}
                           </span>
+                          <div className="flex items-center gap-2">
+                            {eventForm?.guest_price_total && eventForm.guest_price_total > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                Guest: {formatCurrency(eventForm.guest_price_total)}
+                              </span>
+                            )}
+                            <span className="font-medium">
+                              Form: {formatCurrency(formTotal.form_total)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
                 
@@ -1080,6 +1092,33 @@ export const EventRecord: React.FC = () => {
           <PaymentTimeline eventId={eventId} />
         </div>
       </div>
+
+      {/* Quote/Invoice Preview Dialog */}
+      <QuoteInvoicePreview
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        eventData={{
+          ...eventData,
+          customers: selectedCustomer ? {
+            name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+            email: selectedCustomer.email || '',
+            phone: selectedCustomer.phone || '',
+          } : null
+        }}
+        tenantData={{
+          business_name: currentTenant?.business_name || '',
+          address_line1: currentTenant?.address_line1 || '',
+          address_line2: currentTenant?.address_line2,
+          city: currentTenant?.city || '',
+          postal_code: currentTenant?.postal_code || '',
+          country: currentTenant?.country || 'GB',
+          contact_email: currentTenant?.contact_email || '',
+          contact_phone: currentTenant?.contact_phone || '',
+          company_logo_url: currentTenant?.company_logo_url
+        }}
+        tenantId={currentTenant?.id || ''}
+        eventForms={eventForms || []}
+      />
     </div>
   );
 };

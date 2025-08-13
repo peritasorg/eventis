@@ -2,6 +2,7 @@ import React from 'react';
 import { CompactFieldDisplay } from './CompactFieldDisplay';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useFormFields } from '@/hooks/useFormFields';
 import { X, Plus } from 'lucide-react';
 
 interface FormPreviewModeProps {
@@ -19,6 +20,8 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
   readOnly = true,
   removeFieldMutation
 }) => {
+  const { formFields: availableFields } = useFormFields();
+
   const handleFieldChange = (fieldId: string, response: any) => {
     if (onResponseChange) {
       onResponseChange(fieldId, response);
@@ -42,12 +45,19 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
       </div>
 
       {formFields.map((fieldInstance) => {
-        const field = fieldInstance.field_library || fieldInstance;
-        const fieldId = field.id;
+        // Try to find the field from available fields or use the instance itself
+        const fieldId = fieldInstance.id || fieldInstance.field_id;
+        const field = availableFields.find(f => f.id === fieldId) || fieldInstance.field_library || fieldInstance;
+        
+        if (!field) {
+          console.log('No field found for:', fieldId, fieldInstance);
+          return null;
+        }
+
         const response = formResponses[fieldId] || { 
           value: '', 
           notes: '', 
-          price: field.unit_price || 0, 
+          price: field.default_price_gbp || 0, 
           quantity: field.default_quantity || 1,
           enabled: field.field_type?.includes('toggle') ? false : true
         };
@@ -93,3 +103,5 @@ export const FormPreviewMode: React.FC<FormPreviewModeProps> = ({
     </div>
   );
 };
+
+export const FormPreviewModeSimplified = FormPreviewMode;

@@ -55,7 +55,7 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
           {showCreateButton && (
             <Button
               size="sm"
-              onClick={() => navigate('/field-library/new', { 
+              onClick={() => navigate('/field-edit', { 
                 state: { from: window.location.pathname } 
               })}
               className="ml-auto"
@@ -130,7 +130,7 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
                                   variant="ghost"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(`/field-library/edit/${field.id}`, { 
+                                    navigate(`/field-edit/${field.id}`, { 
                                       state: { from: window.location.pathname } 
                                     });
                                   }}

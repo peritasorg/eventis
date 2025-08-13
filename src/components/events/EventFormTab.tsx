@@ -13,6 +13,7 @@ import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface EventFormTabProps {
   eventId: string;
@@ -24,6 +25,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   const { forms } = useForms();
   const { formFields } = useFormFields();
   const { currentTenant } = useAuth();
+  const queryClient = useQueryClient();
   
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
@@ -101,26 +103,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     });
   }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}`).join(',')]);
 
-  // Perfect form total calculation with proper decimal precision
+  // Perfect form total calculation with proper decimal precision and debug logging
   const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
     let total = 0;
     const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
     
-    // Add form field prices
+    // Add form field prices (only when enabled and has price)
     Object.entries(responses).forEach(([fieldId, response]) => {
-      // Skip if toggle is disabled
-      if (response.enabled === false) return;
-      
-      const price = Number(response.price) || 0;
-      const quantity = Number(response.quantity) || 1;
-      
-      // All pricing fields contribute to total when enabled
-      if (price > 0) {
-        total += price; // Price already calculated with quantity in UnifiedFieldRenderer
+      if (response.enabled === true && response.price) {
+        const price = Number(response.price) || 0;
+        if (price > 0) {
+          total += price;
+        }
       }
     });
     
-    // CRITICAL: Add guest_price_total to the form total
+    // Add guest_price_total to the form total
     const guestPriceTotal = useLocalGuestData 
       ? (Number(localGuestData[eventForm.id]?.guest_price_total) || 0)
       : (Number(eventForm.guest_price_total) || 0);
@@ -172,28 +170,62 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
         clearTimeout(window[timeoutKey]);
       }
       
-      // Set new timeout
-      window[timeoutKey] = setTimeout(() => {
-        updateEventForm({
-          id: eventFormId,
-          form_responses: newResponses[eventFormId],
-          form_total: newTotal
-        });
+      // Set new timeout with proper form total calculation
+      window[timeoutKey] = setTimeout(async () => {
+        try {
+          const { error } = await supabase
+            .from('event_forms')
+            .update({ 
+              form_responses: newResponses[eventFormId],
+              form_total: newTotal,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', eventFormId);
+
+          if (error) throw error;
+          
+          // CRITICAL: Invalidate all relevant queries to ensure real-time sync
+          queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
+          queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+          queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+          queryClient.invalidateQueries({ queryKey: ['events'] });
+          
+        } catch (error) {
+          console.error('Error saving form response:', error);
+          toast.error('Failed to save changes');
+        }
         delete window[timeoutKey];
       }, delay);
     }
   };
 
   // Add blur handler for immediate save on focus loss
-  const handleFieldBlur = (eventFormId: string) => {
+  const handleFieldBlur = async (eventFormId: string) => {
     const eventForm = eventForms.find(ef => ef.id === eventFormId);
     if (eventForm) {
       const currentTotal = calculateFormTotal({ ...eventForm, form_responses: formResponses[eventFormId] } as EventForm);
-      updateEventForm({
-        id: eventFormId,
-        form_responses: formResponses[eventFormId],
-        form_total: currentTotal
-      });
+      
+      try {
+        const { error } = await supabase
+          .from('event_forms')
+          .update({ 
+            form_responses: formResponses[eventFormId],
+            form_total: currentTotal,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', eventFormId);
+
+        if (error) throw error;
+        
+        // CRITICAL: Invalidate all relevant queries to ensure real-time sync
+        queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        
+      } catch (error) {
+        console.error('Error saving form response:', error);
+      }
     }
   };
 
@@ -264,31 +296,49 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
   const handleGuestUpdate = async (eventFormId: string, field: 'men_count' | 'ladies_count' | 'guest_price_total', value: number) => {
     // Update local state immediately for responsive UI - PRESERVE existing values
+    const updatedLocalData = {
+      ...localGuestData[eventFormId],
+      [field]: value
+    };
+    
     setLocalGuestData(prev => ({
       ...prev,
-      [eventFormId]: {
-        men_count: prev[eventFormId]?.men_count || 0,
-        ladies_count: prev[eventFormId]?.ladies_count || 0,
-        guest_price_total: prev[eventFormId]?.guest_price_total || 0,
-        [field]: value // Override the specific field being updated
-      }
+      [eventFormId]: updatedLocalData
     }));
 
     try {
+      // Calculate guest_count when men or ladies count changes
+      const newGuestCount = field === 'men_count' 
+        ? value + (updatedLocalData.ladies_count || 0)
+        : field === 'ladies_count'
+        ? (updatedLocalData.men_count || 0) + value
+        : (updatedLocalData.men_count || 0) + (updatedLocalData.ladies_count || 0);
+
       // Calculate new form total with guest price included
       const eventForm = eventForms.find(ef => ef.id === eventFormId);
       if (eventForm) {
         const newTotal = calculateFormTotal({
           ...eventForm,
           [field]: value
-        } as EventForm, false); // Use actual value, not local state for database save
+        } as EventForm, false);
         
-        // Update database with both field and new total
-        await updateEventForm({
+        // Update database with all guest fields and new total
+        const updateData: any = {
           id: eventFormId,
-          [field]: value,
+          men_count: updatedLocalData.men_count,
+          ladies_count: updatedLocalData.ladies_count,
+          guest_count: newGuestCount,
+          guest_price_total: updatedLocalData.guest_price_total,
           form_total: newTotal
-        });
+        };
+        
+        await updateEventForm(updateData);
+
+        // CRITICAL: Invalidate all relevant queries to ensure real-time sync
+        queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['events'] });
       }
     } catch (error) {
       console.error('Error updating guest info:', error);

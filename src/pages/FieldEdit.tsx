@@ -34,7 +34,9 @@ export const FieldEdit = () => {
     pricing_type: 'fixed',
     placeholder_text: '',
     help_text: '',
-    dropdown_options: []
+    dropdown_options: [],
+    appears_on_quote: false,
+    appears_on_invoice: false
   });
 
   const [showPreview, setShowPreview] = useState(true);
@@ -67,7 +69,6 @@ export const FieldEdit = () => {
       field_type: fieldType as FormField['field_type'],
       has_pricing: ['fixed_price_notes', 'fixed_price_notes_toggle', 'fixed_price_quantity_notes', 'fixed_price_quantity_notes_toggle', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
       has_notes: !['counter_notes'].includes(fieldType),
-      // Only set default price for per_person_price_notes, leave undefined for fixed_price_notes and fixed_price_quantity_notes
       default_price_gbp: fieldType === 'per_person_price_notes' ? 0 : undefined,
     }));
   };
@@ -135,7 +136,7 @@ export const FieldEdit = () => {
       if (isEditing) {
         await updateField({ id: id!, ...formData as FormField });
       } else {
-        await createField(formData as Omit<FormField, 'id'>);
+        await createField(formData as Omit<FormField, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>);
       }
       // Check if we came from form builder and should return there
       const fromFormBuilder = location.state?.from?.includes('/form-builder');
@@ -169,7 +170,7 @@ export const FieldEdit = () => {
           }}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          {location.state?.from?.includes('/form-builder') ? 'Back to Form Builder' : 'Back to Field Library'}
+          {location.state?.from?.includes('/form-builder') ? 'Back to Form Builder' : 'Back to Form Fields'}
         </Button>
         <div>
           <h1 className="text-3xl font-bold">
@@ -237,6 +238,44 @@ export const FieldEdit = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, placeholder_text: e.target.value }))}
                     placeholder="Optional placeholder text"
                   />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Quote/Invoice Appearance Settings */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium">Document Appearance</Label>
+                  <p className="text-sm text-muted-foreground">Control when this field appears in generated quotes and invoices</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="appears_on_quote"
+                      checked={formData.appears_on_quote || false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, appears_on_quote: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="appears_on_quote" className="text-sm">
+                      Appears on Quotes
+                    </Label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="appears_on_invoice"
+                      checked={formData.appears_on_invoice || false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, appears_on_invoice: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="appears_on_invoice" className="text-sm">
+                      Appears on Invoices
+                    </Label>
+                  </div>
                 </div>
               </div>
 
@@ -398,32 +437,26 @@ export const FieldEdit = () => {
             {showPreview && formData.name && (
               <div className="space-y-4">
                 <div className="p-4 border rounded-lg bg-muted/50">
-                  <UnifiedFieldRenderer
-                    field={{
-                      ...formData,
-                      id: 'preview-field',
-                      user_id: 'preview-user',
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString()
-                    } as FormField}
-                    response={{
-                      value: '',
-                      quantity: 1,
-                      price: formData.default_price_gbp || 0,
-                      notes: '',
-                      enabled: true,
-                      selectedOption: ''
-                    }}
-                    onChange={() => {}}
-                    readOnly={false}
-                    showInCard={false}
-                  />
+                  <div className="space-y-2">
+                    <Label>{formData.name}</Label>
+                    <div className="p-3 border rounded bg-white min-h-[40px] flex items-center">
+                      <span className="text-muted-foreground">
+                        {formData.placeholder_text || `${formData.field_type} field preview`}
+                      </span>
+                    </div>
+                    {formData.help_text && (
+                      <p className="text-sm text-muted-foreground">{formData.help_text}</p>
+                    )}
+                    {formData.has_pricing && (
+                      <div><strong>Default Price:</strong> £{(formData.default_price_gbp || 0).toFixed(2)}</div>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="text-sm text-muted-foreground space-y-2">
                   <div><strong>Type:</strong> {fieldTypeOptions.find(opt => opt.value === formData.field_type)?.label}</div>
                   {isPricingField && !isDropdownField && (
-                    <div><strong>Default Price:</strong> £{(formData.default_price_gbp || 0).toFixed(2)}</div>
+                    <div><strong>Unit Price:</strong> £{(formData.default_price_gbp || 0).toFixed(2)}</div>
                   )}
                   {isDropdownField && (
                     <div><strong>Options:</strong> {formData.dropdown_options?.length || 0} configured</div>

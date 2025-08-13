@@ -21,6 +21,8 @@ export interface FormField {
   placeholder_text: string | null;
   help_text: string | null;
   dropdown_options?: DropdownOption[];
+  appears_on_quote?: boolean;
+  appears_on_invoice?: boolean;
   is_toggleable?: boolean;
   toggle_label?: string;
   default_enabled?: boolean;

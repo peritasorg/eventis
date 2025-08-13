@@ -23,8 +23,8 @@ export const Settings = () => {
       color: 'text-green-600 bg-green-100'
     },
     {
-      title: 'Field Library',
-      description: 'Manage custom fields and form components',
+      title: 'Form Fields',
+      description: 'Manage reusable form fields and field types',
       icon: FileText,
       path: '/field-library',
       color: 'text-purple-600 bg-purple-100'
@@ -66,6 +66,13 @@ export const Settings = () => {
       icon: SettingsIcon,
       path: '/settings/profile',
       color: 'text-gray-600 bg-gray-100'
+    },
+    {
+      title: 'Document Templates',
+      description: 'Upload and manage Word templates for invoices and quotes',
+      icon: FileText,
+      path: '/settings/templates',
+      color: 'text-teal-600 bg-teal-100'
     }
   ];
 

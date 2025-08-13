@@ -185,9 +185,9 @@ export const FormSection: React.FC<FormSectionProps> = ({
                                     className="flex items-center gap-2 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
                                   >
                                     <GripVertical className="h-4 w-4" />
-                                    <span className="text-xs font-medium">
-                                      {fieldInstance.field_library?.label}
-                                    </span>
+                                     <span className="text-xs font-medium">
+                                       {fieldInstance.name || fieldInstance.label}
+                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button
@@ -218,9 +218,9 @@ export const FormSection: React.FC<FormSectionProps> = ({
                                     <div>
                                       <Label className="text-xs">Custom Label</Label>
                                       <Input
-                                        defaultValue={fieldInstance.label_override || ''}
-                                        placeholder={fieldInstance.field_library?.label}
-                                        className="h-8 text-sm"
+                                         defaultValue={fieldInstance.label_override || ''}
+                                         placeholder={fieldInstance.name || fieldInstance.label}
+                                         className="h-8 text-sm"
                                         onBlur={(e) => {
                                           if (e.target.value !== fieldInstance.label_override) {
                                             onUpdateField(fieldInstance.id, {
@@ -233,9 +233,9 @@ export const FormSection: React.FC<FormSectionProps> = ({
                                     <div>
                                       <Label className="text-xs">Placeholder</Label>
                                       <Input
-                                        defaultValue={fieldInstance.placeholder_override || ''}
-                                        placeholder={fieldInstance.field_library?.placeholder}
-                                        className="h-8 text-sm"
+                                         defaultValue={fieldInstance.placeholder_override || ''}
+                                         placeholder={fieldInstance.placeholder_text}
+                                         className="h-8 text-sm"
                                         onBlur={(e) => {
                                           if (e.target.value !== fieldInstance.placeholder_override) {
                                             onUpdateField(fieldInstance.id, {

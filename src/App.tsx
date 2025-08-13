@@ -26,15 +26,17 @@ import { NewFormBuilderPage } from "./pages/NewFormBuilder";
 import { Customers } from "./pages/Customers";
 import { CustomerProfilePage } from "./pages/CustomerProfile";
 import { CalendarSettings } from "./pages/CalendarSettings";
-import { FieldLibraryPage } from "./pages/FieldLibrary";
+import { FormFieldsPage } from "./pages/FormFields";
 import { FieldEdit } from "./pages/FieldEdit";
 import { Leads } from "./pages/Leads";
 import { Settings } from "./pages/Settings";
 import { BillingSettings } from "./components/settings/BillingSettings";
 import { ProfileSettings } from "./components/settings/ProfileSettings";
+import { TemplateSettings } from "./pages/TemplateSettings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Success } from "./pages/success";
+import { PDFEditor } from "./pages/PDFEditor";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -191,26 +193,26 @@ const App: React.FC = () => {
                   <Route path="/field-library" element={
                     <ProtectedRoute>
                       <AppLayout>
-                        <FieldLibraryPage />
+                        <FormFieldsPage />
                       </AppLayout>
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/field-library/new" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <FieldEdit />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/field-library/edit/:id" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <FieldEdit />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
+                   <Route path="/field-edit" element={
+                     <ProtectedRoute>
+                       <AppLayout>
+                         <FieldEdit />
+                       </AppLayout>
+                     </ProtectedRoute>
+                   } />
+                   
+                   <Route path="/field-edit/:id" element={
+                     <ProtectedRoute>
+                       <AppLayout>
+                         <FieldEdit />
+                       </AppLayout>
+                     </ProtectedRoute>
+                   } />
                   
                   <Route path="/settings" element={
                     <ProtectedRoute>
@@ -228,15 +230,35 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/settings/profile" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <ProfileSettings />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  
-                  {/* 404 Fallback */}
+                    <Route path="/settings/profile" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ProfileSettings />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/settings/templates" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <TemplateSettings />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                   
+                   <Route path="/pdf-editor" element={
+                     <ProtectedRoute>
+                       <PDFEditor />
+                     </ProtectedRoute>
+                   } />
+                   
+                   <Route path="/pdf-editor/:eventId" element={
+                     <ProtectedRoute>
+                       <PDFEditor />
+                     </ProtectedRoute>
+                   } />
+                   
+                   {/* 404 Fallback */}
                   <Route path="*" element={
                     <ErrorBoundary>
                       <NotFound />

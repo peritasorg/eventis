@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, User, Building, Lock, Mail } from 'lucide-react';
+import { Loader2, User, Building, Lock, Mail, Upload, X, Image } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 interface ProfileForm {
@@ -26,12 +26,14 @@ interface TenantForm {
   city: string;
   postal_code: string;
   contact_phone: string;
+  company_logo_url: string;
 }
 
 export const ProfileSettings = () => {
   const { user, userProfile, currentTenant, refreshUserData } = useAuth();
   const [loading, setLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     first_name: '',
@@ -48,7 +50,8 @@ export const ProfileSettings = () => {
     address_line2: '',
     city: '',
     postal_code: '',
-    contact_phone: ''
+    contact_phone: '',
+    company_logo_url: ''
   });
 
   const [passwords, setPasswords] = useState({
@@ -78,7 +81,8 @@ export const ProfileSettings = () => {
         address_line2: currentTenant.address_line2 || '',
         city: currentTenant.city || '',
         postal_code: currentTenant.postal_code || '',
-        contact_phone: currentTenant.contact_phone || ''
+        contact_phone: currentTenant.contact_phone || '',
+        company_logo_url: currentTenant.company_logo_url || ''
       });
     }
   }, [currentTenant]);
@@ -162,6 +166,76 @@ export const ProfileSettings = () => {
       toast.error(`Error updating password: ${error.message}`);
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    setLogoUploading(true);
+
+    try {
+      // Upload file to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/logo.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('company-logos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-logos')
+        .getPublicUrl(fileName);
+
+      // Update tenant with logo URL
+      const { error: updateError } = await supabase
+        .from('tenants')
+        .update({ 
+          company_logo_url: publicUrl,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', currentTenant?.id);
+
+      if (updateError) throw updateError;
+
+      setTenantForm(prev => ({ ...prev, company_logo_url: publicUrl }));
+      await refreshUserData();
+      toast.success('Company logo uploaded successfully');
+    } catch (error: any) {
+      toast.error(`Error uploading logo: ${error.message}`);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    if (!user?.id) return;
+
+    setLogoUploading(true);
+
+    try {
+      // Update tenant to remove logo URL
+      const { error } = await supabase
+        .from('tenants')
+        .update({ 
+          company_logo_url: null,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', currentTenant?.id);
+
+      if (error) throw error;
+
+      setTenantForm(prev => ({ ...prev, company_logo_url: '' }));
+      await refreshUserData();
+      toast.success('Company logo removed successfully');
+    } catch (error: any) {
+      toast.error(`Error removing logo: ${error.message}`);
+    } finally {
+      setLogoUploading(false);
     }
   };
 
@@ -258,7 +332,58 @@ export const ProfileSettings = () => {
           <CardDescription>Update your business details and address</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleTenantSubmit} className="space-y-4">
+          <form onSubmit={handleTenantSubmit} className="space-y-6">
+            {/* Company Logo Section */}
+            <div className="space-y-4">
+              <Label className="text-base font-medium">Company Logo</Label>
+              <div className="flex items-center space-x-4">
+                {tenantForm.company_logo_url ? (
+                  <div className="relative">
+                    <img 
+                      src={tenantForm.company_logo_url} 
+                      alt="Company Logo" 
+                      className="h-20 w-20 object-contain border rounded-lg"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                      onClick={removeLogo}
+                      disabled={logoUploading}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="h-20 w-20 border-2 border-dashed border-muted-foreground/25 rounded-lg flex items-center justify-center">
+                    <Image className="h-8 w-8 text-muted-foreground/50" />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="logo-upload" className="cursor-pointer">
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      <Upload className="h-4 w-4" />
+                      <span>Upload Company Logo</span>
+                    </div>
+                  </Label>
+                  <Input
+                    id="logo-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploading}
+                    className="hidden"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Recommended: Square image, max 2MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
             <div className="space-y-2">
               <Label htmlFor="business_name">Business Name</Label>
               <Input
