@@ -175,7 +175,8 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
         enhancedTenantData, 
         eventForms || [], 
         type,
-        `${tenantId}-template.docx`
+        `${tenantId}-template.docx`,
+        tenantId
       );
       
       toast.success(`${type === 'quote' ? 'Quote' : 'Invoice'} document downloaded!`);

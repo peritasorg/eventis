@@ -61,46 +61,55 @@ export class WordTemplateGenerator {
     return await data.arrayBuffer();
   }
 
-  private static extractLineItems(eventForms: any[]): LineItem[] {
+  private static async extractLineItems(eventForms: any[], tenantId: string, documentType: 'quote' | 'invoice'): Promise<LineItem[]> {
     const lineItems: LineItem[] = [];
     
+    // Add guest pricing line items first
     eventForms.forEach(form => {
-      // Add guest pricing as a line item if present
       if (form.guest_price_total > 0) {
         const guestCount = (form.men_count || 0) + (form.ladies_count || 0);
+        const perPersonPrice = guestCount > 0 ? parseFloat(form.guest_price_total) / guestCount : 0;
+        
         lineItems.push({
           quantity: guestCount,
           description: `${form.form_label} - Guest Pricing`,
-          price: parseFloat(form.guest_price_total) / guestCount,
+          price: perPersonPrice,
           total: parseFloat(form.guest_price_total)
         });
       }
-
-      // Add populated fields from form responses
-      if (form.form_responses) {
-        Object.entries(form.form_responses).forEach(([fieldId, fieldData]: [string, any]) => {
-          if (fieldData?.enabled && fieldData?.price > 0) {
-            lineItems.push({
-              quantity: fieldData.quantity || 1,
-              description: fieldData.label || fieldData.name || 'Service Item',
-              price: parseFloat(fieldData.price),
-              total: (fieldData.quantity || 1) * parseFloat(fieldData.price)
-            });
-          }
-        });
-      }
     });
+
+    // Use the working smart field extractor for populated fields
+    try {
+      const { extractPopulatedFields } = await import('@/utils/smartFieldExtractor');
+      const populatedFields = await extractPopulatedFields(eventForms, tenantId, documentType);
+      
+      // Convert extracted fields to line items format
+      populatedFields.forEach(field => {
+        if (field.price > 0) {
+          lineItems.push({
+            quantity: field.quantity,
+            description: field.description,
+            price: field.price,
+            total: field.quantity * field.price
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error extracting populated fields:', error);
+    }
     
     return lineItems;
   }
 
-  private static mapEventDataToTemplate(
+  private static async mapEventDataToTemplate(
     eventData: any, 
     tenantData: any, 
     eventForms: any[],
-    documentType: 'quote' | 'invoice'
-  ): TemplateData {
-    const lineItems = this.extractLineItems(eventForms);
+    documentType: 'quote' | 'invoice',
+    tenantId: string
+  ): Promise<TemplateData> {
+    const lineItems = await this.extractLineItems(eventForms, tenantId, documentType);
     const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
     
     // Generate document number
@@ -122,14 +131,19 @@ export class WordTemplateGenerator {
       business_email: tenantData.contact_email || '',
       
       // Customer info
-      customer_name: eventData.primary_contact_name || 'Customer Name',
-      customer_address: 'Customer Address', // You might want to get this from customer table
-      customer_phone: eventData.primary_contact_number || '',
-      customer_email: 'customer@email.com', // You might want to get this from customer table
+      customer_name: eventData.customers?.name || eventData.primary_contact_name || 'Customer Name',
+      customer_address: eventData.customers ? [
+        eventData.customers.address_line1,
+        eventData.customers.address_line2,
+        eventData.customers.city,
+        eventData.customers.postal_code
+      ].filter(Boolean).join(', ') || 'Customer Address' : 'Customer Address',
+      customer_phone: eventData.customers?.phone || eventData.primary_contact_number || '',
+      customer_email: eventData.customers?.email || 'customer@email.com',
       
       // Event info
       event_name: eventData.title || 'Event',
-      event_date: eventData.event_date ? new Date(eventData.event_date).toLocaleDateString() : '',
+      event_date: eventData.event_date ? new Date(eventData.event_date).toLocaleDateString('en-GB') : '',
       event_time: eventForms && eventForms.length > 1 
         ? eventForms.map(form => `${form.start_time || 'TBD'} - ${form.end_time || 'TBD'}`).join(' & ')
         : `${eventData.start_time || 'TBD'} - ${eventData.end_time || 'TBD'}`,
@@ -166,9 +180,29 @@ export class WordTemplateGenerator {
     tenantData: any,
     eventForms: any[],
     documentType: 'quote' | 'invoice',
-    templateName: string = 'Invoice Template.docx'
+    templateName: string = 'Invoice Template.docx',
+    tenantId?: string
   ): Promise<void> {
     try {
+      // Fetch customer data if customer_id exists
+      let enrichedEventData = { ...eventData };
+      if (eventData.customer_id && !eventData.customers) {
+        try {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data: customerData } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', eventData.customer_id)
+            .single();
+          
+          if (customerData) {
+            enrichedEventData.customers = customerData;
+          }
+        } catch (error) {
+          console.warn('Could not fetch customer data:', error);
+        }
+      }
+
       // Download the template
       const templateBuffer = await this.downloadTemplate(templateName);
       
@@ -176,13 +210,28 @@ export class WordTemplateGenerator {
       const zip = new PizZip(templateBuffer);
       
       // Map event data to template format
-      const templateData = this.mapEventDataToTemplate(eventData, tenantData, eventForms, documentType);
+      const templateData = await this.mapEventDataToTemplate(enrichedEventData, tenantData, eventForms, documentType, tenantId || '');
       
-      // Enhanced template data for today's date
+      // Enhanced template data for debugging and additional fields
       const enhancedTemplateData = {
         ...templateData,
-        today: new Date().toLocaleDateString('en-GB'), // Add today's date
+        today: new Date().toLocaleDateString('en-GB'),
+        event_type: enrichedEventData.event_type || 'Event',
+        // Add formatted currency values for compatibility
+        subtotal_formatted: `£${templateData.subtotal.toFixed(2)}`,
+        total_formatted: `£${templateData.total.toFixed(2)}`,
+        deposit_formatted: `£${templateData.deposit_amount.toFixed(2)}`,
+        balance_formatted: `£${templateData.balance_due.toFixed(2)}`,
       };
+
+      // Debug log the data being passed to template
+      console.log('Template data being passed to Word document:', {
+        line_items_count: enhancedTemplateData.line_items.length,
+        subtotal: enhancedTemplateData.subtotal,
+        customer_name: enhancedTemplateData.customer_name,
+        event_type: enhancedTemplateData.event_type,
+        line_items: enhancedTemplateData.line_items
+      });
       
       // Use docxtemplater for simple {placeholder} format
       const doc = new Docxtemplater(zip, {
