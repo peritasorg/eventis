@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { useFieldLibrary, FieldLibraryItem, DropdownOption } from '@/hooks/useFieldLibrary';
+import { useFormFields, FormField, DropdownOption } from '@/hooks/useFormFields';
 import { UnifiedFieldRenderer } from '@/components/form-builder/UnifiedFieldRenderer';
 import { toast } from 'sonner';
 
@@ -20,30 +20,23 @@ export const FieldEdit = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation() as Location & { state?: { from?: string } };
-  const { fieldLibraryItems, createField, updateField, isCreating, isUpdating } = useFieldLibrary();
+  const { formFields, createField, updateField, isCreating, isUpdating } = useFormFields();
   
   const isEditing = !!id;
-  const existingField = isEditing ? fieldLibraryItems?.find(f => f.id === id) : null;
+  const existingField = isEditing ? formFields?.find(f => f.id === id) : null;
   
-  const [formData, setFormData] = useState<Partial<FieldLibraryItem>>({
+  const [formData, setFormData] = useState<Partial<FormField>>({
     name: '',
-    label: '',
-    field_type: 'text',
-    category: 'general',
+    field_type: 'text_notes_only',
     has_pricing: false,
-    pricing_behavior: 'none',
     has_notes: true,
-    unit_price: undefined,
+    default_price_gbp: undefined,
+    pricing_type: 'fixed',
     placeholder_text: '',
     help_text: '',
     dropdown_options: [],
-    required: false,
-    affects_pricing: false,
-    has_quantity: false,
     appears_on_quote: false,
-    appears_on_invoice: false,
-    sort_order: 0,
-    active: true
+    appears_on_invoice: false
   });
 
   const [showPreview, setShowPreview] = useState(true);
@@ -73,13 +66,10 @@ export const FieldEdit = () => {
   const handleFieldTypeChange = (fieldType: string) => {
     setFormData(prev => ({
       ...prev,
-      field_type: fieldType,
-      label: prev.label || prev.name || '',
-      has_pricing: ['number', 'select', 'toggle'].includes(fieldType),
-      pricing_behavior: ['number', 'select', 'toggle'].includes(fieldType) ? 'fixed' : 'none',
-      has_notes: true,
-      unit_price: fieldType === 'number' ? 0 : undefined,
-      affects_pricing: ['number', 'select', 'toggle'].includes(fieldType),
+      field_type: fieldType as FormField['field_type'],
+      has_pricing: ['fixed_price_notes', 'fixed_price_notes_toggle', 'fixed_price_quantity_notes', 'fixed_price_quantity_notes_toggle', 'per_person_price_notes', 'dropdown_options_price_notes'].includes(fieldType),
+      has_notes: !['counter_notes'].includes(fieldType),
+      default_price_gbp: fieldType === 'per_person_price_notes' ? 0 : undefined,
     }));
   };
 
@@ -144,9 +134,9 @@ export const FieldEdit = () => {
 
     try {
       if (isEditing) {
-        await updateField({ id: id!, ...formData as FieldLibraryItem });
+        await updateField({ id: id!, ...formData as FormField });
       } else {
-        await createField(formData as Omit<FieldLibraryItem, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>);
+        await createField(formData as Omit<FormField, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>);
       }
       // Check if we came from form builder and should return there
       const fromFormBuilder = location.state?.from?.includes('/form-builder');
@@ -207,23 +197,8 @@ export const FieldEdit = () => {
                   <Input
                     id="name"
                     value={formData.name || ''}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      name: e.target.value,
-                      label: prev.label || e.target.value
-                    }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter field name"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="label">Display Label *</Label>
-                  <Input
-                    id="label"
-                    value={formData.label || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, label: e.target.value }))}
-                    placeholder="Enter display label"
                     required
                   />
                 </div>
@@ -317,15 +292,15 @@ export const FieldEdit = () => {
                     <Badge variant="secondary">Pricing Enabled</Badge>
                   </div>
 
-                  {formData.has_pricing && (
+                  {!isDropdownField && formData.field_type === 'per_person_price_notes' && (
                     <div>
-                      <Label htmlFor="unit_price">Unit Price (£)</Label>
+                      <Label htmlFor="default_price_gbp">Default Price (£)</Label>
                       <PriceInput
-                        id="unit_price"
-                        value={formData.unit_price || 0}
+                        id="default_price_gbp"
+                        value={formData.default_price_gbp || 0}
                         onChange={(value) => setFormData(prev => ({ 
                           ...prev, 
-                          unit_price: value 
+                          default_price_gbp: value 
                         }))}
                         placeholder="0.00"
                       />
@@ -463,7 +438,7 @@ export const FieldEdit = () => {
               <div className="space-y-4">
                 <div className="p-4 border rounded-lg bg-muted/50">
                   <div className="space-y-2">
-                    <Label>{formData.label || formData.name}</Label>
+                    <Label>{formData.name}</Label>
                     <div className="p-3 border rounded bg-white min-h-[40px] flex items-center">
                       <span className="text-muted-foreground">
                         {formData.placeholder_text || `${formData.field_type} field preview`}
@@ -472,13 +447,16 @@ export const FieldEdit = () => {
                     {formData.help_text && (
                       <p className="text-sm text-muted-foreground">{formData.help_text}</p>
                     )}
+                    {formData.has_pricing && (
+                      <div><strong>Default Price:</strong> £{(formData.default_price_gbp || 0).toFixed(2)}</div>
+                    )}
                   </div>
                 </div>
                 
                 <div className="text-sm text-muted-foreground space-y-2">
                   <div><strong>Type:</strong> {fieldTypeOptions.find(opt => opt.value === formData.field_type)?.label}</div>
                   {isPricingField && !isDropdownField && (
-                    <div><strong>Unit Price:</strong> £{(formData.unit_price || 0).toFixed(2)}</div>
+                    <div><strong>Unit Price:</strong> £{(formData.default_price_gbp || 0).toFixed(2)}</div>
                   )}
                   {isDropdownField && (
                     <div><strong>Options:</strong> {formData.dropdown_options?.length || 0} configured</div>
