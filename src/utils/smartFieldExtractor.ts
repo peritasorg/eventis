@@ -26,54 +26,70 @@ export const extractPopulatedFields = async (
 ): Promise<ExtractedFieldData[]> => {
   try {
     const extractedFields: ExtractedFieldData[] = [];
+    console.log('Starting field extraction for', documentType, 'with', eventForms.length, 'forms');
 
-    // Get all field library records for this tenant to map IDs to labels and settings
-    const { data: fieldLibrary, error: fieldsError } = await supabase
-      .from('field_library')
+    // Get all form fields for this tenant to map IDs to labels and settings
+    const { data: formFields, error: fieldsError } = await supabase
+      .from('form_fields')
       .select('*')
       .eq('tenant_id', tenantId)
-      .eq('active', true);
+      .eq('is_active', true);
 
     if (fieldsError) {
-      console.error('Error fetching field library:', fieldsError);
+      console.error('Error fetching form fields:', fieldsError);
       return [];
     }
 
-    // Create lookup map for field data
-    const fieldLookup = new Map(fieldLibrary.map(field => [field.id, field]));
+    console.log('Found', formFields?.length || 0, 'active form fields');
+
+    // Create lookup map for field data using field name as key
+    const fieldLookup = new Map(formFields?.map(field => [field.name, field]) || []);
+    console.log('Field lookup map keys:', Array.from(fieldLookup.keys()));
 
     // Process each event form
     for (const eventForm of eventForms) {
       const { form_responses } = eventForm;
+      console.log('Processing form:', eventForm.form_label, 'with responses:', form_responses);
       
       if (!form_responses || typeof form_responses !== 'object') continue;
 
-      // Process each field response
-      Object.entries(form_responses).forEach(([fieldId, response]) => {
+      // Process each field response - field names are used as keys in form_responses
+      Object.entries(form_responses).forEach(([fieldName, response]) => {
+        console.log('Processing field:', fieldName, 'with response:', response);
+        
         if (!response || typeof response !== 'object') return;
 
-        const fieldConfig = fieldLookup.get(fieldId);
-        if (!fieldConfig) return;
+        const fieldConfig = fieldLookup.get(fieldName);
+        if (!fieldConfig) {
+          console.log('No field config found for:', fieldName);
+          return;
+        }
+
+        console.log('Found field config:', fieldConfig.name, 'type:', fieldConfig.field_type);
 
         // Check if field should appear on this document type
         const shouldAppear = documentType === 'quote' 
           ? fieldConfig.appears_on_quote 
           : fieldConfig.appears_on_invoice;
 
+        console.log('Should appear on', documentType, ':', shouldAppear);
         if (!shouldAppear) return;
 
         // Check if field has any populated data
         const hasValue = isFieldPopulated(response, fieldConfig.field_type);
+        console.log('Field has value:', hasValue, 'for field:', fieldName);
         if (!hasValue) return;
 
         // Extract field data
-        const extractedField = extractFieldData(fieldId, response, fieldConfig);
+        const extractedField = extractFieldData(fieldName, response, fieldConfig);
         if (extractedField) {
+          console.log('Extracted field data:', extractedField);
           extractedFields.push(extractedField);
         }
       });
     }
 
+    console.log('Total extracted fields:', extractedFields.length);
     return extractedFields;
   } catch (error) {
     console.error('Error extracting populated fields:', error);
@@ -85,62 +101,87 @@ export const extractPopulatedFields = async (
  * Check if a field has any populated data based on its type
  */
 const isFieldPopulated = (response: any, fieldType: string): boolean => {
-  // Toggle-based fields
-  if (fieldType.includes('toggle')) {
-    return response.enabled === true;
+  console.log('Checking if field is populated:', fieldType, response);
+
+  // Toggle-based fields - check if enabled
+  if (fieldType === 'toggle' || fieldType.includes('toggle')) {
+    const isEnabled = response.enabled === true;
+    console.log('Toggle field enabled:', isEnabled);
+    return isEnabled;
   }
 
-  // Text fields
-  if (fieldType.includes('text') || fieldType.includes('notes')) {
-    return !!(response.value || response.notes);
+  // Text and textarea fields
+  if (fieldType === 'text' || fieldType === 'textarea' || fieldType.includes('text')) {
+    const hasText = !!(response.value && response.value.trim());
+    console.log('Text field has value:', hasText);
+    return hasText;
   }
 
-  // Price fields
-  if (fieldType.includes('price')) {
-    return !!(response.price && parseFloat(response.price) > 0);
+  // Price fields  
+  if (fieldType === 'price' || fieldType.includes('price')) {
+    const hasPrice = !!(response.price && parseFloat(response.price) > 0);
+    console.log('Price field has value:', hasPrice, response.price);
+    return hasPrice;
   }
 
-  // Quantity fields
-  if (fieldType.includes('quantity')) {
-    return !!(response.quantity && parseInt(response.quantity) > 0);
+  // Quantity/number fields
+  if (fieldType === 'quantity' || fieldType === 'number' || fieldType.includes('quantity')) {
+    const hasQuantity = !!(response.quantity && parseInt(response.quantity) > 0);
+    console.log('Quantity field has value:', hasQuantity, response.quantity);
+    return hasQuantity;
   }
 
-  // Dropdown fields
-  if (fieldType.includes('dropdown')) {
-    return !!(response.selectedOption || response.value);
+  // Dropdown/select fields
+  if (fieldType === 'dropdown' || fieldType === 'select' || fieldType.includes('dropdown')) {
+    const hasSelection = !!(response.selectedOption || response.value);
+    console.log('Dropdown field has selection:', hasSelection);
+    return hasSelection;
   }
 
   // Counter fields
-  if (fieldType.includes('counter')) {
-    return !!(response.value && parseInt(response.value) > 0);
+  if (fieldType === 'counter' || fieldType.includes('counter')) {
+    const hasCount = !!(response.value && parseInt(response.value) > 0);
+    console.log('Counter field has value:', hasCount);
+    return hasCount;
+  }
+
+  // Notes fields
+  if (fieldType === 'notes' && response.notes && response.notes.trim()) {
+    console.log('Notes field has content');
+    return true;
   }
 
   // Default: check if any primary fields are populated
-  return !!(
-    response.value ||
-    response.notes ||
+  const hasAnyValue = !!(
+    (response.value && response.value.toString().trim()) ||
+    (response.notes && response.notes.trim()) ||
     (response.price && parseFloat(response.price) > 0) ||
     (response.quantity && parseInt(response.quantity) > 0) ||
-    response.enabled ||
+    response.enabled === true ||
     response.selectedOption
   );
+  
+  console.log('Default check - field has any value:', hasAnyValue);
+  return hasAnyValue;
 };
 
 /**
  * Extract structured data from a populated field
  */
 const extractFieldData = (
-  fieldId: string,
+  fieldName: string,
   response: any,
   fieldConfig: any
 ): ExtractedFieldData | null => {
   try {
-    const label = fieldConfig.label || fieldConfig.name || fieldId;
+    console.log('Extracting field data for:', fieldName, 'config:', fieldConfig);
+    
+    const label = fieldConfig.name || fieldName;
     const notes = response.notes || '';
-    const price = parseFloat(response.price || '0');
+    const price = parseFloat(response.price || fieldConfig.default_price_gbp || '0');
     const quantity = parseInt(response.quantity || '1');
     
-    // Build description: field label + notes if available
+    // Build description: field name + notes if available
     let description = label;
     if (notes.trim()) {
       description += ` - ${notes.trim()}`;
@@ -149,16 +190,18 @@ const extractFieldData = (
     // Handle different field types for value extraction
     let value = response.value;
     
-    if (fieldConfig.field_type.includes('dropdown')) {
+    if (fieldConfig.field_type === 'dropdown' || fieldConfig.field_type.includes('dropdown')) {
       value = response.selectedOption || response.value;
-    } else if (fieldConfig.field_type.includes('toggle')) {
+    } else if (fieldConfig.field_type === 'toggle' || fieldConfig.field_type.includes('toggle')) {
       value = response.enabled ? 'Yes' : 'No';
-    } else if (fieldConfig.field_type.includes('counter')) {
+    } else if (fieldConfig.field_type === 'counter' || fieldConfig.field_type.includes('counter')) {
       value = response.value || '0';
+    } else if (fieldConfig.field_type === 'price') {
+      value = `£${price.toFixed(2)}`;
     }
 
-    return {
-      id: fieldId,
+    const extractedData = {
+      id: fieldName,
       label,
       value: value || '',
       notes,
@@ -166,6 +209,9 @@ const extractFieldData = (
       quantity: Math.max(1, quantity),
       description
     };
+    
+    console.log('Extracted field data result:', extractedData);
+    return extractedData;
   } catch (error) {
     console.error('Error extracting field data:', error);
     return null;

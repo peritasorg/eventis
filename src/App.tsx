@@ -26,7 +26,7 @@ import { NewFormBuilderPage } from "./pages/NewFormBuilder";
 import { Customers } from "./pages/Customers";
 import { CustomerProfilePage } from "./pages/CustomerProfile";
 import { CalendarSettings } from "./pages/CalendarSettings";
-import { FieldLibraryPage } from "./pages/FieldLibrary";
+import { FormFieldsPage } from "./pages/FormFields";
 import { FieldEdit } from "./pages/FieldEdit";
 import { Leads } from "./pages/Leads";
 import { Settings } from "./pages/Settings";
@@ -191,26 +191,26 @@ const App: React.FC = () => {
                   <Route path="/field-library" element={
                     <ProtectedRoute>
                       <AppLayout>
-                        <FieldLibraryPage />
+                        <FormFieldsPage />
                       </AppLayout>
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/field-library/new" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <FieldEdit />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/field-library/edit/:id" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <FieldEdit />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
+                   <Route path="/field-edit" element={
+                     <ProtectedRoute>
+                       <AppLayout>
+                         <FieldEdit />
+                       </AppLayout>
+                     </ProtectedRoute>
+                   } />
+                   
+                   <Route path="/field-edit/:id" element={
+                     <ProtectedRoute>
+                       <AppLayout>
+                         <FieldEdit />
+                       </AppLayout>
+                     </ProtectedRoute>
+                   } />
                   
                   <Route path="/settings" element={
                     <ProtectedRoute>

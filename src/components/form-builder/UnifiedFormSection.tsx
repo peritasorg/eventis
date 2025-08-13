@@ -30,7 +30,10 @@ interface UnifiedFormSectionProps {
   section: FormSectionData;
   fields: Array<{
     id: string;
-    field_library: FormField;
+    field_library?: FormField;
+    name?: string;
+    label?: string;
+    field_type?: string;
     field_order: number;
   }>;
   mode: 'builder' | 'event'; // builder = form builder preview, event = event form responses
@@ -54,7 +57,7 @@ export const UnifiedFormSection: React.FC<UnifiedFormSectionProps> = ({
   onToggleSection
 }) => {
   const renderField = (fieldInstance: any) => {
-    const field = fieldInstance.field_library;
+    const field = fieldInstance.field_library || fieldInstance;
     const fieldId = field.id;
     const response = formResponses[fieldId] || {};
     const isEnabled = response.enabled || false;
