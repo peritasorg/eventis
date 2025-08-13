@@ -2056,6 +2056,56 @@ export type Database = {
           },
         ]
       }
+      pdf_templates: {
+        Row: {
+          active: boolean
+          created_at: string
+          document_type: string
+          id: string
+          is_default: boolean
+          name: string
+          page_settings: Json
+          sections: Json
+          styling: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          document_type: string
+          id?: string
+          is_default?: boolean
+          name: string
+          page_settings?: Json
+          sections?: Json
+          styling?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          document_type?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          page_settings?: Json
+          sections?: Json
+          styling?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_warning_rules: {
         Row: {
           condition_type: string
