@@ -440,22 +440,105 @@ export const EventRecord: React.FC = () => {
         return;
       }
 
-      if (!eventData.event_date || !eventData.start_time || !eventData.title) {
+      // Enhanced validation for multi-session events
+      let startTime = eventData.start_time;
+      let endTime = eventData.end_time;
+      let eventEndDate = eventData.event_end_date || eventData.event_date;
+
+      // Check for "All Day" multi-session events that lack start/end times
+      if (!startTime || !endTime) {
+        console.log('Detecting multi-session event, extracting times from forms...');
+        
+        // Get active event forms for this event
+        const { data: activeForms, error: formsError } = await supabase
+          .from('event_forms')
+          .select('*')
+          .eq('event_id', eventData.id)
+          .eq('tenant_id', currentTenant.id)
+          .eq('is_active', true)
+          .order('tab_order');
+
+        if (formsError || !activeForms?.length) {
+          toast.error('Event must have a name, date, and time to sync to calendar');
+          return;
+        }
+
+        // Extract times from form responses
+        let earliestStart: string | null = null;
+        let latestEnd: string | null = null;
+        let latestEndDate: string | null = null;
+
+        activeForms.forEach(form => {
+          const responses = form.form_responses || {};
+          
+          // Look for time fields in responses
+          Object.values(responses).forEach((response: any) => {
+            if (response && typeof response === 'object') {
+              // Check for start_time and end_time fields
+              if (response.start_time) {
+                if (!earliestStart || response.start_time < earliestStart) {
+                  earliestStart = response.start_time;
+                }
+              }
+              if (response.end_time) {
+                if (!latestEnd || response.end_time > latestEnd) {
+                  latestEnd = response.end_time;
+                  // Also check for end_date if available
+                  if (response.end_date) {
+                    latestEndDate = response.end_date;
+                  }
+                }
+              }
+            }
+          });
+        });
+
+        if (!earliestStart || !latestEnd) {
+          toast.error('Unable to determine event timing from forms. Please set start and end times.');
+          return;
+        }
+
+        startTime = earliestStart;
+        endTime = latestEnd;
+        if (latestEndDate) {
+          eventEndDate = latestEndDate;
+        }
+        
+        console.log('Extracted times:', { startTime, endTime, eventEndDate });
+      }
+
+      if (!eventData.event_date || !startTime || !eventData.title) {
         toast.error('Event must have a name, date, and time to sync to calendar');
         return;
       }
+
+      // Collect comprehensive form data for rich calendar description
+      const { data: allEventForms, error: allFormsError } = await supabase
+        .from('event_forms')
+        .select('*, form_templates!inner(name)')
+        .eq('event_id', eventData.id)
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .order('tab_order');
 
       const calendarEventData = {
         id: eventData.id,
         event_name: eventData.title,
         event_start_date: eventData.event_date,
-        event_end_date: eventData.event_end_date || eventData.event_date,
-        start_time: eventData.start_time,
-        end_time: eventData.end_time,
+        event_end_date: eventEndDate,
+        start_time: startTime,
+        end_time: endTime,
         event_type: eventData.event_type,
         estimated_guests: totalGuests,
+        total_guests: totalGuests,
+        primary_contact_name: eventData.primary_contact_name,
+        primary_contact_number: eventData.primary_contact_number,
+        secondary_contact_name: eventData.secondary_contact_name,
+        secondary_contact_number: eventData.secondary_contact_number,
+        ethnicity: eventData.ethnicity,
+        event_forms: allEventForms || [],
         customers: selectedCustomer ? {
-          name: selectedCustomer.name,
+          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
           email: selectedCustomer.email,
           phone: selectedCustomer.phone || eventData.primary_contact_number
         } : {

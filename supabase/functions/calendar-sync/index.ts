@@ -33,6 +33,12 @@ interface EventData {
   total_guests?: number;
   venue_area?: string;
   form_responses?: any;
+  primary_contact_name?: string;
+  primary_contact_number?: string;
+  secondary_contact_name?: string;
+  secondary_contact_number?: string;
+  ethnicity?: string[];
+  event_forms?: any[];
   customers?: {
     name: string;
     email?: string;
@@ -231,25 +237,101 @@ class CalendarService {
     // Default timezone - this should be configurable per tenant in future
     const timeZone = 'Europe/London';
     
+    // Build comprehensive description with all event details
     let description = `Event Type: ${eventData.event_type}\n`;
     description += `Guests: ${eventData.total_guests || eventData.estimated_guests}\n`;
     
+    // Customer information
     if (eventData.customers) {
       description += `\nCustomer: ${eventData.customers.name}\n`;
       if (eventData.customers.email) description += `Email: ${eventData.customers.email}\n`;
       if (eventData.customers.phone) description += `Phone: ${eventData.customers.phone}\n`;
     }
 
+    // Contact information
+    if (eventData.primary_contact_name) {
+      description += `\nPrimary Contact: ${eventData.primary_contact_name}\n`;
+      if (eventData.primary_contact_number) description += `Phone: ${eventData.primary_contact_number}\n`;
+    }
+    
+    if (eventData.secondary_contact_name) {
+      description += `Secondary Contact: ${eventData.secondary_contact_name}\n`;
+      if (eventData.secondary_contact_number) description += `Phone: ${eventData.secondary_contact_number}\n`;
+    }
+
+    // Ethnicity/cultural requirements
+    if (eventData.ethnicity && eventData.ethnicity.length > 0) {
+      description += `\nCultural Requirements: ${eventData.ethnicity.join(', ')}\n`;
+    }
+
     if (eventData.venue_area) {
       description += `\nVenue Area: ${eventData.venue_area}\n`;
     }
 
-    // Add form responses if available
+    // Enhanced form data extraction for multi-session events
+    if (eventData.event_forms && eventData.event_forms.length > 0) {
+      description += `\n--- Event Details ---\n`;
+      
+      eventData.event_forms.forEach((form: any, index: number) => {
+        const formName = form.form_templates?.name || form.form_label || `Session ${index + 1}`;
+        description += `\n${formName}:\n`;
+        
+        const responses = form.form_responses || {};
+        
+        // Extract timing information
+        Object.values(responses).forEach((response: any) => {
+          if (response && typeof response === 'object') {
+            if (response.start_time || response.end_time) {
+              const timeStr = `${response.start_time || ''} - ${response.end_time || ''}`.trim();
+              if (timeStr !== ' -') {
+                description += `  Time: ${timeStr}\n`;
+              }
+            }
+            if (response.date && response.date !== eventData.event_start_date) {
+              description += `  Date: ${response.date}\n`;
+            }
+          }
+        });
+        
+        // Extract all meaningful field responses
+        Object.entries(responses).forEach(([fieldId, response]: [string, any]) => {
+          if (!response || typeof response !== 'object') return;
+          
+          // Skip if not enabled (for toggle fields)
+          if (response.hasOwnProperty('enabled') && !response.enabled) return;
+          
+          // Extract meaningful data
+          let fieldInfo = '';
+          const label = response.label || fieldId.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+          
+          if (response.value && response.value.toString().trim()) {
+            fieldInfo = `${label}: ${response.value}`;
+          } else if (response.selectedOption) {
+            fieldInfo = `${label}: ${response.selectedOption}`;
+          } else if (response.enabled === true) {
+            fieldInfo = `${label}: Yes`;
+          } else if (response.quantity && parseInt(response.quantity) > 0) {
+            fieldInfo = `${label}: ${response.quantity}`;
+          } else if (response.price && parseFloat(response.price) > 0) {
+            fieldInfo = `${label}: £${parseFloat(response.price).toFixed(2)}`;
+          }
+          
+          if (fieldInfo) {
+            description += `  ${fieldInfo}`;
+            if (response.notes && response.notes.trim()) {
+              description += ` - ${response.notes.trim()}`;
+            }
+            description += '\n';
+          }
+        });
+      });
+    }
+
+    // Add legacy form responses if available (for backward compatibility)
     if (eventData.form_responses && Object.keys(eventData.form_responses).length > 0) {
-      description += `\nForm Details:\n`;
+      description += `\nAdditional Details:\n`;
       Object.entries(eventData.form_responses).forEach(([key, value]) => {
         if (value && typeof value === 'object' && 'enabled' in value && value.enabled) {
-          // Use the stored label from the response, fallback to formatting the key
           const fieldLabel = value.label || key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
           const notes = value.notes ? ` - ${value.notes}` : '';
           description += `- ${fieldLabel}${notes}\n`;
