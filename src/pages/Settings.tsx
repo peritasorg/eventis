@@ -66,6 +66,13 @@ export const Settings = () => {
       icon: SettingsIcon,
       path: '/settings/profile',
       color: 'text-gray-600 bg-gray-100'
+    },
+    {
+      title: 'Document Templates',
+      description: 'Upload and manage Word templates for invoices and quotes',
+      icon: FileText,
+      path: '/settings/templates',
+      color: 'text-teal-600 bg-teal-100'
     }
   ];
 

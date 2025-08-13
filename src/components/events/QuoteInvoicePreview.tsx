@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Download, Edit3, Eye, FileText, Receipt, ExternalLink } from 'lucide-react';
 import { generateEnhancedQuotePDF, generateEnhancedInvoicePDF } from '@/utils/enhancedPdfGenerator';
 import { extractPopulatedFields } from '@/utils/smartFieldExtractor';
+import { WordTemplateGenerator } from '@/utils/wordTemplateGenerator';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -120,12 +121,14 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
     try {
       const enhancedEventData = {
         ...eventData,
-        event_name: editableData.event_name,
+        title: editableData.event_name,
         eventForms: eventForms,
         customers: eventData.customers ? {
           ...eventData.customers,
           name: editableData.customer_name
-        } : null
+        } : null,
+        primary_contact_name: editableData.customer_name,
+        notes: editableData.notes
       };
 
       const enhancedTenantData = {
@@ -133,15 +136,30 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
         business_name: editableData.business_name
       };
 
-      if (type === 'quote') {
-        await generateEnhancedQuotePDF(enhancedEventData, enhancedTenantData, tenantId);
-        toast.success('Quote PDF downloaded successfully');
-      } else {
-        await generateEnhancedInvoicePDF(enhancedEventData, enhancedTenantData, tenantId);
-        toast.success('Invoice PDF downloaded successfully');
+      // Try Word template first, fallback to PDF generation
+      try {
+        await WordTemplateGenerator.generateDocument(
+          enhancedEventData, 
+          enhancedTenantData, 
+          eventForms || [], 
+          type,
+          `${tenantId}-template.docx`
+        );
+        toast.success(`${type === 'quote' ? 'Quote' : 'Invoice'} generated from Word template!`);
+      } catch (templateError) {
+        console.warn('Word template generation failed, falling back to PDF:', templateError);
+        
+        // Fallback to original PDF generation
+        if (type === 'quote') {
+          await generateEnhancedQuotePDF(enhancedEventData, enhancedTenantData, tenantId);
+          toast.success('Quote PDF downloaded successfully');
+        } else {
+          await generateEnhancedInvoicePDF(enhancedEventData, enhancedTenantData, tenantId);
+          toast.success('Invoice PDF downloaded successfully');
+        }
       }
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('Error generating document:', error);
       toast.error(`Failed to generate ${type}`);
     } finally {
       setIsGenerating(false);

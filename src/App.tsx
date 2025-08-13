@@ -32,6 +32,7 @@ import { Leads } from "./pages/Leads";
 import { Settings } from "./pages/Settings";
 import { BillingSettings } from "./components/settings/BillingSettings";
 import { ProfileSettings } from "./components/settings/ProfileSettings";
+import { TemplateSettings } from "./pages/TemplateSettings";
 import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Success } from "./pages/success";
@@ -229,13 +230,21 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   } />
                   
-                   <Route path="/settings/profile" element={
-                     <ProtectedRoute>
-                       <AppLayout>
-                         <ProfileSettings />
-                       </AppLayout>
-                     </ProtectedRoute>
-                   } />
+                    <Route path="/settings/profile" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ProfileSettings />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/settings/templates" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <TemplateSettings />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
                    
                    <Route path="/pdf-editor" element={
                      <ProtectedRoute>
