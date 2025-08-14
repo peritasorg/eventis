@@ -37,8 +37,47 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     guest_price_total: number;
   }>>({});
 
-  // Fetch time slots for form timing
-  const { data: timeSlots } = useSupabaseQuery(
+  // Fetch event type-specific time slots
+  const { data: eventTypeConfigs } = useSupabaseQuery(
+    ['event-type-configs'],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('event_type_configs')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
+  // Fetch event type form mappings
+  const { data: eventTypeFormMappings } = useSupabaseQuery(
+    ['event-type-form-mappings'],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('event_type_form_mappings')
+        .select(`
+          *,
+          event_type_configs!inner(
+            event_type,
+            available_time_slots
+          )
+        `)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
+  // Fetch fallback global time slots
+  const { data: globalTimeSlots } = useSupabaseQuery(
     ['event-time-slots', currentTenant?.id],
     async () => {
       if (!currentTenant?.id) return [];
@@ -54,6 +93,55 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       return data || [];
     }
   );
+
+  // Get event details to determine event type
+  const { data: eventDetails } = useSupabaseQuery(
+    ['event', eventId],
+    async () => {
+      if (!eventId || !currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('event_type')
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    }
+  );
+
+  // Get time slots for a specific event form based on its associated event type
+  const getTimeSlotsForForm = (eventForm: EventForm) => {
+    // Find the event type form mapping for this specific form
+    const formMapping = eventTypeFormMappings?.find(mapping => 
+      mapping.form_id === eventForm.form_id
+    );
+    
+    if (formMapping?.event_type_configs?.available_time_slots?.length > 0) {
+      return formMapping.event_type_configs.available_time_slots;
+    }
+
+    // Fallback: For single event type events, use the event's type
+    if (eventDetails?.event_type) {
+      const eventTypeConfig = eventTypeConfigs?.find(config => 
+        config.event_type === eventDetails.event_type
+      );
+      
+      if (eventTypeConfig?.available_time_slots?.length > 0) {
+        return eventTypeConfig.available_time_slots;
+      }
+    }
+
+    // Final fallback to global time slots
+    return globalTimeSlots?.map(slot => ({
+      id: slot.id,
+      label: slot.label,
+      start_time: slot.start_time,
+      end_time: slot.end_time
+    })) || [];
+  };
 
   // Get available forms that aren't already added to this event
   const availableForms = forms.filter(form => 
@@ -277,6 +365,10 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   };
 
   const handleTimeSlotUpdate = async (eventFormId: string, timeSlotId: string) => {
+    const eventForm = eventForms.find(ef => ef.id === eventFormId);
+    if (!eventForm) return;
+    
+    const timeSlots = getTimeSlotsForForm(eventForm);
     const selectedSlot = timeSlots?.find(slot => slot.id === timeSlotId);
     if (!selectedSlot) return;
     
@@ -383,7 +475,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                   <Select 
                     onValueChange={(value) => handleTimeSlotUpdate(eventForm.id, value)}
                     value={
-                      timeSlots?.find(slot => 
+                      getTimeSlotsForForm(eventForm)?.find(slot => 
                         slot.start_time === eventForm.start_time && 
                         slot.end_time === eventForm.end_time
                       )?.id || ""
@@ -393,13 +485,18 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                       <SelectValue placeholder="Select time slot" />
                     </SelectTrigger>
                     <SelectContent>
-                      {timeSlots?.map((slot) => (
+                      {getTimeSlotsForForm(eventForm)?.map((slot) => (
                         <SelectItem key={slot.id} value={slot.id}>
                           {slot.label} ({slot.start_time} - {slot.end_time})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {getTimeSlotsForForm(eventForm)?.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      No time slots available. Configure them in Calendar Settings → Event Types.
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

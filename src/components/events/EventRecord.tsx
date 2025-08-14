@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
 import { QuoteInvoicePreview } from './QuoteInvoicePreview';
+import { TimeDisplay } from './TimeDisplay';
 
 interface EventData {
   id: string;
@@ -97,23 +98,6 @@ export const EventRecord: React.FC = () => {
     }
   );
 
-  // Fetch time ranges for quick select
-  const { data: timeRanges } = useSupabaseQuery(
-    ['event_time_ranges', currentTenant?.id],
-    async () => {
-      if (!currentTenant?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('event_time_ranges')
-        .select('*')
-        .eq('tenant_id', currentTenant.id)
-        .eq('is_active', true)
-        .order('name');
-      
-      if (error) throw error;
-      return data || [];
-    }
-  );
 
   // Fetch ethnicity options
   const { data: ethnicityOptions } = useSupabaseQuery(
@@ -746,55 +730,12 @@ export const EventRecord: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="start_time">Start Time {eventForms.length > 1 && "(Auto-calculated)"}</Label>
-                  <Input
-                    id="start_time"
-                    type="time"
-                    value={formatTime(eventData.start_time) || (eventForms.length > 1 ? formatTime(eventForms.filter(f => f.start_time).map(f => f.start_time).sort()[0]) : '')}
-                    onChange={(e) => handleFieldChange('start_time', e.target.value || null)}
-                    readOnly={eventForms.length > 1}
-                    className={eventForms.length > 1 ? "bg-muted" : ""}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="end_time">End Time {eventForms.length > 1 && "(Auto-calculated)"}</Label>
-                  <Input
-                    id="end_time"
-                    type="time"
-                    value={formatTime(eventData.end_time) || (eventForms.length > 1 ? formatTime(eventForms.filter(f => f.end_time).map(f => f.end_time).sort().reverse()[0]) : '')}
-                    onChange={(e) => handleFieldChange('end_time', e.target.value || null)}
-                    readOnly={eventForms.length > 1}
-                    className={eventForms.length > 1 ? "bg-muted" : ""}
-                  />
-                </div>
-
-                {timeRanges && timeRanges.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Quick Times</Label>
-                    <Select
-                      onValueChange={(value) => {
-                        const range = timeRanges.find(r => r.id === value);
-                        if (range) {
-                          handleFieldChange('start_time', range.start_time);
-                          handleFieldChange('end_time', range.end_time);
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select preset" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timeRanges.map((range) => (
-                          <SelectItem key={range.id} value={range.id}>
-                            {range.name} ({formatTime(range.start_time)} - {formatTime(range.end_time)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <TimeDisplay 
+                  eventData={eventData}
+                  eventForms={eventForms}
+                  onTimeChange={handleFieldChange}
+                  formatTime={formatTime}
+                />
               </div>
 
               <div className="space-y-4">

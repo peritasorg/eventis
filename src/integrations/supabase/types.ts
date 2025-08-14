@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -934,6 +934,7 @@ export type Database = {
       event_type_configs: {
         Row: {
           allow_splitting: boolean | null
+          available_time_slots: Json | null
           color: string
           created_at: string
           default_sessions: Json | null
@@ -950,6 +951,7 @@ export type Database = {
         }
         Insert: {
           allow_splitting?: boolean | null
+          available_time_slots?: Json | null
           color?: string
           created_at?: string
           default_sessions?: Json | null
@@ -966,6 +968,7 @@ export type Database = {
         }
         Update: {
           allow_splitting?: boolean | null
+          available_time_slots?: Json | null
           color?: string
           created_at?: string
           default_sessions?: Json | null
@@ -2816,8 +2819,8 @@ export type Database = {
     Functions: {
       audit_security_event: {
         Args: {
-          p_event_type: string
           p_description: string
+          p_event_type: string
           p_metadata?: Json
           p_risk_level?: string
         }
@@ -2825,8 +2828,8 @@ export type Database = {
       }
       audit_security_event_smart: {
         Args: {
-          p_event_type: string
           p_description: string
+          p_event_type: string
           p_metadata?: Json
           p_risk_level?: string
         }
@@ -2837,7 +2840,7 @@ export type Database = {
         Returns: number
       }
       calculate_event_pricing: {
-        Args: { p_tenant_id: string; p_form_responses: Json }
+        Args: { p_form_responses: Json; p_tenant_id: string }
         Returns: number
       }
       calculate_form_total: {
@@ -2849,11 +2852,11 @@ export type Database = {
         Returns: number
       }
       check_subscription_access: {
-        Args: { tenant_uuid: string; feature_name?: string }
+        Args: { feature_name?: string; tenant_uuid: string }
         Returns: boolean
       }
       check_subscription_limit: {
-        Args: { p_tenant_id: string; p_limit_type: string }
+        Args: { p_limit_type: string; p_tenant_id: string }
         Returns: boolean
       }
       check_trial_status: {
@@ -2861,7 +2864,7 @@ export type Database = {
         Returns: string
       }
       check_usage_limits: {
-        Args: { tenant_uuid: string; limit_type: string }
+        Args: { limit_type: string; tenant_uuid: string }
         Returns: boolean
       }
       cleanup_old_security_events: {
@@ -2895,9 +2898,9 @@ export type Database = {
           event_name: string
           is_parent: boolean
           is_session: boolean
-          session_type: string
-          session_order: number
           parent_id: string
+          session_order: number
+          session_type: string
         }[]
       }
       get_new_tenant_id: {
@@ -2911,11 +2914,11 @@ export type Database = {
       get_tenant_dashboard_stats: {
         Args: { p_tenant_id: string }
         Returns: {
-          total_leads: number
-          new_leads_this_month: number
-          total_customers: number
           active_events: number
+          new_leads_this_month: number
           this_month_revenue: number
+          total_customers: number
+          total_leads: number
           upcoming_events: number
         }[]
       }
@@ -2927,8 +2930,8 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           check_name: string
-          status: string
           details: string
+          status: string
         }[]
       }
       is_current_user: {
@@ -2941,11 +2944,11 @@ export type Database = {
       }
       log_security_event: {
         Args: {
-          p_tenant_id: string
-          p_event_type: string
           p_description: string
+          p_event_type: string
           p_metadata?: Json
           p_risk_level?: string
+          p_tenant_id: string
         }
         Returns: undefined
       }
@@ -2960,9 +2963,9 @@ export type Database = {
       monitor_rls_performance: {
         Args: Record<PropertyKey, never>
         Returns: {
-          table_name: string
-          policy_name: string
           avg_execution_time_ms: number
+          policy_name: string
+          table_name: string
         }[]
       }
       schedule_security_cleanup: {

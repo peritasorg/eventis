@@ -29,6 +29,14 @@ interface EventTypeConfig {
   allow_splitting: boolean;
   default_sessions: SessionTemplate[];
   split_naming_pattern: string;
+  available_time_slots: TimeSlot[];
+}
+
+interface TimeSlot {
+  id: string;
+  label: string;
+  start_time: string;
+  end_time: string;
 }
 
 interface FormMapping {
@@ -54,7 +62,8 @@ export const EventTypeConfigs = () => {
     allow_splitting: false,
     split_naming_pattern: '{Parent} - {Session}',
     default_sessions: [] as SessionTemplate[],
-    form_mappings: [] as FormMapping[]
+    form_mappings: [] as FormMapping[],
+    available_time_slots: [] as TimeSlot[]
   });
 
   const { data: configs, refetch } = useSupabaseQuery(
@@ -106,6 +115,7 @@ export const EventTypeConfigs = () => {
           is_all_day: config.is_all_day,
           allow_splitting: config.allow_splitting,
           default_sessions: config.default_sessions as any,
+          available_time_slots: config.available_time_slots as any,
           split_naming_pattern: config.split_naming_pattern,
           is_active: config.is_active,
           sort_order: config.sort_order
@@ -134,6 +144,7 @@ export const EventTypeConfigs = () => {
           is_all_day: config.is_all_day,
           allow_splitting: config.allow_splitting,
           default_sessions: config.default_sessions as any,
+          available_time_slots: config.available_time_slots as any,
           split_naming_pattern: config.split_naming_pattern,
           is_active: config.is_active,
           sort_order: config.sort_order
@@ -177,6 +188,7 @@ export const EventTypeConfigs = () => {
       is_all_day: formData.is_all_day,
       allow_splitting: formData.allow_splitting,
       default_sessions: formData.default_sessions,
+      available_time_slots: formData.available_time_slots,
       split_naming_pattern: formData.split_naming_pattern,
       is_active: true,
       sort_order: editingConfig?.sort_order || (configs?.length || 0)
@@ -228,7 +240,8 @@ export const EventTypeConfigs = () => {
         allow_splitting: false,
         split_naming_pattern: '{Parent} - {Session}',
         default_sessions: [],
-        form_mappings: []
+        form_mappings: [],
+        available_time_slots: []
       });
     } catch (error) {
       console.error('Error saving event type:', error);
@@ -259,7 +272,8 @@ export const EventTypeConfigs = () => {
       allow_splitting: config?.allow_splitting || false,
       split_naming_pattern: config?.split_naming_pattern || '{Parent} - {Session}',
       default_sessions: config?.default_sessions || [],
-      form_mappings: existingMappings
+      form_mappings: existingMappings,
+      available_time_slots: config?.available_time_slots || []
     });
     setIsDialogOpen(true);
   };
@@ -494,6 +508,99 @@ export const EventTypeConfigs = () => {
                       </Badge>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Time Slots Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Available Time Slots
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      available_time_slots: [
+                        ...prev.available_time_slots,
+                        {
+                          id: `temp-${Date.now()}`,
+                          label: '',
+                          start_time: '09:00',
+                          end_time: '17:00'
+                        }
+                      ]
+                    }));
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Time Slot
+                </Button>
+              </div>
+
+              {formData.available_time_slots.map((slot, index) => (
+                <div key={slot.id || index} className="flex gap-2 items-end p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex-1">
+                    <Label>Label</Label>
+                    <Input
+                      value={slot.label}
+                      onChange={(e) => {
+                        const newSlots = [...formData.available_time_slots];
+                        newSlots[index] = { ...slot, label: e.target.value };
+                        setFormData(prev => ({ ...prev, available_time_slots: newSlots }));
+                      }}
+                      placeholder="e.g., Morning Session"
+                    />
+                  </div>
+                  <div>
+                    <Label>Start Time</Label>
+                    <Input
+                      type="time"
+                      value={slot.start_time}
+                      onChange={(e) => {
+                        const newSlots = [...formData.available_time_slots];
+                        newSlots[index] = { ...slot, start_time: e.target.value };
+                        setFormData(prev => ({ ...prev, available_time_slots: newSlots }));
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>End Time</Label>
+                    <Input
+                      type="time"
+                      value={slot.end_time}
+                      onChange={(e) => {
+                        const newSlots = [...formData.available_time_slots];
+                        newSlots[index] = { ...slot, end_time: e.target.value };
+                        setFormData(prev => ({ ...prev, available_time_slots: newSlots }));
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newSlots = formData.available_time_slots.filter((_, i) => i !== index);
+                      setFormData(prev => ({ ...prev, available_time_slots: newSlots }));
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+
+              {formData.available_time_slots.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground text-sm">
+                  No time slots defined. Forms will use global time slots as fallback.
                 </div>
               )}
             </div>
