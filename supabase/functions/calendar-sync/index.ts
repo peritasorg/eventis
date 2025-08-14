@@ -181,7 +181,7 @@ class CalendarService {
     try {
       console.log('Creating calendar event with data:', eventData);
       const accessToken = await this.refreshTokenIfNeeded();
-      const calendarEvent = this.formatEventForCalendar(eventData);
+      const calendarEvent = await this.formatEventForCalendar(eventData);
       console.log('Formatted calendar event:', calendarEvent);
 
       if (this.integration.provider === 'google') {
@@ -198,7 +198,7 @@ class CalendarService {
   async updateEvent(eventData: EventData, externalId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const accessToken = await this.refreshTokenIfNeeded();
-      const calendarEvent = this.formatEventForCalendar(eventData);
+      const calendarEvent = await this.formatEventForCalendar(eventData);
 
       if (this.integration.provider === 'google') {
         return await this.updateGoogleEvent(calendarEvent, externalId, accessToken);
@@ -226,7 +226,7 @@ class CalendarService {
     }
   }
 
-  private formatEventForCalendar(eventData: EventData): CalendarEvent {
+  private async formatEventForCalendar(eventData: EventData): Promise<CalendarEvent> {
     // Handle multi-day events
     const startDate = eventData.event_start_date;
     const endDate = eventData.event_end_date || eventData.event_start_date;
@@ -239,7 +239,21 @@ class CalendarService {
     
     // Build comprehensive description with all event details
     let description = `Event Type: ${eventData.event_type}\n`;
-    description += `Guests: ${eventData.total_guests || eventData.estimated_guests}\n`;
+    
+    // Display guest counts from forms if available
+    if (eventData.event_forms && eventData.event_forms.length > 0) {
+      const guestCounts = eventData.event_forms
+        .filter((form: any) => form.guest_count > 0)
+        .map((form: any) => form.guest_count);
+      
+      if (guestCounts.length > 0) {
+        description += `Guests: ${guestCounts.join(' & ')}\n`;
+      } else {
+        description += `Guests: ${eventData.total_guests || eventData.estimated_guests}\n`;
+      }
+    } else {
+      description += `Guests: ${eventData.total_guests || eventData.estimated_guests}\n`;
+    }
     
     // Customer information
     if (eventData.customers) {
@@ -272,26 +286,29 @@ class CalendarService {
     if (eventData.event_forms && eventData.event_forms.length > 0) {
       description += `\n--- Event Details ---\n`;
       
+      // Get the tenant_id from the first form
+      const tenantId = eventData.event_forms[0]?.tenant_id;
+      
+      // Fetch form fields for label lookup
+      const { data: formFields } = await this.supabase
+        .from('form_fields')
+        .select('id, name')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true);
+      
+      // Create field lookup map
+      const fieldLookup = new Map();
+      if (formFields) {
+        formFields.forEach((field: any) => {
+          fieldLookup.set(field.id, field.name);
+        });
+      }
+      
       eventData.event_forms.forEach((form: any, index: number) => {
-        const formName = form.form_templates?.name || form.form_label || `Session ${index + 1}`;
+        const formName = form.forms?.name || form.form_label || `Session ${index + 1}`;
         description += `\n${formName}:\n`;
         
         const responses = form.form_responses || {};
-        
-        // Extract timing information
-        Object.values(responses).forEach((response: any) => {
-          if (response && typeof response === 'object') {
-            if (response.start_time || response.end_time) {
-              const timeStr = `${response.start_time || ''} - ${response.end_time || ''}`.trim();
-              if (timeStr !== ' -') {
-                description += `  Time: ${timeStr}\n`;
-              }
-            }
-            if (response.date && response.date !== eventData.event_start_date) {
-              description += `  Date: ${response.date}\n`;
-            }
-          }
-        });
         
         // Extract all meaningful field responses
         Object.entries(responses).forEach(([fieldId, response]: [string, any]) => {
@@ -300,20 +317,22 @@ class CalendarService {
           // Skip if not enabled (for toggle fields)
           if (response.hasOwnProperty('enabled') && !response.enabled) return;
           
+          // Get proper field name from lookup
+          const fieldName = fieldLookup.get(fieldId) || fieldId.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+          
           // Extract meaningful data
           let fieldInfo = '';
-          const label = response.label || fieldId.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
           
           if (response.value && response.value.toString().trim()) {
-            fieldInfo = `${label}: ${response.value}`;
+            fieldInfo = `${fieldName}: ${response.value}`;
           } else if (response.selectedOption) {
-            fieldInfo = `${label}: ${response.selectedOption}`;
+            fieldInfo = `${fieldName}: ${Array.isArray(response.selectedOption) ? response.selectedOption.join(',') : response.selectedOption}`;
           } else if (response.enabled === true) {
-            fieldInfo = `${label}: Yes`;
+            fieldInfo = `${fieldName}: Yes`;
           } else if (response.quantity && parseInt(response.quantity) > 0) {
-            fieldInfo = `${label}: ${response.quantity}`;
+            fieldInfo = `${fieldName}: ${response.quantity}`;
           } else if (response.price && parseFloat(response.price) > 0) {
-            fieldInfo = `${label}: £${parseFloat(response.price).toFixed(2)}`;
+            fieldInfo = `${fieldName}: £${parseFloat(response.price).toFixed(2)}`;
           }
           
           if (fieldInfo) {
