@@ -90,19 +90,32 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     }
   );
 
-  // Get time slots for a specific event form based on event type
+  // Get time slots for a specific event form based on its associated event type
   const getTimeSlotsForForm = (eventForm: EventForm) => {
-    // Get the event type config for this event
-    const eventTypeConfig = eventTypeConfigs?.find(config => 
-      config.event_type === eventDetails?.event_type
-    );
+    // Need to determine which event type this form belongs to
+    // For multi-event-type events, we need to look at the form mappings
     
-    // Use event-type-specific time slots if available, otherwise fall back to global slots
-    if (eventTypeConfig?.available_time_slots?.length > 0) {
-      return eventTypeConfig.available_time_slots;
+    // First try to find the form mapping for this specific form
+    const form = forms.find(f => f.id === eventForm.form_id);
+    if (!form) return globalTimeSlots?.map(slot => ({
+      id: slot.id,
+      label: slot.label,
+      start_time: slot.start_time,
+      end_time: slot.end_time
+    })) || [];
+
+    // For single event type events, use the event's type
+    if (eventDetails?.event_type) {
+      const eventTypeConfig = eventTypeConfigs?.find(config => 
+        config.event_type === eventDetails.event_type
+      );
+      
+      if (eventTypeConfig?.available_time_slots?.length > 0) {
+        return eventTypeConfig.available_time_slots;
+      }
     }
-    
-    // Convert global time slots to expected format
+
+    // Fallback to global time slots
     return globalTimeSlots?.map(slot => ({
       id: slot.id,
       label: slot.label,
