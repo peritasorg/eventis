@@ -447,64 +447,29 @@ export const EventRecord: React.FC = () => {
 
       // Check for "All Day" multi-session events that lack start/end times
       if (!startTime || !endTime) {
-        console.log('Detecting multi-session event, extracting times from forms...');
+        console.log('Detecting multi-session event, extracting times from activeForms...');
         
-        // Get active event forms for this event
-        const { data: activeForms, error: formsError } = await supabase
-          .from('event_forms')
-          .select('*')
-          .eq('event_id', eventData.id)
-          .eq('tenant_id', currentTenant.id)
-          .eq('is_active', true)
-          .order('tab_order');
-
-        if (formsError || !activeForms?.length) {
+        // Use the eventForms data that's already loaded
+        if (!eventForms?.length) {
           toast.error('Event must have a name, date, and time to sync to calendar');
           return;
         }
 
-        // Extract times from form responses
-        let earliestStart: string | null = null;
-        let latestEnd: string | null = null;
-        let latestEndDate: string | null = null;
-
-        activeForms.forEach(form => {
-          const responses = form.form_responses || {};
-          
-          // Look for time fields in responses
-          Object.values(responses).forEach((response: any) => {
-            if (response && typeof response === 'object') {
-              // Check for start_time and end_time fields
-              if (response.start_time) {
-                if (!earliestStart || response.start_time < earliestStart) {
-                  earliestStart = response.start_time;
-                }
-              }
-              if (response.end_time) {
-                if (!latestEnd || response.end_time > latestEnd) {
-                  latestEnd = response.end_time;
-                  // Also check for end_date if available
-                  if (response.end_date) {
-                    latestEndDate = response.end_date;
-                  }
-                }
-              }
-            }
-          });
-        });
-
-        if (!earliestStart || !latestEnd) {
+        // Extract times directly from event_forms start_time and end_time columns
+        const formsWithTimes = eventForms.filter(form => form.start_time && form.end_time);
+        
+        if (formsWithTimes.length === 0) {
           toast.error('Unable to determine event timing from forms. Please set start and end times.');
           return;
         }
 
-        startTime = earliestStart;
-        endTime = latestEnd;
-        if (latestEndDate) {
-          eventEndDate = latestEndDate;
-        }
+        // Use earliest start and latest end from all forms
+        const startTimes = formsWithTimes.map(form => form.start_time).sort();
+        const endTimes = formsWithTimes.map(form => form.end_time).sort();
+        startTime = startTimes[0];
+        endTime = endTimes[endTimes.length - 1];
         
-        console.log('Extracted times:', { startTime, endTime, eventEndDate });
+        console.log('Extracted times from forms:', { startTime, endTime, formsCount: formsWithTimes.length });
       }
 
       if (!eventData.event_date || !startTime || !eventData.title) {
@@ -512,14 +477,8 @@ export const EventRecord: React.FC = () => {
         return;
       }
 
-      // Collect comprehensive form data for rich calendar description
-      const { data: allEventForms, error: allFormsError } = await supabase
-        .from('event_forms')
-        .select('*, form_templates!inner(name)')
-        .eq('event_id', eventData.id)
-        .eq('tenant_id', currentTenant.id)
-        .eq('is_active', true)
-        .order('tab_order');
+      // Use the eventForms data that's already loaded for comprehensive form data
+      const allEventForms = eventForms;
 
       const calendarEventData = {
         id: eventData.id,
@@ -536,7 +495,7 @@ export const EventRecord: React.FC = () => {
         secondary_contact_name: eventData.secondary_contact_name,
         secondary_contact_number: eventData.secondary_contact_number,
         ethnicity: eventData.ethnicity,
-        event_forms: allEventForms || [],
+        event_forms: allEventForms,
         customers: selectedCustomer ? {
           name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
           email: selectedCustomer.email,
@@ -788,22 +747,26 @@ export const EventRecord: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="start_time">Start Time</Label>
+                  <Label htmlFor="start_time">Start Time {eventForms.length > 1 && "(Auto-calculated)"}</Label>
                   <Input
                     id="start_time"
                     type="time"
-                    value={formatTime(eventData.start_time)}
+                    value={formatTime(eventData.start_time) || (eventForms.length > 1 ? formatTime(eventForms.filter(f => f.start_time).map(f => f.start_time).sort()[0]) : '')}
                     onChange={(e) => handleFieldChange('start_time', e.target.value || null)}
+                    readOnly={eventForms.length > 1}
+                    className={eventForms.length > 1 ? "bg-muted" : ""}
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="end_time">End Time</Label>
+                  <Label htmlFor="end_time">End Time {eventForms.length > 1 && "(Auto-calculated)"}</Label>
                   <Input
                     id="end_time"
                     type="time"
-                    value={formatTime(eventData.end_time)}
+                    value={formatTime(eventData.end_time) || (eventForms.length > 1 ? formatTime(eventForms.filter(f => f.end_time).map(f => f.end_time).sort().reverse()[0]) : '')}
                     onChange={(e) => handleFieldChange('end_time', e.target.value || null)}
+                    readOnly={eventForms.length > 1}
+                    className={eventForms.length > 1 ? "bg-muted" : ""}
                   />
                 </div>
 

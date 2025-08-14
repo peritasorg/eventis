@@ -380,7 +380,15 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
               <div className="space-y-4">
                 <div>
                   <Label>Quick Times</Label>
-                  <Select onValueChange={(value) => handleTimeSlotUpdate(eventForm.id, value)}>
+                  <Select 
+                    onValueChange={(value) => handleTimeSlotUpdate(eventForm.id, value)}
+                    value={
+                      timeSlots?.find(slot => 
+                        slot.start_time === eventForm.start_time && 
+                        slot.end_time === eventForm.end_time
+                      )?.id || ""
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select time slot" />
                     </SelectTrigger>
