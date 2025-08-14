@@ -33,6 +33,12 @@ interface EventData {
   total_guests?: number;
   venue_area?: string;
   form_responses?: any;
+  primary_contact_name?: string;
+  primary_contact_number?: string;
+  secondary_contact_name?: string;
+  secondary_contact_number?: string;
+  ethnicity?: string[];
+  event_forms?: any[];
   customers?: {
     name: string;
     email?: string;
@@ -175,7 +181,7 @@ class CalendarService {
     try {
       console.log('Creating calendar event with data:', eventData);
       const accessToken = await this.refreshTokenIfNeeded();
-      const calendarEvent = this.formatEventForCalendar(eventData);
+      const calendarEvent = await this.formatEventForCalendar(eventData);
       console.log('Formatted calendar event:', calendarEvent);
 
       if (this.integration.provider === 'google') {
@@ -192,7 +198,7 @@ class CalendarService {
   async updateEvent(eventData: EventData, externalId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const accessToken = await this.refreshTokenIfNeeded();
-      const calendarEvent = this.formatEventForCalendar(eventData);
+      const calendarEvent = await this.formatEventForCalendar(eventData);
 
       if (this.integration.provider === 'google') {
         return await this.updateGoogleEvent(calendarEvent, externalId, accessToken);
@@ -220,7 +226,7 @@ class CalendarService {
     }
   }
 
-  private formatEventForCalendar(eventData: EventData): CalendarEvent {
+  private async formatEventForCalendar(eventData: EventData): Promise<CalendarEvent> {
     // Handle multi-day events
     const startDate = eventData.event_start_date;
     const endDate = eventData.event_end_date || eventData.event_start_date;
@@ -231,25 +237,120 @@ class CalendarService {
     // Default timezone - this should be configurable per tenant in future
     const timeZone = 'Europe/London';
     
+    // Build comprehensive description with all event details
     let description = `Event Type: ${eventData.event_type}\n`;
-    description += `Guests: ${eventData.total_guests || eventData.estimated_guests}\n`;
     
+    // Display guest counts from forms if available
+    if (eventData.event_forms && eventData.event_forms.length > 0) {
+      const guestCounts = eventData.event_forms
+        .filter((form: any) => form.guest_count > 0)
+        .map((form: any) => form.guest_count);
+      
+      if (guestCounts.length > 0) {
+        description += `Guests: ${guestCounts.join(' & ')}\n`;
+      } else {
+        description += `Guests: ${eventData.total_guests || eventData.estimated_guests}\n`;
+      }
+    } else {
+      description += `Guests: ${eventData.total_guests || eventData.estimated_guests}\n`;
+    }
+    
+    // Customer information
     if (eventData.customers) {
       description += `\nCustomer: ${eventData.customers.name}\n`;
       if (eventData.customers.email) description += `Email: ${eventData.customers.email}\n`;
       if (eventData.customers.phone) description += `Phone: ${eventData.customers.phone}\n`;
     }
 
+    // Contact information
+    if (eventData.primary_contact_name) {
+      description += `\nPrimary Contact: ${eventData.primary_contact_name}\n`;
+      if (eventData.primary_contact_number) description += `Phone: ${eventData.primary_contact_number}\n`;
+    }
+    
+    if (eventData.secondary_contact_name) {
+      description += `Secondary Contact: ${eventData.secondary_contact_name}\n`;
+      if (eventData.secondary_contact_number) description += `Phone: ${eventData.secondary_contact_number}\n`;
+    }
+
+    // Ethnicity/cultural requirements
+    if (eventData.ethnicity && eventData.ethnicity.length > 0) {
+      description += `\nCultural Requirements: ${eventData.ethnicity.join(', ')}\n`;
+    }
+
     if (eventData.venue_area) {
       description += `\nVenue Area: ${eventData.venue_area}\n`;
     }
 
-    // Add form responses if available
+    // Enhanced form data extraction for multi-session events
+    if (eventData.event_forms && eventData.event_forms.length > 0) {
+      description += `\n--- Event Details ---\n`;
+      
+      // Get the tenant_id from the first form
+      const tenantId = eventData.event_forms[0]?.tenant_id;
+      
+      // Fetch form fields for label lookup
+      const { data: formFields } = await this.supabase
+        .from('form_fields')
+        .select('id, name')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true);
+      
+      // Create field lookup map
+      const fieldLookup = new Map();
+      if (formFields) {
+        formFields.forEach((field: any) => {
+          fieldLookup.set(field.id, field.name);
+        });
+      }
+      
+      eventData.event_forms.forEach((form: any, index: number) => {
+        const formName = form.forms?.name || form.form_label || `Session ${index + 1}`;
+        description += `\n${formName}:\n`;
+        
+        const responses = form.form_responses || {};
+        
+        // Extract all meaningful field responses
+        Object.entries(responses).forEach(([fieldId, response]: [string, any]) => {
+          if (!response || typeof response !== 'object') return;
+          
+          // Skip if not enabled (for toggle fields)
+          if (response.hasOwnProperty('enabled') && !response.enabled) return;
+          
+          // Get proper field name from lookup
+          const fieldName = fieldLookup.get(fieldId) || fieldId.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+          
+          // Extract meaningful data
+          let fieldInfo = '';
+          
+          if (response.value && response.value.toString().trim()) {
+            fieldInfo = `${fieldName}: ${response.value}`;
+          } else if (response.selectedOption) {
+            fieldInfo = `${fieldName}: ${Array.isArray(response.selectedOption) ? response.selectedOption.join(',') : response.selectedOption}`;
+          } else if (response.enabled === true) {
+            fieldInfo = `${fieldName}: Yes`;
+          } else if (response.quantity && parseInt(response.quantity) > 0) {
+            fieldInfo = `${fieldName}: ${response.quantity}`;
+          } else if (response.price && parseFloat(response.price) > 0) {
+            fieldInfo = `${fieldName}: £${parseFloat(response.price).toFixed(2)}`;
+          }
+          
+          if (fieldInfo) {
+            description += `  ${fieldInfo}`;
+            if (response.notes && response.notes.trim()) {
+              description += ` - ${response.notes.trim()}`;
+            }
+            description += '\n';
+          }
+        });
+      });
+    }
+
+    // Add legacy form responses if available (for backward compatibility)
     if (eventData.form_responses && Object.keys(eventData.form_responses).length > 0) {
-      description += `\nForm Details:\n`;
+      description += `\nAdditional Details:\n`;
       Object.entries(eventData.form_responses).forEach(([key, value]) => {
         if (value && typeof value === 'object' && 'enabled' in value && value.enabled) {
-          // Use the stored label from the response, fallback to formatting the key
           const fieldLabel = value.label || key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
           const notes = value.notes ? ` - ${value.notes}` : '';
           description += `- ${fieldLabel}${notes}\n`;
