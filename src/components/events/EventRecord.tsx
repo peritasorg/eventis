@@ -97,23 +97,6 @@ export const EventRecord: React.FC = () => {
     }
   );
 
-  // Fetch time ranges for quick select
-  const { data: timeRanges } = useSupabaseQuery(
-    ['event_time_ranges', currentTenant?.id],
-    async () => {
-      if (!currentTenant?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('event_time_ranges')
-        .select('*')
-        .eq('tenant_id', currentTenant.id)
-        .eq('is_active', true)
-        .order('name');
-      
-      if (error) throw error;
-      return data || [];
-    }
-  );
 
   // Fetch ethnicity options
   const { data: ethnicityOptions } = useSupabaseQuery(
@@ -770,31 +753,6 @@ export const EventRecord: React.FC = () => {
                   />
                 </div>
 
-                {timeRanges && timeRanges.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Quick Times</Label>
-                    <Select
-                      onValueChange={(value) => {
-                        const range = timeRanges.find(r => r.id === value);
-                        if (range) {
-                          handleFieldChange('start_time', range.start_time);
-                          handleFieldChange('end_time', range.end_time);
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select preset" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timeRanges.map((range) => (
-                          <SelectItem key={range.id} value={range.id}>
-                            {range.name} ({formatTime(range.start_time)} - {formatTime(range.end_time)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-4">
