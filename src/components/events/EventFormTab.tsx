@@ -54,6 +54,28 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     }
   );
 
+  // Fetch event type form mappings
+  const { data: eventTypeFormMappings } = useSupabaseQuery(
+    ['event-type-form-mappings'],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('event_type_form_mappings')
+        .select(`
+          *,
+          event_type_configs!inner(
+            event_type,
+            available_time_slots
+          )
+        `)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
   // Fetch fallback global time slots
   const { data: globalTimeSlots } = useSupabaseQuery(
     ['event-time-slots', currentTenant?.id],
@@ -92,19 +114,16 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
   // Get time slots for a specific event form based on its associated event type
   const getTimeSlotsForForm = (eventForm: EventForm) => {
-    // Need to determine which event type this form belongs to
-    // For multi-event-type events, we need to look at the form mappings
+    // Find the event type form mapping for this specific form
+    const formMapping = eventTypeFormMappings?.find(mapping => 
+      mapping.form_id === eventForm.form_id
+    );
     
-    // First try to find the form mapping for this specific form
-    const form = forms.find(f => f.id === eventForm.form_id);
-    if (!form) return globalTimeSlots?.map(slot => ({
-      id: slot.id,
-      label: slot.label,
-      start_time: slot.start_time,
-      end_time: slot.end_time
-    })) || [];
+    if (formMapping?.event_type_configs?.available_time_slots?.length > 0) {
+      return formMapping.event_type_configs.available_time_slots;
+    }
 
-    // For single event type events, use the event's type
+    // Fallback: For single event type events, use the event's type
     if (eventDetails?.event_type) {
       const eventTypeConfig = eventTypeConfigs?.find(config => 
         config.event_type === eventDetails.event_type
@@ -115,7 +134,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       }
     }
 
-    // Fallback to global time slots
+    // Final fallback to global time slots
     return globalTimeSlots?.map(slot => ({
       id: slot.id,
       label: slot.label,
