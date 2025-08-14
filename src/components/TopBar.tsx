@@ -40,7 +40,8 @@ export const TopBar = () => {
       const warningDate = new Date();
       warningDate.setDate(warningDate.getDate() + warningThreshold);
       
-      const { data, error } = await supabase
+      // First get events within the warning threshold
+      const { data: events, error: eventsError } = await supabase
         .from('events')
         .select(`
           id, 
@@ -49,28 +50,42 @@ export const TopBar = () => {
           event_date,
           total_guest_price_gbp,
           form_total_gbp,
-          deposit_amount_gbp,
-          event_payments (amount_gbp)
+          deposit_amount_gbp
         `)
         .eq('tenant_id', currentTenant.id)
         .gte('event_date', new Date().toISOString().split('T')[0])
         .lte('event_date', warningDate.toISOString().split('T')[0])
-        .order('event_date', { ascending: true })
-        .limit(3);
+        .order('event_date', { ascending: true });
       
-      if (error) return [];
+      if (eventsError || !events) return [];
       
-      // Filter for events with unpaid balances
-      const eventsWithUnpaidBalances = (data || []).filter(event => {
+      // Get all event payments for these events
+      const eventIds = events.map(e => e.id);
+      const { data: payments, error: paymentsError } = await supabase
+        .from('event_payments')
+        .select('event_id, amount_gbp')
+        .in('event_id', eventIds);
+      
+      if (paymentsError) return [];
+      
+      // Group payments by event ID
+      const paymentsByEvent = (payments || []).reduce((acc, payment) => {
+        if (!acc[payment.event_id]) acc[payment.event_id] = 0;
+        acc[payment.event_id] += payment.amount_gbp || 0;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      // Filter for events with unpaid balances using same logic as calendar
+      const eventsWithUnpaidBalances = events.filter(event => {
         const subtotal = (event.total_guest_price_gbp || 0) + (event.form_total_gbp || 0);
         const depositAmount = event.deposit_amount_gbp || 0;
-        const eventPaymentsTotal = event.event_payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0;
+        const eventPaymentsTotal = paymentsByEvent[event.id] || 0;
         const totalPayments = depositAmount + eventPaymentsTotal;
         const remainingBalance = subtotal - totalPayments;
         return remainingBalance > 0;
       });
       
-      return eventsWithUnpaidBalances;
+      return eventsWithUnpaidBalances.slice(0, 3);
     }
   );
 
