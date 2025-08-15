@@ -51,6 +51,16 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
     }
   }, [isOpen, eventForms, documentType]);
 
+  // Sync customer name when eventData changes
+  React.useEffect(() => {
+    if (eventData?.customers?.name) {
+      setEditableData(prev => ({
+        ...prev,
+        customer_name: eventData.customers.name
+      }));
+    }
+  }, [eventData?.customers?.name]);
+
   const checkTemplateExists = async () => {
     if (!tenantId) return;
     

@@ -76,7 +76,7 @@ export class WordTemplateGenerator {
         lineItems.push({
           quantity: guestCount,
           description: `${form.form_label} - Guest Pricing`,
-          price: totalPrice / guestCount, // Calculate per-person price for display
+          price: totalPrice, // Use the total price directly for Word document
           total: totalPrice // Use the actual total, not multiplied
         });
       }
