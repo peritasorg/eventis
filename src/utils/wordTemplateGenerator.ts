@@ -68,16 +68,16 @@ export class WordTemplateGenerator {
     eventForms.forEach(form => {
       if (form.guest_price_total > 0) {
         const guestCount = (form.men_count || 0) + (form.ladies_count || 0);
-        // guest_price_total is the per-person rate, not total for all guests
-        const perPersonPrice = parseFloat(form.guest_price_total);
+        // guest_price_total is already the total price, not per-person
+        const totalPrice = parseFloat(form.guest_price_total);
         
-        console.log(`Guest pricing for ${form.form_label}: ${guestCount} guests @ £${perPersonPrice} each = £${guestCount * perPersonPrice} total`);
+        console.log(`Guest pricing for ${form.form_label}: ${guestCount} guests - Total: £${totalPrice}`);
         
         lineItems.push({
           quantity: guestCount,
           description: `${form.form_label} - Guest Pricing`,
-          price: perPersonPrice,
-          total: guestCount * perPersonPrice
+          price: totalPrice / guestCount, // Calculate per-person price for display
+          total: totalPrice // Use the actual total, not multiplied
         });
       }
     });
@@ -251,8 +251,10 @@ export class WordTemplateGenerator {
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
       
-      // Download the file
-      const fileName = `${documentType}-${templateData.document_number}.docx`;
+      // Download the file with customer name
+      const customerName = enrichedEventData.customers?.name || enrichedEventData.primary_contact_name || 'Customer';
+      const prefix = documentType === 'quote' ? 'QT' : 'INV';
+      const fileName = `${prefix} - ${customerName}.docx`;
       saveAs(output, fileName);
       
     } catch (error) {
