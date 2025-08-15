@@ -80,15 +80,16 @@ export const TemplateSettings = () => {
                     <li>{'{guest_count}'}</li>
                   </ul>
                 </div>
-                <div>
-                  <strong>Financial Information:</strong>
-                  <ul className="list-disc list-inside ml-4 text-muted-foreground">
-                    <li>{'{subtotal}'}</li>
-                    <li>{'{total}'}</li>
-                    <li>{'{deposit_amount}'}</li>
-                    <li>{'{balance_due}'}</li>
-                  </ul>
-                </div>
+                 <div>
+                   <strong>Financial Information:</strong>
+                   <ul className="list-disc list-inside ml-4 text-muted-foreground">
+                     <li>{'{subtotal}'}</li>
+                     <li>{'{total}'}</li>
+                     <li>{'{deductible_deposit_amount}'}</li>
+                     <li>{'{refundable_deposit_amount}'}</li>
+                     <li>{'{balance_due}'}</li>
+                   </ul>
+                 </div>
               </div>
             </div>
             

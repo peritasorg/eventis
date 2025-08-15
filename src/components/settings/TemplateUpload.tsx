@@ -3,11 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, FileText, Trash2, Download } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, FileText, Trash2, Download, FileX } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { WordTemplateGenerator } from '@/utils/wordTemplateGenerator';
+import { generateEnhancedQuotePDF, generateEnhancedInvoicePDF } from '@/utils/enhancedPdfGenerator';
 
 interface TemplateUploadProps {
   onTemplateUploaded?: () => void;
@@ -23,6 +25,8 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
   const [tenantData, setTenantData] = useState<TenantData | null>(null);
   const [uploading, setUploading] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<string | null>(null);
+  const [outputFormat, setOutputFormat] = useState<'word' | 'pdf'>('word');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -111,27 +115,81 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
   const downloadTemplate = async () => {
     if (!currentTemplate || !currentTenant) return;
 
+    if (outputFormat === 'word') {
+      // Download original Word template
+      try {
+        const { data, error } = await supabase.storage
+          .from('word-templates')
+          .download(currentTemplate);
+
+        if (error) throw error;
+
+        // Create a download link
+        const url = URL.createObjectURL(data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${tenantData?.business_name || 'template'}-document-template.docx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success('Word template downloaded successfully');
+      } catch (error: any) {
+        console.error('Error downloading template:', error);
+        toast.error('Failed to download template');
+      }
+    } else {
+      // Generate sample PDF using enhanced PDF generator
+      await generateSamplePDF();
+    }
+  };
+
+  const generateSamplePDF = async () => {
+    if (!currentTenant) return;
+
     try {
-      const { data, error } = await supabase.storage
-        .from('word-templates')
-        .download(currentTemplate);
+      setIsGenerating(true);
 
-      if (error) throw error;
+      // Create sample data for PDF preview
+      const sampleEventData = {
+        id: 'sample-event-id',
+        event_name: 'Sample Event Name',
+        event_type: 'Wedding Reception',
+        event_start_date: new Date().toISOString(),
+        start_time: '18:00',
+        end_time: '23:00',
+        estimated_guests: 100,
+        total_guests: 100,
+        total_amount: 5000,
+        deposit_amount: 1500,
+        form_total: 3000,
+        customers: {
+          name: 'Sample Customer',
+          email: 'customer@example.com',
+          phone: '+44 1234 567890'
+        }
+      };
 
-      // Create a download link
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${tenantData?.business_name || 'template'}-document-template.docx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const tenantData = {
+        business_name: currentTenant.business_name || 'Your Business Name',
+        address_line1: currentTenant.address_line1 || 'Business Address',
+        address_line2: currentTenant.address_line2,
+        city: currentTenant.city || 'City',
+        postal_code: currentTenant.postal_code || 'Postal Code',
+        country: currentTenant.country || 'GB',
+        contact_email: currentTenant.contact_email || 'contact@business.com',
+        contact_phone: currentTenant.contact_phone || 'Phone Number'
+      };
 
-      toast.success('Template downloaded successfully');
+      // Generate PDF sample
+      await generateEnhancedQuotePDF(sampleEventData, tenantData, currentTenant.id);
+      toast.success('Sample PDF generated successfully');
     } catch (error: any) {
-      console.error('Error downloading template:', error);
-      toast.error('Failed to download template');
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF sample');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -237,15 +295,6 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={downloadTemplate}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
                   onClick={deleteTemplate}
                   className="text-destructive hover:text-destructive"
                 >
@@ -253,6 +302,49 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
                 </Button>
               </div>
             </div>
+
+            {/* Output Format Selection */}
+            <div className="space-y-2">
+              <Label>Download Format</Label>
+              <Select value={outputFormat} onValueChange={(value: 'word' | 'pdf') => setOutputFormat(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select output format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="word">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Word Document (.docx)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pdf">
+                    <div className="flex items-center gap-2">
+                      <FileX className="h-4 w-4" />
+                      PDF Document (.pdf)
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Download Button */}
+            <Button
+              onClick={downloadTemplate}
+              disabled={isGenerating}
+              className="w-full flex items-center gap-2"
+            >
+              {isGenerating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Generating {outputFormat === 'word' ? 'Word' : 'PDF'}...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Download as {outputFormat === 'word' ? 'Word' : 'PDF'}
+                </>
+              )}
+            </Button>
 
 
             <div className="pt-2">

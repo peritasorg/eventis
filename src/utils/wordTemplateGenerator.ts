@@ -32,7 +32,8 @@ interface TemplateData {
   // Financial info
   subtotal: number;
   total: number;
-  deposit_amount: number;
+  deductible_deposit_amount: number;
+  refundable_deposit_amount: number;
   balance_due: number;
   
   // Document info
@@ -157,8 +158,9 @@ export class WordTemplateGenerator {
       // Financial info
       subtotal: subtotal,
       total: subtotal,
-      deposit_amount: parseFloat(eventData.deposit_amount_gbp) || 0,
-      balance_due: subtotal - (parseFloat(eventData.deposit_amount_gbp) || 0),
+      deductible_deposit_amount: parseFloat(eventData.deposit_amount_gbp) || 0,
+      refundable_deposit_amount: parseFloat(eventData.refundable_deposit_gbp) || 0,
+      balance_due: subtotal - (parseFloat(eventData.deposit_amount_gbp) || 0), // Only deductible deposit reduces balance
       
       // Document info
       document_number: documentNumber,
@@ -224,7 +226,8 @@ export class WordTemplateGenerator {
         // Add formatted currency values for compatibility
         subtotal_formatted: `£${templateData.subtotal.toFixed(2)}`,
         total_formatted: `£${templateData.total.toFixed(2)}`,
-        deposit_formatted: `£${templateData.deposit_amount.toFixed(2)}`,
+        deductible_deposit_formatted: `£${templateData.deductible_deposit_amount.toFixed(2)}`,
+        refundable_deposit_formatted: `£${templateData.refundable_deposit_amount.toFixed(2)}`,
         balance_formatted: `£${templateData.balance_due.toFixed(2)}`,
         remaining_balance_formatted: `£${templateData.balance_due.toFixed(2)}`,
       };
@@ -344,7 +347,8 @@ export class WordTemplateGenerator {
       // Financial info
       'subtotal': `£${templateData.subtotal.toFixed(2)}`,
       'total': `£${templateData.total.toFixed(2)}`,
-      'deposit_amount': `£${templateData.deposit_amount.toFixed(2)}`,
+      'deductible_deposit_amount': `£${templateData.deductible_deposit_amount.toFixed(2)}`,
+      'refundable_deposit_amount': `£${templateData.refundable_deposit_amount.toFixed(2)}`,
       'balance_due': `£${templateData.balance_due.toFixed(2)}`,
       'remaining_balance': `£${templateData.balance_due.toFixed(2)}`,
       
@@ -364,7 +368,8 @@ export class WordTemplateGenerator {
       'EventDate': templateData.event_date,
       'Total': `£${templateData.total.toFixed(2)}`,
       'Subtotal': `£${templateData.subtotal.toFixed(2)}`,
-      'DepositAmount': `£${templateData.deposit_amount.toFixed(2)}`,
+      'DeductibleDepositAmount': `£${templateData.deductible_deposit_amount.toFixed(2)}`,
+      'RefundableDepositAmount': `£${templateData.refundable_deposit_amount.toFixed(2)}`,
       'BalanceDue': `£${templateData.balance_due.toFixed(2)}`,
       'RemainingBalance': `£${templateData.balance_due.toFixed(2)}`,
       'DocumentNumber': templateData.document_number,
