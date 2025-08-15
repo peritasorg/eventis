@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
 import { QuoteInvoicePreview } from './QuoteInvoicePreview';
 import { TimeDisplay } from './TimeDisplay';
+import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
 
 interface EventData {
   id: string;
@@ -47,10 +48,13 @@ interface EventData {
   secondary_contact_name: string | null;
   secondary_contact_number: string | null;
   men_count: number;
-  ladies_count: number;
-  total_guest_price_gbp: number;
-  form_total_gbp: number;
-  deposit_amount_gbp: number;
+   ladies_count: number;
+   total_guest_price_gbp: number;
+   form_total_gbp: number;
+   deposit_amount_gbp: number; // Legacy field, keep for backward compatibility
+   refundable_deposit_gbp: number;
+   deductible_deposit_gbp: number;
+   external_calendar_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -69,8 +73,11 @@ export const EventRecord: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
-  // Get event type configs
-  const { data: eventTypeConfigs } = useEventTypeConfigs();
+   // Get event type configs
+   const { data: eventTypeConfigs } = useEventTypeConfigs();
+   
+   // Calendar auto-sync hook
+   const { autoSyncEvent } = useCalendarAutoSync();
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -181,11 +188,49 @@ export const EventRecord: React.FC = () => {
       if (error) throw error;
       return data;
     },
-    {
-      onSuccess: () => {
-        setLastSaved(new Date());
-        setIsDirty(false);
-      },
+     {
+       onSuccess: async (savedData) => {
+         setLastSaved(new Date());
+         setIsDirty(false);
+         
+         // Auto-sync to calendar if core event data changed
+         if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title)) {
+           const currentEventData = { ...eventData, ...savedData };
+           const currentTotalGuests = (currentEventData.men_count || 0) + (currentEventData.ladies_count || 0);
+           
+           // Prepare calendar event data
+           const calendarEventData = {
+             id: currentEventData.id,
+             event_name: currentEventData.title,
+             event_start_date: currentEventData.event_date || '',
+             event_end_date: currentEventData.event_end_date || currentEventData.event_date || '',
+             start_time: currentEventData.start_time || '09:00',
+             end_time: currentEventData.end_time || '17:00',
+             event_type: currentEventData.event_type || '',
+             estimated_guests: currentTotalGuests,
+             total_guests: currentTotalGuests,
+             primary_contact_name: currentEventData.primary_contact_name,
+             primary_contact_number: currentEventData.primary_contact_number,
+             secondary_contact_name: currentEventData.secondary_contact_name,
+             secondary_contact_number: currentEventData.secondary_contact_number,
+             ethnicity: currentEventData.ethnicity,
+             event_forms: eventForms,
+              customers: eventData.customer_id ? {
+                name: eventData.primary_contact_name || 'Unknown',
+                email: null,
+                phone: eventData.primary_contact_number
+              } : {
+                name: eventData.primary_contact_name || 'Unknown',
+                email: null,
+                phone: eventData.primary_contact_number
+              },
+             external_calendar_id: currentEventData.external_calendar_id
+           };
+           
+           // Auto-sync without showing toasts (silent background operation)
+           await autoSyncEvent(calendarEventData, !currentEventData.external_calendar_id, false);
+         }
+       },
       onError: (error) => {
         toast.error('Failed to save changes: ' + error.message);
       }
@@ -287,9 +332,10 @@ export const EventRecord: React.FC = () => {
   const hasMultipleForms = (formTotals?.length || 0) > 0;
   const totalGuestPrice = hasMultipleForms ? 0 : (eventData?.total_guest_price_gbp || 0);
   const totalEventValue = totalGuestPrice + liveFormTotal;
-  const depositAmount = eventData?.deposit_amount_gbp || 0;
-  const totalPaid = depositAmount + (payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0);
-  const remainingBalanceGbp = totalEventValue - totalPaid;
+   const refundableDeposit = eventData?.refundable_deposit_gbp || 0;
+   const deductibleDeposit = eventData?.deductible_deposit_gbp || 0;
+   const totalPaid = deductibleDeposit + (payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0);
+   const remainingBalanceGbp = totalEventValue - totalPaid; // Refundable deposit doesn't reduce balance
   
   const daysLeft = eventData?.event_date 
     ? Math.floor((new Date(eventData.event_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -327,7 +373,7 @@ export const EventRecord: React.FC = () => {
         estimated_guests: totalGuests,
         total_guests: totalGuests,
         total_amount: totalEventValue,
-        deposit_amount: depositAmount,
+         deposit_amount: deductibleDeposit,
         form_responses: {},
         form_total: liveFormTotal,
         customers: selectedCustomer ? {
@@ -374,7 +420,7 @@ export const EventRecord: React.FC = () => {
         estimated_guests: totalGuests,
         total_guests: totalGuests,
         total_amount: totalEventValue,
-        deposit_amount: depositAmount,
+        deposit_amount: deductibleDeposit,
         form_responses: {},
         form_total: liveFormTotal,
         customers: selectedCustomer ? {
@@ -1005,12 +1051,50 @@ export const EventRecord: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="deposit_amount_gbp">Deposit Amount</Label>
+                  <Label htmlFor="refundable_deposit_gbp">
+                    Refundable Deposit
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <span className="ml-1 text-xs text-muted-foreground cursor-help">(?)</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Money held as security, does not reduce remaining balance</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </Label>
                   <PriceInput
-                    value={eventData.deposit_amount_gbp || 0}
-                    onChange={(value) => handleFieldChange('deposit_amount_gbp', value)}
+                    value={eventData.refundable_deposit_gbp || 0}
+                    onChange={(value) => handleFieldChange('refundable_deposit_gbp', value)}
                     placeholder="0.00"
                   />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="deductible_deposit_gbp">
+                    Deductible Deposit
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <span className="ml-1 text-xs text-muted-foreground cursor-help">(?)</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Payment towards total cost, reduces remaining balance</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </Label>
+                  <PriceInput
+                    value={eventData.deductible_deposit_gbp || 0}
+                    onChange={(value) => handleFieldChange('deductible_deposit_gbp', value)}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Total Deposits</Label>
+                  <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
+                    {formatCurrency(refundableDeposit + deductibleDeposit)}
+                  </div>
                 </div>
                 
                 <div className="space-y-2">

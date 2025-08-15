@@ -1034,12 +1034,14 @@ export type Database = {
           created_at: string | null
           customer_id: string | null
           date_changed_at: string | null
+          deductible_deposit_gbp: number | null
           deposit_amount_gbp: number | null
           end_time: string | null
           ethnicity: Json | null
           event_date: string | null
           event_end_date: string | null
           event_type: string | null
+          external_calendar_id: string | null
           form_id: string | null
           form_total_gbp: number | null
           id: string
@@ -1048,6 +1050,7 @@ export type Database = {
           original_event_date: string | null
           primary_contact_name: string | null
           primary_contact_number: string | null
+          refundable_deposit_gbp: number | null
           secondary_contact_name: string | null
           secondary_contact_number: string | null
           start_time: string | null
@@ -1060,12 +1063,14 @@ export type Database = {
           created_at?: string | null
           customer_id?: string | null
           date_changed_at?: string | null
+          deductible_deposit_gbp?: number | null
           deposit_amount_gbp?: number | null
           end_time?: string | null
           ethnicity?: Json | null
           event_date?: string | null
           event_end_date?: string | null
           event_type?: string | null
+          external_calendar_id?: string | null
           form_id?: string | null
           form_total_gbp?: number | null
           id?: string
@@ -1074,6 +1079,7 @@ export type Database = {
           original_event_date?: string | null
           primary_contact_name?: string | null
           primary_contact_number?: string | null
+          refundable_deposit_gbp?: number | null
           secondary_contact_name?: string | null
           secondary_contact_number?: string | null
           start_time?: string | null
@@ -1086,12 +1092,14 @@ export type Database = {
           created_at?: string | null
           customer_id?: string | null
           date_changed_at?: string | null
+          deductible_deposit_gbp?: number | null
           deposit_amount_gbp?: number | null
           end_time?: string | null
           ethnicity?: Json | null
           event_date?: string | null
           event_end_date?: string | null
           event_type?: string | null
+          external_calendar_id?: string | null
           form_id?: string | null
           form_total_gbp?: number | null
           id?: string
@@ -1100,6 +1108,7 @@ export type Database = {
           original_event_date?: string | null
           primary_contact_name?: string | null
           primary_contact_number?: string | null
+          refundable_deposit_gbp?: number | null
           secondary_contact_name?: string | null
           secondary_contact_number?: string | null
           start_time?: string | null
