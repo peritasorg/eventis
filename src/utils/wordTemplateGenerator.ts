@@ -63,6 +63,12 @@ interface SpecificationTemplateData {
   event_time: string;
   guest_count: number;
   specification_items: SpecificationLineItem[];
+  line_items: Array<{
+    description: string;
+    notes: string;
+    quantity: number;
+    price: number;
+  }>; // Add line_items for template compatibility
   notes: string;
   created_date: string;
 }
@@ -560,6 +566,16 @@ export class WordTemplateGenerator {
       specificationItems = [];
     }
 
+    // Map specification_items to line_items format for template compatibility
+    const lineItems = specificationItems.length > 0 
+      ? specificationItems.map(item => ({
+          description: item.description,
+          notes: item.notes || '',
+          quantity: 1, // Default quantity for specifications
+          price: 0     // No pricing in specifications
+        }))
+      : [{ description: 'No specification items available', notes: '', quantity: 1, price: 0 }];
+
     const templateData: SpecificationTemplateData = {
       business_name: businessName,
       customer_name: customerName,
@@ -570,6 +586,7 @@ export class WordTemplateGenerator {
       specification_items: specificationItems.length > 0 ? specificationItems : [
         { description: 'No specification items available', notes: '' }
       ],
+      line_items: lineItems, // Add line_items for template compatibility
       notes: notes,
       created_date: createdDate,
     };
