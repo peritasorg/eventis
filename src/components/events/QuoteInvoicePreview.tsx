@@ -368,7 +368,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                 {/* Guest totals from event forms */}
                 {eventForms?.map((eventForm) => 
                   eventForm.guest_price_total > 0 && (
-                    <div key={`guest-${eventForm.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
+                    <div key={`event-form-${eventForm.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
                       <div>{(eventForm.men_count || 0) + (eventForm.ladies_count || 0)}</div>
                       <div>{eventForm.form_label} - Guest Pricing</div>
                       <div className="text-right">£{eventForm.guest_price_total.toFixed(2)}</div>
@@ -378,7 +378,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                 
                 {/* Populated fields */}
                 {populatedFields.map((field) => (
-                  <div key={field.id} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
+                  <div key={`populated-field-${field.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
                     <div>{field.quantity}</div>
                     <div>{field.description}</div>
                     <div className="text-right">£{field.price.toFixed(2)}</div>
