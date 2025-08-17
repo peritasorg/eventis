@@ -441,6 +441,44 @@ export class WordTemplateGenerator {
       selectedFormId ? `(selected form: ${selectedFormId})` : '(all forms)');
 
     try {
+      // Get form structure with field order if we have a selected form
+      let orderedFieldIds: string[] = [];
+      if (selectedFormId) {
+        const { data: formStructure, error: formError } = await supabase
+          .from('forms')
+          .select('sections')
+          .eq('id', selectedFormId)
+          .eq('tenant_id', tenantId)
+          .single();
+
+        if (!formError && formStructure?.sections) {
+          // Extract field order from form sections
+          const sections = Array.isArray(formStructure.sections) ? formStructure.sections : [];
+          for (const section of sections) {
+            const sectionData = section as any;
+            if (sectionData.fields && Array.isArray(sectionData.fields)) {
+              orderedFieldIds.push(...sectionData.fields.map((f: any) => f.id || f.field_id));
+            }
+          }
+          console.log('Found ordered field IDs from form structure:', orderedFieldIds);
+        }
+
+        // Fallback: try form_field_instances if sections don't contain field order
+        if (orderedFieldIds.length === 0) {
+          const { data: fieldInstances, error: instancesError } = await supabase
+            .from('form_field_instances')
+            .select('id, field_order')
+            .eq('form_id', selectedFormId)
+            .eq('tenant_id', tenantId)
+            .order('field_order', { ascending: true });
+
+          if (!instancesError && fieldInstances) {
+            orderedFieldIds = fieldInstances.map(instance => instance.id);
+            console.log('Found ordered field IDs from field instances:', orderedFieldIds);
+          }
+        }
+      }
+
       // Get all form fields for this tenant
       const { data: formFields, error } = await supabase
         .from('form_fields')
@@ -464,51 +502,59 @@ export class WordTemplateGenerator {
       const fieldLookup = new Map(formFields.map(field => [field.id, field]));
       const processedFieldNames = new Set<string>(); // Track processed field names to avoid duplicates
 
-      // Process each event form
+      // Collect all field responses from selected forms
+      const allFieldResponses = new Map<string, any>();
       for (const eventForm of formsToProcess) {
-        if (!eventForm || !eventForm.form_responses || typeof eventForm.form_responses !== 'object') {
-          console.log('Skipping invalid event form:', eventForm?.id);
-          continue;
-        }
-
-        console.log('Processing event form:', eventForm.id, 'with responses:', Object.keys(eventForm.form_responses).length);
-
-        // Process each field response
-        for (const [fieldId, response] of Object.entries(eventForm.form_responses)) {
-          try {
-            const fieldConfig = fieldLookup.get(fieldId);
-            
-            if (!fieldConfig) {
-              console.log('Field config not found for:', fieldId);
-              continue;
-            }
-
-            // Skip if we've already processed a field with this name (avoid duplicates)
-            if (processedFieldNames.has(fieldConfig.name)) {
-              console.log('Skipping duplicate field:', fieldConfig.name);
-              continue;
-            }
-
-            // Check if this field should be included in specification
-            if (this.isSpecificationFieldPopulated(response, fieldConfig.field_type)) {
-              const content = this.extractSpecificationFieldContent(response, fieldConfig);
-              
-              if (content) {
-                const item: SpecificationLineItem = {
-                  field_name: content.field_name,
-                  field_value: content.field_value,
-                  notes: String((response as any)?.notes || '').trim(),
-                };
-                
-                items.push(item);
-                processedFieldNames.add(fieldConfig.name); // Mark this field name as processed
-                console.log('Added specification item:', item);
-              }
-            }
-          } catch (fieldError) {
-            console.error('Error processing field:', fieldId, fieldError);
-            // Continue processing other fields instead of failing completely
+        if (eventForm?.form_responses && typeof eventForm.form_responses === 'object') {
+          for (const [fieldId, response] of Object.entries(eventForm.form_responses)) {
+            allFieldResponses.set(fieldId, response);
           }
+        }
+      }
+
+      // Process fields in order if we have it, otherwise use the original order
+      const fieldsToProcess = orderedFieldIds.length > 0 
+        ? orderedFieldIds.filter(fieldId => allFieldResponses.has(fieldId))
+        : Array.from(allFieldResponses.keys());
+
+      console.log('Processing fields in order:', fieldsToProcess);
+
+      // Process each field response in the correct order
+      for (const fieldId of fieldsToProcess) {
+        try {
+          const response = allFieldResponses.get(fieldId);
+          const fieldConfig = fieldLookup.get(fieldId);
+          
+          if (!fieldConfig) {
+            console.log('Field config not found for:', fieldId);
+            continue;
+          }
+
+          // Skip if we've already processed a field with this name (avoid duplicates)
+          if (processedFieldNames.has(fieldConfig.name)) {
+            console.log('Skipping duplicate field:', fieldConfig.name);
+            continue;
+          }
+
+          // Check if this field should be included in specification
+          if (this.isSpecificationFieldPopulated(response, fieldConfig.field_type)) {
+            const content = this.extractSpecificationFieldContent(response, fieldConfig);
+            
+            if (content) {
+              const item: SpecificationLineItem = {
+                field_name: content.field_name,
+                field_value: content.field_value,
+                notes: String((response as any)?.notes || '').trim(),
+              };
+              
+              items.push(item);
+              processedFieldNames.add(fieldConfig.name); // Mark this field name as processed
+              console.log('Added specification item:', item);
+            }
+          }
+        } catch (fieldError) {
+          console.error('Error processing field:', fieldId, fieldError);
+          // Continue processing other fields instead of failing completely
         }
       }
 
@@ -1024,57 +1070,86 @@ Current issue: ${syntaxError.message}`);
 
   private static isSpecificationFieldPopulated(response: any, fieldType: string): boolean {
     if (!response || typeof response !== 'object') {
+      console.log('Invalid response object');
       return false;
     }
 
-    console.log('Checking field population:', { response, fieldType });
+    console.log('Checking if field is populated:', { fieldType, response });
 
-    // Check if field is enabled for toggle-based fields
-    if (fieldType === 'toggle' || fieldType.includes('toggle')) {
-      const isEnabled = response.enabled === true;
-      console.log('Toggle field enabled:', isEnabled);
-      return isEnabled;
-    }
+    // Handle different field types
+    switch (fieldType) {
+      case 'toggle':
+        // For toggle fields, must be enabled AND might have notes
+        const isTogglePopulated = response.enabled === true;
+        console.log('Toggle field populated:', isTogglePopulated);
+        return isTogglePopulated;
 
-    // For text fields, check if value exists and is not empty
-    if (fieldType === 'text' || fieldType === 'textarea' || fieldType.includes('text')) {
-      const hasValue = !!(response.value && String(response.value).trim());
-      console.log('Text field has value:', hasValue);
-      return hasValue;
-    }
+      case 'text':
+      case 'textarea':
+        // For text fields, check both value and notes
+        const hasTextValue = !!(
+          (response.value && String(response.value).trim()) ||
+          (response.notes && String(response.notes).trim())
+        );
+        console.log('Text field populated:', hasTextValue);
+        return hasTextValue;
 
-    // For price fields, check if price is set and greater than 0
-    if (fieldType === 'price' || fieldType.includes('price')) {
-      const hasPrice = !!(response.price && parseFloat(response.price) > 0);
-      console.log('Price field has price:', hasPrice);
-      return hasPrice;
-    }
+      case 'text_notes_only':
+        // For text_notes_only fields, ONLY check notes (this is the key fix!)
+        const hasNotesOnlyValue = !!(response.notes && String(response.notes).trim());
+        console.log('Text notes only field populated:', hasNotesOnlyValue);
+        return hasNotesOnlyValue;
 
-    // For quantity fields, check if quantity is set and greater than 0
-    if (fieldType === 'quantity' || fieldType === 'number' || fieldType.includes('quantity')) {
-      const hasQuantity = !!(response.quantity && parseInt(response.quantity) > 0);
-      console.log('Quantity field has quantity:', hasQuantity);
-      return hasQuantity;
-    }
+      case 'price':
+        // For price fields, must have a positive price value
+        const hasPriceValue = !!(response.price && parseFloat(response.price) > 0);
+        console.log('Price field populated:', hasPriceValue);
+        return hasPriceValue;
 
-    // For dropdown fields, check if option is selected
-    if (fieldType === 'dropdown' || fieldType === 'select' || fieldType.includes('dropdown')) {
-      const hasSelection = !!(response.selectedOption || response.value);
-      console.log('Dropdown field has selection:', hasSelection);
-      return hasSelection;
-    }
+      case 'quantity':
+      case 'number':
+      case 'counter':
+        // For quantity/number fields, must have a positive value
+        const hasQuantityValue = !!(
+          (response.quantity && parseInt(response.quantity) > 0) ||
+          (response.value && parseInt(response.value) > 0)
+        );
+        console.log('Quantity field populated:', hasQuantityValue);
+        return hasQuantityValue;
 
-    // For counter fields, check if value is set and greater than 0
-    if (fieldType === 'counter' || fieldType.includes('counter')) {
-      const hasCount = !!(response.value && parseInt(response.value) > 0);
-      console.log('Counter field has count:', hasCount);
-      return hasCount;
-    }
+      case 'dropdown':
+      case 'dropdown_options':
+      case 'dropdown_options_price_notes':
+      case 'select':
+        // For dropdown fields, must have a selected value OR notes
+        const hasDropdownValue = !!(
+          response.selectedOption ||
+          (response.value && String(response.value).trim()) ||
+          (response.notes && String(response.notes).trim())
+        );
+        console.log('Dropdown field populated:', hasDropdownValue);
+        return hasDropdownValue;
 
-    // For notes fields, check if notes exist
-    if (fieldType === 'notes' && response.notes && String(response.notes).trim()) {
-      console.log('Notes field has content');
-      return true;
+      case 'notes':
+        // For notes-only fields, must have notes content
+        const hasNotesValue = !!(response.notes && String(response.notes).trim());
+        console.log('Notes field populated:', hasNotesValue);
+        return hasNotesValue;
+
+      case 'fixed_price_notes':
+      case 'fixed_price_notes_toggle':
+      case 'fixed_price_quantity_notes':
+      case 'per_person_price_notes':
+      case 'counter_notes':
+        // For fields with pricing and notes, check if enabled or has notes
+        const hasPricingFieldValue = !!(
+          response.enabled === true ||
+          (response.notes && String(response.notes).trim()) ||
+          (response.price && parseFloat(response.price) > 0) ||
+          (response.quantity && parseInt(response.quantity) > 0)
+        );
+        console.log('Pricing field populated:', hasPricingFieldValue);
+        return hasPricingFieldValue;
     }
 
     // Default: check if any value exists
@@ -1101,24 +1176,63 @@ Current issue: ${syntaxError.message}`);
 
     console.log('Extracting content for field:', { fieldName, fieldType, response });
 
-    // PRIORITY 1: Always check for notes first since that's the user's written content
-    if (response.notes && String(response.notes).trim()) {
-      return { field_name: fieldName, field_value: String(response.notes).trim() };
-    }
-
-    // PRIORITY 2: Handle specific field types based on their primary value
+    // Handle specific field types based on their primary value
     switch (fieldType) {
+      case 'text_notes_only':
+        // For text_notes_only fields, ONLY use notes (this is the key fix!)
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        }
+        return null;
+
       case 'toggle':
-        // For toggle fields, check if enabled and if there's a notes value
-        if (response.enabled) {
+        // For toggle fields, prioritize notes over enabled status
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else if (response.enabled) {
           return { field_name: fieldName, field_value: 'Yes' };
         }
         return null;
 
       case 'text':
       case 'textarea':
-        if (response.value && String(response.value).trim()) {
+        // For regular text fields, check notes first, then value
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else if (response.value && String(response.value).trim()) {
           return { field_name: fieldName, field_value: String(response.value).trim() };
+        }
+        return null;
+
+      case 'dropdown':
+      case 'dropdown_options':
+      case 'dropdown_options_price_notes':
+      case 'select':
+        // For dropdown fields, prioritize notes, then selected value
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else {
+          const selectedValue = response.selectedOption || response.value;
+          if (Array.isArray(selectedValue)) {
+            // Handle multiple selections
+            const formattedValue = selectedValue.join('; ');
+            return { field_name: fieldName, field_value: formattedValue };
+          } else if (selectedValue && String(selectedValue).trim()) {
+            return { field_name: fieldName, field_value: String(selectedValue).trim() };
+          }
+        }
+        return null;
+
+      case 'fixed_price_notes':
+      case 'fixed_price_notes_toggle':
+      case 'fixed_price_quantity_notes':
+      case 'per_person_price_notes':
+      case 'counter_notes':
+        // For pricing fields with notes, always prioritize notes
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else if (response.enabled) {
+          return { field_name: fieldName, field_value: 'Yes' };
         }
         return null;
 
@@ -1135,14 +1249,6 @@ Current issue: ${syntaxError.message}`);
         }
         return null;
 
-      case 'dropdown':
-      case 'select':
-        const selectedValue = response.selectedOption || response.value;
-        if (selectedValue && String(selectedValue).trim()) {
-          return { field_name: fieldName, field_value: String(selectedValue).trim() };
-        }
-        return null;
-
       case 'counter':
         if (response.value && parseInt(response.value) > 0) {
           return { field_name: fieldName, field_value: String(response.value) };
@@ -1150,15 +1256,17 @@ Current issue: ${syntaxError.message}`);
         return null;
 
       case 'notes':
-        // This case should be handled above, but included for completeness
+        // For notes-only fields, must have notes content
         if (response.notes && String(response.notes).trim()) {
           return { field_name: fieldName, field_value: String(response.notes).trim() };
         }
         return null;
 
       default:
-        // PRIORITY 3: Default handling - prioritize actual values over just "enabled"
-        if (response.value && String(response.value).trim()) {
+        // Default handling - prioritize notes, then values, then enabled status
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else if (response.value && String(response.value).trim()) {
           return { field_name: fieldName, field_value: String(response.value).trim() };
         } else if (response.enabled === true) {
           return { field_name: fieldName, field_value: 'Yes' };
