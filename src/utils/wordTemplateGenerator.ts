@@ -629,7 +629,21 @@ export class WordTemplateGenerator {
         console.log('Template syntax validation passed');
       } catch (syntaxError: any) {
         console.error('Template syntax validation failed:', syntaxError);
-        throw new Error(`Template syntax error: ${syntaxError.message}. Please check your Word template for unclosed loops like {#line_items} without matching {/line_items} tags.`);
+        
+        // Provide specific guidance for common template issues
+        if (syntaxError.message.includes('line_items')) {
+          throw new Error(`Word Template Fix Required: Your template has {#line_items} loop tags but is missing {/line_items} closing tags.
+
+To fix this:
+1. Open your Word template: ${templateName}
+2. Find all {#line_items} tags in the document
+3. Add a {/line_items} closing tag after each table/section that should repeat
+4. Save the template and try again
+
+Current issue: ${syntaxError.message}`);
+        } else {
+          throw new Error(`Template syntax error: ${syntaxError.message}. Please check your Word template for unclosed loops.`);
+        }
       }
       
       // Extract and map specification data
@@ -802,8 +816,17 @@ export class WordTemplateGenerator {
       console.log('Template validation results:', loopAnalysis);
       
       if (loopAnalysis.unmatchedOpens.length > 0) {
-        const unmatchedList = loopAnalysis.unmatchedOpens.join('}, {/');
-        throw new Error(`Unclosed loop tags found: {#${loopAnalysis.unmatchedOpens.join('}, {#')}}. Please add matching closing tags: {/${unmatchedList}}`);
+        // Provide more specific guidance based on the detected issues
+        const uniqueUnmatched = [...new Set(loopAnalysis.unmatchedOpens)]; // Remove duplicates
+        const duplicateCount = loopAnalysis.unmatchedOpens.length - uniqueUnmatched.length;
+        
+        let errorMessage = `Unclosed loop tags found: {#${uniqueUnmatched.join('}, {#')}}. Please add matching closing tags: {/${uniqueUnmatched.join('}, {/')}}`;
+        
+        if (duplicateCount > 0) {
+          errorMessage += `\n\nNote: Found ${duplicateCount + uniqueUnmatched.length} total {#${uniqueUnmatched[0]}} tags but ${loopAnalysis.closeLoops.filter(c => uniqueUnmatched.includes(c)).length} closing tags. Each opening tag needs a closing tag.`;
+        }
+        
+        throw new Error(errorMessage);
       }
       
       if (loopAnalysis.unmatchedCloses.length > 0) {
@@ -905,9 +928,48 @@ export class WordTemplateGenerator {
       }
     }
     
-    // Find unmatched loops
-    const unmatchedOpens = openLoops.filter(loop => !closeLoops.includes(loop));
-    const unmatchedCloses = closeLoops.filter(loop => !openLoops.includes(loop));
+    console.log('Loop analysis:', {
+      openLoops,
+      closeLoops,
+      openCount: openLoops.length,
+      closeCount: closeLoops.length
+    });
+    
+    // Count occurrences for proper matching
+    const openCounts: { [key: string]: number } = {};
+    const closeCounts: { [key: string]: number } = {};
+    
+    openLoops.forEach(loop => {
+      openCounts[loop] = (openCounts[loop] || 0) + 1;
+    });
+    
+    closeLoops.forEach(loop => {
+      closeCounts[loop] = (closeCounts[loop] || 0) + 1;
+    });
+    
+    // Find unmatched loops based on counts
+    const unmatchedOpens: string[] = [];
+    const unmatchedCloses: string[] = [];
+    
+    Object.entries(openCounts).forEach(([loop, openCount]) => {
+      const closeCount = closeCounts[loop] || 0;
+      if (openCount > closeCount) {
+        // Add the unmatched opens
+        for (let i = 0; i < openCount - closeCount; i++) {
+          unmatchedOpens.push(loop);
+        }
+      }
+    });
+    
+    Object.entries(closeCounts).forEach(([loop, closeCount]) => {
+      const openCount = openCounts[loop] || 0;
+      if (closeCount > openCount) {
+        // Add the unmatched closes
+        for (let i = 0; i < closeCount - openCount; i++) {
+          unmatchedCloses.push(loop);
+        }
+      }
+    });
     
     return {
       openLoops,
