@@ -1,6 +1,7 @@
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import { saveAs } from 'file-saver';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LineItem {
@@ -51,18 +52,19 @@ interface TemplateData {
 
 interface SpecificationLineItem {
   description: string;
-  quantity?: string;
+  notes?: string;
 }
 
 interface SpecificationTemplateData {
-  title: string;
-  ethnicity: string;
+  business_name: string;
+  customer_name: string;
+  event_name: string;
+  event_date: string;
   event_time: string;
   guest_count: number;
-  men_count: number;
-  ladies_count: number;
-  guest_mixture: string;
-  line_items: SpecificationLineItem[];
+  specification_items: SpecificationLineItem[];
+  notes: string;
+  created_date: string;
 }
 
 export class WordTemplateGenerator {
@@ -403,123 +405,178 @@ export class WordTemplateGenerator {
   }
 
   private static async extractSpecificationLineItems(eventForms: any[], tenantId: string): Promise<SpecificationLineItem[]> {
-    const lineItems: SpecificationLineItem[] = [];
+    const items: SpecificationLineItem[] = [];
     
+    console.log('Extracting specification items:', { eventForms, tenantId });
+
+    if (!Array.isArray(eventForms) || eventForms.length === 0) {
+      console.log('No event forms provided');
+      return items;
+    }
+
+    if (!tenantId) {
+      console.error('Tenant ID is required for extracting specification items');
+      return items;
+    }
+
     try {
-      // Get all form fields for this tenant to map IDs to labels
-      const { data: formFields, error: fieldsError } = await supabase
+      // Get all form fields for this tenant
+      const { data: formFields, error } = await supabase
         .from('form_fields')
         .select('*')
         .eq('tenant_id', tenantId)
         .eq('is_active', true);
 
-      if (fieldsError) {
-        console.error('Error fetching form fields:', fieldsError);
-        return [];
+      if (error) {
+        console.error('Error fetching form fields:', error);
+        return items;
       }
 
-      // Create lookup map for field data
-      const fieldLookup = new Map(formFields?.map(field => [field.id, field]) || []);
-
-      // Find Reception Form only
-      const receptionForm = eventForms.find(form => 
-        form.form_label?.toLowerCase().includes('reception') || 
-        form.form_id === '1600029b-735b-4e93-b4a9-baaf20872d70'
-      );
-
-      if (!receptionForm) {
-        console.log('No Reception Form found');
-        return [];
+      if (!formFields || formFields.length === 0) {
+        console.log('No form fields found for tenant');
+        return items;
       }
 
-      const { form_responses } = receptionForm;
-      if (!form_responses || typeof form_responses !== 'object') return [];
+      console.log('Found form fields:', formFields.length);
 
-      // Process each field response
-      Object.entries(form_responses).forEach(([fieldId, response]) => {
-        if (!response || typeof response !== 'object') return;
+      // Create a lookup map for field configurations
+      const fieldLookup = new Map(formFields.map(field => [field.id, field]));
 
-        const fieldConfig = fieldLookup.get(fieldId);
-        if (!fieldConfig) return;
-
-        // Skip financial fields
-        if (fieldConfig.has_pricing || fieldConfig.pricing_type) return;
-
-        // Check if field has content
-        const hasContent = this.isSpecificationFieldPopulated(response, fieldConfig.field_type);
-        if (!hasContent) return;
-
-        // Extract field content
-        const content = this.extractSpecificationFieldContent(response, fieldConfig);
-        if (content) {
-          lineItems.push({
-            description: fieldConfig.name,
-            quantity: content
-          });
+      // Process each event form
+      for (const eventForm of eventForms) {
+        if (!eventForm || !eventForm.form_responses || typeof eventForm.form_responses !== 'object') {
+          console.log('Skipping invalid event form:', eventForm?.id);
+          continue;
         }
-      });
+
+        console.log('Processing event form:', eventForm.id, 'with responses:', Object.keys(eventForm.form_responses).length);
+
+        // Process each field response
+        for (const [fieldId, response] of Object.entries(eventForm.form_responses)) {
+          try {
+            const fieldConfig = fieldLookup.get(fieldId);
+            
+            if (!fieldConfig) {
+              console.log('Field config not found for:', fieldId);
+              continue;
+            }
+
+            // Check if this field should be included in specification
+            if (this.isSpecificationFieldPopulated(response, fieldConfig.field_type)) {
+              const content = this.extractSpecificationFieldContent(response, fieldConfig);
+              
+              if (content) {
+                const item: SpecificationLineItem = {
+                  description: String(content).trim(),
+                  notes: String((response as any)?.notes || '').trim(),
+                };
+                
+                items.push(item);
+                console.log('Added specification item:', item);
+              }
+            }
+          } catch (fieldError) {
+            console.error('Error processing field:', fieldId, fieldError);
+            // Continue processing other fields instead of failing completely
+          }
+        }
+      }
+
+      console.log('Total specification items extracted:', items.length);
+      return items;
 
     } catch (error) {
-      console.error('Error extracting specification fields:', error);
+      console.error('Error in extractSpecificationLineItems:', error);
+      return items; // Return empty array instead of throwing
     }
-
-    return lineItems;
   }
 
-  private static async mapEventDataToSpecification(
-    eventData: any,
-    eventForms: any[],
-    tenantId: string
-  ): Promise<SpecificationTemplateData> {
-    const lineItems = await this.extractSpecificationLineItems(eventForms, tenantId);
+  private static async mapEventDataToSpecification(eventData: any, eventForms: any[], tenantId: string): Promise<SpecificationTemplateData> {
+    // Comprehensive data validation and sanitization
+    const safeString = (value: any, fallback: string = ''): string => {
+      if (value === null || value === undefined) return fallback;
+      return String(value).trim();
+    };
+
+    const safeNumber = (value: any, fallback: number = 0): number => {
+      if (value === null || value === undefined) return fallback;
+      const num = Number(value);
+      return isNaN(num) ? fallback : num;
+    };
+
+    const safeDate = (value: any, fallback: string = ''): string => {
+      if (!value) return fallback;
+      try {
+        return format(new Date(value), 'dd/MM/yyyy');
+      } catch {
+        return fallback;
+      }
+    };
+
+    console.log('Mapping specification data:', { eventData, eventForms, tenantId });
+
+    // Validate required data
+    if (!eventData) {
+      throw new Error('Event data is required for specification generation');
+    }
+
+    if (!Array.isArray(eventForms)) {
+      throw new Error('Event forms must be an array');
+    }
+
+    // Extract and validate data with null-safe handling
+    const businessName = safeString(eventData.tenant?.business_name, 'Business Name');
+    const eventName = safeString(eventData.title, 'Event Name');
+    const customerName = safeString(eventData.customer?.name, 'Customer Name');
+    const eventDate = safeDate(eventData.event_date, 'TBD');
+    const eventTime = safeString(eventData.start_time, 'TBD');
+    const guestCount = safeNumber(eventData.guest_count);
+    const notes = safeString(eventData.notes, 'No additional notes');
+    const createdDate = format(new Date(), 'dd/MM/yyyy');
+
+    // Extract specification line items with error handling
+    let specificationItems: SpecificationLineItem[] = [];
+    try {
+      specificationItems = await this.extractSpecificationLineItems(eventForms, tenantId);
+    } catch (error) {
+      console.error('Error extracting specification items:', error);
+      specificationItems = [];
+    }
+
+    const templateData: SpecificationTemplateData = {
+      business_name: businessName,
+      customer_name: customerName,
+      event_name: eventName,
+      event_date: eventDate,
+      event_time: eventTime,
+      guest_count: guestCount,
+      specification_items: specificationItems,
+      notes: notes,
+      created_date: createdDate,
+    };
+
+    console.log('Generated specification template data:', templateData);
+
+    // Validate the final template data
+    this.validateTemplateData(templateData);
+
+    return templateData;
+  }
+
+  private static validateTemplateData(data: SpecificationTemplateData): void {
+    const requiredFields = ['business_name', 'customer_name', 'event_name', 'event_date', 'created_date'];
     
-    // Find Reception Form for specific data
-    const receptionForm = eventForms.find(form => 
-      form.form_label?.toLowerCase().includes('reception') || 
-      form.form_id === '1600029b-735b-4e93-b4a9-baaf20872d70'
-    );
-
-    const menCount = receptionForm?.men_count || eventData.men_count || 0;
-    const ladiesCount = receptionForm?.ladies_count || eventData.ladies_count || 0;
-    const totalGuests = menCount + ladiesCount;
-
-    // Format ethnicity
-    let ethnicityStr = '';
-    if (eventData.ethnicity) {
-      if (Array.isArray(eventData.ethnicity)) {
-        ethnicityStr = eventData.ethnicity.join(', ');
-      } else if (typeof eventData.ethnicity === 'object') {
-        ethnicityStr = Object.values(eventData.ethnicity).join(', ');
-      } else {
-        ethnicityStr = String(eventData.ethnicity);
+    for (const field of requiredFields) {
+      if (!data[field as keyof SpecificationTemplateData]) {
+        console.warn(`Template field '${field}' is empty, using fallback`);
       }
     }
 
-    // Format event time
-    let eventTime = '';
-    if (receptionForm?.start_time && receptionForm?.end_time) {
-      eventTime = `${receptionForm.start_time} - ${receptionForm.end_time}`;
-    } else if (eventData.start_time && eventData.end_time) {
-      eventTime = `${eventData.start_time} - ${eventData.end_time}`;
-    } else {
-      eventTime = 'TBD';
+    if (!Array.isArray(data.specification_items)) {
+      throw new Error('Specification items must be an array');
     }
 
-    // Calculate guest mixture
-    const guestMixture = totalGuests > 0 
-      ? `${Math.round((menCount / totalGuests) * 100)}% Men, ${Math.round((ladiesCount / totalGuests) * 100)}% Ladies`
-      : 'Mixed';
-
-    return {
-      title: eventData.title || 'Event',
-      ethnicity: ethnicityStr,
-      event_time: eventTime,
-      guest_count: totalGuests,
-      men_count: menCount,
-      ladies_count: ladiesCount,
-      guest_mixture: guestMixture,
-      line_items: lineItems
-    };
+    console.log('Template data validation passed');
   }
 
   static async generateSpecificationDocument(
@@ -548,29 +605,50 @@ export class WordTemplateGenerator {
         errorLogging: true,
       });
       
+      console.log('About to render specification template with data:', JSON.stringify(templateData, null, 2));
+      
       try {
+        // Validate template before rendering
+        this.validateTemplateStructure(doc, templateData);
+        
         doc.render(templateData);
+        console.log('Template rendered successfully');
       } catch (renderError: any) {
         console.error('Docxtemplater render error:', renderError);
+        console.error('Error details:', {
+          name: renderError.name,
+          message: renderError.message,
+          properties: renderError.properties,
+          stack: renderError.stack
+        });
         
         // Handle multi error specifically
-        if (renderError.name === 'TemplateError' && renderError.properties) {
-          console.error('Template errors:', renderError.properties);
-          const errorMessages = renderError.properties.map((prop: any) => 
-            `${prop.explanation} at ${prop.id || 'unknown location'}`
-          ).join('; ');
-          throw new Error(`Template processing failed: ${errorMessages}`);
+        if (renderError.name === 'TemplateError' || renderError.name === 'RenderingError') {
+          if (renderError.properties && Array.isArray(renderError.properties)) {
+            const errorMessages = renderError.properties.map((prop: any) => {
+              const location = prop.id || prop.tag || prop.scope || 'unknown location';
+              const explanation = prop.explanation || prop.message || 'Unknown error';
+              return `${explanation} at ${location}`;
+            }).join('; ');
+            throw new Error(`Template processing failed: ${errorMessages}`);
+          }
         }
         
-        // Handle other docxtemplater errors
-        if (renderError.properties && renderError.properties.errors) {
+        // Handle array of errors
+        if (renderError.properties && renderError.properties.errors && Array.isArray(renderError.properties.errors)) {
           const errors = renderError.properties.errors.map((err: any) => 
-            `${err.message} (${err.name})`
+            `${err.message || err.explanation || 'Unknown error'} (${err.name || 'UnknownError'})`
           ).join('; ');
           throw new Error(`Template errors: ${errors}`);
         }
         
-        throw renderError;
+        // Handle single error with properties
+        if (renderError.properties && renderError.properties.explanation) {
+          throw new Error(`Template error: ${renderError.properties.explanation}`);
+        }
+        
+        // Fallback for any other error structure
+        throw new Error(`Template rendering failed: ${renderError.message || 'Unknown error'}`);
       }
       
       // Generate the document
@@ -586,8 +664,56 @@ export class WordTemplateGenerator {
       
     } catch (error) {
       console.error('Error generating specification document:', error);
+      console.error('Error context:', {
+        eventData: eventData?.id,
+        eventFormsCount: eventForms?.length,
+        tenantId
+      });
       throw new Error(`Failed to generate specification: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  private static validateTemplateStructure(doc: any, templateData: any): void {
+    try {
+      // Get template tags/placeholders
+      const templateTags = doc.getFullText().match(/\{[^}]+\}/g) || [];
+      console.log('Template placeholders found:', templateTags);
+      
+      // Check if all required data is present
+      const dataKeys = this.getAllNestedKeys(templateData);
+      console.log('Available data keys:', dataKeys);
+      
+      // Log any potential mismatches (but don't fail)
+      const missingData = templateTags.filter((tag: string) => {
+        const cleanTag = tag.replace(/[{}]/g, '');
+        return !dataKeys.includes(cleanTag) && !cleanTag.includes('#') && !cleanTag.includes('/');
+      });
+      
+      if (missingData.length > 0) {
+        console.warn('Template placeholders without matching data:', missingData);
+      }
+      
+    } catch (error) {
+      console.warn('Template validation warning:', error);
+      // Don't throw, just log the warning
+    }
+  }
+
+  private static getAllNestedKeys(obj: any, prefix: string = ''): string[] {
+    let keys: string[] = [];
+    
+    if (obj && typeof obj === 'object') {
+      Object.keys(obj).forEach(key => {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        keys.push(fullKey);
+        
+        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+          keys = keys.concat(this.getAllNestedKeys(obj[key], fullKey));
+        }
+      });
+    }
+    
+    return keys;
   }
 
   private static isSpecificationFieldPopulated(response: any, fieldType: string): boolean {
