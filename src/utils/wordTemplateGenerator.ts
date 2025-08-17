@@ -49,6 +49,22 @@ interface TemplateData {
   terms?: string;
 }
 
+interface SpecificationLineItem {
+  description: string;
+  quantity?: string;
+}
+
+interface SpecificationTemplateData {
+  title: string;
+  ethnicity: string;
+  event_time: string;
+  guest_count: number;
+  men_count: number;
+  ladies_count: number;
+  guest_mixture: string;
+  line_items: SpecificationLineItem[];
+}
+
 export class WordTemplateGenerator {
   private static async downloadTemplate(templateName: string): Promise<ArrayBuffer> {
     const { data, error } = await supabase.storage
@@ -384,6 +400,247 @@ export class WordTemplateGenerator {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&apos;');
+  }
+
+  private static async extractSpecificationLineItems(eventForms: any[], tenantId: string): Promise<SpecificationLineItem[]> {
+    const lineItems: SpecificationLineItem[] = [];
+    
+    try {
+      // Get all form fields for this tenant to map IDs to labels
+      const { data: formFields, error: fieldsError } = await supabase
+        .from('form_fields')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true);
+
+      if (fieldsError) {
+        console.error('Error fetching form fields:', fieldsError);
+        return [];
+      }
+
+      // Create lookup map for field data
+      const fieldLookup = new Map(formFields?.map(field => [field.id, field]) || []);
+
+      // Find Reception Form only
+      const receptionForm = eventForms.find(form => 
+        form.form_label?.toLowerCase().includes('reception') || 
+        form.form_id === '1600029b-735b-4e93-b4a9-baaf20872d70'
+      );
+
+      if (!receptionForm) {
+        console.log('No Reception Form found');
+        return [];
+      }
+
+      const { form_responses } = receptionForm;
+      if (!form_responses || typeof form_responses !== 'object') return [];
+
+      // Process each field response
+      Object.entries(form_responses).forEach(([fieldId, response]) => {
+        if (!response || typeof response !== 'object') return;
+
+        const fieldConfig = fieldLookup.get(fieldId);
+        if (!fieldConfig) return;
+
+        // Skip financial fields
+        if (fieldConfig.has_pricing || fieldConfig.pricing_type) return;
+
+        // Check if field has content
+        const hasContent = this.isSpecificationFieldPopulated(response, fieldConfig.field_type);
+        if (!hasContent) return;
+
+        // Extract field content
+        const content = this.extractSpecificationFieldContent(response, fieldConfig);
+        if (content) {
+          lineItems.push({
+            description: fieldConfig.name,
+            quantity: content
+          });
+        }
+      });
+
+    } catch (error) {
+      console.error('Error extracting specification fields:', error);
+    }
+
+    return lineItems;
+  }
+
+  private static async mapEventDataToSpecification(
+    eventData: any,
+    eventForms: any[],
+    tenantId: string
+  ): Promise<SpecificationTemplateData> {
+    const lineItems = await this.extractSpecificationLineItems(eventForms, tenantId);
+    
+    // Find Reception Form for specific data
+    const receptionForm = eventForms.find(form => 
+      form.form_label?.toLowerCase().includes('reception') || 
+      form.form_id === '1600029b-735b-4e93-b4a9-baaf20872d70'
+    );
+
+    const menCount = receptionForm?.men_count || eventData.men_count || 0;
+    const ladiesCount = receptionForm?.ladies_count || eventData.ladies_count || 0;
+    const totalGuests = menCount + ladiesCount;
+
+    // Format ethnicity
+    let ethnicityStr = '';
+    if (eventData.ethnicity) {
+      if (Array.isArray(eventData.ethnicity)) {
+        ethnicityStr = eventData.ethnicity.join(', ');
+      } else if (typeof eventData.ethnicity === 'object') {
+        ethnicityStr = Object.values(eventData.ethnicity).join(', ');
+      } else {
+        ethnicityStr = String(eventData.ethnicity);
+      }
+    }
+
+    // Format event time
+    let eventTime = '';
+    if (receptionForm?.start_time && receptionForm?.end_time) {
+      eventTime = `${receptionForm.start_time} - ${receptionForm.end_time}`;
+    } else if (eventData.start_time && eventData.end_time) {
+      eventTime = `${eventData.start_time} - ${eventData.end_time}`;
+    } else {
+      eventTime = 'TBD';
+    }
+
+    // Calculate guest mixture
+    const guestMixture = totalGuests > 0 
+      ? `${Math.round((menCount / totalGuests) * 100)}% Men, ${Math.round((ladiesCount / totalGuests) * 100)}% Ladies`
+      : 'Mixed';
+
+    return {
+      title: eventData.title || 'Event',
+      ethnicity: ethnicityStr,
+      event_time: eventTime,
+      guest_count: totalGuests,
+      men_count: menCount,
+      ladies_count: ladiesCount,
+      guest_mixture: guestMixture,
+      line_items: lineItems
+    };
+  }
+
+  static async generateSpecificationDocument(
+    eventData: any,
+    eventForms: any[],
+    tenantId: string
+  ): Promise<void> {
+    try {
+      const templateName = `${tenantId}-specification-template.docx`;
+      
+      // Download the specification template
+      const templateBuffer = await this.downloadTemplate(templateName);
+      
+      // Load template into PizZip
+      const zip = new PizZip(templateBuffer);
+      
+      // Map event data to specification template format
+      const templateData = await this.mapEventDataToSpecification(eventData, eventForms, tenantId);
+      
+      console.log('Specification template data:', templateData);
+      
+      // Use docxtemplater for simple {placeholder} format
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      });
+      doc.render(templateData);
+      
+      // Generate the document
+      const output = zip.generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      
+      // Download the file
+      const customerName = eventData.customers?.name || eventData.primary_contact_name || 'Customer';
+      const fileName = `SPEC - ${customerName}.docx`;
+      saveAs(output, fileName);
+      
+    } catch (error) {
+      console.error('Error generating specification document:', error);
+      throw new Error(`Failed to generate specification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private static isSpecificationFieldPopulated(response: any, fieldType: string): boolean {
+    // Toggle-based fields - check if enabled
+    if (fieldType === 'toggle' || fieldType.includes('toggle')) {
+      return response.enabled === true;
+    }
+
+    // Text and textarea fields
+    if (fieldType === 'text' || fieldType === 'textarea' || fieldType.includes('text')) {
+      return !!(response.value && response.value.trim());
+    }
+
+    // Dropdown/select fields
+    if (fieldType === 'dropdown' || fieldType === 'select' || fieldType.includes('dropdown')) {
+      return !!(response.selectedOption || response.value);
+    }
+
+    // Counter fields
+    if (fieldType === 'counter' || fieldType.includes('counter')) {
+      return !!(response.value && parseInt(response.value) > 0);
+    }
+
+    // Notes fields
+    if (fieldType === 'notes' && response.notes && response.notes.trim()) {
+      return true;
+    }
+
+    // Default: check if any field has content
+    return !!(
+      (response.value && response.value.toString().trim()) ||
+      (response.notes && response.notes.trim()) ||
+      response.enabled === true ||
+      response.selectedOption
+    );
+  }
+
+  private static extractSpecificationFieldContent(response: any, fieldConfig: any): string | null {
+    try {
+      // Handle different field types for content extraction
+      if (fieldConfig.field_type === 'toggle' || fieldConfig.field_type.includes('toggle')) {
+        // For toggle fields, return the notes if enabled
+        return response.enabled && response.notes ? response.notes.trim() : null;
+      }
+
+      if (fieldConfig.field_type === 'dropdown' || fieldConfig.field_type.includes('dropdown')) {
+        const selection = response.selectedOption || response.value;
+        const notes = response.notes ? ` - ${response.notes.trim()}` : '';
+        return selection ? `${selection}${notes}` : null;
+      }
+
+      if (fieldConfig.field_type === 'text' || fieldConfig.field_type === 'textarea' || fieldConfig.field_type.includes('text')) {
+        return response.value ? response.value.trim() : null;
+      }
+
+      if (fieldConfig.field_type === 'counter' || fieldConfig.field_type.includes('counter')) {
+        return response.value ? response.value.toString() : null;
+      }
+
+      if (fieldConfig.field_type === 'notes' && response.notes) {
+        return response.notes.trim();
+      }
+
+      // Default: try to get any meaningful content
+      if (response.value && response.value.toString().trim()) {
+        const notes = response.notes ? ` - ${response.notes.trim()}` : '';
+        return `${response.value.toString().trim()}${notes}`;
+      }
+
+      if (response.notes && response.notes.trim()) {
+        return response.notes.trim();
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error extracting field content:', error);
+      return null;
+    }
   }
 
   static async analyzeTemplate(templateName: string): Promise<string[]> {

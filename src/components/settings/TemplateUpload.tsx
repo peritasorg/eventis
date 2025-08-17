@@ -13,6 +13,7 @@ import { generateEnhancedQuotePDF, generateEnhancedInvoicePDF } from '@/utils/en
 
 interface TemplateUploadProps {
   onTemplateUploaded?: () => void;
+  templateType?: 'quote' | 'specification';
 }
 
 // Add tenantData prop interface
@@ -20,7 +21,7 @@ interface TenantData {
   business_name?: string;
 }
 
-export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUploaded }) => {
+export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUploaded, templateType = 'quote' }) => {
   const { currentTenant, user } = useAuth();
   const [tenantData, setTenantData] = useState<TenantData | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -58,7 +59,9 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
     
     try {
       // Upload to Supabase storage
-      const fileName = `${currentTenant.id}-template.docx`;
+      const fileName = templateType === 'specification' 
+        ? `${currentTenant.id}-specification-template.docx`
+        : `${currentTenant.id}-template.docx`;
       console.log('Attempting upload with filename:', fileName);
       console.log('File details:', {
         name: file.name,
@@ -216,7 +219,9 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
     const checkExistingTemplate = async () => {
       if (!currentTenant) return;
       
-      const fileName = `${currentTenant.id}-template.docx`;
+      const fileName = templateType === 'specification' 
+        ? `${currentTenant.id}-specification-template.docx`
+        : `${currentTenant.id}-template.docx`;
       const { data } = await supabase.storage
         .from('word-templates')
         .list('', {
@@ -255,11 +260,13 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Invoice/Quote Template
+          {templateType === 'specification' ? 'Specification Template' : 'Invoice/Quote Template'}
         </CardTitle>
         <CardDescription>
-          Upload a Word document (.docx) with content controls for generating invoices and quotes.
-          Use placeholders like {'{business_name}'}, {'{customer_name}'}, {'{line_items}'} etc.
+          {templateType === 'specification' 
+            ? 'Upload a Word document (.docx) for generating kitchen specifications. Use placeholders like {title}, {ethnicity}, {line_items} etc.'
+            : 'Upload a Word document (.docx) with content controls for generating invoices and quotes. Use placeholders like {business_name}, {customer_name}, {line_items} etc.'
+          }
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

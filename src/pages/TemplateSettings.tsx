@@ -40,7 +40,31 @@ export const TemplateSettings = () => {
       </div>
 
       <div className="max-w-4xl space-y-6">
-        <TemplateUpload />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quote/Invoice Template</CardTitle>
+              <CardDescription>
+                Upload Word template for generating quotes and invoices
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TemplateUpload templateType="quote" />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Specification Template</CardTitle>
+              <CardDescription>
+                Upload Word template for generating kitchen specifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TemplateUpload templateType="specification" />
+            </CardContent>
+          </Card>
+        </div>
         
         <Card>
           <CardHeader>
@@ -51,8 +75,8 @@ export const TemplateSettings = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h4 className="font-medium mb-2">Supported Placeholders:</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <h4 className="font-medium mb-2">Quote/Invoice Template Placeholders:</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm mb-6">
                 <div>
                   <strong>Business Information:</strong>
                   <ul className="list-disc list-inside ml-4 text-muted-foreground">
@@ -94,7 +118,34 @@ export const TemplateSettings = () => {
             </div>
             
             <div>
-              <h4 className="font-medium mb-2">Line Items Table:</h4>
+              <h4 className="font-medium mb-2">Specification Template Placeholders:</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <strong>Event Information:</strong>
+                  <ul className="list-disc list-inside ml-4 text-muted-foreground">
+                    <li>{'{title}'}</li>
+                    <li>{'{ethnicity}'}</li>
+                    <li>{'{event_time}'}</li>
+                    <li>{'{guest_count}'}</li>
+                    <li>{'{men_count}'}</li>
+                    <li>{'{ladies_count}'}</li>
+                    <li>{'{guest_mixture}'}</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Line Items Loop:</strong>
+                  <div className="bg-muted p-3 rounded text-sm font-mono">
+                    {'{#line_items}'}<br/>
+                    {'{description}'}<br/>
+                    {'{quantity}'}<br/>
+                    {'{/line_items}'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-medium mb-2">Quote/Invoice Line Items:</h4>
               <p className="text-sm text-muted-foreground mb-2">
                 For repeating line items, create a table with these content controls:
               </p>
