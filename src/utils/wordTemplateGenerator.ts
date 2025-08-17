@@ -783,75 +783,138 @@ export class WordTemplateGenerator {
         throw new Error('Invalid Word template: missing document.xml');
       }
       
-      const xmlContent = docXml.asText();
+      let xmlContent = docXml.asText();
       
       // Check for basic XML structure issues
       if (!xmlContent.includes('<w:document')) {
         throw new Error('Invalid Word template: corrupted document structure');
       }
       
-      // Extract and validate loop tags using more comprehensive regex
-      const loopOpenPattern = /\{#([^}]+)\}/g;
-      const loopClosePattern = /\{\/([^}]+)\}/g;
+      console.log('Template validation: Starting advanced XML analysis...');
       
-      const openLoops: string[] = [];
-      const closeLoops: string[] = [];
+      // Clean up Word's XML fragmentation - merge split text runs that contain template tags
+      // This handles cases where Word splits {#line_items} across multiple <w:t> elements
+      xmlContent = this.reconstructFragmentedTags(xmlContent);
       
-      let match;
-      while ((match = loopOpenPattern.exec(xmlContent)) !== null) {
-        openLoops.push(match[1]);
+      // Extract and validate loop tags using comprehensive approach
+      const loopAnalysis = this.analyzeLoopTags(xmlContent);
+      
+      console.log('Template validation results:', loopAnalysis);
+      
+      if (loopAnalysis.unmatchedOpens.length > 0) {
+        const unmatchedList = loopAnalysis.unmatchedOpens.join('}, {/');
+        throw new Error(`Unclosed loop tags found: {#${loopAnalysis.unmatchedOpens.join('}, {#')}}. Please add matching closing tags: {/${unmatchedList}}`);
       }
       
-      while ((match = loopClosePattern.exec(xmlContent)) !== null) {
-        closeLoops.push(match[1]);
+      if (loopAnalysis.unmatchedCloses.length > 0) {
+        throw new Error(`Orphaned closing tags found: {/${loopAnalysis.unmatchedCloses.join('}, {/')}}. These have no matching opening tags.`);
       }
       
-      console.log('Syntax validation - Open loops:', openLoops);
-      console.log('Syntax validation - Close loops:', closeLoops);
-      
-      // Check for unmatched loops
-      const unmatchedOpens = openLoops.filter(loop => !closeLoops.includes(loop));
-      const unmatchedCloses = closeLoops.filter(loop => !openLoops.includes(loop));
-      
-      if (unmatchedOpens.length > 0) {
-        throw new Error(`Unclosed loop tags found: {#${unmatchedOpens.join('}, {#')}}. Please add matching closing tags: {/${unmatchedOpens.join('}, {/')}}`);
-      }
-      
-      if (unmatchedCloses.length > 0) {
-        throw new Error(`Orphaned closing tags found: {/${unmatchedCloses.join('}, {/')}}. These have no matching opening tags.`);
-      }
-      
-      // Test basic docxtemplater instantiation
+      // Test basic docxtemplater instantiation with minimal validation
       try {
         const testDoc = new Docxtemplater(zip, {
           paragraphLoop: true,
           linebreaks: true,
-          nullGetter() { return ''; }
+          nullGetter() { return ''; },
+          errorLogging: false  // Disable verbose error logging for test
         });
         
-        // Test with minimal data to catch syntax errors
+        // Test with minimal data structure
         testDoc.setData({
           line_items: [],
           specification_items: [],
           business_name: 'Test',
-          customer_name: 'Test'
+          customer_name: 'Test',
+          event_name: 'Test'
         });
         
-        // Don't render, just test the setup
-        console.log('Template syntax validation: basic instantiation successful');
+        console.log('Template validation: basic instantiation successful');
         
       } catch (instantiationError: any) {
         console.error('Template instantiation test failed:', instantiationError);
+        
+        // Provide specific guidance based on error type
         if (instantiationError.message?.includes('Unclosed loop')) {
-          throw new Error('Template contains unclosed loop syntax that cannot be automatically detected. Please manually verify all {# tags have matching {/ tags.');
+          throw new Error(`Template contains loop syntax errors. Please open your Word template and verify that every {#tag} has a proper {/tag} closing. Common issue: formatting changes can split tags across text runs.`);
+        } else if (instantiationError.name === 'TemplateError') {
+          throw new Error(`Template syntax validation failed: ${instantiationError.message}. Please check your template for malformed placeholders or loops.`);
+        } else {
+          throw new Error(`Template validation error: ${instantiationError.message}`);
         }
-        throw new Error(`Template syntax error: ${instantiationError.message}`);
       }
       
     } catch (error: any) {
-      console.error('Template syntax validation failed:', error);
+      console.error('Advanced template syntax validation failed:', error);
       throw error;
     }
+  }
+
+  /**
+   * Reconstructs template tags that may be fragmented across Word XML text runs
+   */
+  private static reconstructFragmentedTags(xmlContent: string): string {
+    // Word often splits template tags across multiple <w:t> elements due to formatting
+    // We need to reconstruct them for proper validation
+    
+    // Step 1: Extract all text content from <w:t> elements while preserving order
+    const textElements = xmlContent.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+    let reconstructedText = '';
+    
+    textElements.forEach(element => {
+      const textMatch = element.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+      if (textMatch) {
+        reconstructedText += textMatch[1];
+      }
+    });
+    
+    console.log('Reconstructed template text for validation:', reconstructedText.substring(0, 500) + '...');
+    
+    return reconstructedText;
+  }
+
+  /**
+   * Analyzes loop tags in the template content
+   */
+  private static analyzeLoopTags(content: string): {
+    openLoops: string[];
+    closeLoops: string[];
+    unmatchedOpens: string[];
+    unmatchedCloses: string[];
+  } {
+    // Use more flexible regex patterns to catch template tags
+    const loopOpenPattern = /\{#([^}]+)\}/g;
+    const loopClosePattern = /\{\/([^}]+)\}/g;
+    
+    const openLoops: string[] = [];
+    const closeLoops: string[] = [];
+    
+    let match;
+    while ((match = loopOpenPattern.exec(content)) !== null) {
+      const loopName = match[1].trim();
+      if (loopName) {
+        openLoops.push(loopName);
+      }
+    }
+    
+    // Reset regex lastIndex
+    loopClosePattern.lastIndex = 0;
+    while ((match = loopClosePattern.exec(content)) !== null) {
+      const loopName = match[1].trim();
+      if (loopName) {
+        closeLoops.push(loopName);
+      }
+    }
+    
+    // Find unmatched loops
+    const unmatchedOpens = openLoops.filter(loop => !closeLoops.includes(loop));
+    const unmatchedCloses = closeLoops.filter(loop => !openLoops.includes(loop));
+    
+    return {
+      openLoops,
+      closeLoops,
+      unmatchedOpens,
+      unmatchedCloses
+    };
   }
 
   private static getAllNestedKeys(obj: any, prefix: string = ''): string[] {
