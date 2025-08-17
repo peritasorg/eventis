@@ -219,8 +219,8 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
 
       await WordTemplateGenerator.generateSpecificationDocument(
         enhancedEventData, 
-        eventForms || [], 
-        tenantId
+        tenantId,
+        eventForms || []
       );
       
       toast.success('Specification document downloaded!');
