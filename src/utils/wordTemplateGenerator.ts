@@ -626,6 +626,13 @@ export class WordTemplateGenerator {
       // Download the specification template
       const templateBuffer = await this.downloadTemplate(templateName);
       
+      // Validate template syntax BEFORE processing
+      console.log('Validating template syntax...');
+      const validationResult = await this.validateTemplateSyntax(templateBuffer);
+      if (validationResult.hasErrors) {
+        throw new Error(`Template syntax errors detected:\n${validationResult.errors.join('\n')}\n\nPlease fix your Word template and try again.`);
+      }
+      
       // Load template into PizZip
       const zip = new PizZip(templateBuffer);
       
@@ -634,11 +641,12 @@ export class WordTemplateGenerator {
       
       console.log('Specification template data:', templateData);
       
-      // Use docxtemplater for simple {placeholder} format
+      // Use docxtemplater with enhanced error handling
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         errorLogging: true,
+        nullGetter: () => '',  // Handle null values gracefully
       });
       
       console.log('About to set template data:', JSON.stringify(templateData, null, 2));
@@ -647,7 +655,7 @@ export class WordTemplateGenerator {
       doc.setData(templateData);
       
       try {
-        // Render the document (no parameters needed)
+        // Render the document
         doc.render();
         console.log('Template rendered successfully');
       } catch (renderError: any) {
@@ -659,62 +667,9 @@ export class WordTemplateGenerator {
           stack: renderError.stack
         });
         
-        // Enhanced error handling for Multi error
-        if (renderError.name === 'TemplateError' || renderError.name === 'RenderingError') {
-          // Handle properties array format
-          if (renderError.properties && Array.isArray(renderError.properties)) {
-            const errorMessages = renderError.properties.map((prop: any) => {
-              const location = prop.id || prop.tag || prop.scope || 'unknown location';
-              const explanation = prop.explanation || prop.message || 'Unknown error';
-              console.error('Template error detail:', { location, explanation, prop });
-              return `${explanation} at ${location}`;
-            }).join('; ');
-            throw new Error(`Template processing failed: ${errorMessages}`);
-          }
-          
-          // Handle errors array in properties
-          if (renderError.properties && renderError.properties.errors && Array.isArray(renderError.properties.errors)) {
-            const errors = renderError.properties.errors.map((err: any) => {
-              console.error('Individual template error:', err);
-              return `${err.message || err.explanation || 'Unknown error'} (${err.name || 'UnknownError'})`;
-            }).join('; ');
-            throw new Error(`Template errors: ${errors}`);
-          }
-          
-          // Handle single error with properties
-          if (renderError.properties && renderError.properties.explanation) {
-            throw new Error(`Template error: ${renderError.properties.explanation}`);
-          }
-        }
-        
-        // Handle Multi error specifically - this usually means missing template placeholders
-        if (renderError.message === 'Multi error') {
-          console.error('Multi error detected - likely missing template placeholders');
-          console.error('Template data keys:', Object.keys(templateData));
-          
-          // Try to extract more specific error information
-          let specificErrors = [];
-          if (renderError.properties) {
-            if (Array.isArray(renderError.properties)) {
-              specificErrors = renderError.properties.map((prop: any) => 
-                `${prop.explanation || prop.message || 'Unknown'} (${prop.id || prop.tag || 'unknown'})`
-              );
-            } else if (renderError.properties.errors) {
-              specificErrors = renderError.properties.errors.map((err: any) => 
-                `${err.explanation || err.message || 'Unknown'} (${err.id || err.tag || 'unknown'})`
-              );
-            }
-          }
-          
-          if (specificErrors.length > 0) {
-            throw new Error(`Template placeholders not found or invalid: ${specificErrors.join(', ')}`);
-          } else {
-            throw new Error('Template processing failed: Missing or invalid placeholders in Word template');
-          }
-        }
-        
-        // Fallback for any other error structure
-        throw new Error(`Template rendering failed: ${renderError.message || 'Unknown error'}`);
+        // Enhanced error analysis with specific solutions
+        const errorAnalysis = this.analyzeTemplateError(renderError);
+        throw new Error(`${errorAnalysis.message}\n\n${errorAnalysis.solution}`);
       }
       
       // Generate the document
@@ -915,6 +870,104 @@ export class WordTemplateGenerator {
         }
         return null;
     }
+  }
+
+  /**
+   * Validates template syntax for common errors
+   */
+  private static async validateTemplateSyntax(templateBuffer: ArrayBuffer): Promise<{ hasErrors: boolean; errors: string[] }> {
+    try {
+      const zip = new PizZip(templateBuffer);
+      const documentXml = zip.files['word/document.xml']?.asText();
+      
+      if (!documentXml) {
+        return { hasErrors: true, errors: ['Template document.xml not found'] };
+      }
+
+      const errors: string[] = [];
+      
+      // Extract all loop tags
+      const openingLoops = documentXml.match(/{#\w+}/g) || [];
+      const closingLoops = documentXml.match(/{\/\w+}/g) || [];
+      
+      console.log('Template validation:', {
+        openingLoops: openingLoops.length,
+        closingLoops: closingLoops.length,
+        openingTags: openingLoops,
+        closingTags: closingLoops
+      });
+
+      // Check for unclosed loops
+      const openingNames = openingLoops.map(tag => tag.match(/{#(\w+)}/)?.[1]).filter(Boolean);
+      const closingNames = closingLoops.map(tag => tag.match(/{\/(\w+)}/)?.[1]).filter(Boolean);
+      
+      const unclosedLoops = openingNames.filter(name => !closingNames.includes(name));
+      const unopenedClosings = closingNames.filter(name => !openingNames.includes(name));
+      
+      if (unclosedLoops.length > 0) {
+        errors.push(`Unclosed loops found: ${unclosedLoops.map(name => `{#${name}}`).join(', ')}. Add matching {/${unclosedLoops.join('}, {/')}} tags.`);
+      }
+      
+      if (unopenedClosings.length > 0) {
+        errors.push(`Closing tags without opening: ${unopenedClosings.map(name => `{/${name}}`).join(', ')}. Add matching {#${unopenedClosings.join('}, {#')}} tags.`);
+      }
+
+      return { hasErrors: errors.length > 0, errors };
+
+    } catch (error: any) {
+      console.warn('Template validation error:', error.message);
+      return { hasErrors: false, errors: [] }; // Don't fail on validation errors
+    }
+  }
+
+  /**
+   * Analyzes template errors to provide helpful solutions
+   */
+  private static analyzeTemplateError(error: any): { message: string; solution: string } {
+    console.log('Analyzing template error:', error);
+    
+    if (error.properties && Array.isArray(error.properties)) {
+      // Handle multiple errors
+      const unclosedLoopErrors = error.properties.filter((prop: any) => prop.id === 'unclosed_loop');
+      
+      if (unclosedLoopErrors.length > 0) {
+        const loopTags = unclosedLoopErrors.map((prop: any) => prop.xtag).filter(Boolean);
+        return {
+          message: `Unclosed loops detected: {#${loopTags.join('}, {#')}}`,
+          solution: `Fix your Word template:\n1. Open the template file\n2. For each {#${loopTags.join('} add {/')}} add {/${loopTags.join('}\n3. For each {#')}}\n4. Save the template and try again`
+        };
+      }
+      
+      // Handle other multiple errors
+      const errorMessages = error.properties.map((prop: any) => 
+        prop.explanation || prop.message || 'Unknown error'
+      ).join(', ');
+      
+      return {
+        message: `Multiple template errors: ${errorMessages}`,
+        solution: 'Check your Word template syntax:\n1. Ensure all {#loopName} tags have matching {/loopName} tags\n2. Verify all placeholders use correct syntax: {variableName}\n3. Save the template and try again'
+      };
+    }
+
+    if (error.properties?.id === 'unclosed_loop') {
+      const loopTag = error.properties.xtag;
+      return {
+        message: `The loop "{#${loopTag}}" is not closed properly`,
+        solution: `Fix your Word template:\n1. Open the template file\n2. Find the "{#${loopTag}}" tag\n3. Add a matching "{/${loopTag}}" closing tag\n4. Save the template and try again`
+      };
+    }
+
+    if (error.message?.includes('Multi error')) {
+      return {
+        message: 'Multiple template syntax errors detected',
+        solution: 'Fix your Word template:\n1. Check that all {#loopName} tags have matching {/loopName} tags\n2. Ensure all placeholders use correct syntax: {variableName}\n3. Save the template and try again'
+      };
+    }
+
+    return {
+      message: error.message || 'Unknown template error',
+      solution: 'Please check your Word template syntax:\n1. Ensure all tags are properly formatted\n2. Check for missing closing tags\n3. Save the template and try again'
+    };
   }
 
   static async analyzeTemplate(templateName: string): Promise<string[]> {
