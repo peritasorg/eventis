@@ -642,29 +642,58 @@ export class WordTemplateGenerator {
           stack: renderError.stack
         });
         
-        // Handle multi error specifically
+        // Enhanced error handling for Multi error
         if (renderError.name === 'TemplateError' || renderError.name === 'RenderingError') {
+          // Handle properties array format
           if (renderError.properties && Array.isArray(renderError.properties)) {
             const errorMessages = renderError.properties.map((prop: any) => {
               const location = prop.id || prop.tag || prop.scope || 'unknown location';
               const explanation = prop.explanation || prop.message || 'Unknown error';
+              console.error('Template error detail:', { location, explanation, prop });
               return `${explanation} at ${location}`;
             }).join('; ');
             throw new Error(`Template processing failed: ${errorMessages}`);
           }
+          
+          // Handle errors array in properties
+          if (renderError.properties && renderError.properties.errors && Array.isArray(renderError.properties.errors)) {
+            const errors = renderError.properties.errors.map((err: any) => {
+              console.error('Individual template error:', err);
+              return `${err.message || err.explanation || 'Unknown error'} (${err.name || 'UnknownError'})`;
+            }).join('; ');
+            throw new Error(`Template errors: ${errors}`);
+          }
+          
+          // Handle single error with properties
+          if (renderError.properties && renderError.properties.explanation) {
+            throw new Error(`Template error: ${renderError.properties.explanation}`);
+          }
         }
         
-        // Handle array of errors
-        if (renderError.properties && renderError.properties.errors && Array.isArray(renderError.properties.errors)) {
-          const errors = renderError.properties.errors.map((err: any) => 
-            `${err.message || err.explanation || 'Unknown error'} (${err.name || 'UnknownError'})`
-          ).join('; ');
-          throw new Error(`Template errors: ${errors}`);
-        }
-        
-        // Handle single error with properties
-        if (renderError.properties && renderError.properties.explanation) {
-          throw new Error(`Template error: ${renderError.properties.explanation}`);
+        // Handle Multi error specifically - this usually means missing template placeholders
+        if (renderError.message === 'Multi error') {
+          console.error('Multi error detected - likely missing template placeholders');
+          console.error('Template data keys:', Object.keys(templateData));
+          
+          // Try to extract more specific error information
+          let specificErrors = [];
+          if (renderError.properties) {
+            if (Array.isArray(renderError.properties)) {
+              specificErrors = renderError.properties.map((prop: any) => 
+                `${prop.explanation || prop.message || 'Unknown'} (${prop.id || prop.tag || 'unknown'})`
+              );
+            } else if (renderError.properties.errors) {
+              specificErrors = renderError.properties.errors.map((err: any) => 
+                `${err.explanation || err.message || 'Unknown'} (${err.id || err.tag || 'unknown'})`
+              );
+            }
+          }
+          
+          if (specificErrors.length > 0) {
+            throw new Error(`Template placeholders not found or invalid: ${specificErrors.join(', ')}`);
+          } else {
+            throw new Error('Template processing failed: Missing or invalid placeholders in Word template');
+          }
         }
         
         // Fallback for any other error structure
