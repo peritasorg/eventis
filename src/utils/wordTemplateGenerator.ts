@@ -624,13 +624,14 @@ export class WordTemplateGenerator {
         errorLogging: true,
       });
       
-      console.log('About to render specification template with data:', JSON.stringify(templateData, null, 2));
+      console.log('About to set template data:', JSON.stringify(templateData, null, 2));
+      
+      // Set the template data
+      doc.setData(templateData);
       
       try {
-        // Validate template before rendering
-        this.validateTemplateStructure(doc, templateData);
-        
-        doc.render(templateData);
+        // Render the document (no parameters needed)
+        doc.render();
         console.log('Template rendered successfully');
       } catch (renderError: any) {
         console.error('Docxtemplater render error:', renderError);
