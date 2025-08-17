@@ -51,7 +51,8 @@ interface TemplateData {
 }
 
 interface SpecificationLineItem {
-  description: string;
+  field_name: string;
+  field_value: string;
   notes?: string;
 }
 
@@ -64,7 +65,8 @@ interface SpecificationTemplateData {
   guest_count: number;
   specification_items: SpecificationLineItem[];
   line_items: Array<{
-    description: string;
+    field_name: string;
+    field_value: string;
     notes: string;
     quantity: number;
     price: number;
@@ -473,7 +475,8 @@ export class WordTemplateGenerator {
               
               if (content) {
                 const item: SpecificationLineItem = {
-                  description: String(content).trim(),
+                  field_name: content.field_name,
+                  field_value: content.field_value,
                   notes: String((response as any)?.notes || '').trim(),
                 };
                 
@@ -563,12 +566,13 @@ export class WordTemplateGenerator {
     // Map specification_items to line_items format for template compatibility
     const lineItems = specificationItems.length > 0 
       ? specificationItems.map(item => ({
-          description: item.description,
+          field_name: item.field_name,
+          field_value: item.field_value,
           notes: item.notes || '',
           quantity: 1, // Default quantity for specifications
           price: 0     // No pricing in specifications
         }))
-      : [{ description: 'No specification items available', notes: '', quantity: 1, price: 0 }];
+      : [{ field_name: 'No specification items available', field_value: '', notes: '', quantity: 1, price: 0 }];
 
     const templateData: SpecificationTemplateData = {
       business_name: businessName,
@@ -578,7 +582,7 @@ export class WordTemplateGenerator {
       event_time: eventTime,
       guest_count: guestCount,
       specification_items: specificationItems.length > 0 ? specificationItems : [
-        { description: 'No specification items available', notes: '' }
+        { field_name: 'No specification items available', field_value: '', notes: '' }
       ],
       line_items: lineItems, // Add line_items for template compatibility
       notes: notes,
@@ -1065,7 +1069,7 @@ Current issue: ${syntaxError.message}`);
     return hasAnyValue;
   }
 
-  private static extractSpecificationFieldContent(response: any, fieldConfig: any): string | null {
+  private static extractSpecificationFieldContent(response: any, fieldConfig: any): { field_name: string; field_value: string } | null {
     if (!response || typeof response !== 'object' || !fieldConfig) {
       return null;
     }
@@ -1078,25 +1082,25 @@ Current issue: ${syntaxError.message}`);
     // Handle different field types and extract appropriate content
     switch (fieldType) {
       case 'toggle':
-        return response.enabled ? fieldName : null;
+        return response.enabled ? { field_name: fieldName, field_value: 'Yes' } : null;
 
       case 'text':
       case 'textarea':
         if (response.value && String(response.value).trim()) {
-          return `${fieldName}: ${String(response.value).trim()}`;
+          return { field_name: fieldName, field_value: String(response.value).trim() };
         }
         return null;
 
       case 'price':
         if (response.price && parseFloat(response.price) > 0) {
-          return `${fieldName}: £${parseFloat(response.price).toFixed(2)}`;
+          return { field_name: fieldName, field_value: `£${parseFloat(response.price).toFixed(2)}` };
         }
         return null;
 
       case 'quantity':
       case 'number':
         if (response.quantity && parseInt(response.quantity) > 0) {
-          return `${fieldName}: ${response.quantity}`;
+          return { field_name: fieldName, field_value: String(response.quantity) };
         }
         return null;
 
@@ -1104,28 +1108,28 @@ Current issue: ${syntaxError.message}`);
       case 'select':
         const selectedValue = response.selectedOption || response.value;
         if (selectedValue && String(selectedValue).trim()) {
-          return `${fieldName}: ${String(selectedValue).trim()}`;
+          return { field_name: fieldName, field_value: String(selectedValue).trim() };
         }
         return null;
 
       case 'counter':
         if (response.value && parseInt(response.value) > 0) {
-          return `${fieldName}: ${response.value}`;
+          return { field_name: fieldName, field_value: String(response.value) };
         }
         return null;
 
       case 'notes':
         if (response.notes && String(response.notes).trim()) {
-          return `${fieldName}: ${String(response.notes).trim()}`;
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
         }
         return null;
 
       default:
         // Default handling for unknown field types
         if (response.value && String(response.value).trim()) {
-          return `${fieldName}: ${String(response.value).trim()}`;
+          return { field_name: fieldName, field_value: String(response.value).trim() };
         } else if (response.enabled === true) {
-          return fieldName;
+          return { field_name: fieldName, field_value: 'Yes' };
         }
         return null;
     }
