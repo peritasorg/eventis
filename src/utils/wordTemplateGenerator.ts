@@ -412,10 +412,10 @@ export class WordTemplateGenerator {
       .replace(/'/g, '&apos;');
   }
 
-  private static async extractSpecificationLineItems(eventForms: any[], tenantId: string): Promise<SpecificationLineItem[]> {
+  private static async extractSpecificationLineItems(eventForms: any[], tenantId: string, selectedFormId?: string): Promise<SpecificationLineItem[]> {
     const items: SpecificationLineItem[] = [];
     
-    console.log('Extracting specification items:', { eventForms, tenantId });
+    console.log('Extracting specification items:', { eventForms, tenantId, selectedFormId });
 
     if (!Array.isArray(eventForms) || eventForms.length === 0) {
       console.log('No event forms provided');
@@ -426,6 +426,19 @@ export class WordTemplateGenerator {
       console.error('Tenant ID is required for extracting specification items');
       return items;
     }
+
+    // Filter to only process the selected form if specified
+    const formsToProcess = selectedFormId 
+      ? eventForms.filter(form => form.form_id === selectedFormId)
+      : eventForms;
+
+    if (formsToProcess.length === 0) {
+      console.log('No forms match the selected form ID or no forms to process');
+      return items;
+    }
+
+    console.log(`Processing ${formsToProcess.length} forms for specification`, 
+      selectedFormId ? `(selected form: ${selectedFormId})` : '(all forms)');
 
     try {
       // Get all form fields for this tenant
@@ -449,9 +462,10 @@ export class WordTemplateGenerator {
 
       // Create a lookup map for field configurations
       const fieldLookup = new Map(formFields.map(field => [field.id, field]));
+      const processedFieldNames = new Set<string>(); // Track processed field names to avoid duplicates
 
       // Process each event form
-      for (const eventForm of eventForms) {
+      for (const eventForm of formsToProcess) {
         if (!eventForm || !eventForm.form_responses || typeof eventForm.form_responses !== 'object') {
           console.log('Skipping invalid event form:', eventForm?.id);
           continue;
@@ -469,6 +483,12 @@ export class WordTemplateGenerator {
               continue;
             }
 
+            // Skip if we've already processed a field with this name (avoid duplicates)
+            if (processedFieldNames.has(fieldConfig.name)) {
+              console.log('Skipping duplicate field:', fieldConfig.name);
+              continue;
+            }
+
             // Check if this field should be included in specification
             if (this.isSpecificationFieldPopulated(response, fieldConfig.field_type)) {
               const content = this.extractSpecificationFieldContent(response, fieldConfig);
@@ -481,6 +501,7 @@ export class WordTemplateGenerator {
                 };
                 
                 items.push(item);
+                processedFieldNames.add(fieldConfig.name); // Mark this field name as processed
                 console.log('Added specification item:', item);
               }
             }
@@ -616,7 +637,8 @@ export class WordTemplateGenerator {
   static async generateSpecificationDocument(
     eventData: any, 
     tenantId: string, 
-    eventForms: any[]
+    eventForms: any[],
+    selectedFormId?: string
   ): Promise<void> {
     try {
       console.log('Starting specification document generation...', { eventData: eventData?.id, tenantId });
@@ -651,7 +673,7 @@ Current issue: ${syntaxError.message}`);
       }
       
       // Extract and map specification data
-      const specificationLineItems = await this.extractSpecificationLineItems(eventForms, tenantId);
+      const specificationLineItems = await this.extractSpecificationLineItems(eventForms, tenantId, selectedFormId);
       const mappedData = await this.mapEventDataToSpecification(eventData, tenantId, specificationLineItems, eventForms);
       
       console.log('Mapped specification data:', mappedData);
@@ -1079,10 +1101,19 @@ Current issue: ${syntaxError.message}`);
 
     console.log('Extracting content for field:', { fieldName, fieldType, response });
 
-    // Handle different field types and extract appropriate content
+    // PRIORITY 1: Always check for notes first since that's the user's written content
+    if (response.notes && String(response.notes).trim()) {
+      return { field_name: fieldName, field_value: String(response.notes).trim() };
+    }
+
+    // PRIORITY 2: Handle specific field types based on their primary value
     switch (fieldType) {
       case 'toggle':
-        return response.enabled ? { field_name: fieldName, field_value: 'Yes' } : null;
+        // For toggle fields, check if enabled and if there's a notes value
+        if (response.enabled) {
+          return { field_name: fieldName, field_value: 'Yes' };
+        }
+        return null;
 
       case 'text':
       case 'textarea':
@@ -1119,13 +1150,14 @@ Current issue: ${syntaxError.message}`);
         return null;
 
       case 'notes':
+        // This case should be handled above, but included for completeness
         if (response.notes && String(response.notes).trim()) {
           return { field_name: fieldName, field_value: String(response.notes).trim() };
         }
         return null;
 
       default:
-        // Default handling for unknown field types
+        // PRIORITY 3: Default handling - prioritize actual values over just "enabled"
         if (response.value && String(response.value).trim()) {
           return { field_name: fieldName, field_value: String(response.value).trim() };
         } else if (response.enabled === true) {

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Download, Edit3, Eye, FileText, Receipt, Upload } from 'lucide-react';
 import { extractPopulatedFields } from '@/utils/smartFieldExtractor';
 import { WordTemplateGenerator } from '@/utils/wordTemplateGenerator';
@@ -44,6 +45,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   const [isLoadingFields, setIsLoadingFields] = useState(true);
   const [hasTemplate, setHasTemplate] = useState(false);
   const [hasSpecificationTemplate, setHasSpecificationTemplate] = useState(false);
+  const [selectedFormForSpec, setSelectedFormForSpec] = useState<string>('');
 
   React.useEffect(() => {
     if (isOpen && eventForms) {
@@ -220,7 +222,8 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
       await WordTemplateGenerator.generateSpecificationDocument(
         enhancedEventData, 
         tenantId,
-        eventForms || []
+        eventForms || [],
+        selectedFormForSpec
       );
       
       toast.success('Specification document downloaded!');
@@ -439,9 +442,36 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                 <div>
                   <h3 className="font-semibold">Specification Template</h3>
                   {hasSpecificationTemplate ? (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      Specification Template Active
-                    </Badge>
+                    <div className="space-y-3">
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        Specification Template Active
+                      </Badge>
+                      {eventForms && eventForms.length > 1 && (
+                        <div className="space-y-2">
+                          <Label htmlFor="form-selector" className="text-sm font-medium">
+                            Select Form for Specification:
+                          </Label>
+                          <Select 
+                            value={selectedFormForSpec} 
+                            onValueChange={setSelectedFormForSpec}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Choose a form..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {eventForms.map((form) => (
+                                <SelectItem key={form.form_id} value={form.form_id}>
+                                  {form.form_label || `Form ${form.form_order}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Choose which form's fields to include in the specification document.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div className="space-y-1">
                       <Badge variant="secondary" className="bg-red-100 text-red-800">
