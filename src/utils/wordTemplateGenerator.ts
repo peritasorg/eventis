@@ -524,13 +524,30 @@ export class WordTemplateGenerator {
       throw new Error('Event forms must be an array');
     }
 
+    // Fetch customer data properly
+    let customerName = 'Customer Name';
+    if (eventData.customer_id) {
+      try {
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('name')
+          .eq('id', eventData.customer_id)
+          .single();
+        
+        if (customer?.name) {
+          customerName = customer.name;
+        }
+      } catch (error) {
+        console.warn('Could not fetch customer name:', error);
+      }
+    }
+
     // Extract and validate data with null-safe handling
     const businessName = safeString(eventData.tenant?.business_name, 'Business Name');
-    const eventName = safeString(eventData.title, 'Event Name');
-    const customerName = safeString(eventData.customer?.name, 'Customer Name');
-    const eventDate = safeDate(eventData.event_date, 'TBD');
+    const eventName = safeString(eventData.event_name || eventData.title, 'Event Name');
+    const eventDate = safeDate(eventData.event_start_date || eventData.event_date, 'TBD');
     const eventTime = safeString(eventData.start_time, 'TBD');
-    const guestCount = safeNumber(eventData.guest_count);
+    const guestCount = safeNumber(eventData.estimated_guests || eventData.guest_count);
     const notes = safeString(eventData.notes, 'No additional notes');
     const createdDate = format(new Date(), 'dd/MM/yyyy');
 
@@ -550,7 +567,9 @@ export class WordTemplateGenerator {
       event_date: eventDate,
       event_time: eventTime,
       guest_count: guestCount,
-      specification_items: specificationItems,
+      specification_items: specificationItems.length > 0 ? specificationItems : [
+        { description: 'No specification items available', notes: '' }
+      ],
       notes: notes,
       created_date: createdDate,
     };
@@ -717,80 +736,137 @@ export class WordTemplateGenerator {
   }
 
   private static isSpecificationFieldPopulated(response: any, fieldType: string): boolean {
-    // Toggle-based fields - check if enabled
+    if (!response || typeof response !== 'object') {
+      return false;
+    }
+
+    console.log('Checking field population:', { response, fieldType });
+
+    // Check if field is enabled for toggle-based fields
     if (fieldType === 'toggle' || fieldType.includes('toggle')) {
-      return response.enabled === true;
+      const isEnabled = response.enabled === true;
+      console.log('Toggle field enabled:', isEnabled);
+      return isEnabled;
     }
 
-    // Text and textarea fields
+    // For text fields, check if value exists and is not empty
     if (fieldType === 'text' || fieldType === 'textarea' || fieldType.includes('text')) {
-      return !!(response.value && response.value.trim());
+      const hasValue = !!(response.value && String(response.value).trim());
+      console.log('Text field has value:', hasValue);
+      return hasValue;
     }
 
-    // Dropdown/select fields
+    // For price fields, check if price is set and greater than 0
+    if (fieldType === 'price' || fieldType.includes('price')) {
+      const hasPrice = !!(response.price && parseFloat(response.price) > 0);
+      console.log('Price field has price:', hasPrice);
+      return hasPrice;
+    }
+
+    // For quantity fields, check if quantity is set and greater than 0
+    if (fieldType === 'quantity' || fieldType === 'number' || fieldType.includes('quantity')) {
+      const hasQuantity = !!(response.quantity && parseInt(response.quantity) > 0);
+      console.log('Quantity field has quantity:', hasQuantity);
+      return hasQuantity;
+    }
+
+    // For dropdown fields, check if option is selected
     if (fieldType === 'dropdown' || fieldType === 'select' || fieldType.includes('dropdown')) {
-      return !!(response.selectedOption || response.value);
+      const hasSelection = !!(response.selectedOption || response.value);
+      console.log('Dropdown field has selection:', hasSelection);
+      return hasSelection;
     }
 
-    // Counter fields
+    // For counter fields, check if value is set and greater than 0
     if (fieldType === 'counter' || fieldType.includes('counter')) {
-      return !!(response.value && parseInt(response.value) > 0);
+      const hasCount = !!(response.value && parseInt(response.value) > 0);
+      console.log('Counter field has count:', hasCount);
+      return hasCount;
     }
 
-    // Notes fields
-    if (fieldType === 'notes' && response.notes && response.notes.trim()) {
+    // For notes fields, check if notes exist
+    if (fieldType === 'notes' && response.notes && String(response.notes).trim()) {
+      console.log('Notes field has content');
       return true;
     }
 
-    // Default: check if any field has content
-    return !!(
-      (response.value && response.value.toString().trim()) ||
-      (response.notes && response.notes.trim()) ||
+    // Default: check if any value exists
+    const hasAnyValue = !!(
+      (response.value && String(response.value).trim()) ||
+      (response.notes && String(response.notes).trim()) ||
+      (response.price && parseFloat(response.price) > 0) ||
+      (response.quantity && parseInt(response.quantity) > 0) ||
       response.enabled === true ||
       response.selectedOption
     );
+    
+    console.log('Default check - field has any value:', hasAnyValue);
+    return hasAnyValue;
   }
 
   private static extractSpecificationFieldContent(response: any, fieldConfig: any): string | null {
-    try {
-      // Handle different field types for content extraction
-      if (fieldConfig.field_type === 'toggle' || fieldConfig.field_type.includes('toggle')) {
-        // For toggle fields, return the notes if enabled
-        return response.enabled && response.notes ? response.notes.trim() : null;
-      }
-
-      if (fieldConfig.field_type === 'dropdown' || fieldConfig.field_type.includes('dropdown')) {
-        const selection = response.selectedOption || response.value;
-        const notes = response.notes ? ` - ${response.notes.trim()}` : '';
-        return selection ? `${selection}${notes}` : null;
-      }
-
-      if (fieldConfig.field_type === 'text' || fieldConfig.field_type === 'textarea' || fieldConfig.field_type.includes('text')) {
-        return response.value ? response.value.trim() : null;
-      }
-
-      if (fieldConfig.field_type === 'counter' || fieldConfig.field_type.includes('counter')) {
-        return response.value ? response.value.toString() : null;
-      }
-
-      if (fieldConfig.field_type === 'notes' && response.notes) {
-        return response.notes.trim();
-      }
-
-      // Default: try to get any meaningful content
-      if (response.value && response.value.toString().trim()) {
-        const notes = response.notes ? ` - ${response.notes.trim()}` : '';
-        return `${response.value.toString().trim()}${notes}`;
-      }
-
-      if (response.notes && response.notes.trim()) {
-        return response.notes.trim();
-      }
-
+    if (!response || typeof response !== 'object' || !fieldConfig) {
       return null;
-    } catch (error) {
-      console.error('Error extracting field content:', error);
-      return null;
+    }
+
+    const fieldName = String(fieldConfig.name || 'Unknown Field');
+    const fieldType = String(fieldConfig.field_type || 'text');
+
+    console.log('Extracting content for field:', { fieldName, fieldType, response });
+
+    // Handle different field types and extract appropriate content
+    switch (fieldType) {
+      case 'toggle':
+        return response.enabled ? fieldName : null;
+
+      case 'text':
+      case 'textarea':
+        if (response.value && String(response.value).trim()) {
+          return `${fieldName}: ${String(response.value).trim()}`;
+        }
+        return null;
+
+      case 'price':
+        if (response.price && parseFloat(response.price) > 0) {
+          return `${fieldName}: £${parseFloat(response.price).toFixed(2)}`;
+        }
+        return null;
+
+      case 'quantity':
+      case 'number':
+        if (response.quantity && parseInt(response.quantity) > 0) {
+          return `${fieldName}: ${response.quantity}`;
+        }
+        return null;
+
+      case 'dropdown':
+      case 'select':
+        const selectedValue = response.selectedOption || response.value;
+        if (selectedValue && String(selectedValue).trim()) {
+          return `${fieldName}: ${String(selectedValue).trim()}`;
+        }
+        return null;
+
+      case 'counter':
+        if (response.value && parseInt(response.value) > 0) {
+          return `${fieldName}: ${response.value}`;
+        }
+        return null;
+
+      case 'notes':
+        if (response.notes && String(response.notes).trim()) {
+          return `${fieldName}: ${String(response.notes).trim()}`;
+        }
+        return null;
+
+      default:
+        // Default handling for unknown field types
+        if (response.value && String(response.value).trim()) {
+          return `${fieldName}: ${String(response.value).trim()}`;
+        } else if (response.enabled === true) {
+          return fieldName;
+        }
+        return null;
     }
   }
 
