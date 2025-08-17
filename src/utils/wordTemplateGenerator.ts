@@ -545,8 +545,33 @@ export class WordTemplateGenerator {
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
+        errorLogging: true,
       });
-      doc.render(templateData);
+      
+      try {
+        doc.render(templateData);
+      } catch (renderError: any) {
+        console.error('Docxtemplater render error:', renderError);
+        
+        // Handle multi error specifically
+        if (renderError.name === 'TemplateError' && renderError.properties) {
+          console.error('Template errors:', renderError.properties);
+          const errorMessages = renderError.properties.map((prop: any) => 
+            `${prop.explanation} at ${prop.id || 'unknown location'}`
+          ).join('; ');
+          throw new Error(`Template processing failed: ${errorMessages}`);
+        }
+        
+        // Handle other docxtemplater errors
+        if (renderError.properties && renderError.properties.errors) {
+          const errors = renderError.properties.errors.map((err: any) => 
+            `${err.message} (${err.name})`
+          ).join('; ');
+          throw new Error(`Template errors: ${errors}`);
+        }
+        
+        throw renderError;
+      }
       
       // Generate the document
       const output = zip.generate({
