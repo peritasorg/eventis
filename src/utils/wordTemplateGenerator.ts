@@ -63,6 +63,7 @@ interface SpecificationTemplateData {
   event_name: string;
   event_date: string;
   event_time: string;
+  today: string; // Add today field
   ethnicity: string; // Add ethnicity field
   guest_count: number;
   men_count: number; // Add men_count field
@@ -520,10 +521,10 @@ export class WordTemplateGenerator {
       for (const eventForm of formsToProcess) {
         if (eventForm?.form_responses && typeof eventForm.form_responses === 'object') {
           for (const [fieldId, response] of Object.entries(eventForm.form_responses)) {
-            // Only include responses that are enabled and have values
+            // Only include responses that are populated based on field type
             if (response && typeof response === 'object') {
-              const respObj = response as any;
-              if (respObj.enabled === true && (respObj.value !== undefined && respObj.value !== null && respObj.value !== '')) {
+              const fieldConfig = fieldLookup.get(fieldId);
+              if (this.isSpecificationFieldPopulated(response, fieldConfig?.field_type || 'text')) {
                 populatedFieldResponses.set(fieldId, response);
               }
             }
@@ -577,7 +578,14 @@ export class WordTemplateGenerator {
           }
 
           // Check if this field should be included in specification
+          console.log('🔍 Checking field for specification:', {
+            fieldName: fieldConfig.name,
+            fieldType: fieldConfig.field_type,
+            response: response
+          });
+          
           if (this.isSpecificationFieldPopulated(response, fieldConfig.field_type)) {
+            console.log('✅ Field is populated, extracting content...');
             const content = this.extractSpecificationFieldContent(response, fieldConfig);
             
             if (content) {
@@ -589,8 +597,12 @@ export class WordTemplateGenerator {
               
               items.push(item);
               processedFieldNames.add(fieldConfig.name);
-              console.log('✅ Added specification item:', item.field_name);
+              console.log('✅ Added specification item:', item);
+            } else {
+              console.log('❌ No content extracted for field:', fieldConfig.name);
             }
+          } else {
+            console.log('❌ Field not populated:', fieldConfig.name);
           }
         } catch (fieldError) {
           console.error('❌ Error processing field:', fieldId, fieldError);
@@ -607,7 +619,14 @@ export class WordTemplateGenerator {
     }
   }
 
-  private static async mapEventDataToSpecification(eventData: any, tenantId: string, specificationLineItems: SpecificationLineItem[], eventForms: any[]): Promise<SpecificationTemplateData> {
+  private static async mapEventDataToSpecification(
+    eventData: any, 
+    tenantId: string, 
+    specificationLineItems: SpecificationLineItem[], 
+    targetEventForm?: any
+  ): Promise<SpecificationTemplateData> {
+    const { format } = await import('date-fns');
+    
     // Comprehensive data validation and sanitization
     const safeString = (value: any, fallback: string = ''): string => {
       if (value === null || value === undefined) return fallback;
@@ -629,15 +648,15 @@ export class WordTemplateGenerator {
       }
     };
 
-    console.log('Mapping specification data:', { eventData, eventForms, tenantId });
+    console.log('Mapping specification data:', { 
+      eventData: eventData?.id, 
+      targetEventForm: targetEventForm?.form_label, 
+      tenantId 
+    });
 
     // Validate required data
     if (!eventData) {
       throw new Error('Event data is required for specification generation');
-    }
-
-    if (!Array.isArray(eventForms)) {
-      throw new Error('Event forms must be an array');
     }
 
     // Fetch customer data properly
@@ -658,35 +677,24 @@ export class WordTemplateGenerator {
       }
     }
 
-    // Extract and validate data with null-safe handling
+    // Use event record data for main details
     const businessName = safeString(eventData.tenant?.business_name, 'Business Name');
-    const eventName = safeString(eventData.event_name || eventData.title, 'Event Name');
-    const eventDate = safeDate(eventData.event_start_date || eventData.event_date, 'TBD');
-    const eventTime = safeString(eventData.start_time, 'TBD');
-    const guestCount = safeNumber(eventData.estimated_guests || eventData.guest_count);
+    const eventTitle = safeString(eventData.title, 'Event Name'); // Use title from event record
+    const eventDate = safeDate(eventData.event_date, 'TBD');
     const notes = safeString(eventData.notes, 'No additional notes');
     const createdDate = format(new Date(), 'dd/MM/yyyy');
+    const todayDate = format(new Date(), 'dd/MM/yyyy');
+    
+    console.log('🔍 DATE FORMATTING:', {
+      createdDate,
+      todayDate,
+      rawDate: new Date()
+    });
 
-    // Use provided specification line items
-    const specificationItems = specificationLineItems || [];
-
-    // Map specification_items to line_items format for template compatibility
-    const lineItems = specificationItems.length > 0 
-      ? specificationItems.map(item => ({
-          field_name: item.field_name,
-          field_value: item.field_value,
-          notes: item.notes || '',
-          quantity: 1, // Default quantity for specifications
-          price: 0     // No pricing in specifications
-        }))
-      : [{ field_name: 'No specification items available', field_value: '', notes: '', quantity: 1, price: 0 }];
-
-    // Extract additional required fields for template
-    const menCount = safeNumber(eventData.men_count);
-    const ladiesCount = safeNumber(eventData.ladies_count);
+    // Extract guest mixture and ethnicity from event record
     const guestMixture = safeString(eventData.guest_mixture, 'Mixed');
     
-    // Format ethnicity - check for both formats
+    // Format ethnicity from event record - handle JSON array format
     let ethnicityDisplay = 'Not specified';
     if (eventData.ethnicity) {
       if (typeof eventData.ethnicity === 'string') {
@@ -699,25 +707,84 @@ export class WordTemplateGenerator {
       }
     }
 
+    // Use target event form data for guest counts and timing (prioritize form data)
+    let guestCount = 0;
+    let menCount = 0;
+    let ladiesCount = 0;
+    let eventTime = 'TBD';
+
+    if (targetEventForm) {
+      console.log('Using target event form data:', {
+        formLabel: targetEventForm.form_label,
+        guestCount: targetEventForm.guest_count,
+        menCount: targetEventForm.men_count,
+        ladiesCount: targetEventForm.ladies_count,
+        startTime: targetEventForm.start_time,
+        endTime: targetEventForm.end_time
+      });
+
+      // Use form data for guest counts
+      guestCount = safeNumber(targetEventForm.guest_count);
+      menCount = safeNumber(targetEventForm.men_count);
+      ladiesCount = safeNumber(targetEventForm.ladies_count);
+
+      // Format event time from form data
+      if (targetEventForm.start_time && targetEventForm.end_time) {
+        eventTime = `${targetEventForm.start_time} - ${targetEventForm.end_time}`;
+      } else if (targetEventForm.start_time) {
+        eventTime = targetEventForm.start_time;
+      }
+    } else {
+      // Fallback to event record data if no target form
+      console.log('No target form found, using event record data');
+      guestCount = safeNumber(eventData.estimated_guests || eventData.guest_count);
+      menCount = safeNumber(eventData.men_count);
+      ladiesCount = safeNumber(eventData.ladies_count);
+      eventTime = safeString(eventData.start_time, 'TBD');
+    }
+
+    // Use provided specification line items
+    const specificationItems = specificationLineItems || [];
+
+    // Map specification_items to line_items format for template compatibility
+    const lineItems = specificationItems.length > 0 
+      ? specificationItems.map(item => ({
+          field_name: String(item.field_name || ''),
+          field_value: String(item.field_value || ''),
+          notes: String(item.notes || ''),
+          quantity: 1,
+          price: 0
+        }))
+      : [];
+
+    console.log('🔍 SPECIFICATION ITEMS:', specificationItems);
+    console.log('🔍 MAPPED LINE ITEMS:', lineItems);
+
     const templateData: SpecificationTemplateData = {
       business_name: businessName,
       customer_name: customerName,
-      title: eventName, // Add title field
-      event_name: eventName,
+      title: eventTitle,
+      event_name: eventTitle,
       event_date: eventDate,
       event_time: eventTime,
-      ethnicity: ethnicityDisplay, // Add ethnicity field
+      today: todayDate,
+      ethnicity: ethnicityDisplay,
       guest_count: guestCount,
-      men_count: menCount, // Add men_count field
-      ladies_count: ladiesCount, // Add ladies_count field
-      guest_mixture: guestMixture, // Add guest_mixture field
-      specification_items: specificationItems.length > 0 ? specificationItems : [
-        { field_name: 'No specification items available', field_value: '', notes: '' }
-      ],
-      line_items: lineItems, // Add line_items for template compatibility
+      men_count: menCount,
+      ladies_count: ladiesCount,
+      guest_mixture: guestMixture,
+      specification_items: specificationItems.length > 0 ? specificationItems : [],
+      line_items: lineItems,
       notes: notes,
       created_date: createdDate,
     };
+
+    console.log('🔍 TEMPLATE DATA CREATED:', {
+      title: templateData.title,
+      today: templateData.today,
+      line_items_count: templateData.line_items.length,
+      line_items: templateData.line_items
+    });
 
     console.log('Generated specification template data:', templateData);
 
@@ -776,6 +843,17 @@ export class WordTemplateGenerator {
         formId: configuredFormId, 
         selectedFields: selectedFieldIds.length 
       });
+
+      // Get the specific event form data for the configured form ID
+      const targetEventForm = configuredFormId 
+        ? eventForms.find(form => form.form_id === configuredFormId)
+        : null;
+
+      if (!targetEventForm && configuredFormId) {
+        console.warn('Configured form not found in event forms:', configuredFormId);
+      }
+      
+      console.log('Target event form for specification:', targetEventForm?.form_label);
       
       // Download the template
       const templateData = await this.downloadTemplate(templateName);
@@ -811,7 +889,7 @@ Current issue: ${syntaxError.message}`);
         configuredFormId, 
         selectedFieldIds as string[]
       );
-      const mappedData = await this.mapEventDataToSpecification(eventData, tenantId, specificationLineItems, eventForms);
+      const mappedData = await this.mapEventDataToSpecification(eventData, tenantId, specificationLineItems, targetEventForm);
       
       console.log('Mapped specification data:', mappedData);
       
@@ -848,7 +926,14 @@ Current issue: ${syntaxError.message}`);
       
       // Set template data with validation
       try {
-        doc.setData(await mappedData);
+        const finalTemplateData = await mappedData;
+        console.log('🔍 FINAL TEMPLATE DATA BEING SENT TO DOCXTEMPLATER:', JSON.stringify(finalTemplateData, null, 2));
+        console.log('🔍 Title field:', finalTemplateData.title);
+        console.log('🔍 Today field:', finalTemplateData.today);
+        console.log('🔍 Line items array:', finalTemplateData.line_items);
+        console.log('🔍 Line items length:', finalTemplateData.line_items?.length);
+        
+        doc.setData(finalTemplateData);
       } catch (dataError: any) {
         console.error('Data mapping error:', dataError);
         throw new Error('Failed to map data to template. Please check your template placeholders match the expected data structure.');
