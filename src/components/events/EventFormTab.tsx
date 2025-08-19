@@ -174,20 +174,19 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     ? eventForms.filter(ef => ef.id === eventFormId)
     : eventForms;
 
-  // Load form responses when eventForms change (with dependency check)
+  // CRITICAL FIX: Load form responses when eventForms change - always prioritize database data
   useEffect(() => {
     const responses: Record<string, Record<string, any>> = {};
     
     eventForms.forEach(eventForm => {
       console.log('Loading form responses for:', eventForm.form_label, eventForm.form_responses);
-      if (eventForm.form_responses && Object.keys(eventForm.form_responses).length > 0) {
-        responses[eventForm.id] = eventForm.form_responses;
-      }
+      // Load ALL responses, even empty ones to ensure proper field initialization
+      responses[eventForm.id] = eventForm.form_responses || {};
     });
     
-    console.log('All loaded form responses:', responses);
+    console.log('All loaded form responses (including empty):', responses);
     
-    // Always set the form responses from database (this is the initial load)
+    // CRITICAL: Always update state with database responses - this ensures sync
     setFormResponses(responses);
     
     // Only initialize guest data for NEW forms that don't exist in local state
@@ -228,16 +227,21 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     });
   }, [eventForms.length, eventForms.map(ef => ef.id).join(',')]);
 
-  // Perfect form total calculation with proper decimal precision and debug logging
+  // FIXED: Perfect form total calculation with proper state selection
   const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
     let total = 0;
+    
+    // CRITICAL: Use formResponses state first (current UI state), fall back to database
     const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
+    
+    console.log('Calculating total for form:', eventForm.form_label, 'Responses:', responses);
     
     // Add form field prices (only when enabled and has price)
     Object.entries(responses).forEach(([fieldId, response]) => {
       if (response.enabled === true && response.price) {
         const price = Number(response.price) || 0;
         if (price > 0) {
+          console.log('Adding field price:', fieldId, price);
           total += price;
         }
       }
@@ -248,7 +252,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       ? (Number(localGuestData[eventForm.id]?.guest_price_total) || 0)
       : (Number(eventForm.guest_price_total) || 0);
     
-    total += guestPriceTotal;
+    if (guestPriceTotal > 0) {
+      console.log('Adding guest price total:', guestPriceTotal);
+      total += guestPriceTotal;
+    }
+    
+    console.log('Final calculated total:', total);
     
     // Round to 2 decimal places to prevent floating point precision issues
     return Math.round(total * 100) / 100;
@@ -635,11 +644,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                     Form Total: £{calculateFormTotal(eventForm, true).toFixed(2)}
                   </p>
                </div>
-               <FormSaveButton
-                 hasUnsavedChanges={unsavedChanges[eventForm.id] || false}
-                 onSave={() => saveFormChanges(eventForm.id)}
-                 isLoading={isSaving[eventForm.id] || false}
-               />
+                        <FormSaveButton
+                          hasUnsavedChanges={unsavedChanges[eventForm.id] || false}
+                          onSave={() => saveFormChanges(eventForm.id)}
+                          isLoading={isSaving[eventForm.id] || false}
+                        />
              </div>
            </CardHeader>
           <CardContent>
