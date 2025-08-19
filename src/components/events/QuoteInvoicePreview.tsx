@@ -45,7 +45,6 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   const [isLoadingFields, setIsLoadingFields] = useState(true);
   const [hasTemplate, setHasTemplate] = useState(false);
   const [hasSpecificationTemplate, setHasSpecificationTemplate] = useState(false);
-  const [selectedFormForSpec, setSelectedFormForSpec] = useState<string>('');
 
   React.useEffect(() => {
     if (isOpen && eventForms) {
@@ -220,10 +219,9 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
       };
 
       await WordTemplateGenerator.generateSpecificationDocument(
-        enhancedEventData, 
+        enhancedEventData,
         tenantId,
-        eventForms || [],
-        selectedFormForSpec
+        eventForms || []
       );
       
       toast.success('Specification document downloaded!');
@@ -446,31 +444,6 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
                         Specification Template Active
                       </Badge>
-                      {eventForms && eventForms.length > 1 && (
-                        <div className="space-y-2">
-                          <Label htmlFor="form-selector" className="text-sm font-medium">
-                            Select Form for Specification:
-                          </Label>
-                          <Select 
-                            value={selectedFormForSpec} 
-                            onValueChange={setSelectedFormForSpec}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Choose a form..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {eventForms.map((form) => (
-                                <SelectItem key={form.form_id} value={form.form_id}>
-                                  {form.form_label || `Form ${form.form_order}`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground">
-                            Choose which form's fields to include in the specification document.
-                          </p>
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <div className="space-y-1">

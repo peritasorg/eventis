@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, FileText, Trash2, Download, FileX } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { WordTemplateGenerator } from '@/utils/wordTemplateGenerator';
 import { generateEnhancedQuotePDF, generateEnhancedInvoicePDF } from '@/utils/enhancedPdfGenerator';
+import { useForms } from '@/hooks/useForms';
+import { useFormFields } from '@/hooks/useFormFields';
+import { useSpecificationConfig } from '@/hooks/useSpecificationConfig';
 
 interface TemplateUploadProps {
   onTemplateUploaded?: () => void;
@@ -28,6 +32,12 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
   const [currentTemplate, setCurrentTemplate] = useState<string | null>(null);
   const [outputFormat, setOutputFormat] = useState<'word' | 'pdf'>('word');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedFormId, setSelectedFormId] = useState<string>('');
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+
+  const { forms } = useForms();
+  const { formFields } = useFormFields();
+  const { config, saveConfig, isSaving } = useSpecificationConfig();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -215,7 +225,7 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
   };
 
   // Check if there's an existing template and load tenant data
-  React.useEffect(() => {
+  useEffect(() => {
     const checkExistingTemplate = async () => {
       if (!currentTenant) return;
       
@@ -253,7 +263,44 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
 
     checkExistingTemplate();
     loadTenantData();
-  }, [currentTenant]);
+  }, [currentTenant, templateType]);
+
+  // Load existing specification config
+  useEffect(() => {
+    if (templateType === 'specification' && config) {
+      setSelectedFormId(config.form_id);
+      setSelectedFields(config.selected_fields || []);
+    }
+  }, [config, templateType]);
+
+  const handleFormChange = (formId: string) => {
+    setSelectedFormId(formId);
+    setSelectedFields([]); // Reset field selection when form changes
+  };
+
+  const handleFieldToggle = (fieldId: string) => {
+    setSelectedFields(prev => 
+      prev.includes(fieldId) 
+        ? prev.filter(id => id !== fieldId)
+        : [...prev, fieldId]
+    );
+  };
+
+  const handleSaveSpecificationConfig = () => {
+    if (!selectedFormId) {
+      toast.error('Please select a form first');
+      return;
+    }
+    saveConfig({ formId: selectedFormId, selectedFields });
+  };
+
+  const getFormFields = (formId: string) => {
+    const form = forms?.find(f => f.id === formId);
+    if (!form) return [];
+    
+    const fieldIds = form.sections.flatMap((section: any) => section.fieldIds || []);
+    return formFields?.filter(field => fieldIds.includes(field.id)) || [];
+  };
 
   return (
     <Card>
@@ -353,6 +400,59 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
               )}
             </Button>
 
+            {templateType === 'specification' && (
+              <div className="mt-6 space-y-4">
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-4">Specification Configuration</h4>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="form-select">Default Form</Label>
+                      <Select value={selectedFormId} onValueChange={handleFormChange}>
+                        <SelectTrigger id="form-select">
+                          <SelectValue placeholder="Select a form..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {forms?.map((form) => (
+                            <SelectItem key={form.id} value={form.id}>
+                              {form.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedFormId && (
+                      <div>
+                        <Label>Fields to Include in Specification</Label>
+                        <div className="mt-2 max-h-48 overflow-y-auto border rounded-md p-3 space-y-2">
+                          {getFormFields(selectedFormId).map((field) => (
+                            <div key={field.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={field.id}
+                                checked={selectedFields.includes(field.id)}
+                                onCheckedChange={() => handleFieldToggle(field.id)}
+                              />
+                              <Label htmlFor={field.id} className="text-sm">
+                                {field.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button 
+                      onClick={handleSaveSpecificationConfig}
+                      disabled={!selectedFormId || isSaving}
+                      className="w-full"
+                    >
+                      {isSaving ? 'Saving...' : 'Save Configuration'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="pt-2">
               <Label htmlFor="replace-template">Replace Template</Label>

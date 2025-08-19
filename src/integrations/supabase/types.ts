@@ -2310,6 +2310,36 @@ export type Database = {
         }
         Relationships: []
       }
+      specification_template_configs: {
+        Row: {
+          created_at: string
+          form_id: string
+          id: string
+          is_active: boolean
+          selected_fields: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          form_id: string
+          id?: string
+          is_active?: boolean
+          selected_fields?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          form_id?: string
+          id?: string
+          is_active?: boolean
+          selected_fields?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff: {
         Row: {
           active: boolean | null
