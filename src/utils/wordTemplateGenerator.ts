@@ -578,7 +578,14 @@ export class WordTemplateGenerator {
           }
 
           // Check if this field should be included in specification
+          console.log('🔍 Checking field for specification:', {
+            fieldName: fieldConfig.name,
+            fieldType: fieldConfig.field_type,
+            response: response
+          });
+          
           if (this.isSpecificationFieldPopulated(response, fieldConfig.field_type)) {
+            console.log('✅ Field is populated, extracting content...');
             const content = this.extractSpecificationFieldContent(response, fieldConfig);
             
             if (content) {
@@ -590,8 +597,12 @@ export class WordTemplateGenerator {
               
               items.push(item);
               processedFieldNames.add(fieldConfig.name);
-              console.log('✅ Added specification item:', item.field_name);
+              console.log('✅ Added specification item:', item);
+            } else {
+              console.log('❌ No content extracted for field:', fieldConfig.name);
             }
+          } else {
+            console.log('❌ Field not populated:', fieldConfig.name);
           }
         } catch (fieldError) {
           console.error('❌ Error processing field:', fieldId, fieldError);
@@ -732,34 +743,42 @@ export class WordTemplateGenerator {
     // Map specification_items to line_items format for template compatibility
     const lineItems = specificationItems.length > 0 
       ? specificationItems.map(item => ({
-          field_name: item.field_name,
-          field_value: item.field_value,
-          notes: item.notes || '',
-          quantity: 1, // Default quantity for specifications
-          price: 0     // No pricing in specifications
+          field_name: String(item.field_name || ''),
+          field_value: String(item.field_value || ''),
+          notes: String(item.notes || ''),
+          quantity: 1,
+          price: 0
         }))
-      : [{ field_name: 'No specification items available', field_value: '', notes: '', quantity: 1, price: 0 }];
+      : [];
+
+    console.log('🔍 SPECIFICATION ITEMS:', specificationItems);
+    console.log('🔍 MAPPED LINE ITEMS:', lineItems);
 
     const templateData: SpecificationTemplateData = {
       business_name: businessName,
       customer_name: customerName,
-      title: eventTitle, // Event record title
+      title: eventTitle,
       event_name: eventTitle,
       event_date: eventDate,
-      event_time: eventTime, // Form timing or event timing
-      today: todayDate, // Add today field
-      ethnicity: ethnicityDisplay, // Event record ethnicity
-      guest_count: guestCount, // Form guest count
-      men_count: menCount, // Form men count
-      ladies_count: ladiesCount, // Form ladies count
-      guest_mixture: guestMixture, // Event record guest mixture
-      specification_items: specificationItems.length > 0 ? specificationItems : [
-        { field_name: 'No specification items available', field_value: '', notes: '' }
-      ],
-      line_items: lineItems, // Add line_items for template compatibility
+      event_time: eventTime,
+      today: todayDate,
+      ethnicity: ethnicityDisplay,
+      guest_count: guestCount,
+      men_count: menCount,
+      ladies_count: ladiesCount,
+      guest_mixture: guestMixture,
+      specification_items: specificationItems.length > 0 ? specificationItems : [],
+      line_items: lineItems,
       notes: notes,
       created_date: createdDate,
     };
+
+    console.log('🔍 TEMPLATE DATA CREATED:', {
+      title: templateData.title,
+      today: templateData.today,
+      line_items_count: templateData.line_items.length,
+      line_items: templateData.line_items
+    });
 
     console.log('Generated specification template data:', templateData);
 
@@ -901,7 +920,14 @@ Current issue: ${syntaxError.message}`);
       
       // Set template data with validation
       try {
-        doc.setData(await mappedData);
+        const finalTemplateData = await mappedData;
+        console.log('🔍 FINAL TEMPLATE DATA BEING SENT TO DOCXTEMPLATER:', JSON.stringify(finalTemplateData, null, 2));
+        console.log('🔍 Title field:', finalTemplateData.title);
+        console.log('🔍 Today field:', finalTemplateData.today);
+        console.log('🔍 Line items array:', finalTemplateData.line_items);
+        console.log('🔍 Line items length:', finalTemplateData.line_items?.length);
+        
+        doc.setData(finalTemplateData);
       } catch (dataError: any) {
         console.error('Data mapping error:', dataError);
         throw new Error('Failed to map data to template. Please check your template placeholders match the expected data structure.');
