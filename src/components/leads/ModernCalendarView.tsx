@@ -22,7 +22,6 @@ interface Lead {
   name: string;
   email: string;
   phone: string;
-  status: 'new' | 'in_progress' | 'converted';
   event_type: string;
   created_at: string;
   appointment_date: string;
@@ -117,14 +116,6 @@ export const ModernCalendarView: React.FC<ModernCalendarViewProps> = ({
     };
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'new': return 'secondary';
-      case 'in_progress': return 'default';
-      case 'converted': return 'default';
-      default: return 'secondary';
-    }
-  };
 
   const CustomEvent = ({ event }: { event: CalendarEvent }) => {
     const lead = event.resource;
@@ -143,10 +134,6 @@ export const ModernCalendarView: React.FC<ModernCalendarViewProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-lg">{lead.name}</h3>
-              <Badge variant={getStatusColor(lead.status)}>
-                {lead.status === 'in_progress' ? 'In Progress' : 
-                 lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
-              </Badge>
             </div>
             
             <div className="space-y-2 text-sm">
@@ -284,11 +271,7 @@ export const ModernCalendarView: React.FC<ModernCalendarViewProps> = ({
                           >
                             {eventConfig.display_name}
                           </Badge>
-                        )}
-                        <Badge variant={getStatusColor(lead.status)}>
-                          {lead.status === 'in_progress' ? 'In Progress' : 
-                           lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
-                        </Badge>
+                         )}
                       </div>
                     </div>
                     <Button 
