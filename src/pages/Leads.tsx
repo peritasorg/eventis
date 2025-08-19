@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { LeadForm } from '@/components/leads/LeadForm';
+
 import { AppointmentsCalendarView } from '@/components/leads/AppointmentsCalendarView';
 import { format } from 'date-fns';
 
@@ -46,6 +47,8 @@ export const Leads = () => {
   const [selectedEventType, setSelectedEventType] = useState("all");
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [activeView, setActiveView] = useState<"table" | "calendar">("table");
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const { data: leads = [], refetch } = useSupabaseQuery(
     ['leads', currentTenant?.id],
@@ -319,15 +322,11 @@ export const Leads = () => {
                         <div className="flex gap-2">
                           <Button 
                             size="sm" 
-                            variant="outline" 
-                            onClick={() => navigate(`/leads/${lead.id}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
                             variant="outline"
-                            onClick={() => navigate(`/leads/${lead.id}/edit`)}
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setIsEditMode(true);
+                            }}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -356,6 +355,30 @@ export const Leads = () => {
           <AppointmentsCalendarView leads={leads} eventTypeConfigs={eventTypeConfigs} />
         </TabsContent>
       </Tabs>
+
+      {/* Lead Edit/View Dialog */}
+      {selectedLead && (
+        <Dialog open={!!selectedLead} onOpenChange={(open) => {
+          if (!open) setSelectedLead(null);
+        }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {isEditMode ? 'Edit Lead' : 'View Lead'}
+              </DialogTitle>
+            </DialogHeader>
+            <LeadForm 
+              leadData={selectedLead}
+              isEdit={isEditMode}
+              onSuccess={() => {
+                setSelectedLead(null);
+                refetch();
+              }}
+              eventTypeConfigs={eventTypeConfigs}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
