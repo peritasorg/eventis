@@ -1,6 +1,7 @@
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import { saveAs } from 'file-saver';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LineItem {
@@ -32,7 +33,8 @@ interface TemplateData {
   // Financial info
   subtotal: number;
   total: number;
-  deposit_amount: number;
+  deductible_deposit_amount: number;
+  refundable_deposit_amount: number;
   balance_due: number;
   
   // Document info
@@ -46,6 +48,36 @@ interface TemplateData {
   // Additional fields
   notes?: string;
   terms?: string;
+}
+
+interface SpecificationLineItem {
+  field_name: string;
+  field_value: string;
+  notes?: string;
+}
+
+interface SpecificationTemplateData {
+  business_name: string;
+  customer_name: string;
+  title: string; // Add title field
+  event_name: string;
+  event_date: string;
+  event_time: string;
+  ethnicity: string; // Add ethnicity field
+  guest_count: number;
+  men_count: number; // Add men_count field
+  ladies_count: number; // Add ladies_count field
+  guest_mixture: string; // Add guest_mixture field
+  specification_items: SpecificationLineItem[];
+  line_items: Array<{
+    field_name: string;
+    field_value: string;
+    notes: string;
+    quantity: number;
+    price: number;
+  }>; // Add line_items for template compatibility
+  notes: string;
+  created_date: string;
 }
 
 export class WordTemplateGenerator {
@@ -68,16 +100,16 @@ export class WordTemplateGenerator {
     eventForms.forEach(form => {
       if (form.guest_price_total > 0) {
         const guestCount = (form.men_count || 0) + (form.ladies_count || 0);
-        // guest_price_total is the per-person rate, not total for all guests
-        const perPersonPrice = parseFloat(form.guest_price_total);
+        // guest_price_total is already the total price, not per-person
+        const totalPrice = parseFloat(form.guest_price_total);
         
-        console.log(`Guest pricing for ${form.form_label}: ${guestCount} guests @ £${perPersonPrice} each = £${guestCount * perPersonPrice} total`);
+        console.log(`Guest pricing for ${form.form_label}: ${guestCount} guests - Total: £${totalPrice}`);
         
         lineItems.push({
           quantity: guestCount,
           description: `${form.form_label} - Guest Pricing`,
-          price: perPersonPrice,
-          total: guestCount * perPersonPrice
+          price: totalPrice, // Use the total price directly for Word document
+          total: totalPrice // Use the actual total, not multiplied
         });
       }
     });
@@ -157,8 +189,9 @@ export class WordTemplateGenerator {
       // Financial info
       subtotal: subtotal,
       total: subtotal,
-      deposit_amount: parseFloat(eventData.deposit_amount_gbp) || 0,
-      balance_due: subtotal - (parseFloat(eventData.deposit_amount_gbp) || 0),
+      deductible_deposit_amount: parseFloat(eventData.deposit_amount_gbp) || 0,
+      refundable_deposit_amount: parseFloat(eventData.refundable_deposit_gbp) || 0,
+      balance_due: subtotal - (parseFloat(eventData.deposit_amount_gbp) || 0), // Only deductible deposit reduces balance
       
       // Document info
       document_number: documentNumber,
@@ -224,7 +257,8 @@ export class WordTemplateGenerator {
         // Add formatted currency values for compatibility
         subtotal_formatted: `£${templateData.subtotal.toFixed(2)}`,
         total_formatted: `£${templateData.total.toFixed(2)}`,
-        deposit_formatted: `£${templateData.deposit_amount.toFixed(2)}`,
+        deductible_deposit_formatted: `£${templateData.deductible_deposit_amount.toFixed(2)}`,
+        refundable_deposit_formatted: `£${templateData.refundable_deposit_amount.toFixed(2)}`,
         balance_formatted: `£${templateData.balance_due.toFixed(2)}`,
         remaining_balance_formatted: `£${templateData.balance_due.toFixed(2)}`,
       };
@@ -251,8 +285,10 @@ export class WordTemplateGenerator {
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
       
-      // Download the file
-      const fileName = `${documentType}-${templateData.document_number}.docx`;
+      // Download the file with customer name
+      const customerName = enrichedEventData.customers?.name || enrichedEventData.primary_contact_name || 'Customer';
+      const prefix = documentType === 'quote' ? 'QT' : 'INV';
+      const fileName = `${prefix} - ${customerName}.docx`;
       saveAs(output, fileName);
       
     } catch (error) {
@@ -342,7 +378,8 @@ export class WordTemplateGenerator {
       // Financial info
       'subtotal': `£${templateData.subtotal.toFixed(2)}`,
       'total': `£${templateData.total.toFixed(2)}`,
-      'deposit_amount': `£${templateData.deposit_amount.toFixed(2)}`,
+      'deductible_deposit_amount': `£${templateData.deductible_deposit_amount.toFixed(2)}`,
+      'refundable_deposit_amount': `£${templateData.refundable_deposit_amount.toFixed(2)}`,
       'balance_due': `£${templateData.balance_due.toFixed(2)}`,
       'remaining_balance': `£${templateData.balance_due.toFixed(2)}`,
       
@@ -362,7 +399,8 @@ export class WordTemplateGenerator {
       'EventDate': templateData.event_date,
       'Total': `£${templateData.total.toFixed(2)}`,
       'Subtotal': `£${templateData.subtotal.toFixed(2)}`,
-      'DepositAmount': `£${templateData.deposit_amount.toFixed(2)}`,
+      'DeductibleDepositAmount': `£${templateData.deductible_deposit_amount.toFixed(2)}`,
+      'RefundableDepositAmount': `£${templateData.refundable_deposit_amount.toFixed(2)}`,
       'BalanceDue': `£${templateData.balance_due.toFixed(2)}`,
       'RemainingBalance': `£${templateData.balance_due.toFixed(2)}`,
       'DocumentNumber': templateData.document_number,
@@ -377,6 +415,1025 @@ export class WordTemplateGenerator {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&apos;');
+  }
+
+  private static async extractSpecificationLineItems(
+    eventForms: any[], 
+    tenantId: string, 
+    selectedFormId?: string, 
+    selectedFieldIds?: string[]
+  ): Promise<SpecificationLineItem[]> {
+    const items: SpecificationLineItem[] = [];
+    
+    console.log('🚀 Starting specification extraction:', { 
+      eventForms: eventForms.length, 
+      tenantId, 
+      selectedFormId, 
+      selectedFieldIds 
+    });
+
+    if (!Array.isArray(eventForms) || eventForms.length === 0) {
+      console.log('❌ No event forms provided');
+      return items;
+    }
+
+    if (!tenantId) {
+      console.error('❌ Tenant ID is required for extracting specification items');
+      return items;
+    }
+
+    // Must have selected fields for specification generation
+    if (!selectedFieldIds || selectedFieldIds.length === 0) {
+      console.log('❌ No selected fields provided - cannot generate specification');
+      return items;
+    }
+
+    // Filter to only process the selected form if specified
+    const formsToProcess = selectedFormId 
+      ? eventForms.filter(form => form.form_id === selectedFormId)
+      : eventForms;
+
+    if (formsToProcess.length === 0) {
+      console.log('❌ No forms match the selected form ID or no forms to process');
+      return items;
+    }
+
+    console.log(`✅ Processing ${formsToProcess.length} forms for specification`);
+
+    try {
+      // STEP 1: Get the form's field ordering structure
+      let orderedFieldIds: string[] = [];
+      
+      if (selectedFormId) {
+        console.log('🔍 Getting field order from form structure:', selectedFormId);
+        
+        const { data: formStructure, error: formError } = await supabase
+          .from('forms')
+          .select('sections')
+          .eq('id', selectedFormId)
+          .eq('tenant_id', tenantId)
+          .single();
+
+        if (!formError && formStructure?.sections) {
+          const sections = Array.isArray(formStructure.sections) ? formStructure.sections : [];
+          console.log('📋 Form sections found:', sections.length);
+          
+          // Extract field IDs from all sections in order (like UnifiedFormSection does)
+          for (const section of sections) {
+            if (section && typeof section === 'object' && 'field_ids' in section) {
+              const fieldIds = (section as any).field_ids;
+              if (Array.isArray(fieldIds)) {
+                orderedFieldIds.push(...fieldIds);
+                console.log('📄 Section fields added:', fieldIds.length);
+              }
+            }
+          }
+          console.log('✅ Complete field order from form:', orderedFieldIds.length, 'fields');
+        } else {
+          console.log('❌ Could not get form structure:', formError?.message);
+        }
+      }
+
+      // STEP 2: Get field definitions
+      const { data: formFields, error } = await supabase
+        .from('form_fields')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('❌ Error fetching form fields:', error);
+        return items;
+      }
+
+      if (!formFields || formFields.length === 0) {
+        console.log('❌ No form fields found for tenant');
+        return items;
+      }
+
+      // Create field lookup map
+      const fieldLookup = new Map(formFields.map(field => [field.id, field]));
+
+      // STEP 3: Collect responses from forms - only for populated fields
+      const populatedFieldResponses = new Map<string, any>();
+      
+      for (const eventForm of formsToProcess) {
+        if (eventForm?.form_responses && typeof eventForm.form_responses === 'object') {
+          for (const [fieldId, response] of Object.entries(eventForm.form_responses)) {
+            // Only include responses that are enabled and have values
+            if (response && typeof response === 'object') {
+              const respObj = response as any;
+              if (respObj.enabled === true && (respObj.value !== undefined && respObj.value !== null && respObj.value !== '')) {
+                populatedFieldResponses.set(fieldId, response);
+              }
+            }
+          }
+        }
+      }
+
+      console.log('📊 Populated field responses:', populatedFieldResponses.size);
+
+      // STEP 4: Create final ordered list of fields to process
+      // Start with form order, then filter to only selected + populated fields
+      let fieldsToProcess: string[] = [];
+      
+      if (orderedFieldIds.length > 0) {
+        // Use form ordering, but only include selected and populated fields
+        fieldsToProcess = orderedFieldIds.filter(fieldId => 
+          selectedFieldIds.includes(fieldId) && populatedFieldResponses.has(fieldId)
+        );
+        console.log('✅ Using form order - selected + populated fields:', fieldsToProcess);
+      } else {
+        // Fallback to selected field order if no form structure available
+        fieldsToProcess = selectedFieldIds.filter(fieldId => populatedFieldResponses.has(fieldId));
+        console.log('⚠️ Using config order - selected + populated fields:', fieldsToProcess);
+      }
+
+      // CRITICAL VALIDATION: Final check that we only process exactly what was selected
+      console.log('🎯 FINAL VALIDATION:', {
+        fieldsFound: fieldsToProcess.length,
+        selectedCount: selectedFieldIds.length,
+        finalFields: fieldsToProcess
+      });
+
+      // Track processed field names to avoid duplicates
+      const processedFieldNames = new Set<string>();
+
+      // STEP 5: Process each field response in the correct order
+      for (const fieldId of fieldsToProcess) {
+        try {
+          const response = populatedFieldResponses.get(fieldId);
+          const fieldConfig = fieldLookup.get(fieldId);
+          
+          if (!fieldConfig) {
+            console.log('❌ Field config not found for:', fieldId);
+            continue;
+          }
+
+          // Skip if we've already processed a field with this name (avoid duplicates)
+          if (processedFieldNames.has(fieldConfig.name)) {
+            console.log('⚠️ Skipping duplicate field:', fieldConfig.name);
+            continue;
+          }
+
+          // Check if this field should be included in specification
+          if (this.isSpecificationFieldPopulated(response, fieldConfig.field_type)) {
+            const content = this.extractSpecificationFieldContent(response, fieldConfig);
+            
+            if (content) {
+              const item: SpecificationLineItem = {
+                field_name: content.field_name,
+                field_value: content.field_value,
+                notes: String((response as any)?.notes || '').trim(),
+              };
+              
+              items.push(item);
+              processedFieldNames.add(fieldConfig.name);
+              console.log('✅ Added specification item:', item.field_name);
+            }
+          }
+        } catch (fieldError) {
+          console.error('❌ Error processing field:', fieldId, fieldError);
+          // Continue processing other fields instead of failing completely
+        }
+      }
+
+      console.log('Total specification items extracted:', items.length);
+      return items;
+
+    } catch (error) {
+      console.error('Error in extractSpecificationLineItems:', error);
+      return items; // Return empty array instead of throwing
+    }
+  }
+
+  private static async mapEventDataToSpecification(eventData: any, tenantId: string, specificationLineItems: SpecificationLineItem[], eventForms: any[]): Promise<SpecificationTemplateData> {
+    // Comprehensive data validation and sanitization
+    const safeString = (value: any, fallback: string = ''): string => {
+      if (value === null || value === undefined) return fallback;
+      return String(value).trim();
+    };
+
+    const safeNumber = (value: any, fallback: number = 0): number => {
+      if (value === null || value === undefined) return fallback;
+      const num = Number(value);
+      return isNaN(num) ? fallback : num;
+    };
+
+    const safeDate = (value: any, fallback: string = ''): string => {
+      if (!value) return fallback;
+      try {
+        return format(new Date(value), 'dd/MM/yyyy');
+      } catch {
+        return fallback;
+      }
+    };
+
+    console.log('Mapping specification data:', { eventData, eventForms, tenantId });
+
+    // Validate required data
+    if (!eventData) {
+      throw new Error('Event data is required for specification generation');
+    }
+
+    if (!Array.isArray(eventForms)) {
+      throw new Error('Event forms must be an array');
+    }
+
+    // Fetch customer data properly
+    let customerName = 'Customer Name';
+    if (eventData.customer_id) {
+      try {
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('name')
+          .eq('id', eventData.customer_id)
+          .single();
+        
+        if (customer?.name) {
+          customerName = customer.name;
+        }
+      } catch (error) {
+        console.warn('Could not fetch customer name:', error);
+      }
+    }
+
+    // Extract and validate data with null-safe handling
+    const businessName = safeString(eventData.tenant?.business_name, 'Business Name');
+    const eventName = safeString(eventData.event_name || eventData.title, 'Event Name');
+    const eventDate = safeDate(eventData.event_start_date || eventData.event_date, 'TBD');
+    const eventTime = safeString(eventData.start_time, 'TBD');
+    const guestCount = safeNumber(eventData.estimated_guests || eventData.guest_count);
+    const notes = safeString(eventData.notes, 'No additional notes');
+    const createdDate = format(new Date(), 'dd/MM/yyyy');
+
+    // Use provided specification line items
+    const specificationItems = specificationLineItems || [];
+
+    // Map specification_items to line_items format for template compatibility
+    const lineItems = specificationItems.length > 0 
+      ? specificationItems.map(item => ({
+          field_name: item.field_name,
+          field_value: item.field_value,
+          notes: item.notes || '',
+          quantity: 1, // Default quantity for specifications
+          price: 0     // No pricing in specifications
+        }))
+      : [{ field_name: 'No specification items available', field_value: '', notes: '', quantity: 1, price: 0 }];
+
+    // Extract additional required fields for template
+    const menCount = safeNumber(eventData.men_count);
+    const ladiesCount = safeNumber(eventData.ladies_count);
+    const guestMixture = safeString(eventData.guest_mixture, 'Mixed');
+    
+    // Format ethnicity - check for both formats
+    let ethnicityDisplay = 'Not specified';
+    if (eventData.ethnicity) {
+      if (typeof eventData.ethnicity === 'string') {
+        ethnicityDisplay = eventData.ethnicity;
+      } else if (Array.isArray(eventData.ethnicity)) {
+        ethnicityDisplay = eventData.ethnicity.join(', ');
+      } else if (typeof eventData.ethnicity === 'object') {
+        // If it's an object with ethnicity names, extract them
+        ethnicityDisplay = Object.keys(eventData.ethnicity).join(', ');
+      }
+    }
+
+    const templateData: SpecificationTemplateData = {
+      business_name: businessName,
+      customer_name: customerName,
+      title: eventName, // Add title field
+      event_name: eventName,
+      event_date: eventDate,
+      event_time: eventTime,
+      ethnicity: ethnicityDisplay, // Add ethnicity field
+      guest_count: guestCount,
+      men_count: menCount, // Add men_count field
+      ladies_count: ladiesCount, // Add ladies_count field
+      guest_mixture: guestMixture, // Add guest_mixture field
+      specification_items: specificationItems.length > 0 ? specificationItems : [
+        { field_name: 'No specification items available', field_value: '', notes: '' }
+      ],
+      line_items: lineItems, // Add line_items for template compatibility
+      notes: notes,
+      created_date: createdDate,
+    };
+
+    console.log('Generated specification template data:', templateData);
+
+    // Validate the final template data
+    this.validateTemplateData(templateData);
+
+    return templateData;
+  }
+
+  private static validateTemplateData(data: SpecificationTemplateData): void {
+    const requiredFields = ['business_name', 'customer_name', 'event_name', 'event_date', 'created_date'];
+    
+    for (const field of requiredFields) {
+      if (!data[field as keyof SpecificationTemplateData]) {
+        console.warn(`Template field '${field}' is empty, using fallback`);
+      }
+    }
+
+    if (!Array.isArray(data.specification_items)) {
+      throw new Error('Specification items must be an array');
+    }
+
+    console.log('Template data validation passed');
+  }
+
+  static async generateSpecificationDocument(
+    eventData: any, 
+    tenantId: string, 
+    eventForms: any[],
+    selectedFormId?: string
+  ): Promise<void> {
+    try {
+      console.log('Starting specification document generation...', { eventData: eventData?.id, tenantId });
+      
+      const templateName = `${tenantId}-specification-template.docx`;
+      
+      // Fetch specification configuration to get selected fields
+      const { data: specConfig, error: configError } = await supabase
+        .from('specification_template_configs')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .single();
+
+      if (configError && configError.code !== 'PGRST116') {
+        console.error('Error fetching specification config:', configError);
+        throw new Error('Failed to load specification configuration. Please configure your specification settings first.');
+      }
+
+      const selectedFieldIds = Array.isArray(specConfig?.selected_fields) 
+        ? specConfig.selected_fields as string[]
+        : [];
+      const configuredFormId = specConfig?.form_id || selectedFormId;
+      
+      console.log('Using specification config:', { 
+        formId: configuredFormId, 
+        selectedFields: selectedFieldIds.length 
+      });
+      
+      // Download the template
+      const templateData = await this.downloadTemplate(templateName);
+      console.log('Template downloaded successfully');
+      
+      // Pre-validate template syntax before processing
+      try {
+        await this.validateTemplateSyntaxAdvanced(templateData);
+        console.log('Template syntax validation passed');
+      } catch (syntaxError: any) {
+        console.error('Template syntax validation failed:', syntaxError);
+        
+        // Provide specific guidance for common template issues
+        if (syntaxError.message.includes('line_items')) {
+          throw new Error(`Word Template Fix Required: Your template has {#line_items} loop tags but is missing {/line_items} closing tags.
+
+To fix this:
+1. Open your Word template: ${templateName}
+2. Find all {#line_items} tags in the document
+3. Add a {/line_items} closing tag after each table/section that should repeat
+4. Save the template and try again
+
+Current issue: ${syntaxError.message}`);
+        } else {
+          throw new Error(`Template syntax error: ${syntaxError.message}. Please check your Word template for unclosed loops.`);
+        }
+      }
+      
+      // Extract and map specification data with selected fields filter
+      const specificationLineItems = await this.extractSpecificationLineItems(
+        eventForms, 
+        tenantId, 
+        configuredFormId, 
+        selectedFieldIds as string[]
+      );
+      const mappedData = await this.mapEventDataToSpecification(eventData, tenantId, specificationLineItems, eventForms);
+      
+      console.log('Mapped specification data:', mappedData);
+      
+      // Create ZIP from template with enhanced error handling
+      let zip: PizZip;
+      try {
+        zip = new PizZip(templateData);
+      } catch (zipError: any) {
+        console.error('Failed to parse template file:', zipError);
+        throw new Error('Template file is corrupted or invalid. Please re-upload your Word template.');
+      }
+      
+      // Create docxtemplater instance with comprehensive error handling
+      let doc: any;
+      try {
+        doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+          nullGetter() {
+            return '';
+          },
+          errorLogging: true
+        });
+        
+        // Advanced template structure validation
+        await this.validateTemplateStructureAdvanced(doc, await mappedData);
+        console.log('Advanced template validation passed');
+        
+      } catch (templateError: any) {
+        console.error('Template initialization error:', templateError);
+        const analysisResult = this.analyzeTemplateError(templateError);
+        throw new Error(`Template Error: ${analysisResult.userMessage}\n\nTechnical Details: ${analysisResult.technicalDetails}`);
+      }
+      
+      // Set template data with validation
+      try {
+        doc.setData(await mappedData);
+      } catch (dataError: any) {
+        console.error('Data mapping error:', dataError);
+        throw new Error('Failed to map data to template. Please check your template placeholders match the expected data structure.');
+      }
+      
+      // Render the document with comprehensive error handling
+      try {
+        doc.render();
+      } catch (renderError: any) {
+        console.error('Template rendering error:', renderError);
+        const analysisResult = this.analyzeTemplateError(renderError);
+        
+        // If it's an unclosed loop error, provide specific guidance
+        if (renderError.message?.includes('Unclosed loop') || renderError.name === 'TemplateError') {
+          throw new Error(`Template Syntax Error: Your Word template has unclosed loop tags. Please open your template in Microsoft Word and ensure every {#line_items} tag has a matching {/line_items} closing tag.\n\nDetailed Error: ${analysisResult.userMessage}`);
+        }
+        
+        throw new Error(`Template Rendering Error: ${analysisResult.userMessage}\n\nTechnical Details: ${analysisResult.technicalDetails}`);
+      }
+      
+      // Generate output
+      const output = doc.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+      
+      // Download the file
+      const customerName = eventData.customers?.name || eventData.primary_contact_name || 'Customer';
+      const fileName = `SPEC - ${customerName}.docx`;
+      saveAs(output, fileName);
+      
+      console.log('Specification document generated and downloaded successfully');
+      
+    } catch (error) {
+      console.error('Error generating specification document:', error);
+      console.error('Error context:', {
+        eventData: eventData?.id,
+        eventFormsCount: eventForms?.length,
+        tenantId,
+        templateName: `${tenantId}-specification-template.docx`
+      });
+      
+      // Re-throw with enhanced error message
+      if (error instanceof Error) {
+        throw error; // Preserve our detailed error messages
+      } else {
+        throw new Error(`Unexpected error during specification generation: ${String(error)}`);
+      }
+    }
+  }
+
+  private static async validateTemplateStructureAdvanced(doc: any, templateData: any): Promise<void> {
+    try {
+      // Get template tags/placeholders
+      const templateTags = doc.getFullText().match(/\{[^}]+\}/g) || [];
+      console.log('Template placeholders found:', templateTags);
+      
+      // Check for unclosed loops
+      const loopTags = templateTags.filter((tag: string) => tag.includes('#') || tag.includes('/'));
+      const openLoops = loopTags.filter((tag: string) => tag.includes('#')).map(tag => tag.replace('{#', '').replace('}', ''));
+      const closeLoops = loopTags.filter((tag: string) => tag.includes('/')).map(tag => tag.replace('{/', '').replace('}', ''));
+      
+      console.log('Open loops found:', openLoops);
+      console.log('Close loops found:', closeLoops);
+      
+      // Check for unmatched loops
+      const unmatchedLoops = openLoops.filter(loop => !closeLoops.includes(loop));
+      if (unmatchedLoops.length > 0) {
+        throw new Error(`Unclosed loops detected: ${unmatchedLoops.join(', ')}. Each {#${unmatchedLoops[0]}} tag must have a matching {/${unmatchedLoops[0]}} tag.`);
+      }
+      
+      // Check if all required data is present
+      const dataKeys = this.getAllNestedKeys(templateData);
+      console.log('Available data keys:', dataKeys);
+      
+      // Check for critical missing data
+      const criticalTags = templateTags.filter((tag: string) => {
+        const cleanTag = tag.replace(/[{}#/]/g, '');
+        return ['line_items', 'specification_items'].includes(cleanTag);
+      });
+      
+      console.log('Critical template tags:', criticalTags);
+      
+      // Ensure required array data exists
+      if (!templateData.line_items) {
+        templateData.line_items = [];
+        console.log('Added empty line_items array to template data');
+      }
+      
+      if (!templateData.specification_items) {
+        templateData.specification_items = [];
+        console.log('Added empty specification_items array to template data');
+      }
+      
+    } catch (error) {
+      console.error('Advanced template validation error:', error);
+      throw error; // Re-throw validation errors
+    }
+  }
+
+  private static async validateTemplateSyntaxAdvanced(templateBuffer: ArrayBuffer): Promise<void> {
+    try {
+      // Create a test zip to parse the template
+      const zip = new PizZip(templateBuffer);
+      
+      // Extract document.xml content for analysis
+      const docXml = zip.files['word/document.xml'];
+      if (!docXml) {
+        throw new Error('Invalid Word template: missing document.xml');
+      }
+      
+      let xmlContent = docXml.asText();
+      
+      // Check for basic XML structure issues
+      if (!xmlContent.includes('<w:document')) {
+        throw new Error('Invalid Word template: corrupted document structure');
+      }
+      
+      console.log('Template validation: Starting advanced XML analysis...');
+      
+      // Clean up Word's XML fragmentation - merge split text runs that contain template tags
+      // This handles cases where Word splits {#line_items} across multiple <w:t> elements
+      xmlContent = this.reconstructFragmentedTags(xmlContent);
+      
+      // Extract and validate loop tags using comprehensive approach
+      const loopAnalysis = this.analyzeLoopTags(xmlContent);
+      
+      console.log('Template validation results:', loopAnalysis);
+      
+      if (loopAnalysis.unmatchedOpens.length > 0) {
+        // Provide more specific guidance based on the detected issues
+        const uniqueUnmatched = [...new Set(loopAnalysis.unmatchedOpens)]; // Remove duplicates
+        const duplicateCount = loopAnalysis.unmatchedOpens.length - uniqueUnmatched.length;
+        
+        let errorMessage = `Unclosed loop tags found: {#${uniqueUnmatched.join('}, {#')}}. Please add matching closing tags: {/${uniqueUnmatched.join('}, {/')}}`;
+        
+        if (duplicateCount > 0) {
+          errorMessage += `\n\nNote: Found ${duplicateCount + uniqueUnmatched.length} total {#${uniqueUnmatched[0]}} tags but ${loopAnalysis.closeLoops.filter(c => uniqueUnmatched.includes(c)).length} closing tags. Each opening tag needs a closing tag.`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      if (loopAnalysis.unmatchedCloses.length > 0) {
+        throw new Error(`Orphaned closing tags found: {/${loopAnalysis.unmatchedCloses.join('}, {/')}}. These have no matching opening tags.`);
+      }
+      
+      // Test basic docxtemplater instantiation with minimal validation
+      try {
+        const testDoc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+          nullGetter() { return ''; },
+          errorLogging: false  // Disable verbose error logging for test
+        });
+        
+        // Test with minimal data structure
+        testDoc.setData({
+          line_items: [],
+          specification_items: [],
+          business_name: 'Test',
+          customer_name: 'Test',
+          event_name: 'Test'
+        });
+        
+        console.log('Template validation: basic instantiation successful');
+        
+      } catch (instantiationError: any) {
+        console.error('Template instantiation test failed:', instantiationError);
+        
+        // Provide specific guidance based on error type
+        if (instantiationError.message?.includes('Unclosed loop')) {
+          throw new Error(`Template contains loop syntax errors. Please open your Word template and verify that every {#tag} has a proper {/tag} closing. Common issue: formatting changes can split tags across text runs.`);
+        } else if (instantiationError.name === 'TemplateError') {
+          throw new Error(`Template syntax validation failed: ${instantiationError.message}. Please check your template for malformed placeholders or loops.`);
+        } else {
+          throw new Error(`Template validation error: ${instantiationError.message}`);
+        }
+      }
+      
+    } catch (error: any) {
+      console.error('Advanced template syntax validation failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reconstructs template tags that may be fragmented across Word XML text runs
+   */
+  private static reconstructFragmentedTags(xmlContent: string): string {
+    // Word often splits template tags across multiple <w:t> elements due to formatting
+    // We need to reconstruct them for proper validation
+    
+    // Step 1: Extract all text content from <w:t> elements while preserving order
+    const textElements = xmlContent.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+    let reconstructedText = '';
+    
+    textElements.forEach(element => {
+      const textMatch = element.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+      if (textMatch) {
+        reconstructedText += textMatch[1];
+      }
+    });
+    
+    console.log('Reconstructed template text for validation:', reconstructedText.substring(0, 500) + '...');
+    
+    return reconstructedText;
+  }
+
+  /**
+   * Analyzes loop tags in the template content
+   */
+  private static analyzeLoopTags(content: string): {
+    openLoops: string[];
+    closeLoops: string[];
+    unmatchedOpens: string[];
+    unmatchedCloses: string[];
+  } {
+    // Use more flexible regex patterns to catch template tags
+    const loopOpenPattern = /\{#([^}]+)\}/g;
+    const loopClosePattern = /\{\/([^}]+)\}/g;
+    
+    const openLoops: string[] = [];
+    const closeLoops: string[] = [];
+    
+    let match;
+    while ((match = loopOpenPattern.exec(content)) !== null) {
+      const loopName = match[1].trim();
+      if (loopName) {
+        openLoops.push(loopName);
+      }
+    }
+    
+    // Reset regex lastIndex
+    loopClosePattern.lastIndex = 0;
+    while ((match = loopClosePattern.exec(content)) !== null) {
+      const loopName = match[1].trim();
+      if (loopName) {
+        closeLoops.push(loopName);
+      }
+    }
+    
+    console.log('Loop analysis:', {
+      openLoops,
+      closeLoops,
+      openCount: openLoops.length,
+      closeCount: closeLoops.length
+    });
+    
+    // Count occurrences for proper matching
+    const openCounts: { [key: string]: number } = {};
+    const closeCounts: { [key: string]: number } = {};
+    
+    openLoops.forEach(loop => {
+      openCounts[loop] = (openCounts[loop] || 0) + 1;
+    });
+    
+    closeLoops.forEach(loop => {
+      closeCounts[loop] = (closeCounts[loop] || 0) + 1;
+    });
+    
+    // Find unmatched loops based on counts
+    const unmatchedOpens: string[] = [];
+    const unmatchedCloses: string[] = [];
+    
+    Object.entries(openCounts).forEach(([loop, openCount]) => {
+      const closeCount = closeCounts[loop] || 0;
+      if (openCount > closeCount) {
+        // Add the unmatched opens
+        for (let i = 0; i < openCount - closeCount; i++) {
+          unmatchedOpens.push(loop);
+        }
+      }
+    });
+    
+    Object.entries(closeCounts).forEach(([loop, closeCount]) => {
+      const openCount = openCounts[loop] || 0;
+      if (closeCount > openCount) {
+        // Add the unmatched closes
+        for (let i = 0; i < closeCount - openCount; i++) {
+          unmatchedCloses.push(loop);
+        }
+      }
+    });
+    
+    return {
+      openLoops,
+      closeLoops,
+      unmatchedOpens,
+      unmatchedCloses
+    };
+  }
+
+  private static getAllNestedKeys(obj: any, prefix: string = ''): string[] {
+    let keys: string[] = [];
+    
+    if (obj && typeof obj === 'object') {
+      Object.keys(obj).forEach(key => {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        keys.push(fullKey);
+        
+        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+          keys = keys.concat(this.getAllNestedKeys(obj[key], fullKey));
+        }
+      });
+    }
+    
+    return keys;
+  }
+
+  private static isSpecificationFieldPopulated(response: any, fieldType: string): boolean {
+    if (!response || typeof response !== 'object') {
+      console.log('Invalid response object');
+      return false;
+    }
+
+    console.log('Checking if field is populated:', { fieldType, response });
+
+    // Handle different field types
+    switch (fieldType) {
+      case 'toggle':
+        // For toggle fields, must be enabled AND might have notes
+        const isTogglePopulated = response.enabled === true;
+        console.log('Toggle field populated:', isTogglePopulated);
+        return isTogglePopulated;
+
+      case 'text':
+      case 'textarea':
+        // For text fields, check both value and notes
+        const hasTextValue = !!(
+          (response.value && String(response.value).trim()) ||
+          (response.notes && String(response.notes).trim())
+        );
+        console.log('Text field populated:', hasTextValue);
+        return hasTextValue;
+
+      case 'text_notes_only':
+        // For text_notes_only fields, ONLY check notes (this is the key fix!)
+        const hasNotesOnlyValue = !!(response.notes && String(response.notes).trim());
+        console.log('Text notes only field populated:', hasNotesOnlyValue);
+        return hasNotesOnlyValue;
+
+      case 'price':
+        // For price fields, must have a positive price value
+        const hasPriceValue = !!(response.price && parseFloat(response.price) > 0);
+        console.log('Price field populated:', hasPriceValue);
+        return hasPriceValue;
+
+      case 'quantity':
+      case 'number':
+      case 'counter':
+        // For quantity/number fields, must have a positive value
+        const hasQuantityValue = !!(
+          (response.quantity && parseInt(response.quantity) > 0) ||
+          (response.value && parseInt(response.value) > 0)
+        );
+        console.log('Quantity field populated:', hasQuantityValue);
+        return hasQuantityValue;
+
+      case 'dropdown':
+      case 'dropdown_options':
+      case 'dropdown_options_price_notes':
+      case 'select':
+        // For dropdown fields, must have a selected value OR notes
+        const hasDropdownValue = !!(
+          response.selectedOption ||
+          (response.value && String(response.value).trim()) ||
+          (response.notes && String(response.notes).trim())
+        );
+        console.log('Dropdown field populated:', hasDropdownValue);
+        return hasDropdownValue;
+
+      case 'notes':
+        // For notes-only fields, must have notes content
+        const hasNotesValue = !!(response.notes && String(response.notes).trim());
+        console.log('Notes field populated:', hasNotesValue);
+        return hasNotesValue;
+
+      case 'fixed_price_notes':
+      case 'fixed_price_notes_toggle':
+      case 'fixed_price_quantity_notes':
+      case 'per_person_price_notes':
+      case 'counter_notes':
+        // For fields with pricing and notes, check if enabled or has notes
+        const hasPricingFieldValue = !!(
+          response.enabled === true ||
+          (response.notes && String(response.notes).trim()) ||
+          (response.price && parseFloat(response.price) > 0) ||
+          (response.quantity && parseInt(response.quantity) > 0)
+        );
+        console.log('Pricing field populated:', hasPricingFieldValue);
+        return hasPricingFieldValue;
+    }
+
+    // Default: check if any value exists
+    const hasAnyValue = !!(
+      (response.value && String(response.value).trim()) ||
+      (response.notes && String(response.notes).trim()) ||
+      (response.price && parseFloat(response.price) > 0) ||
+      (response.quantity && parseInt(response.quantity) > 0) ||
+      response.enabled === true ||
+      response.selectedOption
+    );
+    
+    console.log('Default check - field has any value:', hasAnyValue);
+    return hasAnyValue;
+  }
+
+  private static extractSpecificationFieldContent(response: any, fieldConfig: any): { field_name: string; field_value: string } | null {
+    if (!response || typeof response !== 'object' || !fieldConfig) {
+      return null;
+    }
+
+    const fieldName = String(fieldConfig.name || 'Unknown Field');
+    const fieldType = String(fieldConfig.field_type || 'text');
+
+    console.log('Extracting content for field:', { fieldName, fieldType, response });
+
+    // Handle specific field types based on their primary value
+    switch (fieldType) {
+      case 'text_notes_only':
+        // For text_notes_only fields, ONLY use notes (this is the key fix!)
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        }
+        return null;
+
+      case 'toggle':
+        // For toggle fields, prioritize notes over enabled status
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else if (response.enabled) {
+          return { field_name: fieldName, field_value: 'Yes' };
+        }
+        return null;
+
+      case 'text':
+      case 'textarea':
+        // For regular text fields, check notes first, then value
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else if (response.value && String(response.value).trim()) {
+          return { field_name: fieldName, field_value: String(response.value).trim() };
+        }
+        return null;
+
+      case 'dropdown':
+      case 'dropdown_options':
+      case 'dropdown_options_price_notes':
+      case 'select':
+        // For dropdown fields, prioritize notes, then selected value
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else {
+          const selectedValue = response.selectedOption || response.value;
+          if (Array.isArray(selectedValue)) {
+            // Handle multiple selections
+            const formattedValue = selectedValue.join('; ');
+            return { field_name: fieldName, field_value: formattedValue };
+          } else if (selectedValue && String(selectedValue).trim()) {
+            return { field_name: fieldName, field_value: String(selectedValue).trim() };
+          }
+        }
+        return null;
+
+      case 'fixed_price_notes':
+      case 'fixed_price_notes_toggle':
+      case 'fixed_price_quantity_notes':
+      case 'per_person_price_notes':
+      case 'counter_notes':
+        // For pricing fields with notes, always prioritize notes
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else if (response.enabled) {
+          return { field_name: fieldName, field_value: 'Yes' };
+        }
+        return null;
+
+      case 'price':
+        if (response.price && parseFloat(response.price) > 0) {
+          return { field_name: fieldName, field_value: `£${parseFloat(response.price).toFixed(2)}` };
+        }
+        return null;
+
+      case 'quantity':
+      case 'number':
+        if (response.quantity && parseInt(response.quantity) > 0) {
+          return { field_name: fieldName, field_value: String(response.quantity) };
+        }
+        return null;
+
+      case 'counter':
+        if (response.value && parseInt(response.value) > 0) {
+          return { field_name: fieldName, field_value: String(response.value) };
+        }
+        return null;
+
+      case 'notes':
+        // For notes-only fields, must have notes content
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        }
+        return null;
+
+      default:
+        // Default handling - prioritize notes, then values, then enabled status
+        if (response.notes && String(response.notes).trim()) {
+          return { field_name: fieldName, field_value: String(response.notes).trim() };
+        } else if (response.value && String(response.value).trim()) {
+          return { field_name: fieldName, field_value: String(response.value).trim() };
+        } else if (response.enabled === true) {
+          return { field_name: fieldName, field_value: 'Yes' };
+        }
+        return null;
+    }
+  }
+
+
+  private static analyzeTemplateError(error: any): { userMessage: string; technicalDetails: string } {
+    console.log('Analyzing template error:', error);
+    
+    if (!error) {
+      return {
+        userMessage: 'Unknown template error occurred.',
+        technicalDetails: 'No error object provided'
+      };
+    }
+    
+    let userMessage = '';
+    let technicalDetails = '';
+    
+    // Handle TemplateError objects
+    if (error.name === 'TemplateError' || error.constructor?.name === 'TemplateError') {
+      technicalDetails = `TemplateError: ${error.message}`;
+      
+      if (error.message?.includes('Unclosed loop')) {
+        userMessage = 'Your Word template has unclosed loop tags. Please open your template in Microsoft Word and ensure every {#line_items} tag has a matching {/line_items} closing tag. Check all loop sections in your template.';
+      } else if (error.message?.includes('Multi error')) {
+        userMessage = 'Multiple template syntax errors detected. This typically means you have unclosed loops or invalid placeholders in your Word template. Please review all {#} and {/} tags to ensure they are properly paired.';
+        
+        // Try to extract specific error details
+        if (error.properties && Array.isArray(error.properties.errors)) {
+          const errorDetails = error.properties.errors.map((err: any) => {
+            if (err.properties?.explanation) {
+              return err.properties.explanation;
+            }
+            if (err.message?.includes('Unclosed loop')) {
+              return 'Unclosed loop detected';
+            }
+            return err.message || 'Unknown error';
+          }).join('; ');
+          
+          technicalDetails += ` | Specific errors: ${errorDetails}`;
+          
+          if (errorDetails.includes('Unclosed loop')) {
+            userMessage = 'Your template contains unclosed loop tags. Please check that every {#line_items} has a corresponding {/line_items} tag. Also verify {#specification_items} has {/specification_items}.';
+          }
+        }
+      } else {
+        userMessage = 'Template processing failed due to formatting issues. Please ensure your Word template follows the correct syntax for placeholders and loops.';
+      }
+    }
+    
+    // Handle specific error messages
+    else if (typeof error.message === 'string') {
+      technicalDetails = error.message;
+      
+      if (error.message.includes('Unclosed loop')) {
+        userMessage = 'Template contains unclosed loop tags. Please check that every {#tag} has a corresponding {/tag}. Common issue: {#line_items} without {/line_items}.';
+      } else if (error.message.includes('Invalid XML')) {
+        userMessage = 'Template file appears to be corrupted or contains invalid formatting. Please re-save your Word template and try again.';
+      } else if (error.message.includes('Multi error')) {
+        userMessage = 'Multiple template syntax errors detected. This usually indicates unclosed loops like {#line_items} without {/line_items}. Please review your Word template syntax.';
+      } else {
+        userMessage = 'Template processing error. Please check your Word template for formatting issues or invalid placeholders.';
+      }
+    }
+    
+    // Fallback
+    else {
+      technicalDetails = String(error);
+      userMessage = 'Template error occurred during processing. Please verify your Word template syntax and try again.';
+    }
+    
+    return { userMessage, technicalDetails };
   }
 
   static async analyzeTemplate(templateName: string): Promise<string[]> {

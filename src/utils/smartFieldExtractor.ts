@@ -81,7 +81,7 @@ export const extractPopulatedFields = async (
         if (!hasValue) return;
 
         // Extract field data with form prefix for description
-        const extractedField = extractFieldData(fieldId, response, fieldConfig, eventForm.form_label);
+        const extractedField = extractFieldData(fieldId, response, fieldConfig, eventForm.form_label, eventForm.form_id);
         if (extractedField) {
           console.log('Extracted field data:', extractedField);
           extractedFields.push(extractedField);
@@ -172,7 +172,8 @@ const extractFieldData = (
   fieldId: string,
   response: any,
   fieldConfig: any,
-  formLabel?: string
+  formLabel?: string,
+  formId?: string
 ): ExtractedFieldData | null => {
   try {
     console.log('Extracting field data for field ID:', fieldId, 'config:', fieldConfig);
@@ -202,7 +203,7 @@ const extractFieldData = (
     }
 
     const extractedData = {
-      id: fieldId,
+      id: `${formId || 'unknown'}-${fieldId}`, // Make ID unique by combining form ID and field ID
       label,
       value: value || '',
       notes,

@@ -102,7 +102,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       
       const { data, error } = await supabase
         .from('events')
-        .select('event_type')
+        .select('event_type, guest_mixture')
         .eq('id', eventId)
         .eq('tenant_id', currentTenant.id)
         .single();
@@ -111,6 +111,23 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       return data;
     }
   );
+
+  const handleGuestMixUpdate = async (value: string) => {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ guest_mixture: value })
+        .eq('id', eventId);
+
+      if (error) throw error;
+      
+      // Invalidate event query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+    } catch (error) {
+      console.error('Error updating guest mix:', error);
+      toast.error('Failed to update guest mix');
+    }
+  };
 
   // Get time slots for a specific event form based on its associated event type
   const getTimeSlotsForForm = (eventForm: EventForm) => {
@@ -526,6 +543,22 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                      onFocus={(e) => e.target.select()}
                      placeholder="0"
                    />
+                 </div>
+                 <div>
+                   <Label>Guest Mix</Label>
+                   <Select 
+                     value={eventDetails?.guest_mixture || 'Mixed'} 
+                     onValueChange={(value) => handleGuestMixUpdate(value)}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="Select guest mix" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="Men Only">Men Only</SelectItem>
+                       <SelectItem value="Ladies Only">Ladies Only</SelectItem>
+                       <SelectItem value="Mixed">Mixed</SelectItem>
+                     </SelectContent>
+                   </Select>
                  </div>
               </div>
             </CardContent>

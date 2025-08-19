@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Download, Edit3, Eye, FileText, Receipt, Upload } from 'lucide-react';
 import { extractPopulatedFields } from '@/utils/smartFieldExtractor';
 import { WordTemplateGenerator } from '@/utils/wordTemplateGenerator';
@@ -43,13 +44,25 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   const [populatedFields, setPopulatedFields] = useState<any[]>([]);
   const [isLoadingFields, setIsLoadingFields] = useState(true);
   const [hasTemplate, setHasTemplate] = useState(false);
+  const [hasSpecificationTemplate, setHasSpecificationTemplate] = useState(false);
 
   React.useEffect(() => {
     if (isOpen && eventForms) {
       loadPopulatedFields();
       checkTemplateExists();
+      checkSpecificationTemplateExists();
     }
   }, [isOpen, eventForms, documentType]);
+
+  // Sync customer name when eventData changes
+  React.useEffect(() => {
+    if (eventData?.customers?.name) {
+      setEditableData(prev => ({
+        ...prev,
+        customer_name: eventData.customers.name
+      }));
+    }
+  }, [eventData?.customers?.name]);
 
   const checkTemplateExists = async () => {
     if (!tenantId) return;
@@ -67,6 +80,25 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
     } catch (error) {
       console.error('Error checking template:', error);
       setHasTemplate(false);
+    }
+  };
+
+  const checkSpecificationTemplateExists = async () => {
+    if (!tenantId) return;
+    
+    try {
+      const templateName = `${tenantId}-specification-template.docx`;
+      const { data } = await supabase.storage
+        .from('word-templates')
+        .list('', {
+          search: templateName
+        });
+      
+      const templateExists = data && data.length > 0;
+      setHasSpecificationTemplate(templateExists);
+    } catch (error) {
+      console.error('Error checking specification template:', error);
+      setHasSpecificationTemplate(false);
     }
   };
 
@@ -162,6 +194,40 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
     } catch (error) {
       console.error('Error generating document:', error);
       toast.error(`Failed to generate ${type}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateSpecification = async () => {
+    if (!hasSpecificationTemplate) {
+      toast.error('Please upload a specification template first');
+      return;
+    }
+
+    setIsGenerating(true);
+    
+    try {
+      const enhancedEventData = {
+        ...eventData,
+        title: editableData.event_name,
+        customers: eventData.customers ? {
+          ...eventData.customers,
+          name: editableData.customer_name
+        } : null,
+        primary_contact_name: editableData.customer_name
+      };
+
+      await WordTemplateGenerator.generateSpecificationDocument(
+        enhancedEventData,
+        tenantId,
+        eventForms || []
+      );
+      
+      toast.success('Specification document downloaded!');
+    } catch (error) {
+      console.error('Error generating specification:', error);
+      toast.error(`Failed to generate specification: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -303,7 +369,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                 {/* Guest totals from event forms */}
                 {eventForms?.map((eventForm) => 
                   eventForm.guest_price_total > 0 && (
-                    <div key={`guest-${eventForm.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
+                    <div key={`event-form-${eventForm.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
                       <div>{(eventForm.men_count || 0) + (eventForm.ladies_count || 0)}</div>
                       <div>{eventForm.form_label} - Guest Pricing</div>
                       <div className="text-right">£{eventForm.guest_price_total.toFixed(2)}</div>
@@ -313,7 +379,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                 
                 {/* Populated fields */}
                 {populatedFields.map((field) => (
-                  <div key={field.id} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
+                  <div key={`populated-field-${field.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
                     <div>{field.quantity}</div>
                     <div>{field.description}</div>
                     <div className="text-right">£{field.price.toFixed(2)}</div>
@@ -353,29 +419,48 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
           {/* Template Status - Always Show */}
           <div className="pt-4 border-t">
             <div className="flex justify-between items-start">
-              <div className="space-y-2">
-                <h3 className="font-semibold">Word Template Status</h3>
-                {hasTemplate ? (
-                  <div className="space-y-2">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold">Quote/Invoice Template</h3>
+                  {hasTemplate ? (
                     <Badge variant="secondary" className="bg-green-100 text-green-800">
                       Template Active
                     </Badge>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Badge variant="secondary" className="bg-red-100 text-red-800">
-                      No Template
-                    </Badge>
-                    <p className="text-sm text-muted-foreground">
-                      Upload a Word template to enable document generation
-                    </p>
-                  </div>
-                )}
+                  ) : (
+                    <div className="space-y-1">
+                      <Badge variant="secondary" className="bg-red-100 text-red-800">
+                        No Template
+                      </Badge>
+                      <p className="text-sm text-muted-foreground">
+                        Upload a Word template to enable quote/invoice generation
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold">Specification Template</h3>
+                  {hasSpecificationTemplate ? (
+                    <div className="space-y-3">
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        Specification Template Active
+                      </Badge>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Badge variant="secondary" className="bg-red-100 text-red-800">
+                        No Specification Template
+                      </Badge>
+                      <p className="text-sm text-muted-foreground">
+                        Upload a specification template to enable kitchen document generation
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
               <Link to="/settings/templates">
                 <Button variant="outline" className="flex items-center gap-2">
                   <Upload className="h-4 w-4" />
-                  {hasTemplate ? 'Manage Template' : 'Upload Template'}
+                  Manage Templates
                 </Button>
               </Link>
             </div>
@@ -416,10 +501,19 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
             <Button
               onClick={() => handleGenerate('invoice')}
               disabled={isGenerating || !hasTemplate}
+              variant="outline"
               className="flex items-center gap-2"
             >
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Download Invoice
+            </Button>
+            <Button
+              onClick={handleGenerateSpecification}
+              disabled={isGenerating || !hasSpecificationTemplate}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Download Specification
             </Button>
           </div>
         </DialogFooter>

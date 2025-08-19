@@ -1034,14 +1034,17 @@ export type Database = {
           created_at: string | null
           customer_id: string | null
           date_changed_at: string | null
+          deductible_deposit_gbp: number | null
           deposit_amount_gbp: number | null
           end_time: string | null
           ethnicity: Json | null
           event_date: string | null
           event_end_date: string | null
           event_type: string | null
+          external_calendar_id: string | null
           form_id: string | null
           form_total_gbp: number | null
+          guest_mixture: string | null
           id: string
           ladies_count: number | null
           men_count: number | null
@@ -1060,14 +1063,17 @@ export type Database = {
           created_at?: string | null
           customer_id?: string | null
           date_changed_at?: string | null
+          deductible_deposit_gbp?: number | null
           deposit_amount_gbp?: number | null
           end_time?: string | null
           ethnicity?: Json | null
           event_date?: string | null
           event_end_date?: string | null
           event_type?: string | null
+          external_calendar_id?: string | null
           form_id?: string | null
           form_total_gbp?: number | null
+          guest_mixture?: string | null
           id?: string
           ladies_count?: number | null
           men_count?: number | null
@@ -1086,14 +1092,17 @@ export type Database = {
           created_at?: string | null
           customer_id?: string | null
           date_changed_at?: string | null
+          deductible_deposit_gbp?: number | null
           deposit_amount_gbp?: number | null
           end_time?: string | null
           ethnicity?: Json | null
           event_date?: string | null
           event_end_date?: string | null
           event_type?: string | null
+          external_calendar_id?: string | null
           form_id?: string | null
           form_total_gbp?: number | null
+          guest_mixture?: string | null
           id?: string
           ladies_count?: number | null
           men_count?: number | null
@@ -2304,6 +2313,36 @@ export type Database = {
         }
         Relationships: []
       }
+      specification_template_configs: {
+        Row: {
+          created_at: string
+          form_id: string
+          id: string
+          is_active: boolean
+          selected_fields: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          form_id: string
+          id?: string
+          is_active?: boolean
+          selected_fields?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          form_id?: string
+          id?: string
+          is_active?: boolean
+          selected_fields?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff: {
         Row: {
           active: boolean | null
@@ -2654,6 +2693,7 @@ export type Database = {
           subscription_plan_id: string | null
           subscription_starts_at: string | null
           subscription_status: string | null
+          template_format_preference: string | null
           timezone: string | null
           trial_ends_at: string | null
           trial_starts_at: string | null
@@ -2684,6 +2724,7 @@ export type Database = {
           subscription_plan_id?: string | null
           subscription_starts_at?: string | null
           subscription_status?: string | null
+          template_format_preference?: string | null
           timezone?: string | null
           trial_ends_at?: string | null
           trial_starts_at?: string | null
@@ -2714,6 +2755,7 @@ export type Database = {
           subscription_plan_id?: string | null
           subscription_starts_at?: string | null
           subscription_status?: string | null
+          template_format_preference?: string | null
           timezone?: string | null
           trial_ends_at?: string | null
           trial_starts_at?: string | null
