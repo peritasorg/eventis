@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { useEventForms, EventForm } from '@/hooks/useEventForms';
 import { useForms } from '@/hooks/useForms';
 import { useFormFields } from '@/hooks/useFormFields';
 import { OptimizedFieldRenderer } from '@/components/form-builder/OptimizedFieldRenderer';
+import { FormSaveButton } from './FormSaveButton';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +31,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<Record<string, string>>({});
+  const [unsavedChanges, setUnsavedChanges] = useState<Record<string, boolean>>({});
+  const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
   
   // Local state for guest fields to ensure immediate UI updates
   const [localGuestData, setLocalGuestData] = useState<Record<string, {
@@ -176,19 +179,16 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     const responses: Record<string, Record<string, any>> = {};
     
     eventForms.forEach(eventForm => {
+      console.log('Loading form responses for:', eventForm.form_label, eventForm.form_responses);
       if (eventForm.form_responses && Object.keys(eventForm.form_responses).length > 0) {
         responses[eventForm.id] = eventForm.form_responses;
       }
     });
     
-    // Only update if responses actually changed
-    const responseKeys = Object.keys(responses).sort();
-    const currentResponseKeys = Object.keys(formResponses).sort();
+    console.log('All loaded form responses:', responses);
     
-    if (responseKeys.join(',') !== currentResponseKeys.join(',') || 
-        JSON.stringify(responses) !== JSON.stringify(formResponses)) {
-      setFormResponses(responses);
-    }
+    // Always set the form responses from database (this is the initial load)
+    setFormResponses(responses);
     
     // Only initialize guest data for NEW forms that don't exist in local state
     setLocalGuestData(prev => {
@@ -226,7 +226,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       
       return updatedTimeSlots;
     });
-  }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}-${ef.start_time}-${ef.end_time}`).join(',')]);
+  }, [eventForms.length, eventForms.map(ef => ef.id).join(',')]);
 
   // Perfect form total calculation with proper decimal precision and debug logging
   const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
@@ -258,8 +258,15 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     return sum + calculateFormTotal(eventForm, true); // Use local guest data for real-time totals
   }, 0);
 
-  // Smart auto-save for form responses with instant UI updates
-  const handleResponseChange = (eventFormId: string, fieldId: string, updates: any) => {
+  // Handle form field changes with local state only (no auto-save)
+  const handleResponseChange = useCallback((eventFormId: string, fieldId: string, updates: any) => {
+    console.log('Field response change:', {
+      eventFormId,
+      fieldId, 
+      updates,
+      currentResponse: formResponses[eventFormId]?.[fieldId]
+    });
+    
     const newResponses = {
       ...formResponses,
       [eventFormId]: {
@@ -271,82 +278,87 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       }
     };
     
+    console.log('Updated form responses:', newResponses);
+    
     // Update local state immediately for responsive UI
     setFormResponses(newResponses);
     
-    // Find the event form and calculate new total (including guest price total)
+    // Mark form as having unsaved changes
+    setUnsavedChanges(prev => ({
+      ...prev,
+      [eventFormId]: true
+    }));
+  }, [formResponses]);
+
+  // Save form changes explicitly
+  const saveFormChanges = useCallback(async (eventFormId: string) => {
     const eventForm = eventForms.find(ef => ef.id === eventFormId);
-    if (eventForm) {
-      const newTotal = calculateFormTotal({ ...eventForm, form_responses: newResponses[eventFormId] } as EventForm, true);
-      
-      // Smart save strategy: Only save to DB on blur for text fields, immediately for toggles/prices
-      const isToggleField = updates.hasOwnProperty('enabled');
-      const isPriceField = updates.hasOwnProperty('price') || updates.hasOwnProperty('quantity');
-      const isTextField = updates.hasOwnProperty('notes') && !isToggleField && !isPriceField;
-      
-      // Clear any existing timeout for this field
-      const timeoutKey = `${eventFormId}-${fieldId}`;
-      if (window[timeoutKey]) {
-        clearTimeout(window[timeoutKey]);
-      }
-      
-      // Only save immediately for non-text fields to prevent typing glitches
-      if (!isTextField) {
-        // Set shorter timeout for immediate save on toggles/prices
-        window[timeoutKey] = setTimeout(async () => {
-          try {
-            const { error } = await supabase
-              .from('event_forms')
-              .update({ 
-                form_responses: newResponses[eventFormId],
-                form_total: newTotal,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', eventFormId);
+    if (!eventForm) return;
 
-            if (error) throw error;
-            
-            // Only invalidate event forms query for immediate updates
-            queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
-            
-          } catch (error) {
-            console.error('Error saving form response:', error);
-            toast.error('Failed to save changes');
-          }
-          delete window[timeoutKey];
-        }, isToggleField ? 0 : 100);
+    // Get current form responses (use local state if available)
+    const currentResponses = formResponses[eventFormId] || eventForm.form_responses || {};
+    
+    setIsSaving(prev => ({ ...prev, [eventFormId]: true }));
+
+    try {
+      console.log('Saving form data:', {
+        eventFormId,
+        responses: currentResponses,
+        guestData: localGuestData[eventFormId]
+      });
+      
+      const currentTotal = calculateFormTotal({ 
+        ...eventForm, 
+        form_responses: currentResponses 
+      } as EventForm, true);
+      
+      const updateData: any = {
+        form_responses: currentResponses,
+        form_total: currentTotal,
+        updated_at: new Date().toISOString()
+      };
+
+      // Include guest data if available
+      if (localGuestData[eventFormId]) {
+        updateData.men_count = localGuestData[eventFormId].men_count;
+        updateData.ladies_count = localGuestData[eventFormId].ladies_count;
+        updateData.guest_price_total = localGuestData[eventFormId].guest_price_total;
+        updateData.guest_count = localGuestData[eventFormId].men_count + localGuestData[eventFormId].ladies_count;
       }
+      
+      console.log('Updating event_forms with:', updateData);
+      
+      const { error } = await supabase
+        .from('event_forms')
+        .update(updateData)
+        .eq('id', eventFormId);
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
+      console.log('Form saved successfully to database');
+      
+      // Mark as saved
+      setUnsavedChanges(prev => ({
+        ...prev,
+        [eventFormId]: false
+      }));
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+      
+      toast.success('Form saved successfully');
+      
+    } catch (error) {
+      console.error('Error saving form:', error);
+      toast.error(`Failed to save form: ${error.message}`);
+    } finally {
+      setIsSaving(prev => ({ ...prev, [eventFormId]: false }));
     }
-  };
-
-  // Save all text field changes on blur
-  const handleFieldBlur = async (eventFormId: string) => {
-    const eventForm = eventForms.find(ef => ef.id === eventFormId);
-    if (eventForm && formResponses[eventFormId]) {
-      const currentTotal = calculateFormTotal({ ...eventForm, form_responses: formResponses[eventFormId] } as EventForm, true);
-      
-      try {
-        const { error } = await supabase
-          .from('event_forms')
-          .update({ 
-            form_responses: formResponses[eventFormId],
-            form_total: currentTotal,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', eventFormId);
-
-        if (error) throw error;
-        
-        // Invalidate queries to sync with other components
-        queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
-        queryClient.invalidateQueries({ queryKey: ['event', eventId] });
-        
-      } catch (error) {
-        console.error('Error saving form response:', error);
-        toast.error('Failed to save changes');
-      }
-    }
-  };
+  }, [eventForms, formResponses, localGuestData, eventId, queryClient, calculateFormTotal]);
 
   const handleAddForm = async () => {
     if (!selectedFormId) {
@@ -387,7 +399,6 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
           field={field}
           response={response}
           onChange={(id, updates) => handleResponseChange(eventForm.id, fieldId, updates)}
-          onBlur={() => handleFieldBlur(eventForm.id)}
           showInCard={false}
         />
       </div>
@@ -616,16 +627,21 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
         {/* Form Content */}
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>{eventForm.form_label}</CardTitle>
-                 <p className="text-sm text-muted-foreground mt-1">
-                   Form Total: £{calculateFormTotal(eventForm, true).toFixed(2)}
-                 </p>
-              </div>
-            </div>
-          </CardHeader>
+           <CardHeader>
+             <div className="flex items-center justify-between">
+               <div>
+                 <CardTitle>{eventForm.form_label}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Form Total: £{calculateFormTotal(eventForm, true).toFixed(2)}
+                  </p>
+               </div>
+               <FormSaveButton
+                 hasUnsavedChanges={unsavedChanges[eventForm.id] || false}
+                 onSave={() => saveFormChanges(eventForm.id)}
+                 isLoading={isSaving[eventForm.id] || false}
+               />
+             </div>
+           </CardHeader>
           <CardContent>
             {eventForm.forms?.sections && eventForm.forms.sections.length > 0 ? (
               <div className="space-y-6">

@@ -44,40 +44,47 @@ export const OptimizedFieldRenderer: React.FC<OptimizedFieldRendererProps> = ({
     selectedOption: response.selectedOption || ''
   });
 
-  // Sync local state when response changes from external updates
+  // Only sync on initial load - prevent overwriting user input
   React.useEffect(() => {
-    setLocalValue({
-      notes: response.notes || '',
-      price: response.price || 0,
-      quantity: response.quantity || 1,
-      value: response.value || '',
-      enabled: response.enabled || false,
-      selectedOption: response.selectedOption || ''
-    });
-  }, [response.notes, response.price, response.quantity, response.value, response.enabled, response.selectedOption]);
+    if (response && Object.keys(response).length > 0) {
+      console.log('Loading field data:', field.name, response);
+      setLocalValue(prev => ({
+        notes: response.notes || prev.notes,
+        price: response.price !== undefined ? response.price : prev.price,
+        quantity: response.quantity || prev.quantity,
+        value: response.value || prev.value,
+        enabled: response.enabled !== undefined ? response.enabled : prev.enabled,
+        selectedOption: response.selectedOption || prev.selectedOption
+      }));
+    }
+  }, [field.id]); // Only run when field ID changes
 
   const updateResponse = useCallback((updates: Partial<FieldResponse>) => {
     if (onChange && !readOnly) {
+      console.log('Updating field response:', field.name, updates);
       onChange(field.id, updates);
     }
-  }, [onChange, readOnly, field.id]);
+  }, [onChange, readOnly, field.id, field.name]);
 
   // Handle local state updates for text fields
   const handleLocalChange = useCallback((key: keyof typeof localValue, value: any) => {
+    console.log('Local field change:', field.name, key, value);
     setLocalValue(prev => ({ ...prev, [key]: value }));
-  }, []);
+  }, [field.name]);
 
   // Handle blur events - save text changes to database
   const handleBlur = useCallback((key: keyof typeof localValue) => {
+    console.log('Field blur save:', field.name, key, localValue[key]);
     updateResponse({ [key]: localValue[key] });
     onBlur?.();
-  }, [localValue, updateResponse, onBlur]);
+  }, [localValue, updateResponse, onBlur, field.name]);
 
   // Immediate updates for non-text fields (toggles, prices)
   const handleImmediateUpdate = useCallback((updates: Partial<FieldResponse>) => {
+    console.log('Immediate field update:', field.name, updates);
     setLocalValue(prev => ({ ...prev, ...updates }));
     updateResponse(updates);
-  }, [updateResponse]);
+  }, [updateResponse, field.name]);
 
   const calculatePrice = useMemo(() => {
     if (field.field_type === 'fixed_price_notes' || field.field_type === 'fixed_price_notes_toggle') {
@@ -249,6 +256,70 @@ export const OptimizedFieldRenderer: React.FC<OptimizedFieldRendererProps> = ({
                 Total: £{calculatePrice.toFixed(2)}
               </div>
             )}
+          </div>
+        );
+
+      case 'dropdown_options':
+      case 'dropdown_options_price_notes':
+        return (
+          <div className="col-span-2 space-y-3">
+            <div>
+              <Label className="text-sm font-medium">{field.name}</Label>
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+              )}
+            </div>
+            
+            <div className="space-y-3">
+              <Select
+                value={localValue.selectedOption}
+                onValueChange={(value) => {
+                  const selectedDropdownOption = field.dropdown_options?.find(opt => opt.value === value);
+                  const updates: any = { 
+                    selectedOption: value,
+                    value: value,
+                    enabled: true
+                  };
+                  if (selectedDropdownOption?.price) {
+                    updates.price = selectedDropdownOption.price;
+                  }
+                  handleImmediateUpdate(updates);
+                }}
+                disabled={readOnly}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an option..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {field.dropdown_options?.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label} {option.price ? `(£${option.price})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {field.has_notes && localValue.selectedOption && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Notes</Label>
+                  <Textarea
+                    value={localValue.notes}
+                    onChange={(e) => handleLocalChange('notes', e.target.value)}
+                    onBlur={() => handleBlur('notes')}
+                    placeholder="Additional notes..."
+                    rows={2}
+                    disabled={readOnly}
+                    className="w-full mt-1"
+                  />
+                </div>
+              )}
+              
+              {localValue.selectedOption && calculatePrice > 0 && (
+                <div className="text-sm font-medium text-right">
+                  Total: £{calculatePrice.toFixed(2)}
+                </div>
+              )}
+            </div>
           </div>
         );
 

@@ -1051,6 +1051,7 @@ export type Database = {
           original_event_date: string | null
           primary_contact_name: string | null
           primary_contact_number: string | null
+          refundable_deposit_gbp: number | null
           secondary_contact_name: string | null
           secondary_contact_number: string | null
           start_time: string | null
@@ -1080,6 +1081,7 @@ export type Database = {
           original_event_date?: string | null
           primary_contact_name?: string | null
           primary_contact_number?: string | null
+          refundable_deposit_gbp?: number | null
           secondary_contact_name?: string | null
           secondary_contact_number?: string | null
           start_time?: string | null
@@ -1109,6 +1111,7 @@ export type Database = {
           original_event_date?: string | null
           primary_contact_name?: string | null
           primary_contact_number?: string | null
+          refundable_deposit_gbp?: number | null
           secondary_contact_name?: string | null
           secondary_contact_number?: string | null
           start_time?: string | null
