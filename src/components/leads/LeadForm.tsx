@@ -49,8 +49,6 @@ export const LeadForm: React.FC<LeadFormProps> = ({
     ladies_count: leadData?.ladies_count || 0,
     guest_mixture: leadData?.guest_mixture || 'Mixed',
     estimated_budget: leadData?.estimated_budget || '',
-    status: leadData?.status || 'new',
-    source: leadData?.source || 'website',
     notes: leadData?.notes || '',
     priority: leadData?.priority || 'medium'
   });
@@ -77,8 +75,6 @@ export const LeadForm: React.FC<LeadFormProps> = ({
         guest_mixture: formData.guest_mixture || 'Mixed',
         estimated_budget: formData.estimated_budget ? parseFloat(formData.estimated_budget.toString()) : null,
         estimated_guests: (parseInt(formData.men_count.toString()) || 0) + (parseInt(formData.ladies_count.toString()) || 0),
-        status: formData.status || 'new',
-        source: formData.source || 'website',
         priority: formData.priority || 'medium',
         notes: formData.notes?.trim() || null,
         lead_score: 0,
@@ -171,11 +167,10 @@ export const LeadForm: React.FC<LeadFormProps> = ({
 
       console.log('Customer created successfully:', customer);
 
-      // Update lead status to won and add conversion date
+      // Update lead conversion date
       const { error: leadError } = await supabase
         .from('leads')
         .update({ 
-          status: 'won',
           conversion_date: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -380,7 +375,7 @@ export const LeadForm: React.FC<LeadFormProps> = ({
         <Button type="button" variant="outline" onClick={onSuccess}>
           {isEdit ? 'Cancel' : 'Close'}
         </Button>
-        {isEdit && leadData?.status !== 'won' && (
+        {isEdit && !leadData?.conversion_date && (
           <Button 
             type="button" 
             onClick={handleConvertToCustomer}

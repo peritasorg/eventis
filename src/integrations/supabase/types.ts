@@ -1573,8 +1573,6 @@ export type Database = {
           notes: string | null
           phone: string | null
           priority: string | null
-          source: string | null
-          status: string | null
           tenant_id: string | null
           updated_at: string | null
           utm_campaign: string | null
@@ -1605,8 +1603,6 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           priority?: string | null
-          source?: string | null
-          status?: string | null
           tenant_id?: string | null
           updated_at?: string | null
           utm_campaign?: string | null
@@ -1637,8 +1633,6 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           priority?: string | null
-          source?: string | null
-          status?: string | null
           tenant_id?: string | null
           updated_at?: string | null
           utm_campaign?: string | null
@@ -2860,24 +2854,7 @@ export type Database = {
       }
     }
     Views: {
-      lead_pipeline: {
-        Row: {
-          avg_budget: number | null
-          lead_count: number | null
-          status: string | null
-          tenant_id: string | null
-          total_potential: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "leads_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       audit_security_event: {
