@@ -44,20 +44,20 @@ export const OptimizedFieldRenderer: React.FC<OptimizedFieldRendererProps> = ({
     selectedOption: response.selectedOption || ''
   });
 
-  // Only sync on initial load - prevent overwriting user input
+  // CRITICAL FIX: Sync state when response data changes from database
   React.useEffect(() => {
-    if (response && Object.keys(response).length > 0) {
-      console.log('Loading field data:', field.name, response);
-      setLocalValue(prev => ({
-        notes: response.notes || prev.notes,
-        price: response.price !== undefined ? response.price : prev.price,
-        quantity: response.quantity || prev.quantity,
-        value: response.value || prev.value,
-        enabled: response.enabled !== undefined ? response.enabled : prev.enabled,
-        selectedOption: response.selectedOption || prev.selectedOption
-      }));
-    }
-  }, [field.id]); // Only run when field ID changes
+    console.log('Field data sync for:', field.name, 'response:', response);
+    
+    // Always sync with the latest response data from the database
+    setLocalValue({
+      notes: response?.notes || '',
+      price: response?.price !== undefined ? response.price : 0,
+      quantity: response?.quantity || 1,
+      value: response?.value || '',
+      enabled: response?.enabled !== undefined ? response.enabled : false,
+      selectedOption: response?.selectedOption || ''
+    });
+  }, [response, field.id]); // React to response changes, not just field changes
 
   const updateResponse = useCallback((updates: Partial<FieldResponse>) => {
     if (onChange && !readOnly) {
