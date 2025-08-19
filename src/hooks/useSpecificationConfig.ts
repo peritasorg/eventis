@@ -16,14 +16,14 @@ export const useSpecificationConfig = () => {
   const { currentTenant } = useAuth();
 
   const { data: config, isLoading, ...rest } = useSupabaseQuery(
-    ['specification-config', currentTenant],
+    ['specification-config', currentTenant?.id],
     async () => {
-      if (!currentTenant) return null;
+      if (!currentTenant?.id) return null;
       
       const { data, error } = await supabase
         .from('specification_template_configs')
         .select('*')
-        .eq('tenant_id', currentTenant)
+        .eq('tenant_id', currentTenant.id)
         .eq('is_active', true)
         .single();
 
@@ -37,13 +37,13 @@ export const useSpecificationConfig = () => {
 
   const saveConfigMutation = useSupabaseMutation(
     async ({ formId, selectedFields }: { formId: string; selectedFields: string[] }) => {
-      if (!currentTenant) throw new Error('No tenant');
+      if (!currentTenant?.id) throw new Error('No tenant');
 
       // Check if config exists
       const { data: existing } = await supabase
         .from('specification_template_configs')
         .select('id')
-        .eq('tenant_id', currentTenant)
+        .eq('tenant_id', currentTenant.id)
         .eq('is_active', true)
         .single();
 
@@ -67,7 +67,7 @@ export const useSpecificationConfig = () => {
         const { data, error } = await supabase
           .from('specification_template_configs')
           .insert({
-            tenant_id: currentTenant,
+            tenant_id: currentTenant.id,
             form_id: formId,
             selected_fields: selectedFields
           })

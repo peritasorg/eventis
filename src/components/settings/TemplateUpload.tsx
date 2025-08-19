@@ -296,10 +296,20 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
 
   const getFormFields = (formId: string) => {
     const form = forms?.find(f => f.id === formId);
+    console.log('Debug - Selected form:', form);
+    console.log('Debug - All forms:', forms);
+    console.log('Debug - All form fields:', formFields);
+    
     if (!form) return [];
     
+    // Get all field IDs from all sections of the form
     const fieldIds = form.sections.flatMap((section: any) => section.fieldIds || []);
-    return formFields?.filter(field => fieldIds.includes(field.id)) || [];
+    console.log('Debug - Field IDs from form sections:', fieldIds);
+    
+    const filteredFields = formFields?.filter(field => fieldIds.includes(field.id)) || [];
+    console.log('Debug - Filtered fields:', filteredFields);
+    
+    return filteredFields;
   };
 
   return (
