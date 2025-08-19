@@ -521,10 +521,10 @@ export class WordTemplateGenerator {
       for (const eventForm of formsToProcess) {
         if (eventForm?.form_responses && typeof eventForm.form_responses === 'object') {
           for (const [fieldId, response] of Object.entries(eventForm.form_responses)) {
-            // Only include responses that are enabled and have values
+            // Only include responses that are populated based on field type
             if (response && typeof response === 'object') {
-              const respObj = response as any;
-              if (respObj.enabled === true && (respObj.value !== undefined && respObj.value !== null && respObj.value !== '')) {
+              const fieldConfig = fieldLookup.get(fieldId);
+              if (this.isSpecificationFieldPopulated(response, fieldConfig?.field_type || 'text')) {
                 populatedFieldResponses.set(fieldId, response);
               }
             }
@@ -668,7 +668,7 @@ export class WordTemplateGenerator {
 
     // Use event record data for main details
     const businessName = safeString(eventData.tenant?.business_name, 'Business Name');
-    const eventTitle = safeString(eventData.event_name || eventData.title, 'Event Name'); // Use event_name from event record
+    const eventTitle = safeString(eventData.title, 'Event Name'); // Use title from event record
     const eventDate = safeDate(eventData.event_date, 'TBD');
     const notes = safeString(eventData.notes, 'No additional notes');
     const createdDate = format(new Date(), 'dd/MM/yyyy');
