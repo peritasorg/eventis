@@ -1,213 +1,360 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { PriceInput } from '@/components/ui/price-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Clock, Users, DollarSign } from 'lucide-react';
-import { useEventForms } from '@/hooks/useEventForms';
+import { Input } from '@/components/ui/input';
+import { PriceInput } from '@/components/ui/price-input';
+import { useEventForms, EventForm } from '@/hooks/useEventForms';
 import { useForms } from '@/hooks/useForms';
-import { useEventFormTotals } from '@/hooks/useEventFormTotals';
-import { useEventTimeSlots } from '@/hooks/useEventTimeSlots';
-import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
+import { useFormFields } from '@/hooks/useFormFields';
+import { OptimizedFieldRenderer } from '@/components/form-builder/OptimizedFieldRenderer';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { OptimizedFieldRenderer } from '@/components/form-builder/OptimizedFieldRenderer';
-import { FormSaveButton } from './FormSaveButton';
-import { SaveBeforeCloseDialog } from './SaveBeforeCloseDialog';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface EventFormTabProps {
   eventId: string;
-  eventFormId?: string;
+  eventFormId?: string; // Optional - if provided, shows single form, otherwise shows form manager
 }
 
 export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId }) => {
-  const { currentTenant } = useAuth();
-  const [selectedForms, setSelectedForms] = useState<string[]>([]);
-  
-  // Local state for immediate UI updates
-  const [localResponses, setLocalResponses] = useState<Record<string, any>>({});
-  const [localGuestCount, setLocalGuestCount] = useState<number>(0);
-  const [localGuestPrice, setLocalGuestPrice] = useState<number>(0);
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState<Record<string, any>>({});
-  
-  // Track unsaved changes
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
-
-  // Hooks
-  const { 
-    eventForms, 
-    isLoading, 
-    createEventForm, 
-    updateEventForm, 
-    deleteEventForm
-  } = useEventForms(eventId);
-  
+  const { eventForms, isLoading, createEventForm, updateEventForm, deleteEventForm, isCreating } = useEventForms(eventId);
   const { forms } = useForms();
-  const { formTotals } = useEventFormTotals(eventId);
+  const { formFields } = useFormFields();
+  const { currentTenant } = useAuth();
+  const queryClient = useQueryClient();
+  
+  const [selectedFormId, setSelectedFormId] = useState<string>('');
+  const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<Record<string, string>>({});
+  
+  // Local state for guest fields to ensure immediate UI updates
+  const [localGuestData, setLocalGuestData] = useState<Record<string, {
+    men_count: number;
+    ladies_count: number;
+    guest_price_total: number;
+  }>>({});
 
-  // Fetch event details and available time slots
-  const { data: eventDetails } = useSupabaseQuery(
-    ['event-details', eventId],
+  // Fetch event type-specific time slots
+  const { data: eventTypeConfigs } = useSupabaseQuery(
+    ['event-type-configs'],
     async () => {
-      if (!eventId || !currentTenant?.id) return null;
+      if (!currentTenant?.id) return [];
+      
       const { data, error } = await supabase
-        .from('events')
+        .from('event_type_configs')
         .select('*')
-        .eq('id', eventId)
         .eq('tenant_id', currentTenant.id)
-        .single();
+        .eq('is_active', true);
+      
       if (error) throw error;
-      return data;
+      return data || [];
     }
   );
 
-  const { data: availableTimeSlots } = useSupabaseQuery(
+  // Fetch event type form mappings
+  const { data: eventTypeFormMappings } = useSupabaseQuery(
+    ['event-type-form-mappings'],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('event_type_form_mappings')
+        .select(`
+          *,
+          event_type_configs!inner(
+            event_type,
+            available_time_slots
+          )
+        `)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
+  // Fetch fallback global time slots
+  const { data: globalTimeSlots } = useSupabaseQuery(
     ['event-time-slots', currentTenant?.id],
     async () => {
       if (!currentTenant?.id) return [];
+      
       const { data, error } = await supabase
         .from('event_time_slots')
         .select('*')
         .eq('tenant_id', currentTenant.id)
         .eq('is_active', true)
         .order('sort_order');
+      
       if (error) throw error;
       return data || [];
     }
   );
 
-  // Get current form data
-  const currentForm = eventFormId ? eventForms?.find(ef => ef.id === eventFormId) : null;
+  // Get event details to determine event type
+  const { data: eventDetails } = useSupabaseQuery(
+    ['event', eventId],
+    async () => {
+      if (!eventId || !currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('event_type, guest_mixture')
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    }
+  );
 
-  // Sync local state when event forms data changes
-  useEffect(() => {
-    if (eventForms && eventFormId) {
-      const currentForm = eventForms.find(ef => ef.id === eventFormId);
-      if (currentForm) {
-        setLocalResponses(currentForm.form_responses || {});
-        setLocalGuestCount(currentForm.guest_count || 0);
-        setLocalGuestPrice(currentForm.guest_price || 0);
-        
-        // Initialize selected time slot if it exists
-        if (currentForm.selected_time_slot) {
-          setSelectedTimeSlots({
-            [eventFormId]: currentForm.selected_time_slot
-          });
-        }
-        
-        // Reset unsaved changes when data loads
-        setHasUnsavedChanges(false);
+  const handleGuestMixUpdate = async (value: string) => {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ guest_mixture: value })
+        .eq('id', eventId);
+
+      if (error) throw error;
+      
+      // Invalidate event query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+    } catch (error) {
+      console.error('Error updating guest mix:', error);
+      toast.error('Failed to update guest mix');
+    }
+  };
+
+  // Get time slots for a specific event form based on its associated event type
+  const getTimeSlotsForForm = (eventForm: EventForm) => {
+    // Find the event type form mapping for this specific form
+    const formMapping = eventTypeFormMappings?.find(mapping => 
+      mapping.form_id === eventForm.form_id
+    );
+    
+    if (formMapping?.event_type_configs?.available_time_slots?.length > 0) {
+      return formMapping.event_type_configs.available_time_slots;
+    }
+
+    // Fallback: For single event type events, use the event's type
+    if (eventDetails?.event_type) {
+      const eventTypeConfig = eventTypeConfigs?.find(config => 
+        config.event_type === eventDetails.event_type
+      );
+      
+      if (eventTypeConfig?.available_time_slots?.length > 0) {
+        return eventTypeConfig.available_time_slots;
       }
     }
-  }, [eventForms, eventFormId]);
 
-  // Calculate live form total from local state
-  const liveFormTotal = useMemo(() => {
-    let total = 0;
+    // Final fallback to global time slots
+    return globalTimeSlots?.map(slot => ({
+      id: slot.id,
+      label: slot.label,
+      start_time: slot.start_time,
+      end_time: slot.end_time
+    })) || [];
+  };
+
+  // Get available forms that aren't already added to this event
+  const availableForms = forms.filter(form => 
+    !eventForms.some(eventForm => eventForm.form_id === form.id)
+  );
+
+  // Filter to specific form if eventFormId is provided
+  const displayForms = eventFormId 
+    ? eventForms.filter(ef => ef.id === eventFormId)
+    : eventForms;
+
+  // Load form responses when eventForms change (with dependency check)
+  useEffect(() => {
+    const responses: Record<string, Record<string, any>> = {};
     
-    // Add guest price
-    total += localGuestPrice * localGuestCount;
-    
-    // Add field prices
-    Object.values(localResponses).forEach((response: any) => {
-      if (response?.enabled && response?.price) {
-        const price = parseFloat(response.price) || 0;
-        const quantity = parseFloat(response.quantity) || 1;
-        total += price * quantity;
+    eventForms.forEach(eventForm => {
+      if (eventForm.form_responses && Object.keys(eventForm.form_responses).length > 0) {
+        responses[eventForm.id] = eventForm.form_responses;
       }
     });
     
-    return Math.round(total * 100) / 100; // Round to 2 decimal places
-  }, [localResponses, localGuestCount, localGuestPrice]);
-
-  // Save all form data to database
-  const saveFormData = async () => {
-    if (!eventFormId || !currentTenant?.id) return;
-
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from('event_forms')
-        .update({
-          form_responses: localResponses,
-          guest_count: localGuestCount,
-          guest_price: localGuestPrice,
-          form_total: liveFormTotal,
-          selected_time_slot: selectedTimeSlots[eventFormId] || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', eventFormId)
-        .eq('tenant_id', currentTenant.id);
-
-      if (error) throw error;
-
-      setHasUnsavedChanges(false);
-      toast.success('Form saved successfully');
-      
-      // Data will refresh automatically via queries
-    } catch (error) {
-      console.error('Error saving form:', error);
-      toast.error('Failed to save form');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleFieldChange = (fieldId: string, response: any) => {
-    setLocalResponses(prev => ({
-      ...prev,
-      [fieldId]: response
-    }));
-    setHasUnsavedChanges(true);
-  };
-
-  const handleFieldBlur = (fieldId: string, response: any) => {
-    // Just update local state, no database save
-    setLocalResponses(prev => ({
-      ...prev,
-      [fieldId]: response
-    }));
-    setHasUnsavedChanges(true);
-  };
-
-  const handleGuestChange = (field: 'count' | 'price', value: number) => {
-    if (field === 'count') {
-      setLocalGuestCount(value);
-    } else {
-      setLocalGuestPrice(value);
-    }
-    setHasUnsavedChanges(true);
-  };
-
-  const handleGuestBlur = (field: 'count' | 'price', value: number) => {
-    // Just update local state, no database save
-    if (field === 'count') {
-      setLocalGuestCount(value);
-    } else {
-      setLocalGuestPrice(value);
-    }
-    setHasUnsavedChanges(true);
-  };
-
-  const handleTimeSlotChange = (value: string) => {
-    const timeSlotData = JSON.parse(value);
+    // Only update if responses actually changed
+    const responseKeys = Object.keys(responses).sort();
+    const currentResponseKeys = Object.keys(formResponses).sort();
     
-    setSelectedTimeSlots(prev => ({
-      ...prev,
-      [eventFormId]: timeSlotData
-    }));
-    setHasUnsavedChanges(true);
+    if (responseKeys.join(',') !== currentResponseKeys.join(',') || 
+        JSON.stringify(responses) !== JSON.stringify(formResponses)) {
+      setFormResponses(responses);
+    }
+    
+    // Only initialize guest data for NEW forms that don't exist in local state
+    setLocalGuestData(prev => {
+      const updatedGuestData = { ...prev };
+      
+      eventForms.forEach(eventForm => {
+        // Only set if this form doesn't exist in local state yet
+        if (!prev[eventForm.id]) {
+          updatedGuestData[eventForm.id] = {
+            men_count: eventForm.men_count || 0,
+            ladies_count: eventForm.ladies_count || 0,
+            guest_price_total: eventForm.guest_price_total || 0
+          };
+        }
+      });
+      
+      return updatedGuestData;
+    });
+
+    // Initialize selected time slots
+    setSelectedTimeSlots(prev => {
+      const updatedTimeSlots = { ...prev };
+      
+      eventForms.forEach(eventForm => {
+        if (!prev[eventForm.id] && eventForm.start_time && eventForm.end_time) {
+          const timeSlots = getTimeSlotsForForm(eventForm);
+          const matchingSlot = timeSlots?.find(slot => 
+            slot.start_time === eventForm.start_time && slot.end_time === eventForm.end_time
+          );
+          if (matchingSlot) {
+            updatedTimeSlots[eventForm.id] = matchingSlot.id;
+          }
+        }
+      });
+      
+      return updatedTimeSlots;
+    });
+  }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}-${ef.start_time}-${ef.end_time}`).join(',')]);
+
+  // Perfect form total calculation with proper decimal precision and debug logging
+  const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
+    let total = 0;
+    const responses = formResponses[eventForm.id] || eventForm.form_responses || {};
+    
+    // Add form field prices (only when enabled and has price)
+    Object.entries(responses).forEach(([fieldId, response]) => {
+      if (response.enabled === true && response.price) {
+        const price = Number(response.price) || 0;
+        if (price > 0) {
+          total += price;
+        }
+      }
+    });
+    
+    // Add guest_price_total to the form total
+    const guestPriceTotal = useLocalGuestData 
+      ? (Number(localGuestData[eventForm.id]?.guest_price_total) || 0)
+      : (Number(eventForm.guest_price_total) || 0);
+    
+    total += guestPriceTotal;
+    
+    // Round to 2 decimal places to prevent floating point precision issues
+    return Math.round(total * 100) / 100;
   };
 
-  const handleAddForm = async (formId: string) => {
-    const selectedForm = forms.find(f => f.id === formId);
+  const totalEventValue = eventForms.reduce((sum, eventForm) => {
+    return sum + calculateFormTotal(eventForm, true); // Use local guest data for real-time totals
+  }, 0);
+
+  // Smart auto-save for form responses with instant UI updates
+  const handleResponseChange = (eventFormId: string, fieldId: string, updates: any) => {
+    const newResponses = {
+      ...formResponses,
+      [eventFormId]: {
+        ...formResponses[eventFormId],
+        [fieldId]: {
+          ...formResponses[eventFormId]?.[fieldId],
+          ...updates
+        }
+      }
+    };
+    
+    // Update local state immediately for responsive UI
+    setFormResponses(newResponses);
+    
+    // Find the event form and calculate new total (including guest price total)
+    const eventForm = eventForms.find(ef => ef.id === eventFormId);
+    if (eventForm) {
+      const newTotal = calculateFormTotal({ ...eventForm, form_responses: newResponses[eventFormId] } as EventForm, true);
+      
+      // Smart save strategy: Only save to DB on blur for text fields, immediately for toggles/prices
+      const isToggleField = updates.hasOwnProperty('enabled');
+      const isPriceField = updates.hasOwnProperty('price') || updates.hasOwnProperty('quantity');
+      const isTextField = updates.hasOwnProperty('notes') && !isToggleField && !isPriceField;
+      
+      // Clear any existing timeout for this field
+      const timeoutKey = `${eventFormId}-${fieldId}`;
+      if (window[timeoutKey]) {
+        clearTimeout(window[timeoutKey]);
+      }
+      
+      // Only save immediately for non-text fields to prevent typing glitches
+      if (!isTextField) {
+        // Set shorter timeout for immediate save on toggles/prices
+        window[timeoutKey] = setTimeout(async () => {
+          try {
+            const { error } = await supabase
+              .from('event_forms')
+              .update({ 
+                form_responses: newResponses[eventFormId],
+                form_total: newTotal,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', eventFormId);
+
+            if (error) throw error;
+            
+            // Only invalidate event forms query for immediate updates
+            queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+            
+          } catch (error) {
+            console.error('Error saving form response:', error);
+            toast.error('Failed to save changes');
+          }
+          delete window[timeoutKey];
+        }, isToggleField ? 0 : 100);
+      }
+    }
+  };
+
+  // Save all text field changes on blur
+  const handleFieldBlur = async (eventFormId: string) => {
+    const eventForm = eventForms.find(ef => ef.id === eventFormId);
+    if (eventForm && formResponses[eventFormId]) {
+      const currentTotal = calculateFormTotal({ ...eventForm, form_responses: formResponses[eventFormId] } as EventForm, true);
+      
+      try {
+        const { error } = await supabase
+          .from('event_forms')
+          .update({ 
+            form_responses: formResponses[eventFormId],
+            form_total: currentTotal,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', eventFormId);
+
+        if (error) throw error;
+        
+        // Invalidate queries to sync with other components
+        queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+        
+      } catch (error) {
+        console.error('Error saving form response:', error);
+        toast.error('Failed to save changes');
+      }
+    }
+  };
+
+  const handleAddForm = async () => {
+    if (!selectedFormId) {
+      toast.error('Please select a form to add');
+      return;
+    }
+
+    const selectedForm = availableForms.find(f => f.id === selectedFormId);
     if (!selectedForm) {
       toast.error('Selected form not found');
       return;
@@ -216,301 +363,414 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     try {
       await createEventForm({
         event_id: eventId,
-        form_template_id: formId,
+        form_id: selectedFormId,
         form_label: selectedForm.name,
-        tab_order: (eventForms?.length || 0) + 1
+        tab_order: eventForms.length + 1
       });
-      toast.success('Form added successfully');
+
+      setSelectedFormId('');
     } catch (error: any) {
-      console.error('Error adding form:', error);
-      toast.error(error.message || 'Failed to add form');
+      console.error('Error adding form to event:', error);
+      toast.error(error.message || 'Failed to add form to event');
     }
   };
 
-  const handleDeleteForm = async (eventFormId: string) => {
+  const renderField = (fieldId: string, eventForm: EventForm) => {
+    const field = formFields.find(f => f.id === fieldId);
+    if (!field) return null;
+
+    const response = formResponses[eventForm.id]?.[fieldId] || {};
+
+    return (
+      <div key={fieldId} className="space-y-2">
+        <OptimizedFieldRenderer
+          field={field}
+          response={response}
+          onChange={(id, updates) => handleResponseChange(eventForm.id, fieldId, updates)}
+          onBlur={() => handleFieldBlur(eventForm.id)}
+          showInCard={false}
+        />
+      </div>
+    );
+  };
+
+  const handleTimeSlotUpdate = async (eventFormId: string, timeSlotId: string) => {
+    const eventForm = eventForms.find(ef => ef.id === eventFormId);
+    if (!eventForm) return;
+    
+    const timeSlots = getTimeSlotsForForm(eventForm);
+    const selectedSlot = timeSlots?.find(slot => slot.id === timeSlotId);
+    if (!selectedSlot) return;
+    
+    // Update local state immediately
+    setSelectedTimeSlots(prev => ({
+      ...prev,
+      [eventFormId]: timeSlotId
+    }));
+    
     try {
-      await deleteEventForm(eventFormId);
-      toast.success('Form removed successfully');
-    } catch (error: any) {
-      console.error('Error deleting form:', error);
-      toast.error(error.message || 'Failed to remove form');
+      const { error } = await supabase
+        .from('event_forms')
+        .update({ 
+          start_time: selectedSlot.start_time,
+          end_time: selectedSlot.end_time
+        })
+        .eq('id', eventFormId);
+        
+      if (error) throw error;
+      
+      // Refresh the event forms data
+      queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+    } catch (error) {
+      console.error('Error updating time:', error);
+      toast.error('Failed to update time');
+      
+      // Revert local state on error
+      setSelectedTimeSlots(prev => {
+        const updated = { ...prev };
+        delete updated[eventFormId];
+        return updated;
+      });
+    }
+  };
+
+  const handleGuestUpdate = async (eventFormId: string, field: 'men_count' | 'ladies_count' | 'guest_price_total', value: number) => {
+    // Update local state immediately for responsive UI - PRESERVE existing values
+    const updatedLocalData = {
+      ...localGuestData[eventFormId],
+      [field]: value
+    };
+    
+    setLocalGuestData(prev => ({
+      ...prev,
+      [eventFormId]: updatedLocalData
+    }));
+
+    try {
+      // Calculate guest_count when men or ladies count changes
+      const newGuestCount = field === 'men_count' 
+        ? value + (updatedLocalData.ladies_count || 0)
+        : field === 'ladies_count'
+        ? (updatedLocalData.men_count || 0) + value
+        : (updatedLocalData.men_count || 0) + (updatedLocalData.ladies_count || 0);
+
+      // Calculate new form total with guest price included
+      const eventForm = eventForms.find(ef => ef.id === eventFormId);
+      if (eventForm) {
+        const newTotal = calculateFormTotal({
+          ...eventForm,
+          [field]: value
+        } as EventForm, false);
+        
+        // Update database with all guest fields and new total
+        const updateData: any = {
+          id: eventFormId,
+          men_count: updatedLocalData.men_count,
+          ladies_count: updatedLocalData.ladies_count,
+          guest_count: newGuestCount,
+          guest_price_total: updatedLocalData.guest_price_total,
+          form_total: newTotal
+        };
+        
+        await updateEventForm(updateData);
+
+        // CRITICAL: Invalidate all relevant queries to ensure real-time sync
+        queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+      }
+    } catch (error) {
+      console.error('Error updating guest info:', error);
+      toast.error('Failed to update guest information');
+      
+      // Revert local state on error
+      const eventForm = eventForms.find(ef => ef.id === eventFormId);
+      if (eventForm) {
+        setLocalGuestData(prev => ({
+          ...prev,
+          [eventFormId]: {
+            men_count: eventForm.men_count || 0,
+            ladies_count: eventForm.ladies_count || 0,
+            guest_price_total: eventForm.guest_price_total || 0
+          }
+        }));
+      }
     }
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-          <p className="text-muted-foreground">Loading forms...</p>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center py-8">Loading forms...</div>;
   }
 
-  // Single form view
-  if (eventFormId && currentForm) {
+  // If showing single form, render just that form
+  if (eventFormId) {
+    const eventForm = displayForms[0];
+    if (!eventForm) {
+      return <div className="text-center text-muted-foreground py-8">Form not found</div>;
+    }
+
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">{currentForm.form_label}</h2>
-          <FormSaveButton
-            hasUnsavedChanges={hasUnsavedChanges}
-            onSave={saveFormData}
-            isSaving={isSaving}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main form content */}
-          <div className="lg:col-span-2 space-y-6">
-            {currentForm.forms?.sections?.map((section: any) => (
-              <Card key={section.id} className="space-y-4">
-                <CardHeader>
-                  <CardTitle>{section.title}</CardTitle>
-                  {section.description && (
-                    <p className="text-sm text-muted-foreground">{section.description}</p>
+        <div className="grid grid-cols-3 gap-6">
+          {/* Timing Information */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-medium mb-4">Timing Information</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label>Quick Times</Label>
+                  <Select 
+                    onValueChange={(value) => handleTimeSlotUpdate(eventForm.id, value)}
+                    value={selectedTimeSlots[eventForm.id] || ""}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select time slot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getTimeSlotsForForm(eventForm)?.map((slot) => (
+                        <SelectItem key={slot.id} value={slot.id}>
+                          {slot.label} ({slot.start_time} - {slot.end_time})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {getTimeSlotsForForm(eventForm)?.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      No time slots available. Configure them in Calendar Settings → Event Types.
+                    </p>
                   )}
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {section.field_ids?.map((fieldId: string) => {
-                    const field = currentForm.forms?.form_fields?.find((f: any) => f.id === fieldId);
-                    if (!field) return null;
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                    return (
-                      <OptimizedFieldRenderer
-                        key={fieldId}
-                        field={field}
-                        response={localResponses[fieldId] || {}}
-                        onChange={(updates) => handleFieldChange(fieldId, updates)}
-                        onBlur={() => handleFieldBlur(fieldId, localResponses[fieldId] || {})}
-                        showInCard={false}
-                      />
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Guest Information */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-medium mb-4">Guest Information</h3>
+              <div className="space-y-4">
+                 <div>
+                   <Label>Men Count</Label>
+                   <Input
+                     type="number"
+                     value={localGuestData[eventForm.id]?.men_count || 0}
+                     onChange={(e) => handleGuestUpdate(eventForm.id, 'men_count', parseInt(e.target.value) || 0)}
+                     onFocus={(e) => e.target.select()}
+                     placeholder="0"
+                   />
+                 </div>
+                 <div>
+                   <Label>Ladies Count</Label>
+                   <Input
+                     type="number"
+                     value={localGuestData[eventForm.id]?.ladies_count || 0}
+                     onChange={(e) => handleGuestUpdate(eventForm.id, 'ladies_count', parseInt(e.target.value) || 0)}
+                     onFocus={(e) => e.target.select()}
+                     placeholder="0"
+                   />
+                 </div>
+                 <div>
+                   <Label>Guest Mix</Label>
+                   <Select 
+                     value={eventDetails?.guest_mixture || 'Mixed'} 
+                     onValueChange={(value) => handleGuestMixUpdate(value)}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="Select guest mix" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="Men Only">Men Only</SelectItem>
+                       <SelectItem value="Ladies Only">Ladies Only</SelectItem>
+                       <SelectItem value="Mixed">Mixed</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Timing
-                </CardTitle>
-                <FormSaveButton
-                  hasUnsavedChanges={hasUnsavedChanges}
-                  onSave={saveFormData}
-                  isSaving={isSaving}
-                />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {availableTimeSlots && availableTimeSlots.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Quick Times</Label>
-                    <Select 
-                      value={selectedTimeSlots[eventFormId] ? JSON.stringify(selectedTimeSlots[eventFormId]) : ""} 
-                      onValueChange={handleTimeSlotChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a time slot..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTimeSlots.map((slot) => (
-                          <SelectItem key={slot.id} value={JSON.stringify(slot)}>
-                            {slot.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+          {/* Finance Information */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-medium mb-4">Finance Information</h3>
+              <div className="space-y-4">
+                   <div>
+                    <Label>Guest Total Price (£)</Label>
+                    <PriceInput
+                      value={localGuestData[eventForm.id]?.guest_price_total || 0}
+                      onChange={(value) => handleGuestUpdate(eventForm.id, 'guest_price_total', value)}
+                      placeholder="0.00"
+                    />
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Guest Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Guest Count</Label>
-                  <Input
-                    type="number"
-                    value={localGuestCount}
-                    onChange={(e) => handleGuestChange('count', parseInt(e.target.value) || 0)}
-                    onBlur={(e) => handleGuestBlur('count', parseInt(e.target.value) || 0)}
-                    min="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Price per Guest (£)</Label>
-                  <PriceInput
-                    value={localGuestPrice}
-                    onChange={(value) => handleGuestChange('price', value)}
-                    onBlur={() => handleGuestBlur('price', localGuestPrice)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Finance
-                  <span className="ml-auto text-lg font-bold text-green-600">
-                    £{liveFormTotal.toFixed(2)}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  This form's total value including all selected options and guest pricing.
-                </p>
-                {hasUnsavedChanges && (
-                  <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800">
-                    ⚠️ You have unsaved changes. Click Save to persist these values.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        <SaveBeforeCloseDialog
-          open={showSaveDialog}
-          onOpenChange={setShowSaveDialog}
-          onSaveAndClose={() => {
-            saveFormData().then(() => {
-              setShowSaveDialog(false);
-              if (pendingNavigation) {
-                pendingNavigation();
-                setPendingNavigation(null);
-              }
-            });
-          }}
-          onDiscardChanges={() => {
-            setHasUnsavedChanges(false);
-            setShowSaveDialog(false);
-            if (pendingNavigation) {
-              pendingNavigation();
-              setPendingNavigation(null);
-            }
-          }}
-          formLabel={currentForm?.form_label || 'Form'}
-          hasUnsavedChanges={hasUnsavedChanges}
-        />
-      </div>
-    );
-  }
-
-  // Form management view
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Event Forms</h2>
-        <div className="flex items-center gap-3">
-          <FormSaveButton
-            hasUnsavedChanges={hasUnsavedChanges}
-            onSave={saveFormData}
-            isSaving={isSaving}
-          />
-          {forms && forms.length > 0 && (
-            <Select onValueChange={handleAddForm}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Add a form..." />
-              </SelectTrigger>
-              <SelectContent>
-                {forms
-                  .filter(form => !eventForms?.some(ef => ef.form_template_id === form.id))
-                  .map(form => (
-                    <SelectItem key={form.id} value={form.id}>
-                      {form.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      </div>
-
-      {eventForms && eventForms.length > 0 ? (
-        <div className="grid gap-4">
-          {eventForms.map((eventForm) => (
-            <Card key={eventForm.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>{eventForm.form_label}</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-green-600">
-                      £{eventForm.form_total?.toFixed(2) || '0.00'}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteForm(eventForm.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Guest Count: {eventForm.guest_count || 0} | 
-                  Total Value: £{eventForm.form_total?.toFixed(2) || '0.00'}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-          
-          <Card className="border-2 border-dashed border-muted">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600 mb-2">
-                  Total Event Value: £{eventForms.reduce((sum, form) => sum + (form.form_total || 0), 0).toFixed(2)}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Combined value of all forms for this event
-                </p>
+                 <div>
+                   <Label>Form Total (£)</Label>
+                   <div className="text-lg font-semibold">
+                     £{calculateFormTotal(eventForm, true).toFixed(2)}
+                   </div>
+                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
-      ) : (
-        <Card className="border-2 border-dashed border-muted">
-          <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <Plus className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-muted-foreground mb-4">
-                No forms added to this event yet.
-              </p>
-              {forms && forms.length > 0 ? (
-                <Select onValueChange={handleAddForm}>
-                  <SelectTrigger className="w-[200px] mx-auto">
-                    <SelectValue placeholder="Add your first form..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {forms.map(form => (
-                      <SelectItem key={form.id} value={form.id}>
-                        {form.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Create forms in the Forms section first.
-                </p>
-              )}
+
+        {/* Form Content */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>{eventForm.form_label}</CardTitle>
+                 <p className="text-sm text-muted-foreground mt-1">
+                   Form Total: £{calculateFormTotal(eventForm, true).toFixed(2)}
+                 </p>
+              </div>
             </div>
+          </CardHeader>
+          <CardContent>
+            {eventForm.forms?.sections && eventForm.forms.sections.length > 0 ? (
+              <div className="space-y-6">
+                {eventForm.forms.sections.map((section: any, sectionIndex: number) => (
+                  <div key={section.id || sectionIndex} className="space-y-4">
+                    <h4 className="font-medium text-lg border-b pb-2 text-foreground">
+                      {section.title}
+                    </h4>
+                     <div className="space-y-4">
+                       {section.field_ids && section.field_ids.length > 0 ? (
+                         section.field_ids.map((fieldId: string) => renderField(fieldId, eventForm))
+                       ) : (
+                         <p className="text-sm text-muted-foreground">
+                           No fields configured for this section.
+                         </p>
+                       )}
+                     </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No sections configured for this form.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show form management interface if no specific form ID
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Add Form to Event</h3>
+          </div>
+          
+          <div className="flex gap-4">
+            <Select
+              value={selectedFormId}
+              onValueChange={setSelectedFormId}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder={
+                  availableForms.length > 0 
+                    ? "Select a form to add" 
+                    : "No forms available to add"
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {availableForms.map((form) => (
+                  <SelectItem key={form.id} value={form.id}>
+                    {form.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Button 
+              onClick={handleAddForm}
+              disabled={!selectedFormId || isCreating || availableForms.length === 0 || eventForms.length >= 2}
+            >
+              {isCreating ? 'Adding...' : 'Add Form'}
+            </Button>
+          </div>
+          
+          {eventForms.length >= 2 && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Maximum of 2 forms reached for this event.
+            </p>
+          )}
+          
+          {availableForms.length === 0 && eventForms.length > 0 && eventForms.length < 2 && (
+            <p className="text-sm text-muted-foreground mt-2">
+              All available forms have been added to this event.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {eventForms.length > 0 && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Total Event Value</h3>
+              <div className="text-2xl font-bold text-primary">
+                £{totalEventValue.toFixed(2)}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {eventForms.map((eventForm) => (
+        <Card key={eventForm.id}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>{eventForm.form_label}</CardTitle>
+                 <p className="text-sm text-muted-foreground mt-1">
+                   Form Total: £{calculateFormTotal(eventForm, true).toFixed(2)}
+                 </p>
+              </div>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => deleteEventForm(eventForm.id)}
+              >
+                Remove
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {eventForm.forms?.sections && eventForm.forms.sections.length > 0 ? (
+              <div className="space-y-6">
+                {eventForm.forms.sections.map((section: any, sectionIndex: number) => (
+                  <div key={section.id || sectionIndex} className="space-y-4">
+                    <h4 className="font-medium text-lg border-b pb-2 text-foreground">
+                      {section.title}
+                    </h4>
+                     <div className="space-y-4">
+                       {section.field_ids && section.field_ids.length > 0 ? (
+                         section.field_ids.map((fieldId: string) => renderField(fieldId, eventForm))
+                       ) : (
+                         <p className="text-sm text-muted-foreground">
+                           No fields configured for this section.
+                         </p>
+                       )}
+                     </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No sections configured for this form.</p>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+
+      {eventForms.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <p className="text-muted-foreground mb-4">No forms added to this event yet.</p>
+            <p className="text-sm text-muted-foreground">Add a form above to get started.</p>
           </CardContent>
         </Card>
       )}

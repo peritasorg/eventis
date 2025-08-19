@@ -61,7 +61,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         .insert({
           event_id: eventId,
           tenant_id: currentTenant.id,
-          payment_date: new Date(paymentDate).toISOString(),
+          payment_date: paymentDate,
           amount_gbp: amountGbp,
           payment_note: paymentNote.trim() || null
         });
@@ -74,7 +74,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         .insert({
           event_id: eventId,
           tenant_id: currentTenant.id,
-          communication_date: new Date(paymentDate).toISOString(),
+          communication_date: paymentDate,
           communication_type: 'payment',
           note: `Payment received: £${amountGbp.toFixed(2)}${paymentNote.trim() ? ` - ${paymentNote.trim()}` : ''}`
         });
@@ -125,7 +125,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
           .insert({
             event_id: eventId,
             tenant_id: currentTenant.id,
-            communication_date: new Date().toISOString(),
+            communication_date: format(new Date(), 'yyyy-MM-dd'),
             communication_type: 'payment',
             note: `Payment deleted: £${payment.amount_gbp.toFixed(2)}`
           });
