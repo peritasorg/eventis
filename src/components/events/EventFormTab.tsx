@@ -179,19 +179,16 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     const responses: Record<string, Record<string, any>> = {};
     
     eventForms.forEach(eventForm => {
+      console.log('Loading form responses for:', eventForm.form_label, eventForm.form_responses);
       if (eventForm.form_responses && Object.keys(eventForm.form_responses).length > 0) {
         responses[eventForm.id] = eventForm.form_responses;
       }
     });
     
-    // Only update if responses actually changed
-    const responseKeys = Object.keys(responses).sort();
-    const currentResponseKeys = Object.keys(formResponses).sort();
+    console.log('All loaded form responses:', responses);
     
-    if (responseKeys.join(',') !== currentResponseKeys.join(',') || 
-        JSON.stringify(responses) !== JSON.stringify(formResponses)) {
-      setFormResponses(responses);
-    }
+    // Always set the form responses from database (this is the initial load)
+    setFormResponses(responses);
     
     // Only initialize guest data for NEW forms that don't exist in local state
     setLocalGuestData(prev => {
@@ -229,7 +226,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       
       return updatedTimeSlots;
     });
-  }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}-${ef.start_time}-${ef.end_time}`).join(',')]);
+  }, [eventForms.length, eventForms.map(ef => ef.id).join(',')]);
 
   // Perfect form total calculation with proper decimal precision and debug logging
   const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
@@ -263,6 +260,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
   // Handle form field changes with local state only (no auto-save)
   const handleResponseChange = useCallback((eventFormId: string, fieldId: string, updates: any) => {
+    console.log('Field response change:', {
+      eventFormId,
+      fieldId, 
+      updates,
+      currentResponse: formResponses[eventFormId]?.[fieldId]
+    });
+    
     const newResponses = {
       ...formResponses,
       [eventFormId]: {
@@ -273,6 +277,8 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
         }
       }
     };
+    
+    console.log('Updated form responses:', newResponses);
     
     // Update local state immediately for responsive UI
     setFormResponses(newResponses);
@@ -287,26 +293,52 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   // Save form changes explicitly
   const saveFormChanges = useCallback(async (eventFormId: string) => {
     const eventForm = eventForms.find(ef => ef.id === eventFormId);
-    if (!eventForm || !formResponses[eventFormId]) return;
+    if (!eventForm) return;
 
+    // Get current form responses (use local state if available)
+    const currentResponses = formResponses[eventFormId] || eventForm.form_responses || {};
+    
     setIsSaving(prev => ({ ...prev, [eventFormId]: true }));
 
     try {
+      console.log('Saving form data:', {
+        eventFormId,
+        responses: currentResponses,
+        guestData: localGuestData[eventFormId]
+      });
+      
       const currentTotal = calculateFormTotal({ 
         ...eventForm, 
-        form_responses: formResponses[eventFormId] 
+        form_responses: currentResponses 
       } as EventForm, true);
+      
+      const updateData: any = {
+        form_responses: currentResponses,
+        form_total: currentTotal,
+        updated_at: new Date().toISOString()
+      };
+
+      // Include guest data if available
+      if (localGuestData[eventFormId]) {
+        updateData.men_count = localGuestData[eventFormId].men_count;
+        updateData.ladies_count = localGuestData[eventFormId].ladies_count;
+        updateData.guest_price_total = localGuestData[eventFormId].guest_price_total;
+        updateData.guest_count = localGuestData[eventFormId].men_count + localGuestData[eventFormId].ladies_count;
+      }
+      
+      console.log('Updating event_forms with:', updateData);
       
       const { error } = await supabase
         .from('event_forms')
-        .update({ 
-          form_responses: formResponses[eventFormId],
-          form_total: currentTotal,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', eventFormId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
+      console.log('Form saved successfully to database');
       
       // Mark as saved
       setUnsavedChanges(prev => ({
@@ -322,11 +354,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       
     } catch (error) {
       console.error('Error saving form:', error);
-      toast.error('Failed to save form');
+      toast.error(`Failed to save form: ${error.message}`);
     } finally {
       setIsSaving(prev => ({ ...prev, [eventFormId]: false }));
     }
-  }, [eventForms, formResponses, eventId, queryClient]);
+  }, [eventForms, formResponses, localGuestData, eventId, queryClient, calculateFormTotal]);
 
   const handleAddForm = async () => {
     if (!selectedFormId) {
