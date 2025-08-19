@@ -59,10 +59,15 @@ interface SpecificationLineItem {
 interface SpecificationTemplateData {
   business_name: string;
   customer_name: string;
+  title: string; // Add title field
   event_name: string;
   event_date: string;
   event_time: string;
+  ethnicity: string; // Add ethnicity field
   guest_count: number;
+  men_count: number; // Add men_count field
+  ladies_count: number; // Add ladies_count field
+  guest_mixture: string; // Add guest_mixture field
   specification_items: SpecificationLineItem[];
   line_items: Array<{
     field_name: string;
@@ -676,13 +681,36 @@ export class WordTemplateGenerator {
         }))
       : [{ field_name: 'No specification items available', field_value: '', notes: '', quantity: 1, price: 0 }];
 
+    // Extract additional required fields for template
+    const menCount = safeNumber(eventData.men_count);
+    const ladiesCount = safeNumber(eventData.ladies_count);
+    const guestMixture = safeString(eventData.guest_mixture, 'Mixed');
+    
+    // Format ethnicity - check for both formats
+    let ethnicityDisplay = 'Not specified';
+    if (eventData.ethnicity) {
+      if (typeof eventData.ethnicity === 'string') {
+        ethnicityDisplay = eventData.ethnicity;
+      } else if (Array.isArray(eventData.ethnicity)) {
+        ethnicityDisplay = eventData.ethnicity.join(', ');
+      } else if (typeof eventData.ethnicity === 'object') {
+        // If it's an object with ethnicity names, extract them
+        ethnicityDisplay = Object.keys(eventData.ethnicity).join(', ');
+      }
+    }
+
     const templateData: SpecificationTemplateData = {
       business_name: businessName,
       customer_name: customerName,
+      title: eventName, // Add title field
       event_name: eventName,
       event_date: eventDate,
       event_time: eventTime,
+      ethnicity: ethnicityDisplay, // Add ethnicity field
       guest_count: guestCount,
+      men_count: menCount, // Add men_count field
+      ladies_count: ladiesCount, // Add ladies_count field
+      guest_mixture: guestMixture, // Add guest_mixture field
       specification_items: specificationItems.length > 0 ? specificationItems : [
         { field_name: 'No specification items available', field_value: '', notes: '' }
       ],

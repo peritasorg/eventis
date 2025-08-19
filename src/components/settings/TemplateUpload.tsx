@@ -249,12 +249,16 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
       try {
         const { data, error } = await supabase
           .from('tenants')
-          .select('business_name')
+          .select('business_name, template_format_preference')
           .eq('id', currentTenant.id)
           .single();
         
         if (!error && data) {
           setTenantData(data);
+          // Load saved template format preference
+          if (data.template_format_preference) {
+            setOutputFormat(data.template_format_preference as 'word' | 'pdf');
+          }
         }
       } catch (error) {
         console.error('Error loading tenant data:', error);
@@ -296,11 +300,31 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
 
   const getFormFields = (formId: string) => {
     const form = forms?.find(f => f.id === formId);
-    if (!form) return [];
+    if (!form?.sections) return [];
     
     // Get all field IDs from all sections of the form - using field_ids (snake_case)
     const fieldIds = form.sections.flatMap((section: any) => section.field_ids || []);
     return formFields?.filter(field => fieldIds.includes(field.id)) || [];
+  };
+
+  const handleFormatChange = async (value: 'word' | 'pdf') => {
+    setOutputFormat(value);
+    
+    // Save format preference to database
+    if (currentTenant?.id) {
+      try {
+        const { error } = await supabase
+          .from('tenants')
+          .update({ template_format_preference: value })
+          .eq('id', currentTenant.id);
+        
+        if (error) {
+          console.error('Error saving format preference:', error);
+        }
+      } catch (error) {
+        console.error('Error saving format preference:', error);
+      }
+    }
   };
 
   return (
@@ -361,7 +385,7 @@ export const TemplateUpload: React.FC<TemplateUploadProps> = ({ onTemplateUpload
             {/* Output Format Selection */}
             <div className="space-y-2">
               <Label>Download Format</Label>
-              <Select value={outputFormat} onValueChange={(value: 'word' | 'pdf') => setOutputFormat(value)}>
+              <Select value={outputFormat} onValueChange={handleFormatChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select output format" />
                 </SelectTrigger>

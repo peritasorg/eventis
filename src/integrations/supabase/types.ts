@@ -1044,6 +1044,7 @@ export type Database = {
           external_calendar_id: string | null
           form_id: string | null
           form_total_gbp: number | null
+          guest_mixture: string | null
           id: string
           ladies_count: number | null
           men_count: number | null
@@ -1072,6 +1073,7 @@ export type Database = {
           external_calendar_id?: string | null
           form_id?: string | null
           form_total_gbp?: number | null
+          guest_mixture?: string | null
           id?: string
           ladies_count?: number | null
           men_count?: number | null
@@ -1100,6 +1102,7 @@ export type Database = {
           external_calendar_id?: string | null
           form_id?: string | null
           form_total_gbp?: number | null
+          guest_mixture?: string | null
           id?: string
           ladies_count?: number | null
           men_count?: number | null
@@ -2690,6 +2693,7 @@ export type Database = {
           subscription_plan_id: string | null
           subscription_starts_at: string | null
           subscription_status: string | null
+          template_format_preference: string | null
           timezone: string | null
           trial_ends_at: string | null
           trial_starts_at: string | null
@@ -2720,6 +2724,7 @@ export type Database = {
           subscription_plan_id?: string | null
           subscription_starts_at?: string | null
           subscription_status?: string | null
+          template_format_preference?: string | null
           timezone?: string | null
           trial_ends_at?: string | null
           trial_starts_at?: string | null
@@ -2750,6 +2755,7 @@ export type Database = {
           subscription_plan_id?: string | null
           subscription_starts_at?: string | null
           subscription_status?: string | null
+          template_format_preference?: string | null
           timezone?: string | null
           trial_ends_at?: string | null
           trial_starts_at?: string | null
