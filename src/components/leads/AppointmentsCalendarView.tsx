@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Settings } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
@@ -384,14 +385,21 @@ export const AppointmentsCalendarView: React.FC<AppointmentsCalendarViewProps> =
         </Card>
 
         {/* Lead Edit Dialog */}
-        {selectedLead && (
-          <LeadForm
-            eventTypeConfigs={eventTypeConfigs}
-            leadData={selectedLead}
-            isEdit={true}
-            onSuccess={handleLeadUpdate}
-          />
-        )}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Lead</DialogTitle>
+            </DialogHeader>
+            {selectedLead && (
+              <LeadForm
+                eventTypeConfigs={eventTypeConfigs}
+                leadData={selectedLead}
+                isEdit={true}
+                onSuccess={handleLeadUpdate}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
