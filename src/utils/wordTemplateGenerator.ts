@@ -684,6 +684,12 @@ export class WordTemplateGenerator {
     const notes = safeString(eventData.notes, 'No additional notes');
     const createdDate = format(new Date(), 'dd/MM/yyyy');
     const todayDate = format(new Date(), 'dd/MM/yyyy');
+    
+    console.log('🔍 DATE FORMATTING:', {
+      createdDate,
+      todayDate,
+      rawDate: new Date()
+    });
 
     // Extract guest mixture and ethnicity from event record
     const guestMixture = safeString(eventData.guest_mixture, 'Mixed');
