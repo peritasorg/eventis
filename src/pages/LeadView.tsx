@@ -58,46 +58,74 @@ export const LeadView = () => {
 
     setIsConverting(true);
     try {
-      // Split the full name into first and last name
-      const nameParts = lead.name.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      console.log('Converting lead to customer:', lead);
 
-      // Create customer record
+      // Create customer record with proper field mapping
+      const customerData = {
+        tenant_id: currentTenant.id,
+        name: lead.name.trim(),
+        email: lead.email?.trim() || null,
+        phone: lead.phone?.trim() || null,
+        customer_type: 'individual',
+        notes: lead.notes?.trim() || null,
+        lead_id: lead.id,
+        active: true,
+        customer_since: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+        marketing_consent: false,
+        vip_status: false,
+        preferred_contact_method: 'email'
+      };
+
+      console.log('Creating customer with data:', customerData);
+
       const { data: customer, error: customerError } = await supabase
         .from('customers')
-        .insert([{
-          tenant_id: currentTenant.id,
-          name: lead.name,
-          email: lead.email,
-          phone: lead.phone,
-          customer_type: 'individual',
-          notes: lead.notes,
-          lead_id: lead.id,
-          active: true
-        }])
+        .insert([customerData])
         .select()
         .single();
 
-      if (customerError) throw customerError;
+      if (customerError) {
+        console.error('Customer creation error:', customerError);
+        throw customerError;
+      }
+
+      console.log('Customer created successfully:', customer);
 
       // Update lead status to won
+      const leadUpdateData = { 
+        status: 'won',
+        conversion_date: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Updating lead with data:', leadUpdateData);
+
       const { error: leadError } = await supabase
         .from('leads')
-        .update({ 
-          status: 'won',
-          conversion_date: new Date().toISOString()
-        })
+        .update(leadUpdateData)
         .eq('id', lead.id)
         .eq('tenant_id', currentTenant.id);
 
-      if (leadError) throw leadError;
+      if (leadError) {
+        console.error('Lead update error:', leadError);
+        throw leadError;
+      }
+
+      console.log('Lead updated successfully');
 
       toast.success('Lead successfully converted to customer!');
       navigate(`/customers/${customer.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error converting lead to customer:', error);
-      toast.error('Failed to convert lead to customer. Please try again.');
+      
+      // Provide specific error messages
+      if (error.message?.includes('duplicate')) {
+        toast.error('A customer with this information already exists.');
+      } else if (error.message?.includes('not-null')) {
+        toast.error('Missing required customer information.');
+      } else {
+        toast.error(`Failed to convert lead: ${error.message || 'Please try again.'}`);
+      }
     } finally {
       setIsConverting(false);
     }

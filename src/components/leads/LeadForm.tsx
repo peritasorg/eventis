@@ -63,16 +63,30 @@ export const LeadForm: React.FC<LeadFormProps> = ({
 
     setIsLoading(true);
     try {
+      // Prepare lead data with proper field mapping and validation
       const leadDataToSave = {
-        ...formData,
         tenant_id: currentTenant.id,
+        name: formData.name.trim(),
+        email: formData.email?.trim() || null,
+        phone: formData.phone?.trim() || null,
+        event_type: formData.event_type || null,
+        men_count: parseInt(formData.men_count.toString()) || 0,
+        ladies_count: parseInt(formData.ladies_count.toString()) || 0,
+        guest_mixture: formData.guest_mixture || 'Mixed',
+        estimated_budget: formData.estimated_budget ? parseFloat(formData.estimated_budget.toString()) : null,
+        estimated_guests: (parseInt(formData.men_count.toString()) || 0) + (parseInt(formData.ladies_count.toString()) || 0),
+        status: formData.status || 'new',
+        source: formData.source || 'website',
+        priority: formData.priority || 'medium',
+        notes: formData.notes?.trim() || null,
+        lead_score: 0,
         date_of_interest: dateOfInterest ? format(dateOfInterest, 'yyyy-MM-dd') : null,
         appointment_date: appointmentDate ? format(appointmentDate, 'yyyy-MM-dd') : null,
         date_of_contact: dateOfContact ? format(dateOfContact, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-        estimated_guests: (formData.men_count || 0) + (formData.ladies_count || 0),
-        lead_score: 0,
-        estimated_budget: formData.estimated_budget ? parseFloat(formData.estimated_budget) : null
+        updated_at: new Date().toISOString()
       };
+
+      console.log('Saving lead data:', leadDataToSave);
 
       let result;
       if (isEdit && leadData?.id) {
@@ -80,20 +94,38 @@ export const LeadForm: React.FC<LeadFormProps> = ({
           .from('leads')
           .update(leadDataToSave)
           .eq('id', leadData.id)
-          .eq('tenant_id', currentTenant.id);
+          .eq('tenant_id', currentTenant.id)
+          .select()
+          .single();
       } else {
         result = await supabase
           .from('leads')
-          .insert([leadDataToSave]);
+          .insert([leadDataToSave])
+          .select()
+          .single();
       }
 
-      if (result.error) throw result.error;
+      if (result.error) {
+        console.error('Supabase error:', result.error);
+        throw result.error;
+      }
 
+      console.log('Lead saved successfully:', result.data);
       toast.success(isEdit ? 'Lead updated successfully!' : 'Lead created successfully!');
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving lead:', error);
-      toast.error('Failed to save lead. Please try again.');
+      
+      // Provide more specific error messages
+      if (error.message?.includes('not-null')) {
+        toast.error('Please fill in all required fields.');
+      } else if (error.message?.includes('duplicate')) {
+        toast.error('A lead with this information already exists.');
+      } else if (error.message?.includes('foreign key')) {
+        toast.error('Invalid event type selected.');
+      } else {
+        toast.error(`Failed to save lead: ${error.message || 'Please try again.'}`);
+      }
     } finally {
       setIsLoading(false);
     }
