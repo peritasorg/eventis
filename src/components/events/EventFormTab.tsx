@@ -8,7 +8,7 @@ import { PriceInput } from '@/components/ui/price-input';
 import { useEventForms, EventForm } from '@/hooks/useEventForms';
 import { useForms } from '@/hooks/useForms';
 import { useFormFields } from '@/hooks/useFormFields';
-import { UnifiedFieldRenderer } from '@/components/form-builder/UnifiedFieldRenderer';
+import { OptimizedFieldRenderer } from '@/components/form-builder/OptimizedFieldRenderer';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +29,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<Record<string, string>>({});
   
   // Local state for guest fields to ensure immediate UI updates
   const [localGuestData, setLocalGuestData] = useState<Record<string, {
@@ -206,7 +207,26 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       
       return updatedGuestData;
     });
-  }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}`).join(',')]);
+
+    // Initialize selected time slots
+    setSelectedTimeSlots(prev => {
+      const updatedTimeSlots = { ...prev };
+      
+      eventForms.forEach(eventForm => {
+        if (!prev[eventForm.id] && eventForm.start_time && eventForm.end_time) {
+          const timeSlots = getTimeSlotsForForm(eventForm);
+          const matchingSlot = timeSlots?.find(slot => 
+            slot.start_time === eventForm.start_time && slot.end_time === eventForm.end_time
+          );
+          if (matchingSlot) {
+            updatedTimeSlots[eventForm.id] = matchingSlot.id;
+          }
+        }
+      });
+      
+      return updatedTimeSlots;
+    });
+  }, [eventForms.map(ef => `${ef.id}-${JSON.stringify(ef.form_responses)}-${ef.men_count}-${ef.ladies_count}-${ef.guest_price_total}-${ef.start_time}-${ef.end_time}`).join(',')]);
 
   // Perfect form total calculation with proper decimal precision and debug logging
   const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
@@ -238,7 +258,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     return sum + calculateFormTotal(eventForm, true); // Use local guest data for real-time totals
   }, 0);
 
-  // Smart auto-save for form responses
+  // Smart auto-save for form responses with instant UI updates
   const handleResponseChange = (eventFormId: string, fieldId: string, updates: any) => {
     const newResponses = {
       ...formResponses,
@@ -259,15 +279,10 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     if (eventForm) {
       const newTotal = calculateFormTotal({ ...eventForm, form_responses: newResponses[eventFormId] } as EventForm, true);
       
-      // Smart debounced save based on field type
+      // Smart save strategy: Only save to DB on blur for text fields, immediately for toggles/prices
       const isToggleField = updates.hasOwnProperty('enabled');
       const isPriceField = updates.hasOwnProperty('price') || updates.hasOwnProperty('quantity');
       const isTextField = updates.hasOwnProperty('notes') && !isToggleField && !isPriceField;
-      
-      let delay = 500; // default
-      if (isTextField) delay = 2000; // typing fields
-      if (isPriceField) delay = 300; // shorter delay for better UX
-      if (isToggleField) delay = 0; // immediate for toggles
       
       // Clear any existing timeout for this field
       const timeoutKey = `${eventFormId}-${fieldId}`;
@@ -275,40 +290,40 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
         clearTimeout(window[timeoutKey]);
       }
       
-      // Set new timeout with proper form total calculation
-      window[timeoutKey] = setTimeout(async () => {
-        try {
-          const { error } = await supabase
-            .from('event_forms')
-            .update({ 
-              form_responses: newResponses[eventFormId],
-              form_total: newTotal,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', eventFormId);
+      // Only save immediately for non-text fields to prevent typing glitches
+      if (!isTextField) {
+        // Set shorter timeout for immediate save on toggles/prices
+        window[timeoutKey] = setTimeout(async () => {
+          try {
+            const { error } = await supabase
+              .from('event_forms')
+              .update({ 
+                form_responses: newResponses[eventFormId],
+                form_total: newTotal,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', eventFormId);
 
-          if (error) throw error;
-          
-          // CRITICAL: Invalidate all relevant queries to ensure real-time sync
-          queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
-          queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
-          queryClient.invalidateQueries({ queryKey: ['event', eventId] });
-          queryClient.invalidateQueries({ queryKey: ['events'] });
-          
-        } catch (error) {
-          console.error('Error saving form response:', error);
-          toast.error('Failed to save changes');
-        }
-        delete window[timeoutKey];
-      }, delay);
+            if (error) throw error;
+            
+            // Only invalidate event forms query for immediate updates
+            queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+            
+          } catch (error) {
+            console.error('Error saving form response:', error);
+            toast.error('Failed to save changes');
+          }
+          delete window[timeoutKey];
+        }, isToggleField ? 0 : 100);
+      }
     }
   };
 
-  // Add blur handler for immediate save on focus loss
+  // Save all text field changes on blur
   const handleFieldBlur = async (eventFormId: string) => {
     const eventForm = eventForms.find(ef => ef.id === eventFormId);
-    if (eventForm) {
-      const currentTotal = calculateFormTotal({ ...eventForm, form_responses: formResponses[eventFormId] } as EventForm);
+    if (eventForm && formResponses[eventFormId]) {
+      const currentTotal = calculateFormTotal({ ...eventForm, form_responses: formResponses[eventFormId] } as EventForm, true);
       
       try {
         const { error } = await supabase
@@ -322,14 +337,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
         if (error) throw error;
         
-        // CRITICAL: Invalidate all relevant queries to ensure real-time sync
-        queryClient.invalidateQueries({ queryKey: ['event-form-totals', eventId] });
+        // Invalidate queries to sync with other components
         queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
         queryClient.invalidateQueries({ queryKey: ['event', eventId] });
-        queryClient.invalidateQueries({ queryKey: ['events'] });
         
       } catch (error) {
         console.error('Error saving form response:', error);
+        toast.error('Failed to save changes');
       }
     }
   };
@@ -369,14 +383,13 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
 
     return (
       <div key={fieldId} className="space-y-2">
-        <div onBlur={() => handleFieldBlur(eventForm.id)}>
-          <UnifiedFieldRenderer
-            field={field}
-            response={response}
-            onChange={(id, updates) => handleResponseChange(eventForm.id, fieldId, updates)}
-            showInCard={false}
-          />
-        </div>
+        <OptimizedFieldRenderer
+          field={field}
+          response={response}
+          onChange={(id, updates) => handleResponseChange(eventForm.id, fieldId, updates)}
+          onBlur={() => handleFieldBlur(eventForm.id)}
+          showInCard={false}
+        />
       </div>
     );
   };
@@ -389,17 +402,35 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     const selectedSlot = timeSlots?.find(slot => slot.id === timeSlotId);
     if (!selectedSlot) return;
     
+    // Update local state immediately
+    setSelectedTimeSlots(prev => ({
+      ...prev,
+      [eventFormId]: timeSlotId
+    }));
+    
     try {
-      await supabase
+      const { error } = await supabase
         .from('event_forms')
         .update({ 
           start_time: selectedSlot.start_time,
           end_time: selectedSlot.end_time
         })
         .eq('id', eventFormId);
+        
+      if (error) throw error;
+      
+      // Refresh the event forms data
+      queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
     } catch (error) {
       console.error('Error updating time:', error);
       toast.error('Failed to update time');
+      
+      // Revert local state on error
+      setSelectedTimeSlots(prev => {
+        const updated = { ...prev };
+        delete updated[eventFormId];
+        return updated;
+      });
     }
   };
 
@@ -491,12 +522,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                   <Label>Quick Times</Label>
                   <Select 
                     onValueChange={(value) => handleTimeSlotUpdate(eventForm.id, value)}
-                    value={
-                      getTimeSlotsForForm(eventForm)?.find(slot => 
-                        slot.start_time === eventForm.start_time && 
-                        slot.end_time === eventForm.end_time
-                      )?.id || ""
-                    }
+                    value={selectedTimeSlots[eventForm.id] || ""}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select time slot" />
