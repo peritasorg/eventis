@@ -522,29 +522,66 @@ export class WordTemplateGenerator {
         }
       }
 
-      // Filter fields to only selected ones if provided
-      let fieldsToProcess: string[];
+      // CRITICAL: Apply selected fields filter STRICTLY
+      let fieldsToProcess: string[] = [];
+      
+      console.log('🎯 SPEC DEBUG: Field filtering phase:', {
+        selectedFieldIds,
+        selectedFieldsCount: selectedFieldIds?.length || 0,
+        orderedFieldIds,
+        orderedFieldsCount: orderedFieldIds.length,
+        allFieldResponsesCount: allFieldResponses.size,
+        allFieldResponseIds: Array.from(allFieldResponses.keys())
+      });
+      
       if (selectedFieldIds && selectedFieldIds.length > 0) {
-        // Use selected fields in the order they appear in the form
-        fieldsToProcess = orderedFieldIds.length > 0 
-          ? orderedFieldIds.filter(fieldId => 
-              selectedFieldIds.includes(fieldId) && allFieldResponses.has(fieldId)
-            )
-          : selectedFieldIds.filter(fieldId => allFieldResponses.has(fieldId));
+        console.log('🔒 SPEC DEBUG: STRICT SELECTED FIELDS FILTER ACTIVE');
         
-        console.log('Processing selected fields only:', {
+        // First, try to maintain form order for selected fields
+        if (orderedFieldIds.length > 0) {
+          fieldsToProcess = orderedFieldIds.filter(fieldId => {
+            const isSelected = selectedFieldIds.includes(fieldId);
+            const hasResponse = allFieldResponses.has(fieldId);
+            console.log(`  📋 Field ${fieldId}: selected=${isSelected}, hasResponse=${hasResponse}`);
+            return isSelected && hasResponse;
+          });
+          console.log('✅ Form-ordered selected fields:', fieldsToProcess);
+        }
+        
+        // If no form order or no matches, use selected fields in their original order
+        if (fieldsToProcess.length === 0) {
+          console.log('🔄 No form order matches, using selected fields order');
+          fieldsToProcess = selectedFieldIds.filter(fieldId => {
+            const hasResponse = allFieldResponses.has(fieldId);
+            console.log(`  📋 Selected field ${fieldId}: hasResponse=${hasResponse}`);
+            return hasResponse;
+          });
+        }
+        
+        // SAFETY CHECK: Ensure we never exceed selected fields
+        console.log('🛡️ SAFETY CHECK:', {
+          fieldsToProcessCount: fieldsToProcess.length,
+          selectedFieldsCount: selectedFieldIds.length,
+          areEqual: fieldsToProcess.length <= selectedFieldIds.length
+        });
+        
+        // Final validation - only keep fields that are actually selected
+        fieldsToProcess = fieldsToProcess.filter(fieldId => selectedFieldIds.includes(fieldId));
+        
+        console.log('🎯 FINAL SELECTED FIELDS TO PROCESS:', {
           selectedCount: selectedFieldIds.length,
-          foundCount: fieldsToProcess.length,
+          processCount: fieldsToProcess.length,
           selectedFields: selectedFieldIds,
           fieldsToProcess
         });
+        
       } else {
-        // Process all fields in order if no selection specified
+        console.log('📋 SPEC DEBUG: No selection filter - processing all fields');
         fieldsToProcess = orderedFieldIds.length > 0 
           ? orderedFieldIds.filter(fieldId => allFieldResponses.has(fieldId))
           : Array.from(allFieldResponses.keys());
         
-        console.log('Processing all fields in order:', fieldsToProcess);
+        console.log('📋 Processing all fields in order:', fieldsToProcess);
       }
 
       // Process each field response in the correct order
