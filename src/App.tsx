@@ -86,7 +86,7 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/leads/:leadId/view" element={
+                  <Route path="/leads/:leadId" element={
                     <ProtectedRoute>
                       <AppLayout>
                         <LeadView />

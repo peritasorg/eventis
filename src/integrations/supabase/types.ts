@@ -1547,19 +1547,25 @@ export type Database = {
       }
       leads: {
         Row: {
+          appointment_date: string | null
           assigned_to: string | null
           company: string | null
           conversion_date: string | null
           created_at: string | null
+          date_of_contact: string | null
+          date_of_interest: string | null
           email: string | null
           estimated_budget: number | null
           estimated_guests: number | null
           event_date: string | null
           event_type: string | null
+          guest_mixture: string | null
           id: string
+          ladies_count: number | null
           last_contacted_at: string | null
           lead_score: number | null
           lost_reason: string | null
+          men_count: number | null
           name: string
           notes: string | null
           phone: string | null
@@ -1573,19 +1579,25 @@ export type Database = {
           utm_source: string | null
         }
         Insert: {
+          appointment_date?: string | null
           assigned_to?: string | null
           company?: string | null
           conversion_date?: string | null
           created_at?: string | null
+          date_of_contact?: string | null
+          date_of_interest?: string | null
           email?: string | null
           estimated_budget?: number | null
           estimated_guests?: number | null
           event_date?: string | null
           event_type?: string | null
+          guest_mixture?: string | null
           id?: string
+          ladies_count?: number | null
           last_contacted_at?: string | null
           lead_score?: number | null
           lost_reason?: string | null
+          men_count?: number | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -1599,19 +1611,25 @@ export type Database = {
           utm_source?: string | null
         }
         Update: {
+          appointment_date?: string | null
           assigned_to?: string | null
           company?: string | null
           conversion_date?: string | null
           created_at?: string | null
+          date_of_contact?: string | null
+          date_of_interest?: string | null
           email?: string | null
           estimated_budget?: number | null
           estimated_guests?: number | null
           event_date?: string | null
           event_type?: string | null
+          guest_mixture?: string | null
           id?: string
+          ladies_count?: number | null
           last_contacted_at?: string | null
           lead_score?: number | null
           lost_reason?: string | null
+          men_count?: number | null
           name?: string
           notes?: string | null
           phone?: string | null
