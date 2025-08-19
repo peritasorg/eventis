@@ -55,13 +55,16 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         throw new Error('Please enter a valid amount');
       }
       
+      // Ensure proper date format
+      const formattedDate = new Date(paymentDate).toISOString().split('T')[0];
+      
       // Insert payment
       const { error: paymentError } = await supabase
         .from('event_payments')
         .insert({
           event_id: eventId,
           tenant_id: currentTenant.id,
-          payment_date: paymentDate,
+          payment_date: formattedDate,
           amount_gbp: amountGbp,
           payment_note: paymentNote.trim() || null
         });
@@ -74,7 +77,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         .insert({
           event_id: eventId,
           tenant_id: currentTenant.id,
-          communication_date: paymentDate,
+          communication_date: formattedDate,
           communication_type: 'payment',
           note: `Payment received: £${amountGbp.toFixed(2)}${paymentNote.trim() ? ` - ${paymentNote.trim()}` : ''}`
         });
@@ -120,12 +123,13 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
 
       // Also add deletion note to communications timeline
       if (payment) {
+        const formattedDate = new Date().toISOString().split('T')[0];
         await supabase
           .from('event_communications')
           .insert({
             event_id: eventId,
             tenant_id: currentTenant.id,
-            communication_date: format(new Date(), 'yyyy-MM-dd'),
+            communication_date: formattedDate,
             communication_type: 'payment',
             note: `Payment deleted: £${payment.amount_gbp.toFixed(2)}`
           });

@@ -44,17 +44,25 @@ export const OptimizedFieldRenderer: React.FC<OptimizedFieldRendererProps> = ({
     selectedOption: response.selectedOption || ''
   });
 
-  // Sync local state when response changes from external updates
+  // Sync local state when response changes from external updates (only on form load)
   React.useEffect(() => {
-    setLocalValue({
-      notes: response.notes || '',
-      price: response.price || 0,
-      quantity: response.quantity || 1,
-      value: response.value || '',
-      enabled: response.enabled || false,
-      selectedOption: response.selectedOption || ''
-    });
-  }, [response.notes, response.price, response.quantity, response.value, response.enabled, response.selectedOption]);
+    // Only update if the response actually changed significantly to avoid overwriting user input
+    const hasSignificantChange = 
+      (response.enabled !== undefined && response.enabled !== localValue.enabled) ||
+      (response.price !== undefined && response.price !== localValue.price && response.price !== 0) ||
+      (response.quantity !== undefined && response.quantity !== localValue.quantity && response.quantity !== 1);
+    
+    if (hasSignificantChange) {
+      setLocalValue({
+        notes: response.notes || localValue.notes,
+        price: response.price ?? localValue.price,
+        quantity: response.quantity ?? localValue.quantity,
+        value: response.value || localValue.value,
+        enabled: response.enabled ?? localValue.enabled,
+        selectedOption: response.selectedOption || localValue.selectedOption
+      });
+    }
+  }, [response.enabled, response.price, response.quantity]);
 
   const updateResponse = useCallback((updates: Partial<FieldResponse>) => {
     if (onChange && !readOnly) {

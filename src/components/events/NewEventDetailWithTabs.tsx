@@ -1,16 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { EventRecord } from './EventRecord';
 import { EventFormTab } from './EventFormTab';
+import { SaveConfirmationDialog } from './SaveConfirmationDialog';
 import { useEventForms } from '@/hooks/useEventForms';
 
 export const NewEventDetailWithTabs: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { eventForms } = useEventForms(eventId);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  const handleBackToEvents = () => {
+    // For now, navigate directly - save confirmation will be handled by form tabs internally
+    navigate('/events');
+  };
 
   if (!eventId) {
     return (
@@ -25,7 +33,7 @@ export const NewEventDetailWithTabs: React.FC = () => {
       <div className="mb-6">
         <Button 
           variant="ghost" 
-          onClick={() => navigate('/events')}
+          onClick={handleBackToEvents}
           className="mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
