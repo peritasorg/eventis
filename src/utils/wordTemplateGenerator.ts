@@ -668,7 +668,7 @@ export class WordTemplateGenerator {
 
     // Use event record data for main details
     const businessName = safeString(eventData.tenant?.business_name, 'Business Name');
-    const eventTitle = safeString(eventData.title, 'Event Name'); // Use title from event record
+    const eventTitle = safeString(eventData.event_name || eventData.title, 'Event Name'); // Use event_name from event record
     const eventDate = safeDate(eventData.event_date, 'TBD');
     const notes = safeString(eventData.notes, 'No additional notes');
     const createdDate = format(new Date(), 'dd/MM/yyyy');
