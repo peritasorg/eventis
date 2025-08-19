@@ -332,11 +332,18 @@ export const LeadForm: React.FC<LeadFormProps> = ({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onSuccess}>
-          Cancel
+          {isEdit ? 'Cancel' : 'Close'}
         </Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Saving...' : (isEdit ? 'Update Lead' : 'Create Lead')}
-        </Button>
+        {isEdit && (
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? 'Saving...' : 'Update Lead'}
+          </Button>
+        )}
+        {!isEdit && (
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? 'Saving...' : 'Create Lead'}
+          </Button>
+        )}
       </div>
     </form>
   );

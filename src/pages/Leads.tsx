@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { LeadForm } from '@/components/leads/LeadForm';
-import { LeadDetailsDialog } from '@/components/leads/LeadDetailsDialog';
+
 import { AppointmentsCalendarView } from '@/components/leads/AppointmentsCalendarView';
 import { format } from 'date-fns';
 
@@ -48,7 +48,7 @@ export const Leads = () => {
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [activeView, setActiveView] = useState<"table" | "calendar">("table");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [viewMode, setViewMode] = useState<'view' | 'edit'>('view');
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const { data: leads = [], refetch } = useSupabaseQuery(
     ['leads', currentTenant?.id],
@@ -325,7 +325,7 @@ export const Leads = () => {
                             variant="outline" 
                             onClick={() => {
                               setSelectedLead(lead);
-                              setViewMode('view');
+                              setIsEditMode(false);
                             }}
                           >
                             <Eye className="h-4 w-4" />
@@ -335,7 +335,7 @@ export const Leads = () => {
                             variant="outline"
                             onClick={() => {
                               setSelectedLead(lead);
-                              setViewMode('edit');
+                              setIsEditMode(true);
                             }}
                           >
                             <Edit className="h-4 w-4" />
@@ -366,17 +366,28 @@ export const Leads = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Lead Details Dialogs */}
+      {/* Lead Edit/View Dialog */}
       {selectedLead && (
-        <LeadDetailsDialog 
-          lead={selectedLead}
-          open={!!selectedLead}
-          onOpenChange={(open) => {
-            if (!open) setSelectedLead(null);
-          }}
-          onUpdate={refetch}
-          isEditMode={viewMode === 'edit'}
-        />
+        <Dialog open={!!selectedLead} onOpenChange={(open) => {
+          if (!open) setSelectedLead(null);
+        }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {isEditMode ? 'Edit Lead' : 'View Lead'}
+              </DialogTitle>
+            </DialogHeader>
+            <LeadForm 
+              leadData={selectedLead}
+              isEdit={isEditMode}
+              onSuccess={() => {
+                setSelectedLead(null);
+                refetch();
+              }}
+              eventTypeConfigs={eventTypeConfigs}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
