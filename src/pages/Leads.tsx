@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, Plus, Eye, Edit, Calendar, Phone, Mail, Users, Clock } from 'lucide-react';
+import { Search, Filter, Plus, Edit, Calendar, Phone, Mail, Users, Clock, Trash2, UserCheck, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,23 +8,24 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { LeadForm } from '@/components/leads/LeadForm';
-
-import { AppointmentsCalendarView } from '@/components/leads/AppointmentsCalendarView';
+import { ModernCalendarView } from '@/components/leads/ModernCalendarView';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Lead {
   id: string;
   name: string;
   email: string;
   phone: string;
-  status: string;
-  source: string;
+  status: 'new' | 'in_progress' | 'converted';
   event_type: string;
   created_at: string;
   appointment_date: string;
@@ -36,6 +37,8 @@ interface Lead {
   estimated_budget: number;
   notes: string;
   lead_score: number;
+  conversion_date?: string;
+  event_date?: string;
 }
 
 export const Leads = () => {
@@ -49,6 +52,11 @@ export const Leads = () => {
   const [activeView, setActiveView] = useState<"table" | "calendar">("table");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Multi-select state
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [isAllSelected, setIsAllSelected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { data: leads = [], refetch } = useSupabaseQuery(
     ['leads', currentTenant?.id],
@@ -78,11 +86,8 @@ export const Leads = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'new': return 'secondary';
-      case 'contacted': return 'default';
-      case 'qualified': return 'outline';
-      case 'quoted': return 'outline';
-      case 'won': return 'default';
-      case 'lost': return 'destructive';
+      case 'in_progress': return 'default';
+      case 'converted': return 'default';
       default: return 'secondary';
     }
   };
@@ -100,8 +105,143 @@ export const Leads = () => {
   }).length;
 
   const conversionRate = leads.length > 0 
-    ? Math.round((leads.filter(l => l.status === 'won').length / leads.length) * 100)
+    ? Math.round((leads.filter(l => l.status === 'converted').length / leads.length) * 100)
     : 0;
+
+  // Multi-select handlers
+  const handleSelectAll = (checked: boolean) => {
+    setIsAllSelected(checked);
+    setSelectedLeadIds(checked ? filteredLeads.map(lead => lead.id) : []);
+  };
+
+  const handleSelectLead = (leadId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedLeadIds(prev => [...prev, leadId]);
+    } else {
+      setSelectedLeadIds(prev => prev.filter(id => id !== leadId));
+      setIsAllSelected(false);
+    }
+  };
+
+  // Bulk operations
+  const handleBulkConvertToCustomers = async () => {
+    if (selectedLeadIds.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      const selectedLeads = leads.filter(lead => selectedLeadIds.includes(lead.id));
+      
+      for (const lead of selectedLeads) {
+        // Create customer
+        const { data: customer, error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            tenant_id: currentTenant?.id,
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            lead_id: lead.id,
+            customer_since: new Date().toISOString().split('T')[0],
+            active: true
+          })
+          .select()
+          .single();
+
+        if (customerError) throw customerError;
+
+        // Update lead status
+        const { error: leadError } = await supabase
+          .from('leads')
+          .update({ 
+            status: 'converted',
+            conversion_date: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', lead.id);
+
+        if (leadError) throw leadError;
+      }
+
+      toast.success(`Successfully converted ${selectedLeadIds.length} lead(s) to customers`);
+      setSelectedLeadIds([]);
+      setIsAllSelected(false);
+      refetch();
+    } catch (error) {
+      console.error('Error converting leads:', error);
+      toast.error('Failed to convert leads to customers');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedLeadIds.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .in('id', selectedLeadIds);
+
+      if (error) throw error;
+
+      toast.success(`Successfully deleted ${selectedLeadIds.length} lead(s)`);
+      setSelectedLeadIds([]);
+      setIsAllSelected(false);
+      refetch();
+    } catch (error) {
+      console.error('Error deleting leads:', error);
+      toast.error('Failed to delete leads');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSingleDelete = async (leadId: string) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', leadId);
+
+      if (error) throw error;
+
+      toast.success('Lead deleted successfully');
+      refetch();
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      toast.error('Failed to delete lead');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateLeadStatus = async (leadId: string, newStatus: 'new' | 'in_progress' | 'converted') => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', leadId);
+
+      if (error) throw error;
+
+      toast.success('Lead status updated');
+      refetch();
+    } catch (error) {
+      console.error('Error updating lead status:', error);
+      toast.error('Failed to update lead status');
+    }
+  };
+
+  const handleCalendarLeadClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsEditMode(true);
+  };
 
   return (
     <div className="p-8 bg-background min-h-screen">
@@ -207,11 +347,8 @@ export const Leads = () => {
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="contacted">Contacted</SelectItem>
-                      <SelectItem value="qualified">Qualified</SelectItem>
-                      <SelectItem value="quoted">Quoted</SelectItem>
-                      <SelectItem value="won">Won</SelectItem>
-                      <SelectItem value="lost">Lost</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="converted">Converted</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={selectedEventType} onValueChange={setSelectedEventType}>
@@ -232,11 +369,74 @@ export const Leads = () => {
             </CardContent>
           </Card>
 
+          {/* Bulk Actions */}
+          {selectedLeadIds.length > 0 && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium">
+                      {selectedLeadIds.length} lead(s) selected
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedLeadIds([]);
+                        setIsAllSelected(false);
+                      }}
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleBulkConvertToCustomers}
+                      disabled={isLoading}
+                    >
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      Convert to Customers
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" disabled={isLoading}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Selected
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Selected Leads</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete {selectedLeadIds.length} selected lead(s)? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleBulkDelete}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Leads Table */}
           <Card>
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all leads"
+                    />
+                  </TableHead>
                   <TableHead>Lead</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Event Details</TableHead>
@@ -251,6 +451,13 @@ export const Leads = () => {
                   const eventConfig = getEventTypeConfig(lead.event_type);
                   return (
                     <TableRow key={lead.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedLeadIds.includes(lead.id)}
+                          onCheckedChange={(checked) => handleSelectLead(lead.id, checked as boolean)}
+                          aria-label={`Select ${lead.name}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium">{lead.name}</div>
                         <div className="text-sm text-muted-foreground">
@@ -305,9 +512,29 @@ export const Leads = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusColor(lead.status)}>
-                          {lead.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getStatusColor(lead.status)}>
+                            {lead.status === 'in_progress' ? 'In Progress' : 
+                             lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                          </Badge>
+                          {lead.status !== 'converted' && (
+                            <Select 
+                              value={lead.status} 
+                              onValueChange={(value: 'new' | 'in_progress' | 'converted') => 
+                                handleUpdateLeadStatus(lead.id, value)
+                              }
+                            >
+                              <SelectTrigger className="w-8 h-8 border-0 bg-transparent">
+                                <Edit className="h-3 w-3" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="new">New</SelectItem>
+                                <SelectItem value="in_progress">In Progress</SelectItem>
+                                <SelectItem value="converted">Converted</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {lead.date_of_interest ? (
@@ -330,6 +557,27 @@ export const Leads = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="outline">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this lead? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleSingleDelete(lead.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -352,7 +600,11 @@ export const Leads = () => {
         </TabsContent>
 
         <TabsContent value="calendar">
-          <AppointmentsCalendarView leads={leads} eventTypeConfigs={eventTypeConfigs} />
+          <ModernCalendarView 
+            leads={leads} 
+            eventTypeConfigs={eventTypeConfigs}
+            onLeadClick={handleCalendarLeadClick}
+          />
         </TabsContent>
       </Tabs>
 

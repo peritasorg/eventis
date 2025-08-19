@@ -1573,6 +1573,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           priority: string | null
+          status: Database["public"]["Enums"]["lead_status"] | null
           tenant_id: string | null
           updated_at: string | null
           utm_campaign: string | null
@@ -1603,6 +1604,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           priority?: string | null
+          status?: Database["public"]["Enums"]["lead_status"] | null
           tenant_id?: string | null
           updated_at?: string | null
           utm_campaign?: string | null
@@ -1633,6 +1635,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           priority?: string | null
+          status?: Database["public"]["Enums"]["lead_status"] | null
           tenant_id?: string | null
           updated_at?: string | null
           utm_campaign?: string | null
@@ -3030,7 +3033,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      lead_status: "new" | "in_progress" | "converted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3157,6 +3160,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      lead_status: ["new", "in_progress", "converted"],
+    },
   },
 } as const
