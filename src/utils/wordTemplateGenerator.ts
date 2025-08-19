@@ -454,6 +454,9 @@ export class WordTemplateGenerator {
       // Get form structure with field order if we have a selected form
       let orderedFieldIds: string[] = [];
       if (selectedFormId) {
+        console.log('🔍 Getting field order for form:', selectedFormId);
+        
+        // Method 1: Get from forms.sections structure
         const { data: formStructure, error: formError } = await supabase
           .from('forms')
           .select('sections')
@@ -462,30 +465,25 @@ export class WordTemplateGenerator {
           .single();
 
         if (!formError && formStructure?.sections) {
-          // Extract field order from form sections - using field_ids (snake_case)
           const sections = Array.isArray(formStructure.sections) ? formStructure.sections : [];
+          console.log('📋 Form sections found:', sections.length);
+          
           for (const section of sections) {
             const sectionData = section as any;
+            console.log('📄 Processing section:', sectionData.title, 'fieldIds:', sectionData.field_ids);
             if (sectionData.field_ids && Array.isArray(sectionData.field_ids)) {
               orderedFieldIds.push(...sectionData.field_ids);
             }
           }
-          console.log('Found ordered field IDs from form structure:', orderedFieldIds);
+          console.log('✅ Found ordered field IDs from form sections:', orderedFieldIds);
+        } else {
+          console.log('❌ No form sections found or error:', formError);
         }
 
-        // Fallback: try form_field_instances if sections don't contain field order
+        // Method 2: If no ordered fields found, we'll rely on selected field order
         if (orderedFieldIds.length === 0) {
-          const { data: fieldInstances, error: instancesError } = await supabase
-            .from('form_field_instances')
-            .select('id, field_order')
-            .eq('form_id', selectedFormId)
-            .eq('tenant_id', tenantId)
-            .order('field_order', { ascending: true });
-
-          if (!instancesError && fieldInstances) {
-            orderedFieldIds = fieldInstances.map(instance => instance.id);
-            console.log('Found ordered field IDs from field instances:', orderedFieldIds);
-          }
+          console.log('⚠️ No field order found from form structure');
+          // We'll use the selectedFieldIds order directly in the filtering logic below
         }
       }
 
@@ -522,10 +520,10 @@ export class WordTemplateGenerator {
         }
       }
 
-      // CRITICAL: Apply selected fields filter STRICTLY
+      // CRITICAL: Apply selected fields filter ABSOLUTELY STRICTLY
       let fieldsToProcess: string[] = [];
       
-      console.log('🎯 SPEC DEBUG: Field filtering phase:', {
+      console.log('🎯 FIELD FILTERING PHASE:', {
         selectedFieldIds,
         selectedFieldsCount: selectedFieldIds?.length || 0,
         orderedFieldIds,
@@ -535,54 +533,51 @@ export class WordTemplateGenerator {
       });
       
       if (selectedFieldIds && selectedFieldIds.length > 0) {
-        console.log('🔒 SPEC DEBUG: STRICT SELECTED FIELDS FILTER ACTIVE');
+        console.log('🔒 STRICT SELECTED FIELDS FILTER ACTIVE - ONLY PROCESSING SELECTED FIELDS');
         
-        // First, try to maintain form order for selected fields
+        // For selected fields, we need to maintain their form order if available
         if (orderedFieldIds.length > 0) {
-          fieldsToProcess = orderedFieldIds.filter(fieldId => {
-            const isSelected = selectedFieldIds.includes(fieldId);
-            const hasResponse = allFieldResponses.has(fieldId);
-            console.log(`  📋 Field ${fieldId}: selected=${isSelected}, hasResponse=${hasResponse}`);
-            return isSelected && hasResponse;
-          });
-          console.log('✅ Form-ordered selected fields:', fieldsToProcess);
+          // Get intersection of ordered fields and selected fields, maintaining order
+          fieldsToProcess = orderedFieldIds.filter(fieldId => 
+            selectedFieldIds.includes(fieldId) && allFieldResponses.has(fieldId)
+          );
+          console.log('✅ Form-ordered selected fields found:', fieldsToProcess);
         }
         
-        // If no form order or no matches, use selected fields in their original order
+        // If no ordered fields or no matches found, use selected fields in their config order
         if (fieldsToProcess.length === 0) {
-          console.log('🔄 No form order matches, using selected fields order');
-          fieldsToProcess = selectedFieldIds.filter(fieldId => {
-            const hasResponse = allFieldResponses.has(fieldId);
-            console.log(`  📋 Selected field ${fieldId}: hasResponse=${hasResponse}`);
-            return hasResponse;
-          });
+          console.log('🔄 Using selected fields in config order');
+          fieldsToProcess = selectedFieldIds.filter(fieldId => allFieldResponses.has(fieldId));
+          console.log('✅ Config-ordered selected fields:', fieldsToProcess);
         }
         
-        // SAFETY CHECK: Ensure we never exceed selected fields
-        console.log('🛡️ SAFETY CHECK:', {
-          fieldsToProcessCount: fieldsToProcess.length,
+        // CRITICAL VALIDATION: Ensure we only have selected fields
+        const finalFieldsToProcess = fieldsToProcess.filter(fieldId => selectedFieldIds.includes(fieldId));
+        
+        console.log('🎯 FINAL VALIDATION:', {
+          originalCount: fieldsToProcess.length,
+          afterValidation: finalFieldsToProcess.length,
           selectedFieldsCount: selectedFieldIds.length,
-          areEqual: fieldsToProcess.length <= selectedFieldIds.length
+          finalFields: finalFieldsToProcess,
+          selectedFields: selectedFieldIds
         });
         
-        // Final validation - only keep fields that are actually selected
-        fieldsToProcess = fieldsToProcess.filter(fieldId => selectedFieldIds.includes(fieldId));
+        fieldsToProcess = finalFieldsToProcess;
         
-        console.log('🎯 FINAL SELECTED FIELDS TO PROCESS:', {
-          selectedCount: selectedFieldIds.length,
-          processCount: fieldsToProcess.length,
-          selectedFields: selectedFieldIds,
-          fieldsToProcess
-        });
+        // FAIL-SAFE: If we still have more fields than selected, something is wrong
+        if (fieldsToProcess.length > selectedFieldIds.length) {
+          console.error('❌ CRITICAL ERROR: More fields to process than selected!');
+          fieldsToProcess = selectedFieldIds.filter(fieldId => allFieldResponses.has(fieldId));
+        }
         
       } else {
-        console.log('📋 SPEC DEBUG: No selection filter - processing all fields');
+        console.log('📋 No selection filter - processing all populated fields');
         fieldsToProcess = orderedFieldIds.length > 0 
           ? orderedFieldIds.filter(fieldId => allFieldResponses.has(fieldId))
           : Array.from(allFieldResponses.keys());
-        
-        console.log('📋 Processing all fields in order:', fieldsToProcess);
       }
+      
+      console.log('🚀 FINAL FIELDS TO PROCESS:', fieldsToProcess);
 
       // Process each field response in the correct order
       for (const fieldId of fieldsToProcess) {
