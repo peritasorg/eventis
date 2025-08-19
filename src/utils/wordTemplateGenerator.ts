@@ -412,10 +412,20 @@ export class WordTemplateGenerator {
       .replace(/'/g, '&apos;');
   }
 
-  private static async extractSpecificationLineItems(eventForms: any[], tenantId: string, selectedFormId?: string): Promise<SpecificationLineItem[]> {
+  private static async extractSpecificationLineItems(
+    eventForms: any[], 
+    tenantId: string, 
+    selectedFormId?: string, 
+    selectedFieldIds?: string[]
+  ): Promise<SpecificationLineItem[]> {
     const items: SpecificationLineItem[] = [];
     
-    console.log('Extracting specification items:', { eventForms, tenantId, selectedFormId });
+    console.log('Extracting specification items:', { 
+      eventForms, 
+      tenantId, 
+      selectedFormId, 
+      selectedFieldIds: selectedFieldIds?.length 
+    });
 
     if (!Array.isArray(eventForms) || eventForms.length === 0) {
       console.log('No event forms provided');
@@ -452,12 +462,12 @@ export class WordTemplateGenerator {
           .single();
 
         if (!formError && formStructure?.sections) {
-          // Extract field order from form sections
+          // Extract field order from form sections - using field_ids (snake_case)
           const sections = Array.isArray(formStructure.sections) ? formStructure.sections : [];
           for (const section of sections) {
             const sectionData = section as any;
-            if (sectionData.fields && Array.isArray(sectionData.fields)) {
-              orderedFieldIds.push(...sectionData.fields.map((f: any) => f.id || f.field_id));
+            if (sectionData.field_ids && Array.isArray(sectionData.field_ids)) {
+              orderedFieldIds.push(...sectionData.field_ids);
             }
           }
           console.log('Found ordered field IDs from form structure:', orderedFieldIds);
@@ -512,12 +522,30 @@ export class WordTemplateGenerator {
         }
       }
 
-      // Process fields in order if we have it, otherwise use the original order
-      const fieldsToProcess = orderedFieldIds.length > 0 
-        ? orderedFieldIds.filter(fieldId => allFieldResponses.has(fieldId))
-        : Array.from(allFieldResponses.keys());
-
-      console.log('Processing fields in order:', fieldsToProcess);
+      // Filter fields to only selected ones if provided
+      let fieldsToProcess: string[];
+      if (selectedFieldIds && selectedFieldIds.length > 0) {
+        // Use selected fields in the order they appear in the form
+        fieldsToProcess = orderedFieldIds.length > 0 
+          ? orderedFieldIds.filter(fieldId => 
+              selectedFieldIds.includes(fieldId) && allFieldResponses.has(fieldId)
+            )
+          : selectedFieldIds.filter(fieldId => allFieldResponses.has(fieldId));
+        
+        console.log('Processing selected fields only:', {
+          selectedCount: selectedFieldIds.length,
+          foundCount: fieldsToProcess.length,
+          selectedFields: selectedFieldIds,
+          fieldsToProcess
+        });
+      } else {
+        // Process all fields in order if no selection specified
+        fieldsToProcess = orderedFieldIds.length > 0 
+          ? orderedFieldIds.filter(fieldId => allFieldResponses.has(fieldId))
+          : Array.from(allFieldResponses.keys());
+        
+        console.log('Processing all fields in order:', fieldsToProcess);
+      }
 
       // Process each field response in the correct order
       for (const fieldId of fieldsToProcess) {
@@ -691,6 +719,29 @@ export class WordTemplateGenerator {
       
       const templateName = `${tenantId}-specification-template.docx`;
       
+      // Fetch specification configuration to get selected fields
+      const { data: specConfig, error: configError } = await supabase
+        .from('specification_template_configs')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .single();
+
+      if (configError && configError.code !== 'PGRST116') {
+        console.error('Error fetching specification config:', configError);
+        throw new Error('Failed to load specification configuration. Please configure your specification settings first.');
+      }
+
+      const selectedFieldIds = Array.isArray(specConfig?.selected_fields) 
+        ? specConfig.selected_fields as string[]
+        : [];
+      const configuredFormId = specConfig?.form_id || selectedFormId;
+      
+      console.log('Using specification config:', { 
+        formId: configuredFormId, 
+        selectedFields: selectedFieldIds.length 
+      });
+      
       // Download the template
       const templateData = await this.downloadTemplate(templateName);
       console.log('Template downloaded successfully');
@@ -718,8 +769,13 @@ Current issue: ${syntaxError.message}`);
         }
       }
       
-      // Extract and map specification data
-      const specificationLineItems = await this.extractSpecificationLineItems(eventForms, tenantId, selectedFormId);
+      // Extract and map specification data with selected fields filter
+      const specificationLineItems = await this.extractSpecificationLineItems(
+        eventForms, 
+        tenantId, 
+        configuredFormId, 
+        selectedFieldIds as string[]
+      );
       const mappedData = await this.mapEventDataToSpecification(eventData, tenantId, specificationLineItems, eventForms);
       
       console.log('Mapped specification data:', mappedData);
