@@ -6,12 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface LeadFormProps {
   onSuccess: () => void;
@@ -27,6 +28,7 @@ export const LeadForm: React.FC<LeadFormProps> = ({
   isEdit = false 
 }) => {
   const { currentTenant } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [dateOfInterest, setDateOfInterest] = useState<Date | undefined>(
     leadData?.date_of_interest ? new Date(leadData.date_of_interest) : undefined
@@ -125,6 +127,85 @@ export const LeadForm: React.FC<LeadFormProps> = ({
         toast.error('Invalid event type selected.');
       } else {
         toast.error(`Failed to save lead: ${error.message || 'Please try again.'}`);
+      }
+    }
+  };
+
+  const handleConvertToCustomer = async () => {
+    if (!leadData || !currentTenant?.id) return;
+
+    setIsLoading(true);
+    try {
+      // Create customer record with comprehensive data mapping
+      const customerData = {
+        tenant_id: currentTenant.id,
+        name: leadData.name.trim(),
+        email: leadData.email?.trim() || null,
+        phone: leadData.phone?.trim() || null,
+        customer_type: 'individual',
+        notes: leadData.notes?.trim() || null,
+        lead_id: leadData.id,
+        active: true,
+        customer_since: new Date().toISOString().split('T')[0],
+        marketing_consent: false,
+        vip_status: false,
+        preferred_contact_method: leadData.email ? 'email' : 'phone',
+        // Additional fields from lead data
+        total_events: 0,
+        total_spent: 0,
+        average_event_value: 0
+      };
+
+      console.log('Creating customer with data:', customerData);
+
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .insert([customerData])
+        .select()
+        .single();
+
+      if (customerError) {
+        console.error('Customer creation error:', customerError);
+        throw customerError;
+      }
+
+      console.log('Customer created successfully:', customer);
+
+      // Update lead status to won and add conversion date
+      const { error: leadError } = await supabase
+        .from('leads')
+        .update({ 
+          status: 'won',
+          conversion_date: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', leadData.id)
+        .eq('tenant_id', currentTenant.id);
+
+      if (leadError) {
+        console.error('Lead update error:', leadError);
+        throw leadError;
+      }
+
+      console.log('Lead status updated to won');
+
+      toast.success('Lead successfully converted to customer!');
+      onSuccess(); // Close the dialog
+      
+      // Navigate to the new customer profile
+      navigate(`/customers/${customer.id}`);
+      
+    } catch (error: any) {
+      console.error('Error converting lead to customer:', error);
+      
+      if (error.message?.includes('duplicate')) {
+        toast.error('A customer with this information already exists.');
+      } else if (error.message?.includes('not-null') || error.message?.includes('null value')) {
+        toast.error('Missing required customer information. Please ensure name is provided.');
+      } else if (error.message?.includes('foreign key')) {
+        toast.error('Invalid data reference. Please check the lead information.');
+      } else {
+        toast.error(`Failed to convert lead: ${error.message || 'Please try again.'}`);
       }
     } finally {
       setIsLoading(false);
@@ -273,52 +354,17 @@ export const LeadForm: React.FC<LeadFormProps> = ({
         </Popover>
       </div>
 
-      {isEdit && (
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="qualified">Qualified</SelectItem>
-                <SelectItem value="quoted">Quoted</SelectItem>
-                <SelectItem value="won">Won</SelectItem>
-                <SelectItem value="lost">Lost</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="source">Source</Label>
-            <Select value={formData.source} onValueChange={(value) => handleInputChange('source', value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="website">Website</SelectItem>
-                <SelectItem value="referral">Referral</SelectItem>
-                <SelectItem value="social">Social Media</SelectItem>
-                <SelectItem value="direct">Direct</SelectItem>
-                <SelectItem value="phone">Phone</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
-            <Input
-              id="estimated_budget"
-              type="number"
-              min="0"
-              step="0.01"
-              value={formData.estimated_budget}
-              onChange={(e) => handleInputChange('estimated_budget', e.target.value)}
-            />
-          </div>
-        </div>
-      )}
+      <div>
+        <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
+        <Input
+          id="estimated_budget"
+          type="number"
+          min="0"
+          step="0.01"
+          value={formData.estimated_budget}
+          onChange={(e) => handleInputChange('estimated_budget', e.target.value)}
+        />
+      </div>
 
       <div>
         <Label htmlFor="notes">Notes</Label>
@@ -334,6 +380,16 @@ export const LeadForm: React.FC<LeadFormProps> = ({
         <Button type="button" variant="outline" onClick={onSuccess}>
           {isEdit ? 'Cancel' : 'Close'}
         </Button>
+        {isEdit && leadData?.status !== 'won' && (
+          <Button 
+            type="button" 
+            onClick={handleConvertToCustomer}
+            disabled={isLoading}
+            className="bg-primary hover:bg-primary/90"
+          >
+            {isLoading ? 'Converting...' : 'Convert to Customer'}
+          </Button>
+        )}
         {isEdit && (
           <Button type="submit" disabled={isLoading}>
             {isLoading ? 'Saving...' : 'Update Lead'}

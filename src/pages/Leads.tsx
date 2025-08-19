@@ -322,16 +322,6 @@ export const Leads = () => {
                         <div className="flex gap-2">
                           <Button 
                             size="sm" 
-                            variant="outline" 
-                            onClick={() => {
-                              setSelectedLead(lead);
-                              setIsEditMode(false);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
                             variant="outline"
                             onClick={() => {
                               setSelectedLead(lead);
