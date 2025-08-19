@@ -144,13 +144,12 @@ export const LeadForm: React.FC<LeadFormProps> = ({
           />
         </div>
         <div>
-          <Label htmlFor="phone">Phone Number *</Label>
+          <Label htmlFor="phone">Phone Number (Optional)</Label>
           <Input
             id="phone"
             type="tel"
             value={formData.phone}
             onChange={(e) => handleInputChange('phone', e.target.value)}
-            required
           />
         </div>
       </div>
@@ -167,12 +166,13 @@ export const LeadForm: React.FC<LeadFormProps> = ({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="event_type">Event Type *</Label>
-          <Select value={formData.event_type} onValueChange={(value) => handleInputChange('event_type', value)}>
+          <Label htmlFor="event_type">Event Type {!isEdit && '(Optional)'}</Label>
+          <Select value={formData.event_type || 'none'} onValueChange={(value) => handleInputChange('event_type', value === 'none' ? '' : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Select event type" />
             </SelectTrigger>
             <SelectContent>
+              {!isEdit && <SelectItem value="none">Not specified yet</SelectItem>}
               {eventTypeConfigs.map((config) => (
                 <SelectItem key={config.id} value={config.event_type}>
                   {config.display_name}
@@ -273,50 +273,52 @@ export const LeadForm: React.FC<LeadFormProps> = ({
         </Popover>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="status">Status</Label>
-          <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="new">New</SelectItem>
-              <SelectItem value="contacted">Contacted</SelectItem>
-              <SelectItem value="qualified">Qualified</SelectItem>
-              <SelectItem value="quoted">Quoted</SelectItem>
-              <SelectItem value="won">Won</SelectItem>
-              <SelectItem value="lost">Lost</SelectItem>
-            </SelectContent>
-          </Select>
+      {isEdit && (
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="contacted">Contacted</SelectItem>
+                <SelectItem value="qualified">Qualified</SelectItem>
+                <SelectItem value="quoted">Quoted</SelectItem>
+                <SelectItem value="won">Won</SelectItem>
+                <SelectItem value="lost">Lost</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="source">Source</Label>
+            <Select value={formData.source} onValueChange={(value) => handleInputChange('source', value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="website">Website</SelectItem>
+                <SelectItem value="referral">Referral</SelectItem>
+                <SelectItem value="social">Social Media</SelectItem>
+                <SelectItem value="direct">Direct</SelectItem>
+                <SelectItem value="phone">Phone</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
+            <Input
+              id="estimated_budget"
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.estimated_budget}
+              onChange={(e) => handleInputChange('estimated_budget', e.target.value)}
+            />
+          </div>
         </div>
-        <div>
-          <Label htmlFor="source">Source</Label>
-          <Select value={formData.source} onValueChange={(value) => handleInputChange('source', value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="website">Website</SelectItem>
-              <SelectItem value="referral">Referral</SelectItem>
-              <SelectItem value="social">Social Media</SelectItem>
-              <SelectItem value="direct">Direct</SelectItem>
-              <SelectItem value="phone">Phone</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="estimated_budget">Estimated Budget (£)</Label>
-          <Input
-            id="estimated_budget"
-            type="number"
-            min="0"
-            step="0.01"
-            value={formData.estimated_budget}
-            onChange={(e) => handleInputChange('estimated_budget', e.target.value)}
-          />
-        </div>
-      </div>
+      )}
 
       <div>
         <Label htmlFor="notes">Notes</Label>

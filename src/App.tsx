@@ -15,8 +15,6 @@ import { AuthRedirect } from "@/components/auth/AuthRedirect";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 import { Dashboard } from "./pages/Dashboard";
-import { LeadView } from "./pages/LeadView";
-import { LeadEdit } from "./pages/LeadEdit";
 import { Events } from "./pages/Events";
 import { EventDetail } from "./pages/EventDetail";
 import { EventSettings } from "./pages/EventSettings";
@@ -86,21 +84,6 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/leads/:leadId" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <LeadView />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/leads/:leadId/edit" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <LeadEdit />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
                   
                   <Route path="/leads" element={
                     <ProtectedRoute>

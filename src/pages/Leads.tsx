@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { LeadForm } from '@/components/leads/LeadForm';
+import { LeadDetailsDialog } from '@/components/leads/LeadDetailsDialog';
 import { AppointmentsCalendarView } from '@/components/leads/AppointmentsCalendarView';
 import { format } from 'date-fns';
 
@@ -46,6 +47,8 @@ export const Leads = () => {
   const [selectedEventType, setSelectedEventType] = useState("all");
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [activeView, setActiveView] = useState<"table" | "calendar">("table");
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [viewMode, setViewMode] = useState<'view' | 'edit'>('view');
 
   const { data: leads = [], refetch } = useSupabaseQuery(
     ['leads', currentTenant?.id],
@@ -320,14 +323,20 @@ export const Leads = () => {
                           <Button 
                             size="sm" 
                             variant="outline" 
-                            onClick={() => navigate(`/leads/${lead.id}`)}
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setViewMode('view');
+                            }}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => navigate(`/leads/${lead.id}/edit`)}
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setViewMode('edit');
+                            }}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -356,6 +365,19 @@ export const Leads = () => {
           <AppointmentsCalendarView leads={leads} eventTypeConfigs={eventTypeConfigs} />
         </TabsContent>
       </Tabs>
+
+      {/* Lead Details Dialogs */}
+      {selectedLead && (
+        <LeadDetailsDialog 
+          lead={selectedLead}
+          open={!!selectedLead}
+          onOpenChange={(open) => {
+            if (!open) setSelectedLead(null);
+          }}
+          onUpdate={refetch}
+          isEditMode={viewMode === 'edit'}
+        />
+      )}
     </div>
   );
 };
