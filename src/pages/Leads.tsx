@@ -25,7 +25,7 @@ interface Lead {
   name: string;
   email: string;
   phone: string;
-  status: 'new' | 'in_progress' | 'converted';
+  
   event_type: string;
   created_at: string;
   appointment_date: string;
@@ -46,7 +46,7 @@ export const Leads = () => {
   const navigate = useNavigate();
   const { data: eventTypeConfigs = [] } = useEventTypeConfigs();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("all");
+  
   const [selectedEventType, setSelectedEventType] = useState("all");
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [activeView, setActiveView] = useState<"table" | "calendar">("table");
@@ -78,9 +78,8 @@ export const Leads = () => {
     const matchesSearch = lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.phone?.includes(searchTerm);
-    const matchesStatus = selectedStatus === "all" || lead.status === selectedStatus;
     const matchesEventType = selectedEventType === "all" || lead.event_type === selectedEventType;
-    return matchesSearch && matchesStatus && matchesEventType;
+    return matchesSearch && matchesEventType;
   });
 
   const getStatusColor = (status: string) => {
@@ -105,7 +104,7 @@ export const Leads = () => {
   }).length;
 
   const conversionRate = leads.length > 0 
-    ? Math.round((leads.filter(l => l.status === 'converted').length / leads.length) * 100)
+    ? Math.round((leads.filter(l => l.conversion_date).length / leads.length) * 100)
     : 0;
 
   // Multi-select handlers
@@ -149,11 +148,10 @@ export const Leads = () => {
 
         if (customerError) throw customerError;
 
-        // Update lead status
+        // Update lead conversion date
         const { error: leadError } = await supabase
           .from('leads')
           .update({ 
-            status: 'converted',
             conversion_date: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
@@ -218,25 +216,6 @@ export const Leads = () => {
     }
   };
 
-  const handleUpdateLeadStatus = async (leadId: string, newStatus: 'new' | 'in_progress' | 'converted') => {
-    try {
-      const { error } = await supabase
-        .from('leads')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', leadId);
-
-      if (error) throw error;
-
-      toast.success('Lead status updated');
-      refetch();
-    } catch (error) {
-      console.error('Error updating lead status:', error);
-      toast.error('Failed to update lead status');
-    }
-  };
 
   const handleCalendarLeadClick = (lead: Lead) => {
     setSelectedLead(lead);
@@ -339,18 +318,6 @@ export const Leads = () => {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                    <SelectTrigger className="w-48">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="converted">Converted</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <Select value={selectedEventType} onValueChange={setSelectedEventType}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Event Type" />
@@ -441,7 +408,7 @@ export const Leads = () => {
                   <TableHead>Contact</TableHead>
                   <TableHead>Event Details</TableHead>
                   <TableHead>Appointment</TableHead>
-                  <TableHead>Status</TableHead>
+                  
                   <TableHead>Date of Interest</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -510,31 +477,6 @@ export const Leads = () => {
                         ) : (
                           <div className="text-sm text-muted-foreground">No appointment</div>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={getStatusColor(lead.status)}>
-                            {lead.status === 'in_progress' ? 'In Progress' : 
-                             lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
-                          </Badge>
-                          {lead.status !== 'converted' && (
-                            <Select 
-                              value={lead.status} 
-                              onValueChange={(value: 'new' | 'in_progress' | 'converted') => 
-                                handleUpdateLeadStatus(lead.id, value)
-                              }
-                            >
-                              <SelectTrigger className="w-8 h-8 border-0 bg-transparent">
-                                <Edit className="h-3 w-3" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="in_progress">In Progress</SelectItem>
-                                <SelectItem value="converted">Converted</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </div>
                       </TableCell>
                       <TableCell>
                         {lead.date_of_interest ? (
