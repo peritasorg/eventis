@@ -211,10 +211,21 @@ class CalendarReconciliationService {
     
     // Fetch ALL app events from target date onwards
     const { data: appEvents, error } = await this.supabase
-      .rpc('get_all_events_for_sync', {
-        p_tenant_id: this.integration.tenant_id,
-        p_from_date: targetDate.split('T')[0]
-      });
+      .from('events')
+      .select(`
+        *,
+        event_forms (
+          id,
+          form_label,
+          start_time,
+          men_count,
+          ladies_count,
+          form_responses
+        )
+      `)
+      .eq('tenant_id', this.integration.tenant_id)
+      .gte('event_date', targetDate.split('T')[0])
+      .order('event_date', { ascending: true });
 
     if (error) {
       throw new Error(`Failed to fetch app events: ${error.message}`);
