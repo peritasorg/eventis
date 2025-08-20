@@ -23,14 +23,6 @@ interface GoogleCalendarEvent {
   updated: string;
 }
 
-interface ReconciliationAnalysis {
-  totalGoogleEvents: number;
-  eventsToDelete: GoogleCalendarEvent[];
-  appEventsToSync: any[];
-  matchedEvents: { googleEvent: GoogleCalendarEvent; appEvent: any }[];
-  duplicateRisk: number;
-}
-
 class CalendarReconciliationService {
   private integration: any;
   private supabase: any;
@@ -116,18 +108,75 @@ class CalendarReconciliationService {
     return data.items || [];
   }
 
-  async analyzeCalendarState(targetDate: string): Promise<ReconciliationAnalysis> {
-    console.log('🔍 Analyzing calendar state from:', targetDate);
+  async deleteAllGoogleEvents(targetDate: string): Promise<{
+    success: boolean;
+    deletedCount: number;
+    errors: string[];
+  }> {
+    console.log('🗑️ Deleting all Google Calendar events from:', targetDate);
     
     // Fetch Google Calendar events from target date onwards
     const endDate = new Date('2028-01-31T23:59:59Z').toISOString();
     const googleEvents = await this.listGoogleCalendarEvents(targetDate, endDate);
     
-    console.log(`📅 Found ${googleEvents.length} Google Calendar events from ${targetDate}`);
+    console.log(`📅 Found ${googleEvents.length} Google Calendar events to delete`);
 
-    // Fetch ALL app events from target date onwards (not just unsynced ones)
+    const accessToken = await this.refreshTokenIfNeeded();
+    const errors: string[] = [];
+    let deletedCount = 0;
+
+    // Delete in batches to respect API limits
+    const batchSize = 10;
+    for (let i = 0; i < googleEvents.length; i += batchSize) {
+      const batch = googleEvents.slice(i, i + batchSize);
+      
+      await Promise.all(batch.map(async (event) => {
+        try {
+          const response = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${this.integration.calendar_id}/events/${event.id}`,
+            {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            deletedCount++;
+            console.log(`✅ Deleted: ${event.summary} (${event.id})`);
+          } else {
+            const errorText = await response.text();
+            errors.push(`Failed to delete "${event.summary}": ${errorText}`);
+          }
+        } catch (error) {
+          errors.push(`Error deleting "${event.summary}": ${error.message}`);
+        }
+      }));
+
+      // Rate limiting delay
+      if (i + batchSize < googleEvents.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      deletedCount,
+      errors,
+    };
+  }
+
+  async syncAllEvents(targetDate: string): Promise<{
+    success: boolean;
+    syncedCount: number;
+    errors: string[];
+  }> {
+    console.log('🔄 Syncing all app events from:', targetDate);
+    
+    // Fetch ALL app events from target date onwards
     const { data: appEvents, error } = await this.supabase
-      .rpc('get_events_with_form_data', {
+      .rpc('get_all_events_for_sync', {
         p_tenant_id: this.integration.tenant_id,
         p_from_date: targetDate.split('T')[0]
       });
@@ -136,47 +185,63 @@ class CalendarReconciliationService {
       throw new Error(`Failed to fetch app events: ${error.message}`);
     }
 
-    console.log(`📱 Found ${appEvents?.length || 0} app events from target date`);
+    console.log(`📱 Found ${appEvents?.length || 0} app events to sync`);
 
-    // Analyze potential matches and duplicates
-    const matchedEvents: { googleEvent: GoogleCalendarEvent; appEvent: any }[] = [];
-    const eventsToDelete: GoogleCalendarEvent[] = [];
+    const accessToken = await this.refreshTokenIfNeeded();
+    const errors: string[] = [];
+    let syncedCount = 0;
 
-    for (const googleEvent of googleEvents) {
-      const eventDate = googleEvent.start.dateTime ? 
-        new Date(googleEvent.start.dateTime).toISOString().split('T')[0] :
-        googleEvent.start.date;
+    // Sync in batches
+    const batchSize = 5;
+    for (let i = 0; i < (appEvents?.length || 0); i += batchSize) {
+      const batch = appEvents?.slice(i, i + batchSize) || [];
+      
+      await Promise.all(batch.map(async (appEvent) => {
+        try {
+          const calendarEvent = this.formatEventForGoogle(appEvent);
+          
+          const response = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${this.integration.calendar_id}/events`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(calendarEvent),
+            }
+          );
 
-      // Look for potential matches with app events
-      const potentialMatches = appEvents?.filter(appEvent => {
-        const appEventDate = appEvent.event_date;
-        const titleSimilarity = this.calculateTitleSimilarity(
-          googleEvent.summary || '', 
-          appEvent.title || ''
-        );
-        
-        return appEventDate === eventDate && titleSimilarity > 0.7;
-      }) || [];
+          if (response.ok) {
+            const googleEvent = await response.json();
+            
+            // Update app event with external_calendar_id
+            await this.supabase
+              .from('events')
+              .update({ external_calendar_id: googleEvent.id })
+              .eq('id', appEvent.id);
 
-      if (potentialMatches.length > 0) {
-        matchedEvents.push({
-          googleEvent,
-          appEvent: potentialMatches[0] // Take the best match
-        });
-      } else {
-        // Mark for deletion if no good match found
-        eventsToDelete.push(googleEvent);
+            syncedCount++;
+            console.log(`✅ Synced: ${appEvent.title} → ${googleEvent.id}`);
+          } else {
+            const errorText = await response.text();
+            errors.push(`Failed to sync "${appEvent.title}": ${errorText}`);
+          }
+        } catch (error) {
+          errors.push(`Error syncing "${appEvent.title}": ${error.message}`);
+        }
+      }));
+
+      // Rate limiting delay
+      if (i + batchSize < (appEvents?.length || 0)) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
-    const duplicateRisk = Math.round((matchedEvents.length / Math.max(googleEvents.length, 1)) * 100);
-
     return {
-      totalGoogleEvents: googleEvents.length,
-      eventsToDelete,
-      appEventsToSync: appEvents || [],
-      matchedEvents,
-      duplicateRisk,
+      success: errors.length === 0,
+      syncedCount,
+      errors,
     };
   }
 
@@ -466,7 +531,7 @@ serve(async (req) => {
       throw new Error('Invalid authorization token');
     }
 
-    const { action, targetDate, dryRun = true, eventsToDelete, appEventsToSync } = await req.json();
+    const { action, targetDate } = await req.json();
 
     // Get active calendar integration
     const { data: integration, error: integrationError } = await supabase
@@ -485,16 +550,12 @@ serve(async (req) => {
     let result;
 
     switch (action) {
-      case 'analyze':
-        result = await reconciliationService.analyzeCalendarState(targetDate);
+      case 'delete-all':
+        result = await reconciliationService.deleteAllGoogleEvents(targetDate);
         break;
         
-      case 'cleanup':
-        result = await reconciliationService.performCleanup(eventsToDelete, dryRun);
-        break;
-        
-      case 'bulk-sync':
-        result = await reconciliationService.performBulkSync(appEventsToSync, dryRun);
+      case 'sync-all':
+        result = await reconciliationService.syncAllEvents(targetDate);
         break;
         
       default:
@@ -510,7 +571,7 @@ serve(async (req) => {
         sync_direction: 'reconciliation',
         status: 'success',
         operation: action,
-        sync_data: { action, targetDate, dryRun, result },
+        sync_data: { action, targetDate, result },
       });
 
     return new Response(

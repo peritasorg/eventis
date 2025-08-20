@@ -2919,6 +2919,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      clear_google_calendar_from_date: {
+        Args: { p_from_date: string; p_integration_id: string }
+        Returns: undefined
+      }
       create_default_guest_section: {
         Args: { p_form_template_id: string; p_tenant_id: string }
         Returns: string
@@ -2930,6 +2934,23 @@ export type Database = {
       email_has_used_trial: {
         Args: { email_address: string }
         Returns: boolean
+      }
+      get_all_events_for_sync: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: {
+          end_time: string
+          event_date: string
+          event_end_date: string
+          event_forms: Json
+          event_type: string
+          external_calendar_id: string
+          id: string
+          primary_contact_name: string
+          primary_contact_number: string
+          start_time: string
+          title: string
+          venue_location: string
+        }[]
       }
       get_current_tenant_id: {
         Args: Record<PropertyKey, never>
