@@ -11,12 +11,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Calendar, CheckCircle, XCircle, ExternalLink, RefreshCw, Search } from 'lucide-react';
 import { CalendarPreview } from './CalendarPreview';
+import { CalendarReconciliation } from './CalendarReconciliation';
 import { useQuery } from '@tanstack/react-query';
 
 export const CalendarSyncSettings = () => {
   const [loading, setLoading] = useState(false);
   const [testEventId, setTestEventId] = useState<string>('');
   const [eventSearchTerm, setEventSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'sync' | 'reconciliation'>('sync');
 
   // Fetch calendar integrations
   const { data: integrations, refetch: refetchIntegrations } = useQuery({
@@ -144,6 +146,34 @@ export const CalendarSyncSettings = () => {
 
   return (
     <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+        <button
+          onClick={() => setActiveTab('sync')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'sync'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Calendar Sync
+        </button>
+        <button
+          onClick={() => setActiveTab('reconciliation')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'reconciliation'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Calendar Fix
+        </button>
+      </div>
+
+      {activeTab === 'reconciliation' ? (
+        <CalendarReconciliation />
+      ) : (
+        <div className="space-y-6">
       {/* Google Calendar Connection */}
       <Card>
         <CardHeader>
@@ -347,6 +377,8 @@ export const CalendarSyncSettings = () => {
           </div>
         </CardContent>
       </Card>
+        </div>
+      )}
     </div>
   );
 };

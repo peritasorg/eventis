@@ -45,6 +45,9 @@ verify_jwt = false
 [functions.google-oauth]
 verify_jwt = false
 
+[functions.calendar-reconciliation]
+verify_jwt = true
+
 [auth]
 enabled = true
 site_url = "https://app.eventis.to"

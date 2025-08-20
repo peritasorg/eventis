@@ -2875,6 +2875,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      bulk_clear_external_calendar_ids: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: number
+      }
+      bulk_update_external_calendar_ids: {
+        Args: { p_updates: Json }
+        Returns: number
+      }
       calculate_event_form_total: {
         Args: { p_event_form_id: string }
         Returns: number
@@ -2951,6 +2959,15 @@ export type Database = {
         Args: { p_event_id: string; p_tenant_id: string }
         Returns: number
       }
+      get_reconciliation_stats: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: {
+          events_with_external_id: number
+          events_without_external_id: number
+          percentage_synced: number
+          total_events: number
+        }[]
+      }
       get_tenant_dashboard_stats: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -2981,6 +2998,15 @@ export type Database = {
       is_super_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      log_reconciliation_operation: {
+        Args: {
+          p_operation_data: Json
+          p_operation_type: string
+          p_result_data: Json
+          p_tenant_id: string
+        }
+        Returns: string
       }
       log_security_event: {
         Args: {
