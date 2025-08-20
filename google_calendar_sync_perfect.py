@@ -104,14 +104,15 @@ class GoogleCalendarSync:
     def get_calendar_integration(self) -> Optional[str]:
         """Get the active calendar integration for the tenant"""
         try:
-            result = self.supabase.table('calendar_integrations').select('calendar_id').eq('tenant_id', TENANT_ID).eq('is_active', True).single().execute()
+            result = self.supabase.table('calendar_integrations').select('calendar_id').eq('tenant_id', TENANT_ID).eq('is_active', True).maybeSingle().execute()
             
             if result.data:
                 self.calendar_id = result.data['calendar_id']
                 logging.info(f"Found calendar integration: {self.calendar_id}")
                 return self.calendar_id
             else:
-                logging.error("No active calendar integration found")
+                logging.error("No active calendar integration found for this tenant")
+                logging.info("Please set up Google Calendar integration in Supabase first")
                 return None
                 
         except Exception as e:
