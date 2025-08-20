@@ -547,11 +547,16 @@ export class WordTemplateGenerator {
       let fieldsToProcess: string[] = [];
       
       if (orderedFieldIds.length > 0) {
-        // Use form ordering, but only include selected and populated fields
+        // Convert selectedFieldIds to Set for efficient lookup
+        const selectedFieldSet = new Set(selectedFieldIds);
+        
+        // Use form ordering as primary sequence, only include selected and populated fields
         fieldsToProcess = orderedFieldIds.filter(fieldId => 
-          selectedFieldIds.includes(fieldId) && populatedFieldResponses.has(fieldId)
+          selectedFieldSet.has(fieldId) && populatedFieldResponses.has(fieldId)
         );
-        console.log('✅ Using form order - selected + populated fields:', fieldsToProcess);
+        console.log('✅ Using form order - orderedFieldIds length:', orderedFieldIds.length);
+        console.log('✅ Selected fields:', selectedFieldIds.length, selectedFieldIds);
+        console.log('✅ Final ordered fields to process:', fieldsToProcess.length, fieldsToProcess);
       } else {
         // Fallback to selected field order if no form structure available
         fieldsToProcess = selectedFieldIds.filter(fieldId => populatedFieldResponses.has(fieldId));
