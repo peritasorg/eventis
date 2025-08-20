@@ -125,19 +125,18 @@ class CalendarReconciliationService {
     
     console.log(`📅 Found ${googleEvents.length} Google Calendar events from ${targetDate}`);
 
-    // Fetch app events from target date onwards
+    // Fetch ALL app events from target date onwards (not just unsynced ones)
     const { data: appEvents, error } = await this.supabase
-      .from('events')
-      .select('*')
-      .eq('tenant_id', this.integration.tenant_id)
-      .gte('event_date', targetDate.split('T')[0])
-      .is('external_calendar_id', null);
+      .rpc('get_events_with_form_data', {
+        p_tenant_id: this.integration.tenant_id,
+        p_from_date: targetDate.split('T')[0]
+      });
 
     if (error) {
       throw new Error(`Failed to fetch app events: ${error.message}`);
     }
 
-    console.log(`📱 Found ${appEvents?.length || 0} app events without external_calendar_id`);
+    console.log(`📱 Found ${appEvents?.length || 0} app events from target date`);
 
     // Analyze potential matches and duplicates
     const matchedEvents: { googleEvent: GoogleCalendarEvent; appEvent: any }[] = [];
@@ -358,25 +357,83 @@ class CalendarReconciliationService {
   }
 
   private buildEventDescription(appEvent: any): string {
-    const parts = [];
+    return this.buildEnhancedDescription(appEvent);
+  }
+
+  private buildEnhancedDescription(appEvent: any): string {
+    const eventType = appEvent.event_type?.toLowerCase();
+    let description = '';
     
-    if (appEvent.event_type) {
-      parts.push(`Event Type: ${appEvent.event_type}`);
-    }
-    
+    // Primary contact information
     if (appEvent.primary_contact_name) {
-      parts.push(`Contact: ${appEvent.primary_contact_name}`);
+      description += `Primary Contact: ${appEvent.primary_contact_name}\n`;
     }
-    
     if (appEvent.primary_contact_number) {
-      parts.push(`Phone: ${appEvent.primary_contact_number}`);
+      description += `Primary Contact No.: ${appEvent.primary_contact_number}\n\n`;
+    }
+
+    // Handle different event types with form data
+    if (appEvent.event_forms && Array.isArray(appEvent.event_forms)) {
+      appEvent.event_forms.forEach((form: any) => {
+        const formLabel = form.form_label || '';
+        const formType = formLabel.toLowerCase();
+        const responses = form.form_responses || {};
+        
+        // Get time from form or default
+        const timeValue = form.start_time || 'Time TBD';
+        
+        description += `${formLabel} - ${timeValue}:\n`;
+        description += `Men Count: ${form.men_count || 0}\n`;
+        description += `Ladies Count: ${form.ladies_count || 0}\n\n`;
+        
+        // Add relevant fields based on form type
+        if (formType.includes('nikkah')) {
+          description += this.addFieldIfHasValue(responses, 'fd83900d-34c0-4528-be1a-db5096b61b47', 'Top Up Lamb');
+          description += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');  
+          description += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
+          description += this.addFieldIfHasValue(responses, 'f203decc-ee2c-4649-99b4-ad59171a8283', 'Pancake Station');
+        } else if (formType.includes('reception')) {
+          description += this.addFieldIfHasValue(responses, 'b04b8edb-9f3e-46cc-a327-593beae8d176', 'Starter');
+          description += this.addFieldIfHasValue(responses, '23a1a3ac-026f-4c14-93bf-18c8aaf7140c', 'Main Course');
+          description += this.addFieldIfHasValue(responses, '07ecac55-9caf-4676-9c6f-dad8209b1934', 'Dessert');
+          description += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');
+          description += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
+          description += this.addFieldIfHasValue(responses, 'c4153dba-f043-4df7-9f8c-e0cc0f55edfd', 'Dessert Table');
+          description += this.addFieldIfHasValue(responses, 'f203decc-ee2c-4649-99b4-ad59171a8283', 'Pancake Station');
+          description += this.addFieldIfHasValue(responses, '109c8e68-7ede-4b45-9c20-6025e9a25958', 'Welcome Drinks');
+        }
+        
+        description += '\n';
+      });
     }
     
-    if (appEvent.men_count || appEvent.ladies_count) {
-      parts.push(`Guests: ${(appEvent.men_count || 0) + (appEvent.ladies_count || 0)} (${appEvent.men_count || 0} men, ${appEvent.ladies_count || 0} ladies)`);
+    return description.trim();
+  }
+
+  private addFieldIfHasValue(responses: any, fieldId: string, fieldName: string): string {
+    const response = responses[fieldId];
+    if (!response) return '';
+    
+    const hasPrice = response.price && parseFloat(response.price) > 0;
+    const hasNotes = response.notes && response.notes.trim();
+    const isEnabled = response.enabled === true;
+    
+    // Only show if there's a price, notes, or it's enabled
+    if (!hasPrice && !hasNotes && !isEnabled) return '';
+    
+    let result = fieldName;
+    
+    // For toggle fields, show Yes/No
+    if (response.hasOwnProperty('enabled')) {
+      result += ` - ${isEnabled ? 'Yes' : 'No'}`;
     }
     
-    return parts.join('\n');
+    // Add notes if present
+    if (hasNotes) {
+      result += ` - ${response.notes.trim()}`;
+    }
+    
+    return result + '\n';
   }
 }
 

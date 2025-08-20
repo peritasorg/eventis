@@ -2923,6 +2923,10 @@ export type Database = {
         Args: { p_form_template_id: string; p_tenant_id: string }
         Returns: string
       }
+      delete_all_from_date: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: number
+      }
       email_has_used_trial: {
         Args: { email_address: string }
         Returns: boolean
@@ -2949,6 +2953,34 @@ export type Database = {
           parent_id: string
           session_order: number
           session_type: string
+        }[]
+      }
+      get_events_with_form_data: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: {
+          end_time: string
+          ethnicity: Json
+          event_date: string
+          event_end_date: string
+          event_forms: Json
+          event_type: string
+          external_calendar_id: string
+          id: string
+          ladies_count: number
+          men_count: number
+          primary_contact_name: string
+          primary_contact_number: string
+          secondary_contact_name: string
+          secondary_contact_number: string
+          start_time: string
+          title: string
+        }[]
+      }
+      get_field_mappings: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          field_id: string
+          field_name: string
         }[]
       }
       get_new_tenant_id: {

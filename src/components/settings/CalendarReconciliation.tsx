@@ -15,7 +15,8 @@ import {
   RefreshCw,
   Eye,
   Play,
-  BarChart3
+  BarChart3,
+  CalendarX
 } from 'lucide-react';
 
 interface ReconciliationAnalysis {
@@ -39,8 +40,9 @@ export const CalendarReconciliation = () => {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'analyze' | 'cleanup' | 'sync' | 'complete'>('analyze');
   const [progress, setProgress] = useState(0);
+  const [selectedDate, setSelectedDate] = useState('2025-08-01');
 
-  const targetDate = '2025-08-01T00:00:00Z';
+  const targetDate = `${selectedDate}T00:00:00Z`;
 
   const runAnalysis = async () => {
     setLoading(true);
@@ -147,6 +149,24 @@ export const CalendarReconciliation = () => {
     }
   };
 
+  const deleteAllFromDate = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('delete_all_from_date', {
+        p_from_date: selectedDate
+      });
+
+      if (error) throw error;
+
+      toast.success(`Cleared external calendar IDs from ${data} events`);
+      await loadStats();
+    } catch (error: any) {
+      toast.error(`Clear operation failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetReconciliation = () => {
     setAnalysis(null);
     setStats(null);
@@ -212,11 +232,40 @@ export const CalendarReconciliation = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Date Selection */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Target Date</label>
+              <input 
+                type="date" 
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="border rounded px-3 py-2"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Operations will affect events from this date onwards
+              </p>
+            </div>
+            
+            {/* Management Actions */}
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={deleteAllFromDate}
+                disabled={loading}
+                className="flex-1"
+              >
+                <CalendarX className="w-4 h-4 mr-2" />
+                Clear All External IDs
+              </Button>
+            </div>
+          </div>
+
           {/* Warning Alert */}
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              This process will delete Google Calendar events from August 2025 onwards and recreate them from your app. 
+              This process will delete Google Calendar events from the selected date onwards and recreate them from your app. 
               <strong> Always run in preview mode first!</strong>
             </AlertDescription>
           </Alert>
