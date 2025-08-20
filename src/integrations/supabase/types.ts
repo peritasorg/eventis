@@ -2949,7 +2949,6 @@ export type Database = {
           primary_contact_number: string
           start_time: string
           title: string
-          venue_location: string
         }[]
       }
       get_current_tenant_id: {

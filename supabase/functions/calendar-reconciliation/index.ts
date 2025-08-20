@@ -125,12 +125,21 @@ class CalendarReconciliationService {
     const errors: string[] = [];
     let deletedCount = 0;
 
-    // Delete in batches to respect API limits
-    const batchSize = 10;
-    for (let i = 0; i < googleEvents.length; i += batchSize) {
-      const batch = googleEvents.slice(i, i + batchSize);
+    // Filter out events that can't be deleted (like birthday events)
+    const deletableEvents = googleEvents.filter(event => {
+      // Skip birthday events and other restricted event types
+      return !event.summary?.toLowerCase().includes('birthday');
+    });
+
+    console.log(`📅 ${deletableEvents.length} events are deletable (filtered out ${googleEvents.length - deletableEvents.length} restricted events)`);
+
+    // Delete in smaller batches with longer delays to respect API limits
+    const batchSize = 5;
+    for (let i = 0; i < deletableEvents.length; i += batchSize) {
+      const batch = deletableEvents.slice(i, i + batchSize);
       
-      await Promise.all(batch.map(async (event) => {
+      // Process events sequentially within each batch to avoid rate limiting
+      for (const event of batch) {
         try {
           const response = await fetch(
             `https://www.googleapis.com/calendar/v3/calendars/${this.integration.calendar_id}/events/${event.id}`,
@@ -145,6 +154,28 @@ class CalendarReconciliationService {
           if (response.ok) {
             deletedCount++;
             console.log(`✅ Deleted: ${event.summary} (${event.id})`);
+          } else if (response.status === 403) {
+            // Rate limit hit, wait longer and retry once
+            console.log(`⚠️ Rate limit hit, waiting 5 seconds and retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            const retryResponse = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${this.integration.calendar_id}/events/${event.id}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                },
+              }
+            );
+
+            if (retryResponse.ok) {
+              deletedCount++;
+              console.log(`✅ Deleted after retry: ${event.summary} (${event.id})`);
+            } else {
+              const errorText = await retryResponse.text();
+              errors.push(`Failed to delete "${event.summary}" after retry: ${errorText}`);
+            }
           } else {
             const errorText = await response.text();
             errors.push(`Failed to delete "${event.summary}": ${errorText}`);
@@ -152,11 +183,15 @@ class CalendarReconciliationService {
         } catch (error) {
           errors.push(`Error deleting "${event.summary}": ${error.message}`);
         }
-      }));
 
-      // Rate limiting delay
-      if (i + batchSize < googleEvents.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Small delay between individual deletions
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // Longer delay between batches
+      if (i + batchSize < deletableEvents.length) {
+        console.log(`⏳ Processed batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(deletableEvents.length/batchSize)}, waiting 3 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
 
@@ -260,7 +295,7 @@ class CalendarReconciliationService {
         dateTime: endDateTime,
         timeZone: 'UTC',
       },
-      location: appEvent.venue_location || '',
+      location: '', // No venue location available from events table
     };
   }
 
