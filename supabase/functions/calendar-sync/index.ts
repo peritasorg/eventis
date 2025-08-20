@@ -245,6 +245,11 @@ class CalendarService {
       return await this.formatCustomAllDayEvent(eventData, startDateTime, endDateTime, timeZone);
     }
     
+    // Custom formatting for specific tenant and "nikkah" event type
+    if (tenantId === 'e2a03656-036e-4041-a24e-c06e85747906' && eventData.event_type === 'nikkah') {
+      return await this.formatCustomNikkahEvent(eventData, startDateTime, endDateTime, timeZone);
+    }
+    
     // Build comprehensive description with all event details (original logic)
     let description = `Event Type: ${eventData.event_type}\n`;
     
@@ -436,6 +441,53 @@ class CalendarService {
         
         description += '-----------------------------------------------------------------------------\n\n';
       });
+    }
+
+    return {
+      summary: eventData.event_name,
+      description: description.trim(),
+      start: { 
+        dateTime: startDateTime,
+        timeZone: timeZone
+      },
+      end: { 
+        dateTime: endDateTime,
+        timeZone: timeZone
+      },
+      location: eventData.venue_area,
+    };
+  }
+
+  private async formatCustomNikkahEvent(eventData: EventData, startDateTime: string, endDateTime: string, timeZone: string): Promise<CalendarEvent> {
+    let description = '';
+    
+    // Primary contact information
+    if (eventData.primary_contact_name) {
+      description += `Primary Contact: ${eventData.primary_contact_name}\n`;
+    }
+    if (eventData.primary_contact_number) {
+      description += `Primary Contact No.: ${eventData.primary_contact_number}\n\n`;
+    }
+
+    // Find the Nikkah form
+    const nikkahForm = eventData.event_forms?.find((form: any) => 
+      form.forms?.name?.toLowerCase().includes('nikkah')
+    );
+
+    if (nikkahForm) {
+      const timeValue = nikkahForm.start_time || '';
+      description += `Nikkah - ${timeValue}:\n`;
+      description += `Men Count: ${nikkahForm.men_count || 0}\n`;
+      description += `Ladies Count: ${nikkahForm.ladies_count || 0}\n\n`;
+
+      // Process form responses for Nikkah-specific conditional fields
+      const responses = nikkahForm.form_responses || {};
+      
+      // Add Nikkah specific fields - only show if they have price or notes
+      description += this.addFieldIfHasValue(responses, 'fd83900d-34c0-4528-be1a-db5096b61b47', 'Top Up Lamb');
+      description += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');
+      description += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
+      description += this.addFieldIfHasValue(responses, 'a37a44b9-133f-41c2-8814-82f764df901c', 'Pancake Station');
     }
 
     return {
