@@ -237,7 +237,25 @@ class CalendarService {
     // Default timezone - this should be configurable per tenant in future
     const timeZone = 'Europe/London';
     
-    // Build comprehensive description with all event details
+    // Get tenant ID for custom formatting logic
+    const tenantId = eventData.event_forms?.[0]?.tenant_id;
+    
+    // Custom formatting for specific tenant and "All Day" event type
+    if (tenantId === 'e2a03656-036e-4041-a24e-c06e85747906' && eventData.event_type === 'All Day') {
+      return await this.formatCustomAllDayEvent(eventData, startDateTime, endDateTime, timeZone);
+    }
+    
+    // Custom formatting for specific tenant and "nikkah" event type
+    if (tenantId === 'e2a03656-036e-4041-a24e-c06e85747906' && eventData.event_type === 'nikkah') {
+      return await this.formatCustomNikkahEvent(eventData, startDateTime, endDateTime, timeZone);
+    }
+    
+    // Custom formatting for specific tenant and "Reception" event type
+    if (tenantId === 'e2a03656-036e-4041-a24e-c06e85747906' && eventData.event_type === 'Reception') {
+      return await this.formatCustomReceptionEvent(eventData, startDateTime, endDateTime, timeZone);
+    }
+    
+    // Build comprehensive description with all event details (original logic)
     let description = `Event Type: ${eventData.event_type}\n`;
     
     // Display guest counts from forms if available
@@ -285,9 +303,6 @@ class CalendarService {
     // Enhanced form data extraction for multi-session events
     if (eventData.event_forms && eventData.event_forms.length > 0) {
       description += `\n--- Event Details ---\n`;
-      
-      // Get the tenant_id from the first form
-      const tenantId = eventData.event_forms[0]?.tenant_id;
       
       // Fetch form fields for label lookup
       const { data: formFields } = await this.supabase
@@ -371,6 +386,219 @@ class CalendarService {
       },
       location: eventData.venue_area,
     };
+  }
+
+  private async formatCustomAllDayEvent(eventData: EventData, startDateTime: string, endDateTime: string, timeZone: string): Promise<CalendarEvent> {
+    // Field ID mappings for the specific tenant
+    const fieldMappings = {
+      'fd83900d-34c0-4528-be1a-db5096b61b47': 'Top Up Lamb',
+      '382c484e-bf21-4af4-b7bf-78efebee8051': 'Fruit Basket',
+      '7dacae11-0e08-485a-a895-30fc2d294e79': 'Fruit Table',
+      'f203decc-ee2c-4649-99b4-ad59171a8283': 'Pancake Station',
+      'b04b8edb-9f3e-46cc-a327-593beae8d176': 'Starter',
+      '23a1a3ac-026f-4c14-93bf-18c8aaf7140c': 'Main Course',
+      '07ecac55-9caf-4676-9c6f-dad8209b1934': 'Dessert',
+      'c4153dba-f043-4df7-9f8c-e0cc0f55edfd': 'Dessert Table',
+      '109c8e68-7ede-4b45-9c20-6025e9a25958': 'Welcome Drinks'
+    };
+
+    let description = '';
+    
+    // Primary contact information
+    if (eventData.primary_contact_name) {
+      description += `Primary Contact: ${eventData.primary_contact_name}\n`;
+    }
+    if (eventData.primary_contact_number) {
+      description += `Primary Contact No.: ${eventData.primary_contact_number}\n\n`;
+    }
+
+    // Process each form (Nikkah and Reception)
+    if (eventData.event_forms && eventData.event_forms.length > 0) {
+      eventData.event_forms.forEach((form: any) => {
+        const formName = form.forms?.name || form.form_label || '';
+        const responses = form.form_responses || {};
+        
+        // Get time from form start_time or use default
+        const timeValue = form.start_time || 'Time TBD';
+        
+        description += `${formName} - ${timeValue}:\n`;
+        description += `Men Count: ${form.men_count || 0}\n`;
+        description += `Ladies Count: ${form.ladies_count || 0}\n\n`;
+        
+        // Process form fields based on form type
+        if (formName.toLowerCase().includes('nikkah')) {
+          // Nikkah specific fields
+          description += this.addFieldIfHasValue(responses, 'fd83900d-34c0-4528-be1a-db5096b61b47', 'Top Up Lamb');
+          description += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');
+          description += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
+          description += this.addFieldIfHasValue(responses, 'f203decc-ee2c-4649-99b4-ad59171a8283', 'Pancake Station');
+        } else if (formName.toLowerCase().includes('reception')) {
+          // Reception specific fields
+          description += this.addFieldIfHasValue(responses, 'b04b8edb-9f3e-46cc-a327-593beae8d176', 'Starter');
+          description += this.addFieldIfHasValue(responses, '23a1a3ac-026f-4c14-93bf-18c8aaf7140c', 'Main Course');
+          description += this.addFieldIfHasValue(responses, '07ecac55-9caf-4676-9c6f-dad8209b1934', 'Dessert');
+          description += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');
+          description += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
+          description += this.addFieldIfHasValue(responses, 'c4153dba-f043-4df7-9f8c-e0cc0f55edfd', 'Dessert Table');
+          description += this.addFieldIfHasValue(responses, 'f203decc-ee2c-4649-99b4-ad59171a8283', 'Pancake Station');
+          description += this.addFieldIfHasValue(responses, '109c8e68-7ede-4b45-9c20-6025e9a25958', 'Welcome Drinks');
+        }
+        
+        description += '-----------------------------------------------------------------------------\n\n';
+      });
+    }
+
+    return {
+      summary: eventData.event_name,
+      description: description.trim(),
+      start: { 
+        dateTime: startDateTime,
+        timeZone: timeZone
+      },
+      end: { 
+        dateTime: endDateTime,
+        timeZone: timeZone
+      },
+      location: eventData.venue_area,
+    };
+  }
+
+  private async formatCustomNikkahEvent(eventData: EventData, startDateTime: string, endDateTime: string, timeZone: string): Promise<CalendarEvent> {
+    let description = '';
+    
+    // Primary contact information
+    if (eventData.primary_contact_name) {
+      description += `Primary Contact: ${eventData.primary_contact_name}\n`;
+    }
+    if (eventData.primary_contact_number) {
+      description += `Primary Contact No.: ${eventData.primary_contact_number}\n\n`;
+    }
+
+    // Find the Nikkah form
+    const nikkahForm = eventData.event_forms?.find((form: any) => 
+      form.forms?.name?.toLowerCase().includes('nikkah')
+    );
+
+    if (nikkahForm) {
+      const timeValue = nikkahForm.start_time || '';
+      description += `Nikkah - ${timeValue}:\n`;
+      description += `Men Count: ${nikkahForm.men_count || 0}\n`;
+      description += `Ladies Count: ${nikkahForm.ladies_count || 0}\n\n`;
+
+      // Process form responses for Nikkah-specific conditional fields
+      const responses = nikkahForm.form_responses || {};
+      
+      // Add Nikkah specific fields - only show if they have price or notes
+      description += this.addFieldIfHasValue(responses, 'fd83900d-34c0-4528-be1a-db5096b61b47', 'Top Up Lamb');
+      description += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');
+      description += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
+      description += this.addFieldIfHasValue(responses, 'a37a44b9-133f-41c2-8814-82f764df901c', 'Pancake Station');
+    }
+
+    return {
+      summary: eventData.event_name,
+      description: description.trim(),
+      start: { 
+        dateTime: startDateTime,
+        timeZone: timeZone
+      },
+      end: { 
+        dateTime: endDateTime,
+        timeZone: timeZone
+      },
+      location: eventData.venue_area,
+    };
+  }
+
+  private async formatCustomReceptionEvent(eventData: EventData, startDateTime: string, endDateTime: string, timeZone: string): Promise<CalendarEvent> {
+    // Find the Reception form
+    const receptionForm = eventData.event_forms?.find((form: any) => 
+      form.forms?.name?.toLowerCase().includes('reception')
+    );
+
+    if (receptionForm) {
+      const timeValue = receptionForm.start_time || '';
+      let description = `Reception - ${timeValue}:\n`;
+      description += `Men Count: ${receptionForm.men_count || 0}\n`;
+      description += `Ladies Count: ${receptionForm.ladies_count || 0}\n\n`;
+
+      // Process form responses for Reception-specific conditional fields
+      const responses = receptionForm.form_responses || {};
+      
+      // Add Reception specific fields - only show if they have price or notes
+      description += this.addFieldIfHasValue(responses, 'b04b8edb-9f3e-46cc-a327-593beae8d176', 'Starter');
+      description += this.addFieldIfHasValue(responses, '23a1a3ac-026f-4c14-93bf-18c8aaf7140c', 'Main Course');
+      description += this.addFieldIfHasValue(responses, '07ecac55-9caf-4676-9c6f-dad8209b1934', 'Dessert');
+      description += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');
+      description += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
+      description += this.addFieldIfHasValue(responses, 'c4153dba-f043-4df7-9f8c-e0cc0f55edfd', 'Dessert Table');
+      description += this.addFieldIfHasValue(responses, 'a37a44b9-133f-41c2-8814-82f764df901c', 'Pancake Station');
+      description += this.addFieldIfHasValue(responses, '109c8e68-7ede-4b45-9c20-6025e9a25958', 'Welcome Drinks');
+
+      return {
+        summary: eventData.event_name,
+        description: description.trim(),
+        start: { 
+          dateTime: startDateTime,
+          timeZone: timeZone
+        },
+        end: { 
+          dateTime: endDateTime,
+          timeZone: timeZone
+        },
+        location: eventData.venue_area,
+      };
+    }
+
+    // Fallback if no Reception form found
+    return {
+      summary: eventData.event_name,
+      description: `Reception event: ${eventData.event_name}`,
+      start: { 
+        dateTime: startDateTime,
+        timeZone: timeZone
+      },
+      end: { 
+        dateTime: endDateTime,
+        timeZone: timeZone
+      },
+      location: eventData.venue_area,
+    };
+  }
+
+  private addFieldIfHasValue(responses: any, fieldId: string, fieldName: string): string {
+    const response = responses[fieldId];
+    if (!response) return '';
+    
+    // Check if field has value (price or notes)
+    const hasPrice = response.price && parseFloat(response.price) > 0;
+    const hasNotes = response.notes && response.notes.trim();
+    
+    if (!hasPrice && !hasNotes) return '';
+    
+    // Determine toggle value
+    let toggleValue = 'No';
+    if (response.enabled === true) {
+      toggleValue = 'Yes';
+    } else if (response.value && response.value.toString().toLowerCase() === 'yes') {
+      toggleValue = 'Yes';
+    }
+    
+    // For Starter, Main Course, Dessert fields - show notes only
+    if (['Starter', 'Main Course', 'Dessert'].includes(fieldName)) {
+      if (hasNotes) {
+        return `${fieldName} - ${response.notes}\n`;
+      }
+    } else {
+      // For toggle fields - show toggle value and notes
+      let fieldLine = `${fieldName} - ${toggleValue}`;
+      if (hasNotes) {
+        fieldLine += ` - ${response.notes}`;
+      }
+      return `${fieldLine}\n`;
+    }
+    
+    return '';
   }
 
   private async createGoogleEvent(event: CalendarEvent, accessToken: string) {

@@ -21,7 +21,7 @@ export const CustomerProfile: React.FC = () => {
       if (!customerId || !currentTenant?.id) return null;
       
       const { data, error } = await supabase
-        .from('new_customers')
+        .from('customers')
         .select('*')
         .eq('id', customerId)
         .eq('tenant_id', currentTenant.id)
@@ -39,7 +39,7 @@ export const CustomerProfile: React.FC = () => {
       if (!customerId || !currentTenant?.id) return [];
       
       const { data, error } = await supabase
-        .from('new_events')
+        .from('events')
         .select('*')
         .eq('customer_id', customerId)
         .eq('tenant_id', currentTenant.id)
@@ -81,7 +81,7 @@ export const CustomerProfile: React.FC = () => {
   }, {} as Record<string, any[]>) || {};
 
   // Calculate stats
-  const totalValue = events?.reduce((sum, event) => sum + (event.total_amount_gbp || 0), 0) || 0;
+  const totalValue = events?.reduce((sum, event) => sum + (event.form_total_gbp || 0) + (event.total_guest_price_gbp || 0), 0) || 0;
   const upcomingEvents = events?.filter(event => new Date(event.event_date) >= new Date()) || [];
   const completedEvents = events?.filter(event => event.status === 'completed') || [];
 
@@ -99,7 +99,7 @@ export const CustomerProfile: React.FC = () => {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">
-              {customer.first_name} {customer.last_name}
+              {customer.name}
             </h1>
             <p className="text-muted-foreground">Customer Profile</p>
           </div>
@@ -190,12 +190,14 @@ export const CustomerProfile: React.FC = () => {
               </div>
             )}
             
-            {(customer.address || customer.postcode) && (
+            {(customer.address_line1 || customer.postal_code) && (
               <div className="flex items-start gap-3">
                 <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <div className="text-sm">
-                  {customer.address && <div>{customer.address}</div>}
-                  {customer.postcode && <div>{customer.postcode}</div>}
+                  {customer.address_line1 && <div>{customer.address_line1}</div>}
+                  {customer.address_line2 && <div>{customer.address_line2}</div>}
+                  {customer.city && <div>{customer.city}</div>}
+                  {customer.postal_code && <div>{customer.postal_code}</div>}
                 </div>
               </div>
             )}
@@ -261,9 +263,9 @@ export const CustomerProfile: React.FC = () => {
                                   )}
                                 </div>
                               </div>
-                              {event.total_amount_gbp > 0 && (
+                              {((event.form_total_gbp || 0) + (event.total_guest_price_gbp || 0)) > 0 && (
                                 <div className="text-right">
-                                  <p className="font-medium">£{event.total_amount_gbp.toFixed(2)}</p>
+                                  <p className="font-medium">£{((event.form_total_gbp || 0) + (event.total_guest_price_gbp || 0)).toFixed(2)}</p>
                                 </div>
                               )}
                             </div>

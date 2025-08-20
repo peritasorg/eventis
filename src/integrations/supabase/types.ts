@@ -3030,7 +3030,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      lead_status: "new" | "in_progress" | "converted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3157,6 +3157,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      lead_status: ["new", "in_progress", "converted"],
+    },
   },
 } as const
