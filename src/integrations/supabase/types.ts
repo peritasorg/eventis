@@ -2936,14 +2936,12 @@ export type Database = {
         Returns: boolean
       }
       get_all_events_for_sync: {
-        Args: { p_from_date?: string; p_tenant_id: string }
+        Args: { p_from_date: string; p_tenant_id: string }
         Returns: {
           end_time: string
           event_date: string
           event_end_date: string
-          event_forms: Json
-          event_type: string
-          external_calendar_id: string
+          event_forms: Json[]
           id: string
           primary_contact_name: string
           primary_contact_number: string
