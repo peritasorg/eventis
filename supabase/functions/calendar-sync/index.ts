@@ -250,6 +250,11 @@ class CalendarService {
       return await this.formatCustomNikkahEvent(eventData, startDateTime, endDateTime, timeZone);
     }
     
+    // Custom formatting for specific tenant and "Reception" event type
+    if (tenantId === 'e2a03656-036e-4041-a24e-c06e85747906' && eventData.event_type === 'Reception') {
+      return await this.formatCustomReceptionEvent(eventData, startDateTime, endDateTime, timeZone);
+    }
+    
     // Build comprehensive description with all event details (original logic)
     let description = `Event Type: ${eventData.event_type}\n`;
     
@@ -493,6 +498,62 @@ class CalendarService {
     return {
       summary: eventData.event_name,
       description: description.trim(),
+      start: { 
+        dateTime: startDateTime,
+        timeZone: timeZone
+      },
+      end: { 
+        dateTime: endDateTime,
+        timeZone: timeZone
+      },
+      location: eventData.venue_area,
+    };
+  }
+
+  private async formatCustomReceptionEvent(eventData: EventData, startDateTime: string, endDateTime: string, timeZone: string): Promise<CalendarEvent> {
+    // Find the Reception form
+    const receptionForm = eventData.event_forms?.find((form: any) => 
+      form.forms?.name?.toLowerCase().includes('reception')
+    );
+
+    if (receptionForm) {
+      const timeValue = receptionForm.start_time || '';
+      let description = `Reception - ${timeValue}:\n`;
+      description += `Men Count: ${receptionForm.men_count || 0}\n`;
+      description += `Ladies Count: ${receptionForm.ladies_count || 0}\n\n`;
+
+      // Process form responses for Reception-specific conditional fields
+      const responses = receptionForm.form_responses || {};
+      
+      // Add Reception specific fields - only show if they have price or notes
+      description += this.addFieldIfHasValue(responses, 'b04b8edb-9f3e-46cc-a327-593beae8d176', 'Starter');
+      description += this.addFieldIfHasValue(responses, '23a1a3ac-026f-4c14-93bf-18c8aaf7140c', 'Main Course');
+      description += this.addFieldIfHasValue(responses, '07ecac55-9caf-4676-9c6f-dad8209b1934', 'Dessert');
+      description += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');
+      description += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
+      description += this.addFieldIfHasValue(responses, 'c4153dba-f043-4df7-9f8c-e0cc0f55edfd', 'Dessert Table');
+      description += this.addFieldIfHasValue(responses, 'a37a44b9-133f-41c2-8814-82f764df901c', 'Pancake Station');
+      description += this.addFieldIfHasValue(responses, '109c8e68-7ede-4b45-9c20-6025e9a25958', 'Welcome Drinks');
+
+      return {
+        summary: eventData.event_name,
+        description: description.trim(),
+        start: { 
+          dateTime: startDateTime,
+          timeZone: timeZone
+        },
+        end: { 
+          dateTime: endDateTime,
+          timeZone: timeZone
+        },
+        location: eventData.venue_area,
+      };
+    }
+
+    // Fallback if no Reception form found
+    return {
+      summary: eventData.event_name,
+      description: `Reception event: ${eventData.event_name}`,
       start: { 
         dateTime: startDateTime,
         timeZone: timeZone
