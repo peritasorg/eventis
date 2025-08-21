@@ -65,7 +65,10 @@ export const Leads = () => {
       
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select(`
+          *,
+          customers(id, lead_id)
+        `)
         .eq('tenant_id', currentTenant.id)
         .order('created_at', { ascending: false });
       
@@ -442,8 +445,8 @@ export const Leads = () => {
                   <TableHead>Lead</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Event Details</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Appointment</TableHead>
-                  
                   <TableHead>Date of Interest</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -500,6 +503,17 @@ export const Leads = () => {
                             {lead.men_count + lead.ladies_count} guests ({lead.guest_mixture})
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {lead.conversion_date || (lead as any).customers?.length > 0 ? (
+                          <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                            Converted
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            Active
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         {lead.appointment_date ? (
