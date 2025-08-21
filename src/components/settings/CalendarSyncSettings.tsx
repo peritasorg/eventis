@@ -32,14 +32,12 @@ export const CalendarSyncSettings = () => {
   }>>({});
   const [showPreview, setShowPreview] = useState(false);
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(false);
-  const [configsLoaded, setConfigsLoaded] = useState(false);
 
   // Load assigned forms when event type is selected
   const loadAssignedForms = useCallback(async () => {
     if (!selectedEventType || !eventTypes?.length) {
       setAssignedForms([]);
       setFormConfigs({});
-      setConfigsLoaded(false);
       return;
     }
 
@@ -51,38 +49,38 @@ export const CalendarSyncSettings = () => {
       const mappings = await getFormMappingsForEventType(eventTypeConfig.event_type);
       setAssignedForms(mappings);
       
-      // Only load existing configs if we haven't loaded them yet
-      if (!configsLoaded) {
-        const configs: Record<string, any> = {};
-        for (const mapping of mappings) {
-          if (mapping.forms?.id) {
-            const existingConfig = getConfigForEventType(selectedEventType, mapping.forms.id);
-            configs[mapping.forms.id] = {
-              selectedFields: existingConfig?.selected_fields || [],
-              showPricingFieldsOnly: existingConfig?.show_pricing_fields_only || false
-            };
-          }
+      // Load existing configurations for this event type
+      const newFormConfigs: Record<string, any> = {};
+      for (const mapping of mappings) {
+        if (mapping.forms?.id) {
+          const existingConfig = getConfigForEventType(selectedEventType, mapping.forms.id);
+          newFormConfigs[mapping.forms.id] = {
+            selectedFields: existingConfig?.selected_fields || [],
+            showPricingFieldsOnly: existingConfig?.show_pricing_fields_only || false
+          };
         }
-        setFormConfigs(configs);
-        setConfigsLoaded(true);
       }
+      setFormConfigs(newFormConfigs);
     } catch (error) {
       console.error('Error loading assigned forms:', error);
     } finally {
       setIsLoadingConfigs(false);
     }
-  }, [selectedEventType, eventTypes?.length, configsLoaded]);
+  }, [selectedEventType, eventTypes?.length, getConfigForEventType, getFormMappingsForEventType]);
 
-  // Load forms when event type is selected and we haven't loaded configs yet
+  // Load forms when event type is selected
   useEffect(() => {
-    if (selectedEventType && eventTypes?.length && !configsLoaded) {
+    if (selectedEventType && eventTypes?.length) {
       loadAssignedForms();
     }
-  }, [selectedEventType, eventTypes?.length, configsLoaded]);
+  }, [selectedEventType, eventTypes?.length, loadAssignedForms]);
 
-  // Reset configs when event type changes
+  // Reset configs when event type changes  
   useEffect(() => {
-    setConfigsLoaded(false);
+    if (!selectedEventType) {
+      setAssignedForms([]);
+      setFormConfigs({});
+    }
   }, [selectedEventType]);
 
   // Get form-specific fields based on assigned forms
@@ -131,20 +129,26 @@ export const CalendarSyncSettings = () => {
     if (!selectedEventType || assignedForms.length === 0) return;
 
     try {
-      // Save configuration for each assigned form
-      for (const mapping of assignedForms) {
-        if (mapping.forms?.id) {
+      // Save configuration for each assigned form that has selected fields
+      const savePromises = assignedForms
+        .filter(mapping => mapping.forms?.id && formConfigs[mapping.forms.id]?.selectedFields.length > 0)
+        .map(mapping => {
           const config = formConfigs[mapping.forms.id];
-          if (config) {
-            await saveConfig({
-              eventTypeConfigId: selectedEventType,
-              formId: mapping.forms.id,
-              selectedFields: config.selectedFields,
-              showPricingFieldsOnly: config.showPricingFieldsOnly
-            });
-          }
-        }
-      }
+          return saveConfig({
+            eventTypeConfigId: selectedEventType,
+            formId: mapping.forms.id,
+            selectedFields: config.selectedFields,
+            showPricingFieldsOnly: config.showPricingFieldsOnly
+          });
+        });
+
+      await Promise.all(savePromises);
+      
+      // Reload the configurations to refresh the Current Configurations section
+      setTimeout(() => {
+        loadAssignedForms();
+      }, 500);
+      
     } catch (error) {
       console.error('Error saving config:', error);
     }
@@ -335,16 +339,21 @@ export const CalendarSyncSettings = () => {
             <div className="space-y-2">
               {configs.map(config => {
                 const eventType = eventTypes?.find(et => et.id === config.event_type_config_id);
+                const formName = config.form?.name || `Form ${config.form_id?.slice(0, 8)}...`;
                 
                 return (
                   <div key={config.id} className="flex justify-between items-center p-3 border rounded">
                     <div>
                       <div className="font-medium">
-                        {eventType?.display_name} - Form ID: {config.form_id.slice(0, 8)}...
+                        {eventType?.display_name || 'Unknown Event Type'} - {formName}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {config.selected_fields.length} fields selected
+                        {config.selected_fields?.length || 0} fields selected
                         {config.show_pricing_fields_only && ' (Pricing fields only)'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Fields: {config.selected_fields?.slice(0, 3).join(', ')}
+                        {config.selected_fields?.length > 3 && '...'}
                       </div>
                     </div>
                     <Button 

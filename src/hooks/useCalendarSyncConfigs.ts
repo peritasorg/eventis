@@ -38,15 +38,36 @@ export const useCalendarSyncConfigs = () => {
       const { data, error } = await supabase
         .from('calendar_sync_configs')
         .select(`
-          *,
-          event_type_configs!inner(id, event_type, display_name),
-          forms!inner(id, name)
+          id,
+          tenant_id,
+          event_type_config_id,
+          form_id,
+          selected_fields,
+          show_pricing_fields_only,
+          field_display_format,
+          is_active,
+          created_at,
+          updated_at,
+          event_type_configs!event_type_config_id(id, event_type, display_name),
+          forms!form_id(id, name)
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('is_active', true);
 
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.error('Error fetching calendar sync configs:', error);
+        throw error;
+      }
+      
+      // Transform the data to flatten the nested objects
+      const transformedData = data?.map(config => ({
+        ...config,
+        event_type_config: config.event_type_configs,
+        form: config.forms
+      })) || [];
+      
+      console.log('Fetched configs:', transformedData);
+      return transformedData;
     }
   );
 
