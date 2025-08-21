@@ -63,9 +63,9 @@ export const GoogleCalendarIntegration = () => {
 
       if (error) throw error;
 
-      if (data.authorization_url) {
+      if (data.authUrl) {
         // Open OAuth URL in new window
-        window.open(data.authorization_url, 'google-oauth', 'width=500,height=600');
+        window.open(data.authUrl, 'google-oauth', 'width=500,height=600');
         
         // Poll for completion (in a real app, you'd use window messaging)
         const pollForConnection = setInterval(async () => {
