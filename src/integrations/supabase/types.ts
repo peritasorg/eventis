@@ -296,6 +296,45 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_sync_configs: {
+        Row: {
+          created_at: string
+          event_type_config_id: string
+          field_display_format: Json | null
+          form_id: string
+          id: string
+          is_active: boolean
+          selected_fields: string[]
+          show_pricing_fields_only: boolean
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_type_config_id: string
+          field_display_format?: Json | null
+          form_id: string
+          id?: string
+          is_active?: boolean
+          selected_fields?: string[]
+          show_pricing_fields_only?: boolean
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_type_config_id?: string
+          field_display_format?: Json | null
+          form_id?: string
+          id?: string
+          is_active?: boolean
+          selected_fields?: string[]
+          show_pricing_fields_only?: boolean
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       calendar_sync_logs: {
         Row: {
           created_at: string

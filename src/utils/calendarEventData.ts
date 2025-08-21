@@ -1,5 +1,15 @@
-// Centralized function to prepare calendar event data consistently
-import { EventForm } from '@/hooks/useEventForms';
+import { generateCalendarDescription } from './calendarDescriptionGenerator';
+
+interface EventForm {
+  id: string;
+  form_label: string;
+  start_time?: string;
+  end_time?: string;
+  men_count?: number;
+  ladies_count?: number;
+  form_responses: Record<string, any>;
+  form_id: string;
+}
 
 interface EventData {
   id: string;
@@ -27,11 +37,13 @@ interface Customer {
   phone?: string | null;
 }
 
-export const prepareCalendarEventData = (
+export async function prepareCalendarEventData(
   eventData: EventData,
   eventForms: EventForm[] = [],
-  selectedCustomer?: Customer | null
-) => {
+  selectedCustomer?: Customer | null,
+  tenantId?: string,
+  eventTypeConfigId?: string
+) {
   // PRIORITIZE FORM DATA: Calculate total guests from forms first, fallback to event
   const formTotalGuests = eventForms.reduce((sum, form) => 
     sum + (form.men_count || 0) + (form.ladies_count || 0), 0
@@ -96,6 +108,11 @@ export const prepareCalendarEventData = (
     phone: primaryContactNumber
   };
 
+  // Generate enhanced description using the new generator
+  const enhancedDescription = tenantId 
+    ? await generateCalendarDescription(eventData, eventForms, tenantId, eventTypeConfigId)
+    : `${eventData.title}\n${eventData.event_date ? new Date(eventData.event_date).toLocaleDateString('en-GB') : ''}`;
+
   return {
     id: eventData.id,
     event_name: eventData.title,
@@ -113,6 +130,7 @@ export const prepareCalendarEventData = (
     ethnicity: eventData.ethnicity,
     event_forms: eventForms,
     customers: customerData,
-    external_calendar_id: eventData.external_calendar_id
+    external_calendar_id: eventData.external_calendar_id,
+    description: enhancedDescription
   };
 };
