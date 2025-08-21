@@ -23,9 +23,11 @@ interface CalendarEvent {
 
 interface EventData {
   id: string;
-  title: string;
+  title?: string; // Keep for backward compatibility
+  event_name?: string; // New field name from frontend
   event_type: string;
-  event_date: string;
+  event_date?: string; // Keep for backward compatibility
+  event_start_date?: string; // Primary field from frontend
   event_end_date?: string;
   start_time: string;
   end_time: string;
@@ -38,6 +40,13 @@ interface EventData {
   ethnicity?: string[];
   event_forms?: any[];
   external_calendar_id?: string;
+  estimated_guests?: number;
+  total_guests?: number;
+  customers?: {
+    name: string;
+    email?: string;
+    phone?: string;
+  } | null;
 }
 
 class CalendarService {
@@ -204,18 +213,34 @@ class CalendarService {
   }
 
   private async formatEventForCalendar(eventData: EventData): Promise<CalendarEvent> {
-    const startDate = eventData.event_date;
-    const endDate = eventData.event_end_date || eventData.event_date;
+    // Support both field names for backward compatibility
+    const startDate = eventData.event_start_date || eventData.event_date;
+    const endDate = eventData.event_end_date || startDate;
     
-    const startDateTime = `${startDate}T${eventData.start_time}`;
-    const endDateTime = `${endDate}T${eventData.end_time}`;
+    if (!startDate) {
+      throw new Error('Missing event start date');
+    }
+    
+    // Ensure time format has seconds for ISO 8601 compliance
+    const startTime = eventData.start_time?.includes(':') ? 
+      (eventData.start_time.length === 5 ? `${eventData.start_time}:00` : eventData.start_time) : 
+      '09:00:00';
+    const endTime = eventData.end_time?.includes(':') ? 
+      (eventData.end_time.length === 5 ? `${eventData.end_time}:00` : eventData.end_time) : 
+      '17:00:00';
+    
+    const startDateTime = `${startDate}T${startTime}`;
+    const endDateTime = `${endDate}T${endTime}`;
     const timeZone = 'Europe/London';
     
     // Build enhanced description
     const description = this.buildEnhancedDescription(eventData);
 
+    // Use event_name (from frontend) or fallback to title
+    const eventTitle = eventData.event_name || eventData.title || 'Untitled Event';
+
     return {
-      summary: eventData.title,
+      summary: eventTitle,
       description,
       start: { 
         dateTime: startDateTime,
