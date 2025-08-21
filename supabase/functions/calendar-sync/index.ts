@@ -42,6 +42,7 @@ interface EventData {
   external_calendar_id?: string;
   estimated_guests?: number;
   total_guests?: number;
+  description?: string; // Add description field for enhanced descriptions
   customers?: {
     name: string;
     email?: string;
@@ -233,7 +234,7 @@ class CalendarService {
     const endDateTime = `${endDate}T${endTime}`;
     const timeZone = 'Europe/London';
     
-    // Build enhanced description
+    // Build enhanced description - use description from eventData if available
     const description = this.buildEnhancedDescription(eventData);
 
     // Use event_name (from frontend) or fallback to title
@@ -254,7 +255,12 @@ class CalendarService {
   }
 
   private buildEnhancedDescription(eventData: EventData): string {
-    const eventType = eventData.event_type?.toLowerCase();
+    // Use the description from the frontend if available (it uses dynamic calendar sync configs)
+    if (eventData.description && eventData.description.trim()) {
+      return eventData.description.trim();
+    }
+
+    // Fallback to basic description if no enhanced description provided
     let description = '';
     
     // Primary contact information
@@ -265,127 +271,26 @@ class CalendarService {
       description += `Primary Contact No.: ${eventData.primary_contact_number}\n\n`;
     }
 
-    // Handle different event types with form data
+    // Basic form information fallback
     if (eventData.event_forms && Array.isArray(eventData.event_forms)) {
-      if (eventType === 'all day') {
-        // For All Day events, show both Nikkah and Reception forms
-        description += this.formatAllDayEvent(eventData.event_forms);
-      } else {
-        // For single event types
-        eventData.event_forms.forEach((form: any) => {
-          description += this.formatSingleEventForm(form);
-        });
-      }
-    } else {
-      // Fallback for events without form data
-      if (eventData.men_count || eventData.ladies_count) {
-        description += `${eventType} - Time TBD:\n`;
-        description += `Men Count: ${eventData.men_count || 0}\n`;
-        description += `Ladies Count: ${eventData.ladies_count || 0}\n`;
-      }
+      eventData.event_forms.forEach((form: any) => {
+        const formLabel = form.form_label || '';
+        const timeValue = form.start_time || 'Time TBD';
+        
+        description += `${formLabel} - ${timeValue}:\n`;
+        description += `Men Count: ${form.men_count || 0}\n`;
+        description += `Ladies Count: ${form.ladies_count || 0}\n\n`;
+      });
+    } else if (eventData.men_count || eventData.ladies_count) {
+      const eventType = eventData.event_type || 'Event';
+      description += `${eventType} - Time TBD:\n`;
+      description += `Men Count: ${eventData.men_count || 0}\n`;
+      description += `Ladies Count: ${eventData.ladies_count || 0}\n`;
     }
     
     return description.trim();
   }
 
-  private formatAllDayEvent(eventForms: any[]): string {
-    let description = '';
-    
-    eventForms.forEach((form: any, index: number) => {
-      const formLabel = form.form_label || '';
-      const formType = formLabel.toLowerCase();
-      const responses = form.form_responses || {};
-      
-      // Get time from form or default
-      const timeValue = form.start_time || 'Time TBD';
-      
-      description += `${formLabel} - ${timeValue}:\n`;
-      description += `Men Count: ${form.men_count || 0}\n`;
-      description += `Ladies Count: ${form.ladies_count || 0}\n\n`;
-      
-      // Add relevant fields based on form type
-      if (formType.includes('nikkah')) {
-        description += this.addNikkahFields(responses);
-      } else if (formType.includes('reception')) {
-        description += this.addReceptionFields(responses);
-      }
-      
-      // Add separator between forms (except last one)
-      if (index < eventForms.length - 1) {
-        description += '------------------------------------------------------------\n\n';
-      }
-    });
-    
-    return description;
-  }
-
-  private formatSingleEventForm(form: any): string {
-    const formLabel = form.form_label || '';
-    const formType = formLabel.toLowerCase();
-    const responses = form.form_responses || {};
-    
-    const timeValue = form.start_time || 'Time TBD';
-    
-    let description = `${formLabel} - ${timeValue}:\n`;
-    description += `Men Count: ${form.men_count || 0}\n`;
-    description += `Ladies Count: ${form.ladies_count || 0}\n\n`;
-    
-    if (formType.includes('nikkah')) {
-      description += this.addNikkahFields(responses);
-    } else if (formType.includes('reception')) {
-      description += this.addReceptionFields(responses);
-    }
-    
-    return description;
-  }
-
-  private addNikkahFields(responses: any): string {
-    let fields = '';
-    fields += this.addFieldIfHasValue(responses, 'fd83900d-34c0-4528-be1a-db5096b61b47', 'Top Up Lamb');
-    fields += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');  
-    fields += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
-    fields += this.addFieldIfHasValue(responses, 'f203decc-ee2c-4649-99b4-ad59171a8283', 'Pancake Station');
-    return fields;
-  }
-
-  private addReceptionFields(responses: any): string {
-    let fields = '';
-    fields += this.addFieldIfHasValue(responses, 'b04b8edb-9f3e-46cc-a327-593beae8d176', 'Starter');
-    fields += this.addFieldIfHasValue(responses, '23a1a3ac-026f-4c14-93bf-18c8aaf7140c', 'Main Course');
-    fields += this.addFieldIfHasValue(responses, '07ecac55-9caf-4676-9c6f-dad8209b1934', 'Dessert');
-    fields += this.addFieldIfHasValue(responses, '382c484e-bf21-4af4-b7bf-78efebee8051', 'Fruit Basket');
-    fields += this.addFieldIfHasValue(responses, '7dacae11-0e08-485a-a895-30fc2d294e79', 'Fruit Table');
-    fields += this.addFieldIfHasValue(responses, 'c4153dba-f043-4df7-9f8c-e0cc0f55edfd', 'Dessert Table');
-    fields += this.addFieldIfHasValue(responses, 'f203decc-ee2c-4649-99b4-ad59171a8283', 'Pancake Station');
-    fields += this.addFieldIfHasValue(responses, '109c8e68-7ede-4b45-9c20-6025e9a25958', 'Welcome Drinks');
-    return fields;
-  }
-
-  private addFieldIfHasValue(responses: any, fieldId: string, fieldName: string): string {
-    const response = responses[fieldId];
-    if (!response) return '';
-    
-    const hasPrice = response.price && parseFloat(response.price) > 0;
-    const hasNotes = response.notes && response.notes.trim();
-    const isEnabled = response.enabled === true;
-    
-    // Only show if there's a price, notes, or it's enabled
-    if (!hasPrice && !hasNotes && !isEnabled) return '';
-    
-    let result = fieldName;
-    
-    // For toggle fields, show Yes/No
-    if (response.hasOwnProperty('enabled')) {
-      result += ` - ${isEnabled ? 'Yes' : 'No'}`;
-    }
-    
-    // Add notes if present
-    if (hasNotes) {
-      result += ` - ${response.notes.trim()}`;
-    }
-    
-    return result + '\n';
-  }
 
   private async createGoogleEvent(calendarEvent: CalendarEvent, accessToken: string) {
     const response = await fetch(

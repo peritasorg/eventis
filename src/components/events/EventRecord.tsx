@@ -201,11 +201,13 @@ export const EventRecord: React.FC = () => {
                            savedData.ethnicity)) {
             const currentEventData = { ...eventData, ...savedData };
             
-            // Use centralized calendar event data preparation
+            // Use centralized calendar event data preparation with tenant and event type
             const calendarEventData = await prepareCalendarEventData(
               currentEventData,
               eventForms,
-              selectedCustomer || null
+              selectedCustomer || null,
+              currentTenant.id,
+              currentEventData.event_type // Pass event type for config lookup
             );
             
              // Auto-sync with user feedback for important changes

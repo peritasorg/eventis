@@ -118,6 +118,7 @@ export async function prepareCalendarEventData(
     event_name: eventData.title,
     event_start_date: eventData.event_date || '',
     event_end_date: eventData.event_end_date || eventData.event_date || '',
+    description: enhancedDescription, // Add the enhanced description
     start_time: startTime || '09:00',
     end_time: endTime || '17:00',
     event_type: eventData.event_type || '',
@@ -130,7 +131,6 @@ export async function prepareCalendarEventData(
     ethnicity: eventData.ethnicity,
     event_forms: eventForms,
     customers: customerData,
-    external_calendar_id: eventData.external_calendar_id,
-    description: enhancedDescription
+    external_calendar_id: eventData.external_calendar_id
   };
 };

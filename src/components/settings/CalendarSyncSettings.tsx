@@ -213,9 +213,6 @@ export const CalendarSyncSettings = () => {
           } else {
             preview += `${field.name} - [Notes]`;
           }
-          if (config?.showPricingFieldsOnly) {
-            preview += ` !!ONLY SHOW IF THERE IS A PRICE or NOTES value!!`;
-          }
           preview += '\n';
         }
       });

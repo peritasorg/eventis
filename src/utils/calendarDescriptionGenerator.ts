@@ -38,8 +38,23 @@ export async function generateCalendarDescription(
   eventData: EventData,
   eventForms: EventForm[],
   tenantId: string,
-  eventTypeConfigId?: string
+  eventTypeOrConfigId?: string
 ): Promise<string> {
+  // If eventTypeOrConfigId is not a UUID, we need to find the event_type_config_id
+  let eventTypeConfigId = eventTypeOrConfigId;
+  
+  if (eventTypeOrConfigId && !isUUID(eventTypeOrConfigId)) {
+    // It's an event_type string, need to find the config ID
+    const { data: eventTypeConfig } = await supabase
+      .from('event_type_configs')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('event_type', eventTypeOrConfigId)
+      .eq('is_active', true)
+      .single();
+    
+    eventTypeConfigId = eventTypeConfig?.id;
+  }
   let description = `${eventData.title}\n`;
   
   // Add date and time
@@ -219,6 +234,12 @@ function formatTime(timeStr: string): string {
   } catch {
     return timeStr;
   }
+}
+
+// Helper function to check if a string is a UUID
+function isUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
 }
 
 function isSystemField(fieldName: string): boolean {
