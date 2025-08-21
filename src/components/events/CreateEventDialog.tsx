@@ -151,7 +151,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
 
       // Sync to calendar (this is a new event, so isNewEvent = true)
       try {
-        await autoSyncEvent(calendarEventData, true, true);
+        await autoSyncEvent(calendarEventData, true);
       } catch (syncError) {
         console.error('Calendar sync error:', syncError);
         // Don't fail event creation if calendar sync fails

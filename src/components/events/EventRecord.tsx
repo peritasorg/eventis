@@ -210,7 +210,7 @@ export const EventRecord: React.FC = () => {
             
              // Auto-sync with user feedback for important changes
              try {
-               await autoSyncEvent(calendarEventData, !currentEventData.external_calendar_id, true);
+               await autoSyncEvent(calendarEventData, true);
              } catch (syncError) {
                console.error('Auto calendar sync failed:', syncError);
              }

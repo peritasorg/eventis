@@ -140,9 +140,24 @@ export const useCalendarAutoSync = () => {
         }
       }
 
-      // For successful update operations, also ensure the external ID is stored if missing
-      if (action === 'update' && data?.success && data?.data?.success && !eventData.external_calendar_id) {
-        console.log('Update succeeded but no external ID stored, this should not happen');
+      // For successful update operations, ensure the external ID is stored if somehow missing
+      if (action === 'update' && data?.success && data?.data?.success && data?.data?.externalId && !eventData.external_calendar_id) {
+        console.log('Update succeeded, storing external calendar ID that was missing:', data.data.externalId);
+        try {
+          const { error: updateError } = await supabase
+            .from('events')
+            .update({ external_calendar_id: data.data.externalId })
+            .eq('id', eventData.id)
+            .eq('tenant_id', currentTenant.id);
+          
+          if (updateError) {
+            console.error('Error updating external calendar ID on update:', updateError);
+          } else {
+            console.log('Successfully stored external calendar ID on update');
+          }
+        } catch (updateError) {
+          console.error('Error updating external calendar ID on update:', updateError);
+        }
       }
 
       return { success: true, externalId: data?.data?.externalId };
@@ -154,12 +169,11 @@ export const useCalendarAutoSync = () => {
 
   const autoSyncEvent = async (
     eventData: CalendarEventData,
-    isNewEvent: boolean = false,
     showToasts: boolean = true
   ) => {
     try {
-      // Determine action based on whether this is a new event or update
-      const action = isNewEvent ? 'create' : 'update';
+      // Determine action based on external_calendar_id - bulletproof logic
+      const action = eventData.external_calendar_id ? 'update' : 'create';
       
       const result = await syncEventToCalendar(eventData, action);
       

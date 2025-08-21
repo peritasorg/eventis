@@ -402,7 +402,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
             null
           );
 
-          await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
+          await autoSyncEvent(calendarEventData, false);
         }
       } catch (syncError) {
         console.error('Calendar sync failed after form save:', syncError);
@@ -525,7 +525,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
             null
           );
 
-          await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
+          await autoSyncEvent(calendarEventData, false);
         }
       } catch (syncError) {
         console.error('Calendar sync failed after time change:', syncError);
@@ -625,7 +625,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
               null
             );
 
-            await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
+            await autoSyncEvent(calendarEventData, false);
           }
         } catch (syncError) {
           console.error('Calendar sync failed after guest update:', syncError);
