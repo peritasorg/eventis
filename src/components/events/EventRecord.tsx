@@ -78,7 +78,7 @@ export const EventRecord: React.FC = () => {
    const { data: eventTypeConfigs } = useEventTypeConfigs();
    
    // Calendar auto-sync hook
-   const { autoSyncEvent } = useCalendarAutoSync();
+   const { autoSyncEvent, syncEventToCalendar } = useCalendarAutoSync();
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -443,22 +443,20 @@ export const EventRecord: React.FC = () => {
     try {
       setIsSyncing(true);
       
-      const { data: integration, error: integrationError } = await supabase
-        .from('calendar_integrations')
-        .select('id, provider, calendar_id, is_active')
+      // Refresh event data from database to get latest external_calendar_id
+      const { data: freshEventData, error: fetchError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventData.id)
         .eq('tenant_id', currentTenant.id)
-        .eq('is_active', true)
         .single();
-
-      if (integrationError || !integration) {
-        toast.error('No active calendar integration found. Please configure calendar sync in settings.');
-        return;
-      }
+      
+      if (fetchError) throw fetchError;
 
       // Enhanced validation for multi-session events
-      let startTime = eventData.start_time;
-      let endTime = eventData.end_time;
-      let eventEndDate = eventData.event_end_date || eventData.event_date;
+      let startTime = freshEventData.start_time;
+      let endTime = freshEventData.end_time;
+      let eventEndDate = freshEventData.event_end_date || freshEventData.event_date;
 
       // Check for "All Day" multi-session events that lack start/end times
       if (!startTime || !endTime) {
@@ -487,78 +485,68 @@ export const EventRecord: React.FC = () => {
         console.log('Extracted times from forms:', { startTime, endTime, formsCount: formsWithTimes.length });
       }
 
-      if (!eventData.event_date || !startTime || !eventData.title) {
+      if (!freshEventData.event_date || !startTime || !freshEventData.title) {
         toast.error('Event must have a name, date, and time to sync to calendar');
         return;
       }
 
-      // Use the eventForms data that's already loaded for comprehensive form data
-      const allEventForms = eventForms;
-
-      // Use centralized calendar event data preparation
+      // Use centralized calendar event data preparation with fresh data
       const calendarEventData = prepareCalendarEventData(
         {
-          id: eventData.id,
-          title: eventData.title,
-          event_date: eventData.event_date,
+          id: freshEventData.id,
+          title: freshEventData.title,
+          event_date: freshEventData.event_date,
           event_end_date: eventEndDate,
           start_time: startTime,
           end_time: endTime,
-          event_type: eventData.event_type,
-          primary_contact_name: eventData.primary_contact_name,
-          primary_contact_number: eventData.primary_contact_number,
-          secondary_contact_name: eventData.secondary_contact_name,
-          secondary_contact_number: eventData.secondary_contact_number,
-          ethnicity: eventData.ethnicity,
-          men_count: eventData.men_count,
-          ladies_count: eventData.ladies_count,
-          external_calendar_id: eventData.external_calendar_id
+          event_type: freshEventData.event_type,
+          primary_contact_name: freshEventData.primary_contact_name,
+          primary_contact_number: freshEventData.primary_contact_number,
+          secondary_contact_name: freshEventData.secondary_contact_name,
+          secondary_contact_number: freshEventData.secondary_contact_number,
+          ethnicity: Array.isArray(freshEventData.ethnicity) ? (freshEventData.ethnicity as string[]) : freshEventData.ethnicity ? [(freshEventData.ethnicity as string)] : [],
+          men_count: freshEventData.men_count,
+          ladies_count: freshEventData.ladies_count,
+          external_calendar_id: freshEventData.external_calendar_id, // Use fresh external_calendar_id
         },
-        allEventForms,
+        eventForms,
         selectedCustomer || null
       );
-      
-      // FIXED: Check if event has external calendar ID to update vs create
-      const action = eventData.external_calendar_id ? 'update' : 'create';
-      
-      const requestBody: any = {
-        action,
-        eventId: eventData.id,
-        integrationId: integration.id,
-        eventData: calendarEventData
-      };
-      
-      // Include external event ID for updates
-      if (action === 'update') {
-        requestBody.externalId = eventData.external_calendar_id;
+
+      // Determine if this should be an update or create based on external_calendar_id
+      const action = freshEventData.external_calendar_id ? 'update' : 'create';
+      console.log(`Manual sync: ${action} action, external_calendar_id: ${freshEventData.external_calendar_id}`);
+
+      // Use the calendar auto-sync hook for consistency
+      const result = await syncEventToCalendar(calendarEventData, action);
+
+      if (!result.success) {
+        throw new Error(result.reason || 'Calendar sync failed');
       }
-      
-      const { data, error } = await supabase.functions.invoke('calendar-sync', {
-        body: requestBody
+
+      // Update local state with fresh data and external ID if returned
+      setEventData(prev => {
+        if (!prev) return prev;
+        return { 
+          ...prev, 
+          title: freshEventData.title,
+          event_date: freshEventData.event_date,
+          event_end_date: freshEventData.event_end_date,
+          start_time: freshEventData.start_time,
+          end_time: freshEventData.end_time,
+          event_type: freshEventData.event_type,
+          primary_contact_name: freshEventData.primary_contact_name,
+          primary_contact_number: freshEventData.primary_contact_number,
+          secondary_contact_name: freshEventData.secondary_contact_name,
+          secondary_contact_number: freshEventData.secondary_contact_number,
+          ethnicity: Array.isArray(freshEventData.ethnicity) ? (freshEventData.ethnicity as string[]) : freshEventData.ethnicity ? [(freshEventData.ethnicity as string)] : [],
+          men_count: freshEventData.men_count,
+          ladies_count: freshEventData.ladies_count,
+          external_calendar_id: result.externalId || freshEventData.external_calendar_id 
+        };
       });
-
-      if (error) {
-        console.error('Calendar sync error:', error);
-        throw new Error(error.message || 'Calendar sync failed');
-      }
-
-      // Update database with external calendar ID if sync was successful and we got one back
-      if (data?.data?.externalId && (!eventData.external_calendar_id || action === 'create')) {
-        try {
-          await supabase
-            .from('events')
-            .update({ external_calendar_id: data.data.externalId })
-            .eq('id', eventData.id)
-            .eq('tenant_id', currentTenant.id);
-          
-          // Update local state
-          setEventData(prev => prev ? { ...prev, external_calendar_id: data.data.externalId } : prev);
-        } catch (updateError) {
-          console.error('Failed to update external calendar ID:', updateError);
-        }
-      }
       
-      toast.success('Event synced to calendar successfully');
+      toast.success(`Event ${action === 'create' ? 'created in' : 'updated in'} calendar successfully`);
     } catch (error) {
       console.error('Error syncing to calendar:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to sync to calendar');
