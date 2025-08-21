@@ -218,6 +218,15 @@ export const Leads = () => {
     
     setIsLoading(true);
     try {
+      // First, update any customers that reference these leads to set lead_id to null
+      const { error: updateError } = await supabase
+        .from('customers')
+        .update({ lead_id: null })
+        .in('lead_id', selectedLeadIds);
+
+      if (updateError) throw updateError;
+
+      // Now delete the leads
       const { error } = await supabase
         .from('leads')
         .delete()
@@ -240,6 +249,15 @@ export const Leads = () => {
   const handleSingleDelete = async (leadId: string) => {
     setIsLoading(true);
     try {
+      // First, update any customers that reference this lead to set lead_id to null
+      const { error: updateError } = await supabase
+        .from('customers')
+        .update({ lead_id: null })
+        .eq('lead_id', leadId);
+
+      if (updateError) throw updateError;
+
+      // Now delete the lead
       const { error } = await supabase
         .from('leads')
         .delete()
