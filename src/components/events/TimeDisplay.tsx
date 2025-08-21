@@ -124,9 +124,8 @@ export const TimeDisplay: React.FC<TimeDisplayProps> = ({
         <Label></Label> {/* Empty label for alignment */}
         <Button
           variant={manualEntryEnabled ? "secondary" : "outline"}
-          size="sm"
           onClick={() => setManualEntryEnabled(!manualEntryEnabled)}
-          className="w-full"
+          className="w-full h-10"
         >
           {manualEntryEnabled ? "Use Form Times" : "Enter Manually"}
         </Button>
