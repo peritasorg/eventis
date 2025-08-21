@@ -141,7 +141,28 @@ export const Leads = () => {
     try {
       const selectedLeads = leads.filter(lead => selectedLeadIds.includes(lead.id));
       
+      let convertedCount = 0;
+      let alreadyConvertedCount = 0;
+      
       for (const lead of selectedLeads) {
+        // Check if already converted
+        if (lead.conversion_date) {
+          alreadyConvertedCount++;
+          continue;
+        }
+
+        // Check if customer already exists
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('lead_id', lead.id)
+          .eq('tenant_id', currentTenant?.id);
+
+        if (existingCustomer && existingCustomer.length > 0) {
+          alreadyConvertedCount++;
+          continue;
+        }
+
         // Create customer
         const { data: customer, error: customerError } = await supabase
           .from('customers')
@@ -169,9 +190,18 @@ export const Leads = () => {
           .eq('id', lead.id);
 
         if (leadError) throw leadError;
+        
+        convertedCount++;
       }
 
-      toast.success(`Successfully converted ${selectedLeadIds.length} lead(s) to customers`);
+      if (convertedCount > 0 && alreadyConvertedCount > 0) {
+        toast.success(`Successfully converted ${convertedCount} lead(s). ${alreadyConvertedCount} lead(s) were already converted.`);
+      } else if (convertedCount > 0) {
+        toast.success(`Successfully converted ${convertedCount} lead(s) to customers`);
+      } else {
+        toast.error('All selected leads have already been converted to customers.');
+      }
+      
       setSelectedLeadIds([]);
       setIsAllSelected(false);
       refetch();
@@ -188,34 +218,14 @@ export const Leads = () => {
     
     setIsLoading(true);
     try {
-      // Check if any of the selected leads have linked customers
-      const { data: linkedCustomers, error: checkError } = await supabase
-        .from('customers')
-        .select('lead_id')
-        .in('lead_id', selectedLeadIds);
-
-      if (checkError) throw checkError;
-
-      const leadsWithCustomers = linkedCustomers?.map(c => c.lead_id) || [];
-      const leadsToDelete = selectedLeadIds.filter(id => !leadsWithCustomers.includes(id));
-
-      if (leadsWithCustomers.length > 0) {
-        toast.error(`Cannot delete ${leadsWithCustomers.length} lead(s) that have been converted to customers. Only deleting unconverted leads.`);
-      }
-
-      if (leadsToDelete.length === 0) {
-        toast.error('No leads can be deleted. All selected leads have been converted to customers.');
-        return;
-      }
-
       const { error } = await supabase
         .from('leads')
         .delete()
-        .in('id', leadsToDelete);
+        .in('id', selectedLeadIds);
 
       if (error) throw error;
 
-      toast.success(`Successfully deleted ${leadsToDelete.length} lead(s)`);
+      toast.success(`Successfully deleted ${selectedLeadIds.length} lead(s)`);
       setSelectedLeadIds([]);
       setIsAllSelected(false);
       refetch();
@@ -230,21 +240,6 @@ export const Leads = () => {
   const handleSingleDelete = async (leadId: string) => {
     setIsLoading(true);
     try {
-      // First check if there are customers linked to this lead
-      const { data: linkedCustomers, error: checkError } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('lead_id', leadId);
-
-      if (checkError) throw checkError;
-
-      if (linkedCustomers && linkedCustomers.length > 0) {
-        // If there are linked customers, show a more specific error
-        toast.error('Cannot delete lead: This lead has been converted to a customer. You can only delete leads that haven\'t been converted yet.');
-        return;
-      }
-
-      // If no linked customers, proceed with deletion
       const { error } = await supabase
         .from('leads')
         .delete()
@@ -566,29 +561,27 @@ export const Leads = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          {!(lead.conversion_date || (lead as any).customers?.length > 0) && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="outline">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Lead</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this lead? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleSingleDelete(lead.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="outline">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this lead? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleSingleDelete(lead.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>

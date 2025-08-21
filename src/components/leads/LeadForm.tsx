@@ -132,6 +132,26 @@ export const LeadForm: React.FC<LeadFormProps> = ({
 
     setIsLoading(true);
     try {
+      // Check if this lead has already been converted
+      if (leadData.conversion_date) {
+        toast.error('This lead has already been converted to a customer.');
+        return;
+      }
+
+      // Check if a customer already exists for this lead
+      const { data: existingCustomer, error: checkError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('lead_id', leadData.id)
+        .eq('tenant_id', currentTenant.id);
+
+      if (checkError) throw checkError;
+
+      if (existingCustomer && existingCustomer.length > 0) {
+        toast.error('This lead has already been converted to a customer.');
+        return;
+      }
+
       // Create customer record with comprehensive data mapping
       const customerData = {
         tenant_id: currentTenant.id,
