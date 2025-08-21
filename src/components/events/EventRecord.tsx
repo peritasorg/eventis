@@ -151,7 +151,8 @@ export const EventRecord: React.FC = () => {
       const { data: convertedCustomers, error: convertedError } = await supabase
         .from('customers')
         .select('id, name, email, phone')
-        .eq('tenant_id', currentTenant.id);
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true);
       
       if (convertedError) throw convertedError;
       
