@@ -98,18 +98,24 @@ export const useCalendarSyncConfigs = () => {
     }) => {
       if (!currentTenant?.id) throw new Error('No tenant');
 
-      // Use upsert to handle existing configs
+      // First delete existing config for this event type and form
+      await supabase
+        .from('calendar_sync_configs')
+        .delete()
+        .eq('tenant_id', currentTenant.id)
+        .eq('event_type_config_id', eventTypeConfigId)
+        .eq('form_id', formId);
+
+      // Then insert new config
       const { data, error } = await supabase
         .from('calendar_sync_configs')
-        .upsert({
+        .insert({
           tenant_id: currentTenant.id,
           event_type_config_id: eventTypeConfigId,
           form_id: formId,
           selected_fields: selectedFields,
           show_pricing_fields_only: showPricingFieldsOnly,
           is_active: true
-        }, {
-          onConflict: 'tenant_id,event_type_config_id,form_id'
         })
         .select()
         .single();
