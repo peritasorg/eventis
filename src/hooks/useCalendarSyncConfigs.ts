@@ -125,7 +125,7 @@ export const useCalendarSyncConfigs = () => {
     },
     {
       successMessage: 'Calendar sync configuration saved',
-      invalidateQueries: [['calendar-sync-configs']]
+      invalidateQueries: [['calendar-sync-configs', currentTenant?.id]]
     }
   );
 
@@ -140,7 +140,7 @@ export const useCalendarSyncConfigs = () => {
     },
     {
       successMessage: 'Configuration deleted',
-      invalidateQueries: [['calendar-sync-configs']]
+      invalidateQueries: [['calendar-sync-configs', currentTenant?.id]]
     }
   );
 

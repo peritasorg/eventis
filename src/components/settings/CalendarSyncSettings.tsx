@@ -32,12 +32,14 @@ export const CalendarSyncSettings = () => {
   }>>({});
   const [showPreview, setShowPreview] = useState(false);
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(false);
+  const [configsLoaded, setConfigsLoaded] = useState(false);
 
   // Load assigned forms when event type is selected
   const loadAssignedForms = useCallback(async () => {
     if (!selectedEventType) {
       setAssignedForms([]);
       setFormConfigs({});
+      setConfigsLoaded(false);
       return;
     }
 
@@ -49,28 +51,37 @@ export const CalendarSyncSettings = () => {
       const mappings = await getFormMappingsForEventType(eventTypeConfig.event_type);
       setAssignedForms(mappings);
       
-      // Load existing configs for each form
-      const configs: Record<string, any> = {};
-      for (const mapping of mappings) {
-        if (mapping.forms?.id) {
-          const existingConfig = getConfigForEventType(selectedEventType, mapping.forms.id);
-          configs[mapping.forms.id] = {
-            selectedFields: existingConfig?.selected_fields || [],
-            showPricingFieldsOnly: existingConfig?.show_pricing_fields_only || false
-          };
+      // Only load existing configs if we haven't loaded them yet or if user explicitly changed event type
+      if (!configsLoaded) {
+        const configs: Record<string, any> = {};
+        for (const mapping of mappings) {
+          if (mapping.forms?.id) {
+            const existingConfig = getConfigForEventType(selectedEventType, mapping.forms.id);
+            configs[mapping.forms.id] = {
+              selectedFields: existingConfig?.selected_fields || [],
+              showPricingFieldsOnly: existingConfig?.show_pricing_fields_only || false
+            };
+          }
         }
+        setFormConfigs(configs);
+        setConfigsLoaded(true);
       }
-      setFormConfigs(configs);
     } finally {
       setIsLoadingConfigs(false);
     }
-  }, [selectedEventType, eventTypes?.length]);
+  }, [selectedEventType, eventTypes, getFormMappingsForEventType, getConfigForEventType, configsLoaded]);
 
   useEffect(() => {
     if (selectedEventType) {
       loadAssignedForms();
     }
-  }, [selectedEventType, eventTypes]);
+  }, [loadAssignedForms]);
+
+  // Reset configs when event type changes
+  useEffect(() => {
+    setConfigsLoaded(false);
+    setFormConfigs({});
+  }, [selectedEventType]);
 
   // Get form-specific fields based on assigned forms
   const getFormSpecificFields = useCallback((formId: string) => {
