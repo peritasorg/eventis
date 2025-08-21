@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { EventTypeConfigs } from '@/components/calendar-sync/EventTypeConfigs';
-
 import { TimeSlotManager } from '@/components/events/TimeSlotManager';
 import { DateWarningsSettings } from '@/components/calendar-sync/DateWarningsSettings';
 import { CalendarSyncSettings } from '@/components/settings/CalendarSyncSettings';
+import { GoogleCalendarIntegration } from '@/components/settings/GoogleCalendarIntegration';
 
 export const CalendarSettings = () => {
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ export const CalendarSettings = () => {
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="event-types" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="event-types" className="flex items-center gap-2">
                 <Palette className="w-4 h-4" />
                 Event Types
@@ -54,6 +54,10 @@ export const CalendarSettings = () => {
               <TabsTrigger value="calendar-sync" className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 Calendar Sync
+              </TabsTrigger>
+              <TabsTrigger value="external-calendar" className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                External Calendar
               </TabsTrigger>
             </TabsList>
 
@@ -102,6 +106,10 @@ export const CalendarSettings = () => {
 
             <TabsContent value="calendar-sync" className="space-y-6">
               <CalendarSyncSettings />
+            </TabsContent>
+
+            <TabsContent value="external-calendar" className="space-y-6">
+              <GoogleCalendarIntegration />
             </TabsContent>
           </Tabs>
         </div>
