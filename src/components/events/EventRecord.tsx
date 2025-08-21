@@ -197,12 +197,17 @@ export const EventRecord: React.FC = () => {
 
   // Filter customers based on search query
   const filteredCustomers = customers?.filter(customer => {
-    if (!customerSearchQuery) return false; // Only show results when searching
+    if (!customerSearchQuery.trim()) return false; // Only show results when actively searching
     const query = customerSearchQuery.toLowerCase().trim();
     const fullName = (customer.full_name || '').toLowerCase();
     const email = (customer.email || '').toLowerCase();
     const phone = (customer.phone || '').toLowerCase();
-    return fullName.includes(query) || email.includes(query) || phone.includes(query);
+    
+    return fullName.includes(query) || 
+           email.includes(query) || 
+           phone.includes(query) ||
+           customer.first_name?.toLowerCase().includes(query) ||
+           customer.last_name?.toLowerCase().includes(query);
   }) || [];
 
   // Get live form totals and individual form data
@@ -1035,94 +1040,87 @@ export const EventRecord: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Customer *</Label>
-                  {selectedCustomer ? (
-                    <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">
-                            {selectedCustomer.full_name}
-                          </div>
-                          {selectedCustomer.email && (
-                            <div className="text-sm text-muted-foreground truncate">
-                              {selectedCustomer.email}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleCustomerClick}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            handleFieldChange('customer_id', null);
-                            setCustomerSearchQuery('');
-                          }}
-                        >
-                          Change
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search customers..."
-                          value={customerSearchQuery}
-                          onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                          className="pl-10 pr-10"
-                        />
+                  <div className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder={selectedCustomer ? selectedCustomer.full_name : "Search customers..."}
+                        value={customerSearchQuery}
+                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                        onFocus={() => setCustomerSearchQuery('')}
+                        className="pl-10 pr-20"
+                      />
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                        {selectedCustomer && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              handleFieldChange('customer_id', null);
+                              setCustomerSearchQuery('');
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="absolute right-1 top-1/2 transform -translate-y-1/2"
                           onClick={() => setShowQuickCreateCustomer(true)}
+                          className="h-6 w-6 p-0"
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus className="h-3 w-3" />
                         </Button>
-                        
-                        {/* Dropdown Results */}
-                        {customerSearchQuery.trim() && (
-                          <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto border rounded-md bg-card shadow-lg">
-                            {filteredCustomers.length > 0 ? (
-                              filteredCustomers.map((customer) => (
-                                <div
-                                  key={`customer-${customer.id}`}
-                                  className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
-                                  onClick={() => {
-                                    handleFieldChange('customer_id', customer.id);
-                                    setCustomerSearchQuery('');
-                                  }}
-                                >
-                                  <div className="font-medium text-foreground">
-                                    {customer.full_name}
-                                  </div>
-                                  {customer.email && (
-                                    <div className="text-sm text-muted-foreground">
-                                      {customer.email}
-                                    </div>
-                                  )}
-                                </div>
-                              ))
-                            ) : (
-                              <div className="p-3 text-sm text-muted-foreground">
-                                No customers found matching "{customerSearchQuery}"
-                              </div>
-                            )}
-                          </div>
+                        {selectedCustomer && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleCustomerClick}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
                         )}
                       </div>
                     </div>
-                  )}
+                    
+                    {/* Dropdown Results */}
+                    {customerSearchQuery.trim() && (
+                      <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto border rounded-md bg-card shadow-lg">
+                        {filteredCustomers.length > 0 ? (
+                          filteredCustomers.map((customer) => (
+                            <div
+                              key={`customer-${customer.id}`}
+                              className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
+                              onClick={() => {
+                                handleFieldChange('customer_id', customer.id);
+                                setCustomerSearchQuery('');
+                              }}
+                            >
+                              <div className="font-medium text-foreground">
+                                {customer.full_name}
+                              </div>
+                              {customer.email && (
+                                <div className="text-sm text-muted-foreground">
+                                  {customer.email}
+                                </div>
+                              )}
+                              {customer.phone && (
+                                <div className="text-sm text-muted-foreground">
+                                  {customer.phone}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-sm text-muted-foreground">
+                            No customers found matching "{customerSearchQuery}"
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
