@@ -35,7 +35,8 @@ export const useCalendarSyncConfigs = () => {
     async () => {
       if (!currentTenant?.id) return [];
       
-      const { data, error } = await supabase
+      // First fetch calendar sync configs
+      const { data: configsData, error: configsError } = await supabase
         .from('calendar_sync_configs')
         .select(`
           id,
@@ -47,26 +48,45 @@ export const useCalendarSyncConfigs = () => {
           field_display_format,
           is_active,
           created_at,
-          updated_at,
-          event_type_configs!event_type_config_id(id, event_type, display_name),
-          forms!form_id(id, name)
+          updated_at
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('is_active', true);
 
-      if (error) {
-        console.error('Error fetching calendar sync configs:', error);
-        throw error;
+      if (configsError) {
+        console.error('Error fetching calendar sync configs:', configsError);
+        throw configsError;
       }
       
-      // Transform the data to flatten the nested objects
-      const transformedData = data?.map(config => ({
+      if (!configsData || configsData.length === 0) {
+        console.log('No configs found');
+        return [];
+      }
+
+      // Get unique event type and form IDs
+      const eventTypeIds = [...new Set(configsData.map(c => c.event_type_config_id))];
+      const formIds = [...new Set(configsData.map(c => c.form_id))];
+
+      // Fetch event type configs
+      const { data: eventTypeData } = await supabase
+        .from('event_type_configs')
+        .select('id, event_type, display_name')
+        .in('id', eventTypeIds);
+
+      // Fetch forms
+      const { data: formsData } = await supabase
+        .from('forms')
+        .select('id, name')
+        .in('id', formIds);
+
+      // Manually join the data
+      const transformedData = configsData.map(config => ({
         ...config,
-        event_type_config: config.event_type_configs,
-        form: config.forms
-      })) || [];
+        event_type_config: eventTypeData?.find(et => et.id === config.event_type_config_id),
+        form: formsData?.find(f => f.id === config.form_id)
+      }));
       
-      console.log('Fetched configs:', transformedData);
+      console.log('Fetched configs successfully:', transformedData);
       return transformedData;
     }
   );

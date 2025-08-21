@@ -77,22 +77,25 @@ export const CalendarSyncSettings = () => {
   // Load existing configurations when configs or assigned forms change
   useEffect(() => {
     if (configs && assignedForms.length > 0 && selectedEventType) {
-      console.log('Loading existing configs for selectedEventType:', selectedEventType);
+      console.log('=== LOADING EXISTING CONFIGS ===');
+      console.log('Selected Event Type ID:', selectedEventType);
       console.log('Available configs:', configs);
       console.log('Assigned forms:', assignedForms);
       
       const newFormConfigs: Record<string, any> = {};
       for (const mapping of assignedForms) {
         if (mapping.forms?.id) {
-          // Find config by matching the event_type_config_id (which should be a UUID)
-          const existingConfig = configs.find(config => 
-            config.event_type_config_id === selectedEventType && 
-            config.form_id === mapping.forms.id &&
-            config.is_active
-          );
+          // Find config by matching the event_type_config_id
+          const existingConfig = configs.find(config => {
+            const matches = config.event_type_config_id === selectedEventType && 
+                           config.form_id === mapping.forms.id &&
+                           config.is_active;
+            
+            console.log(`Checking config: event_type_config_id=${config.event_type_config_id}, form_id=${config.form_id}, matches=${matches}`);
+            return matches;
+          });
           
-          console.log(`Looking for config with event_type_config_id: ${selectedEventType}, form_id: ${mapping.forms.id}`);
-          console.log('Found existing config:', existingConfig);
+          console.log(`Final config for form ${mapping.forms.name}:`, existingConfig);
           
           newFormConfigs[mapping.forms.id] = {
             selectedFields: existingConfig?.selected_fields || [],
@@ -100,7 +103,7 @@ export const CalendarSyncSettings = () => {
           };
         }
       }
-      console.log('Setting form configs:', newFormConfigs);
+      console.log('Final form configs to set:', newFormConfigs);
       setFormConfigs(newFormConfigs);
     }
   }, [configs, assignedForms, selectedEventType]);
