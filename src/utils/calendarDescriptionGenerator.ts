@@ -55,12 +55,24 @@ export async function generateCalendarDescription(
     
     eventTypeConfigId = eventTypeConfig?.id;
   }
-  let description = `${eventData.title}\n`;
+  // Generate proper event title
+  let eventTitle = eventData.title;
+  if (eventData.event_type === 'All Day') {
+    eventTitle = 'All Day Event';
+  } else if (eventData.event_type === 'Nikkah') {
+    eventTitle = 'Nikkah Event';
+  } else if (eventData.event_type === 'Reception') {
+    eventTitle = 'Reception Event';
+  } else if (eventData.event_type) {
+    eventTitle = `${eventData.event_type} Event`;
+  }
   
-  // Add date and time
+  let description = `${eventTitle}\n`;
+  
+  // Add date and time using DD/MM/YYYY format
   const eventDate = new Date(eventData.event_date).toLocaleDateString('en-GB');
-  const startTime = eventData.start_time ? formatTime(eventData.start_time) : '';
-  const endTime = eventData.end_time ? formatTime(eventData.end_time) : '';
+  const startTime = eventData.start_time || '';
+  const endTime = eventData.end_time || '';
   
   if (startTime && endTime) {
     description += `${eventDate}, ${startTime} - ${endTime}\n\n`;
@@ -74,6 +86,12 @@ export async function generateCalendarDescription(
   }
   if (eventData.primary_contact_number) {
     description += `Primary Contact No.: ${eventData.primary_contact_number}\n`;
+  }
+  if (eventData.secondary_contact_name) {
+    description += `Secondary Contact: ${eventData.secondary_contact_name}\n`;
+  }
+  if (eventData.secondary_contact_number) {
+    description += `Secondary Contact No.: ${eventData.secondary_contact_number}\n`;
   }
   
   description += '\n';
@@ -140,9 +158,9 @@ async function generateSectionDescription(
 ): Promise<string> {
   let section = '';
 
-  // Get time from form if available, otherwise use a time placeholder
-  const formStartTime = form.start_time ? formatTime(form.start_time) : '';
-  const formEndTime = form.end_time ? formatTime(form.end_time) : '';
+  // Use form times if available, keep 24-hour format
+  const formStartTime = form.start_time || '';
+  const formEndTime = form.end_time || '';
   const timeDisplay = formStartTime && formEndTime ? `${formStartTime} - ${formEndTime}` : 
                      formStartTime ? formStartTime : '[Time Slot]';
 
@@ -166,11 +184,25 @@ async function generateSectionDescription(
       const response = form.form_responses[fieldId];
       if (!response) continue;
 
-      // Apply conditional display logic
-      const shouldShow = !config.show_pricing_fields_only || 
-                        (response.price && parseFloat(response.price) > 0) || 
-                        (response.notes && response.notes.trim()) ||
-                        (response.enabled === true && field.field_type.includes('toggle'));
+      let shouldShow = false;
+
+      if (field.field_type.includes('toggle')) {
+        // For toggle fields: only show if enabled AND (no pricing filter OR has pricing/notes)
+        shouldShow = response.enabled === true && 
+                    (!config.show_pricing_fields_only || 
+                     (response.price && parseFloat(response.price) > 0) || 
+                     (response.notes && response.notes.trim()));
+      } else {
+        // For non-toggle fields (text, etc.): show if has content AND meets pricing filter
+        const hasContent = (response.notes && response.notes.trim()) || 
+                          (response.value && response.value.trim()) ||
+                          (response.price && parseFloat(response.price) > 0);
+        
+        shouldShow = hasContent && 
+                    (!config.show_pricing_fields_only || 
+                     (response.price && parseFloat(response.price) > 0) || 
+                     (response.notes && response.notes.trim()));
+      }
 
       if (shouldShow) {
         section += formatFieldForCalendar(field, response);
@@ -187,10 +219,19 @@ async function generateSectionDescription(
       // Skip system fields
       if (isSystemField(field.name)) continue;
 
-      // Only show if has pricing, notes, or is enabled toggle
-      const shouldShow = (response.price && parseFloat(response.price) > 0) || 
-                        (response.notes && response.notes.trim()) ||
-                        (response.enabled === true && field.field_type.includes('toggle'));
+      let shouldShow = false;
+
+      if (field.field_type.includes('toggle')) {
+        // Only show enabled toggles with pricing/notes
+        shouldShow = response.enabled === true && 
+                    ((response.price && parseFloat(response.price) > 0) || 
+                     (response.notes && response.notes.trim()));
+      } else {
+        // Show non-toggle fields that have content
+        shouldShow = (response.price && parseFloat(response.price) > 0) || 
+                    (response.notes && response.notes.trim()) ||
+                    (response.value && response.value.trim());
+      }
 
       if (shouldShow) {
         section += formatFieldForCalendar(field, response);
