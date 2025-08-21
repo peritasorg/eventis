@@ -541,13 +541,23 @@ export const EventRecord: React.FC = () => {
         }
       };
       
+      // FIXED: Check if event has external calendar ID to update vs create
+      const action = eventData.external_calendar_id ? 'update' : 'create';
+      
+      const requestBody: any = {
+        action,
+        eventId: eventData.id,
+        integrationId: integration.id,
+        eventData: calendarEventData
+      };
+      
+      // Include external event ID for updates
+      if (action === 'update') {
+        requestBody.externalEventId = eventData.external_calendar_id;
+      }
+      
       const { data, error } = await supabase.functions.invoke('calendar-sync', {
-        body: {
-          action: 'create',
-          eventId: eventData.id,
-          integrationId: integration.id,
-          eventData: calendarEventData
-        }
+        body: requestBody
       });
 
       if (error) {

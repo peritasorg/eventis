@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
 
 interface EventFormTabProps {
   eventId: string;
@@ -27,6 +28,9 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
   const { formFields } = useFormFields();
   const { currentTenant } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Calendar auto-sync hook
+  const { autoSyncEvent } = useCalendarAutoSync();
   
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [formResponses, setFormResponses] = useState<Record<string, Record<string, any>>>({});
@@ -360,6 +364,50 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       queryClient.invalidateQueries({ queryKey: ['event', eventId] });
       
       toast.success('Form saved successfully');
+
+      // CALENDAR SYNC: Trigger sync after successful form save
+      try {
+        // Get updated event data to include in calendar sync
+        const { data: updatedEvent } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', eventId)
+          .eq('tenant_id', currentTenant?.id)
+          .single();
+        
+        if (updatedEvent && currentTenant?.id) {
+          const totalGuests = eventForms.reduce((sum, form) => 
+            sum + (form.men_count || 0) + (form.ladies_count || 0), 0
+          );
+
+          const calendarEventData = {
+            id: updatedEvent.id,
+            event_name: updatedEvent.title,
+            event_start_date: updatedEvent.event_date || '',
+            event_end_date: updatedEvent.event_end_date || updatedEvent.event_date || '',
+            start_time: updatedEvent.start_time || '09:00',
+            end_time: updatedEvent.end_time || '17:00',
+            event_type: updatedEvent.event_type || '',
+            estimated_guests: totalGuests,
+            total_guests: totalGuests,
+            primary_contact_name: updatedEvent.primary_contact_name,
+            primary_contact_number: updatedEvent.primary_contact_number,
+            secondary_contact_name: updatedEvent.secondary_contact_name,
+            secondary_contact_number: updatedEvent.secondary_contact_number,
+            ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
+                       (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
+                       []) as string[],
+            event_forms: eventForms,
+            customers: null,
+            external_calendar_id: updatedEvent.external_calendar_id
+          };
+
+          await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
+        }
+      } catch (syncError) {
+        console.error('Calendar sync failed after form save:', syncError);
+        // Don't show error toast for calendar sync failures on form save
+      }
       
     } catch (error) {
       console.error('Error saving form:', error);
@@ -367,7 +415,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     } finally {
       setIsSaving(prev => ({ ...prev, [eventFormId]: false }));
     }
-  }, [eventForms, formResponses, localGuestData, eventId, queryClient, calculateFormTotal]);
+  }, [eventForms, formResponses, localGuestData, eventId, queryClient, calculateFormTotal, autoSyncEvent, currentTenant]);
 
   const handleAddForm = async () => {
     if (!selectedFormId) {
@@ -441,6 +489,49 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       
       // Refresh the event forms data
       queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
+
+      // CALENDAR SYNC: Trigger sync after time slot change
+      try {
+        const { data: updatedEvent } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', eventId)
+          .eq('tenant_id', currentTenant?.id)
+          .single();
+        
+        if (updatedEvent && currentTenant?.id) {
+          const totalGuests = eventForms.reduce((sum, form) => 
+            sum + (form.men_count || 0) + (form.ladies_count || 0), 0
+          );
+
+          const calendarEventData = {
+            id: updatedEvent.id,
+            event_name: updatedEvent.title,
+            event_start_date: updatedEvent.event_date || '',
+            event_end_date: updatedEvent.event_end_date || updatedEvent.event_date || '',
+            start_time: selectedSlot.start_time,
+            end_time: selectedSlot.end_time,
+            event_type: updatedEvent.event_type || '',
+            estimated_guests: totalGuests,
+            total_guests: totalGuests,
+            primary_contact_name: updatedEvent.primary_contact_name,
+            primary_contact_number: updatedEvent.primary_contact_number,
+            secondary_contact_name: updatedEvent.secondary_contact_name,
+            secondary_contact_number: updatedEvent.secondary_contact_number,
+            ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
+                       (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
+                       []) as string[],
+            event_forms: eventForms,
+            customers: null,
+            external_calendar_id: updatedEvent.external_calendar_id
+          };
+
+          await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
+        }
+      } catch (syncError) {
+        console.error('Calendar sync failed after time change:', syncError);
+      }
+
     } catch (error) {
       console.error('Error updating time:', error);
       toast.error('Failed to update time');
@@ -499,6 +590,48 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
         queryClient.invalidateQueries({ queryKey: ['event-forms', eventId] });
         queryClient.invalidateQueries({ queryKey: ['event', eventId] });
         queryClient.invalidateQueries({ queryKey: ['events'] });
+
+        // CALENDAR SYNC: Trigger sync after guest count/price changes
+        try {
+          const { data: updatedEvent } = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', eventId)
+            .eq('tenant_id', currentTenant?.id)
+            .single();
+          
+          if (updatedEvent && currentTenant?.id) {
+            const totalGuests = eventForms.reduce((sum, form) => 
+              sum + (form.men_count || 0) + (form.ladies_count || 0), 0
+            );
+
+            const calendarEventData = {
+              id: updatedEvent.id,
+              event_name: updatedEvent.title,
+              event_start_date: updatedEvent.event_date || '',
+              event_end_date: updatedEvent.event_end_date || updatedEvent.event_date || '',
+              start_time: updatedEvent.start_time || '09:00',
+              end_time: updatedEvent.end_time || '17:00',
+              event_type: updatedEvent.event_type || '',
+              estimated_guests: totalGuests,
+              total_guests: totalGuests,
+              primary_contact_name: updatedEvent.primary_contact_name,
+              primary_contact_number: updatedEvent.primary_contact_number,
+              secondary_contact_name: updatedEvent.secondary_contact_name,
+              secondary_contact_number: updatedEvent.secondary_contact_number,
+              ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
+                         (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
+                         []) as string[],
+              event_forms: eventForms,
+              customers: null,
+              external_calendar_id: updatedEvent.external_calendar_id
+            };
+
+            await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
+          }
+        } catch (syncError) {
+          console.error('Calendar sync failed after guest update:', syncError);
+        }
       }
     } catch (error) {
       console.error('Error updating guest info:', error);
