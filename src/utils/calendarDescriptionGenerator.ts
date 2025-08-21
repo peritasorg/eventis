@@ -40,109 +40,75 @@ export async function generateCalendarDescription(
   tenantId: string,
   eventTypeOrConfigId?: string
 ): Promise<string> {
-  // If eventTypeOrConfigId is not a UUID, we need to find the event_type_config_id
+  // Get event type config to fetch the display_name
+  let eventTypeConfig: any = null;
   let eventTypeConfigId = eventTypeOrConfigId;
   
   if (eventTypeOrConfigId && !isUUID(eventTypeOrConfigId)) {
-    // It's an event_type string, need to find the config ID
-    const { data: eventTypeConfig } = await supabase
+    // It's an event_type string, need to find the config
+    const { data } = await supabase
       .from('event_type_configs')
-      .select('id')
+      .select('id, display_name')
       .eq('tenant_id', tenantId)
       .eq('event_type', eventTypeOrConfigId)
       .eq('is_active', true)
       .single();
     
-    eventTypeConfigId = eventTypeConfig?.id;
+    eventTypeConfig = data;
+    eventTypeConfigId = data?.id;
+  } else if (eventTypeConfigId) {
+    // It's already a UUID, get the config
+    const { data } = await supabase
+      .from('event_type_configs')
+      .select('id, display_name')
+      .eq('tenant_id', tenantId)
+      .eq('id', eventTypeConfigId)
+      .eq('is_active', true)
+      .single();
+    
+    eventTypeConfig = data;
   }
-  // Generate proper event title
-  let eventTitle = eventData.title;
-  if (eventData.event_type === 'All Day') {
-    eventTitle = 'All Day Event';
-  } else if (eventData.event_type === 'Nikkah') {
-    eventTitle = 'Nikkah Event';
-  } else if (eventData.event_type === 'Reception') {
-    eventTitle = 'Reception Event';
-  } else if (eventData.event_type) {
-    eventTitle = `${eventData.event_type} Event`;
-  }
+  
+  // Use display_name from config, fallback to event_type
+  const eventTitle = eventTypeConfig?.display_name ? 
+    `${eventTypeConfig.display_name} Event` : 
+    (eventData.event_type ? `${eventData.event_type} Event` : eventData.title);
   
   let description = `${eventTitle}\n`;
   
-  // Add date and time using DD/MM/YYYY format
+  // Add date and time - match preview format exactly
   const eventDate = new Date(eventData.event_date).toLocaleDateString('en-GB');
-  const startTime = eventData.start_time || '';
-  const endTime = eventData.end_time || '';
+  const startTime = eventData.start_time || 'Start Time';
+  const endTime = eventData.end_time || 'End Time';
   
-  if (startTime && endTime) {
-    description += `${eventDate}, ${startTime} - ${endTime}\n\n`;
-  } else {
-    description += `${eventDate}\n\n`;
-  }
+  description += `${eventDate}, ${startTime} - ${endTime}\n\n`;
 
   // Add contact information
-  if (eventData.primary_contact_name) {
-    description += `Primary Contact: ${eventData.primary_contact_name}\n`;
+  if (eventData.primary_contact_name || eventData.primary_contact_number) {
+    description += `Primary Contact: ${eventData.primary_contact_name || '[Contact Name]'}\n`;
+    description += `Primary Contact No.: ${eventData.primary_contact_number || '[Contact Number]'}\n`;
   }
-  if (eventData.primary_contact_number) {
-    description += `Primary Contact No.: ${eventData.primary_contact_number}\n`;
-  }
-  if (eventData.secondary_contact_name) {
-    description += `Secondary Contact: ${eventData.secondary_contact_name}\n`;
-  }
-  if (eventData.secondary_contact_number) {
-    description += `Secondary Contact No.: ${eventData.secondary_contact_number}\n`;
+  if (eventData.secondary_contact_name || eventData.secondary_contact_number) {
+    description += `Secondary Contact: ${eventData.secondary_contact_name || '[Secondary Contact]'}\n`;
+    description += `Secondary Contact No.: ${eventData.secondary_contact_number || '[Secondary Number]'}\n`;
   }
   
   description += '\n';
 
-  // Handle different event types
-  if (eventData.event_type === 'All Day' && eventForms.length >= 2) {
-    // All Day events - show both Nikkah and Reception
-    const nikkahtForm = eventForms.find(form => 
-      form.form_label.toLowerCase().includes('nikkah')
+  // Process forms - match preview logic exactly
+  for (let index = 0; index < eventForms.length; index++) {
+    const form = eventForms[index];
+    
+    description += await generateSectionDescription(
+      form,
+      tenantId,
+      eventTypeConfigId,
+      eventData.guest_mixture
     );
-    const receptionForm = eventForms.find(form => 
-      form.form_label.toLowerCase().includes('reception')
-    );
-
-    if (nikkahtForm) {
-      description += await generateSectionDescription(
-        'Nikkah',
-        nikkahtForm,
-        tenantId,
-        eventTypeConfigId,
-        eventData.guest_mixture
-      );
-      
-      if (receptionForm) {
-        description += '\n------------------------------------------------------------\n\n';
-      }
-    }
-
-    if (receptionForm) {
-      description += await generateSectionDescription(
-        'Reception',
-        receptionForm,
-        tenantId,
-        eventTypeConfigId,
-        eventData.guest_mixture
-      );
-    }
-  } else {
-    // Single event type
-    for (const form of eventForms) {
-      const sectionName = form.form_label.toLowerCase().includes('nikkah') ? 'Nikkah' :
-                         form.form_label.toLowerCase().includes('reception') ? 'Reception' :
-                         eventData.event_type || 'Event';
-      
-      description += await generateSectionDescription(
-        sectionName,
-        form,
-        tenantId,
-        eventTypeConfigId,
-        eventData.guest_mixture
-      );
+    
+    // Add separator between forms (not after the last one)
+    if (index < eventForms.length - 1) {
+      description += '\n------------------------------------------------------------\n\n';
     }
   }
 
@@ -150,7 +116,6 @@ export async function generateCalendarDescription(
 }
 
 async function generateSectionDescription(
-  sectionName: string,
   form: EventForm,
   tenantId: string,
   eventTypeConfigId?: string,
@@ -164,20 +129,20 @@ async function generateSectionDescription(
   const timeDisplay = formStartTime && formEndTime ? `${formStartTime} - ${formEndTime}` : 
                      formStartTime ? formStartTime : '[Time Slot]';
 
-  section += `${sectionName} - ${timeDisplay}:\n`;
-  section += `Men Count: ${form.men_count || 0}\n`;
-  section += `Ladies Count: ${form.ladies_count || 0}\n`;
-  section += `Guest Mix: ${guestMixture || 'Mixed'}\n\n`;
+  // Use form label directly (like in preview: ${mapping.forms.name} - [Time Slot]:)
+  section += `${form.form_label} - ${timeDisplay}:\n`;
+  section += `Men Count: ${form.men_count || '[Men Count]'}\n`;
+  section += `Ladies Count: ${form.ladies_count || '[Ladies Count]'}\n`;
+  section += `Guest Mix: ${guestMixture || '[Guest Mix]'}\n\n`;
 
   // Get calendar sync configuration for this form
   const config = await getCalendarSyncConfig(tenantId, eventTypeConfigId || '', form.form_id);
   
   if (config && config.selected_fields?.length > 0) {
-    // Use configured fields
+    // Use configured fields in the exact order they were selected (like preview)
     const formFields = await getFormFields(form.form_id, tenantId);
-    const selectedFieldIds = config.selected_fields;
     
-    for (const fieldId of selectedFieldIds) {
+    for (const fieldId of config.selected_fields) {
       const field = formFields.find(f => f.id === fieldId);
       if (!field) continue;
 
