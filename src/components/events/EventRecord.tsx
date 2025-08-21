@@ -992,11 +992,6 @@ export const EventRecord: React.FC = () => {
                         </TooltipProvider>
                       )}
                     </div>
-                    {daysLeft !== null && (
-                      <Badge variant={daysLeft < 7 ? "destructive" : "secondary"}>
-                        {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
-                      </Badge>
-                    )}
                   </div>
                 </div>
               </div>
