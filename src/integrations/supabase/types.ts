@@ -1094,6 +1094,7 @@ export type Database = {
           secondary_contact_name: string | null
           secondary_contact_number: string | null
           start_time: string | null
+          status: string
           tenant_id: string
           title: string
           total_guest_price_gbp: number | null
@@ -1124,6 +1125,7 @@ export type Database = {
           secondary_contact_name?: string | null
           secondary_contact_number?: string | null
           start_time?: string | null
+          status?: string
           tenant_id: string
           title: string
           total_guest_price_gbp?: number | null
@@ -1154,6 +1156,7 @@ export type Database = {
           secondary_contact_name?: string | null
           secondary_contact_number?: string | null
           start_time?: string | null
+          status?: string
           tenant_id?: string
           title?: string
           total_guest_price_gbp?: number | null

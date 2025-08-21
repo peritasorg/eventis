@@ -49,6 +49,7 @@ interface EventData {
   primary_contact_number: string | null;
   secondary_contact_name: string | null;
   secondary_contact_number: string | null;
+  status?: string;
   men_count: number;
    ladies_count: number;
    total_guest_price_gbp: number;
@@ -79,8 +80,8 @@ export const EventRecord: React.FC = () => {
    // Get event type configs
    const { data: eventTypeConfigs } = useEventTypeConfigs();
    
-   // Calendar auto-sync hook
-   const { autoSyncEvent, syncEventToCalendar } = useCalendarAutoSync();
+  // Calendar auto-sync hook
+  const { autoSyncEvent, syncEventToCalendar, deleteEventFromCalendar } = useCalendarAutoSync();
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -246,6 +247,83 @@ export const EventRecord: React.FC = () => {
       },
       onError: (error) => {
         toast.error('Failed to delete event: ' + error.message);
+      }
+    }
+  );
+
+  // Cancel event mutation
+  const cancelEventMutation = useSupabaseMutation(
+    async () => {
+      if (!eventId || !currentTenant?.id || !eventData) throw new Error('Missing event or tenant ID');
+      
+      // Delete from Google Calendar if it exists there
+      if (eventData.external_calendar_id) {
+        const calendarEventData = await prepareCalendarEventData(
+          eventData,
+          eventForms,
+          selectedCustomer || null,
+          currentTenant.id,
+          eventData.event_type
+        );
+        
+        try {
+          await deleteEventFromCalendar(calendarEventData, false);
+        } catch (error) {
+          console.error('Failed to delete from calendar:', error);
+        }
+      }
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ 
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Event cancelled successfully');
+        // Update local state
+        if (eventData) {
+          setEventData({ ...eventData, status: 'cancelled' });
+        }
+      },
+      onError: (error) => {
+        toast.error('Failed to cancel event: ' + error.message);
+      }
+    }
+  );
+
+  // Uncancel (reactivate) event mutation
+  const uncancelEventMutation = useSupabaseMutation(
+    async () => {
+      if (!eventId || !currentTenant?.id) throw new Error('Missing event or tenant ID');
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ 
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Event reactivated successfully');
+        // Update local state
+        if (eventData) {
+          setEventData({ ...eventData, status: 'active' });
+        }
+      },
+      onError: (error) => {
+        toast.error('Failed to reactivate event: ' + error.message);
       }
     }
   );
@@ -625,6 +703,11 @@ export const EventRecord: React.FC = () => {
                     {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
                   </Badge>
                 )}
+                {eventData.status === 'cancelled' && (
+                  <Badge variant="destructive" className="text-sm">
+                    CANCELLED
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -677,11 +760,58 @@ export const EventRecord: React.FC = () => {
               variant="outline" 
               size="sm"
               onClick={showCalendarSyncPreview}
-              disabled={isSyncing}
+              disabled={isSyncing || eventData.status === 'cancelled'}
             >
               <CalendarSyncIcon className="h-4 w-4 mr-2" />
               {isSyncing ? 'Syncing...' : 'Sync to Calendar'}
             </Button>
+
+            {/* Cancel/Uncancel Button */}
+            {eventData.status === 'cancelled' ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">
+                    Reactivate Event
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reactivate Event</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to reactivate this event? It will appear in the calendar view again and can be synced to your calendar.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => uncancelEventMutation.mutate({})}>
+                      Reactivate Event
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-amber-600 border-amber-600 hover:bg-amber-50">
+                    Cancel Event
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel Event</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to cancel this event? This will remove it from your calendar view and delete it from Google Calendar. You can reactivate it later if needed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancelEventMutation.mutate({})}>
+                      Cancel Event
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
           
           <AlertDialog>

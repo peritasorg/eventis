@@ -21,7 +21,7 @@ export const Events = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const { data: events, refetch } = useSupabaseQuery(
+  const { data: allEvents, refetch } = useSupabaseQuery(
     ['events'],
     async () => {
       if (!currentTenant?.id) return [];
@@ -36,6 +36,7 @@ export const Events = () => {
           start_time,
           end_time,
           event_type,
+          status,
           men_count,
           ladies_count,
           ethnicity,
@@ -67,6 +68,11 @@ export const Events = () => {
       return data || [];
     }
   );
+
+  // Filter events based on view mode
+  const events = viewMode === 'calendar' 
+    ? (allEvents?.filter(event => event.status === 'active') || [])
+    : (allEvents || []);
 
   const handleEventClick = (eventId: string, eventDate?: string) => {
     navigate(`/events/${eventId}`);
