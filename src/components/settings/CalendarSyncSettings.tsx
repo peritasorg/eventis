@@ -49,11 +49,38 @@ export const CalendarSyncSettings = () => {
       const mappings = await getFormMappingsForEventType(eventTypeConfig.event_type);
       setAssignedForms(mappings);
       
-      // Load existing configurations for this event type using configs data directly
+      // Initialize form configs with empty state - configs will be loaded separately
       const newFormConfigs: Record<string, any> = {};
       for (const mapping of mappings) {
         if (mapping.forms?.id) {
-          const existingConfig = configs?.find(config => 
+          newFormConfigs[mapping.forms.id] = {
+            selectedFields: [],
+            showPricingFieldsOnly: false
+          };
+        }
+      }
+      setFormConfigs(newFormConfigs);
+    } catch (error) {
+      console.error('Error loading assigned forms:', error);
+    } finally {
+      setIsLoadingConfigs(false);
+    }
+  }, [selectedEventType, eventTypes?.length, getFormMappingsForEventType]);
+
+  // Load forms when event type is selected (only on event type change, not config changes)
+  useEffect(() => {
+    if (selectedEventType && eventTypes?.length) {
+      loadAssignedForms();
+    }
+  }, [selectedEventType, eventTypes?.length, loadAssignedForms]);
+
+  // Load existing configurations when configs or assigned forms change
+  useEffect(() => {
+    if (configs && assignedForms.length > 0 && selectedEventType) {
+      const newFormConfigs: Record<string, any> = {};
+      for (const mapping of assignedForms) {
+        if (mapping.forms?.id) {
+          const existingConfig = configs.find(config => 
             config.event_type_config_id === selectedEventType && 
             config.form_id === mapping.forms.id &&
             config.is_active
@@ -65,19 +92,8 @@ export const CalendarSyncSettings = () => {
         }
       }
       setFormConfigs(newFormConfigs);
-    } catch (error) {
-      console.error('Error loading assigned forms:', error);
-    } finally {
-      setIsLoadingConfigs(false);
     }
-  }, [selectedEventType, eventTypes?.length, configs, getFormMappingsForEventType]);
-
-  // Load forms when event type is selected (only on event type change, not config changes)
-  useEffect(() => {
-    if (selectedEventType && eventTypes?.length) {
-      loadAssignedForms();
-    }
-  }, [selectedEventType, eventTypes?.length, loadAssignedForms]);
+  }, [configs, assignedForms, selectedEventType]);
 
   // Reset configs when event type changes  
   useEffect(() => {
