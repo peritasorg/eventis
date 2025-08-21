@@ -227,8 +227,12 @@ export const EventRecord: React.FC = () => {
              external_calendar_id: currentEventData.external_calendar_id
            };
            
-           // Auto-sync without showing toasts (silent background operation)
-           await autoSyncEvent(calendarEventData, !currentEventData.external_calendar_id, false);
+            // Auto-sync with user feedback for important changes
+            try {
+              await autoSyncEvent(calendarEventData, !currentEventData.external_calendar_id, true);
+            } catch (syncError) {
+              console.error('Auto calendar sync failed:', syncError);
+            }
          }
        },
       onError: (error) => {
