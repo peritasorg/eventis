@@ -29,6 +29,7 @@ import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
 import { QuoteInvoicePreview } from './QuoteInvoicePreview';
 import { TimeDisplay } from './TimeDisplay';
 import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
+import { prepareCalendarEventData } from '@/utils/calendarEventData';
 
 interface EventData {
   id: string;
@@ -193,47 +194,27 @@ export const EventRecord: React.FC = () => {
          setLastSaved(new Date());
          setIsDirty(false);
          
-         // Auto-sync to calendar if core event data changed
-         if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title)) {
-           const currentEventData = { ...eventData, ...savedData };
-           const currentTotalGuests = (currentEventData.men_count || 0) + (currentEventData.ladies_count || 0);
-           
-           // Prepare calendar event data
-           const calendarEventData = {
-             id: currentEventData.id,
-             event_name: currentEventData.title,
-             event_start_date: currentEventData.event_date || '',
-             event_end_date: currentEventData.event_end_date || currentEventData.event_date || '',
-             start_time: currentEventData.start_time || '09:00',
-             end_time: currentEventData.end_time || '17:00',
-             event_type: currentEventData.event_type || '',
-             estimated_guests: currentTotalGuests,
-             total_guests: currentTotalGuests,
-             primary_contact_name: currentEventData.primary_contact_name,
-             primary_contact_number: currentEventData.primary_contact_number,
-             secondary_contact_name: currentEventData.secondary_contact_name,
-             secondary_contact_number: currentEventData.secondary_contact_number,
-             ethnicity: currentEventData.ethnicity,
-             event_forms: eventForms,
-              customers: eventData.customer_id ? {
-                name: eventData.primary_contact_name || 'Unknown',
-                email: null,
-                phone: eventData.primary_contact_number
-              } : {
-                name: eventData.primary_contact_name || 'Unknown',
-                email: null,
-                phone: eventData.primary_contact_number
-              },
-             external_calendar_id: currentEventData.external_calendar_id
-           };
-           
-            // Auto-sync with user feedback for important changes
-            try {
-              await autoSyncEvent(calendarEventData, !currentEventData.external_calendar_id, true);
-            } catch (syncError) {
-              console.error('Auto calendar sync failed:', syncError);
-            }
-         }
+          // Auto-sync to calendar if core event data changed
+          if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
+                           savedData.primary_contact_name || savedData.primary_contact_number ||
+                           savedData.secondary_contact_name || savedData.secondary_contact_number ||
+                           savedData.ethnicity)) {
+            const currentEventData = { ...eventData, ...savedData };
+            
+            // Use centralized calendar event data preparation
+            const calendarEventData = prepareCalendarEventData(
+              currentEventData,
+              eventForms,
+              selectedCustomer || null
+            );
+            
+             // Auto-sync with user feedback for important changes
+             try {
+               await autoSyncEvent(calendarEventData, !currentEventData.external_calendar_id, true);
+             } catch (syncError) {
+               console.error('Auto calendar sync failed:', syncError);
+             }
+          }
        },
       onError: (error) => {
         toast.error('Failed to save changes: ' + error.message);
@@ -514,32 +495,28 @@ export const EventRecord: React.FC = () => {
       // Use the eventForms data that's already loaded for comprehensive form data
       const allEventForms = eventForms;
 
-      const calendarEventData = {
-        id: eventData.id,
-        event_name: eventData.title,
-        event_start_date: eventData.event_date,
-        event_end_date: eventEndDate,
-        start_time: startTime,
-        end_time: endTime,
-        event_type: eventData.event_type,
-        estimated_guests: totalGuests,
-        total_guests: totalGuests,
-        primary_contact_name: eventData.primary_contact_name,
-        primary_contact_number: eventData.primary_contact_number,
-        secondary_contact_name: eventData.secondary_contact_name,
-        secondary_contact_number: eventData.secondary_contact_number,
-        ethnicity: eventData.ethnicity,
-        event_forms: allEventForms,
-        customers: selectedCustomer ? {
-          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
-          email: selectedCustomer.email,
-          phone: selectedCustomer.phone || eventData.primary_contact_number
-        } : {
-          name: eventData.primary_contact_name || 'Unknown',
-          email: null,
-          phone: eventData.primary_contact_number
-        }
-      };
+      // Use centralized calendar event data preparation
+      const calendarEventData = prepareCalendarEventData(
+        {
+          id: eventData.id,
+          title: eventData.title,
+          event_date: eventData.event_date,
+          event_end_date: eventEndDate,
+          start_time: startTime,
+          end_time: endTime,
+          event_type: eventData.event_type,
+          primary_contact_name: eventData.primary_contact_name,
+          primary_contact_number: eventData.primary_contact_number,
+          secondary_contact_name: eventData.secondary_contact_name,
+          secondary_contact_number: eventData.secondary_contact_number,
+          ethnicity: eventData.ethnicity,
+          men_count: eventData.men_count,
+          ladies_count: eventData.ladies_count,
+          external_calendar_id: eventData.external_calendar_id
+        },
+        allEventForms,
+        selectedCustomer || null
+      );
       
       // FIXED: Check if event has external calendar ID to update vs create
       const action = eventData.external_calendar_id ? 'update' : 'create';
@@ -553,7 +530,7 @@ export const EventRecord: React.FC = () => {
       
       // Include external event ID for updates
       if (action === 'update') {
-        requestBody.externalEventId = eventData.external_calendar_id;
+        requestBody.externalId = eventData.external_calendar_id;
       }
       
       const { data, error } = await supabase.functions.invoke('calendar-sync', {
@@ -563,6 +540,22 @@ export const EventRecord: React.FC = () => {
       if (error) {
         console.error('Calendar sync error:', error);
         throw new Error(error.message || 'Calendar sync failed');
+      }
+
+      // Update database with external calendar ID if sync was successful and we got one back
+      if (data?.data?.externalId && (!eventData.external_calendar_id || action === 'create')) {
+        try {
+          await supabase
+            .from('events')
+            .update({ external_calendar_id: data.data.externalId })
+            .eq('id', eventData.id)
+            .eq('tenant_id', currentTenant.id);
+          
+          // Update local state
+          setEventData(prev => prev ? { ...prev, external_calendar_id: data.data.externalId } : prev);
+        } catch (updateError) {
+          console.error('Failed to update external calendar ID:', updateError);
+        }
       }
       
       toast.success('Event synced to calendar successfully');

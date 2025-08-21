@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
+import { prepareCalendarEventData } from '@/utils/calendarEventData';
 
 interface EventFormTabProps {
   eventId: string;
@@ -376,31 +377,30 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
           .single();
         
         if (updatedEvent && currentTenant?.id) {
-          const totalGuests = eventForms.reduce((sum, form) => 
-            sum + (form.men_count || 0) + (form.ladies_count || 0), 0
+          // Use centralized calendar event data preparation
+          const calendarEventData = prepareCalendarEventData(
+            {
+              id: updatedEvent.id,
+              title: updatedEvent.title,
+              event_date: updatedEvent.event_date,
+              event_end_date: updatedEvent.event_end_date,
+              start_time: updatedEvent.start_time,
+              end_time: updatedEvent.end_time,
+              event_type: updatedEvent.event_type,
+              primary_contact_name: updatedEvent.primary_contact_name,
+              primary_contact_number: updatedEvent.primary_contact_number,
+              secondary_contact_name: updatedEvent.secondary_contact_name,
+              secondary_contact_number: updatedEvent.secondary_contact_number,
+              ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
+                         (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
+                         []) as string[],
+              men_count: updatedEvent.men_count,
+              ladies_count: updatedEvent.ladies_count,
+              external_calendar_id: updatedEvent.external_calendar_id
+            },
+            eventForms,
+            null
           );
-
-          const calendarEventData = {
-            id: updatedEvent.id,
-            event_name: updatedEvent.title,
-            event_start_date: updatedEvent.event_date || '',
-            event_end_date: updatedEvent.event_end_date || updatedEvent.event_date || '',
-            start_time: updatedEvent.start_time || '09:00',
-            end_time: updatedEvent.end_time || '17:00',
-            event_type: updatedEvent.event_type || '',
-            estimated_guests: totalGuests,
-            total_guests: totalGuests,
-            primary_contact_name: updatedEvent.primary_contact_name,
-            primary_contact_number: updatedEvent.primary_contact_number,
-            secondary_contact_name: updatedEvent.secondary_contact_name,
-            secondary_contact_number: updatedEvent.secondary_contact_number,
-            ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
-                       (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
-                       []) as string[],
-            event_forms: eventForms,
-            customers: null,
-            external_calendar_id: updatedEvent.external_calendar_id
-          };
 
           await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
         }
@@ -500,31 +500,30 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
           .single();
         
         if (updatedEvent && currentTenant?.id) {
-          const totalGuests = eventForms.reduce((sum, form) => 
-            sum + (form.men_count || 0) + (form.ladies_count || 0), 0
+          // Use centralized calendar event data preparation
+          const calendarEventData = prepareCalendarEventData(
+            {
+              id: updatedEvent.id,
+              title: updatedEvent.title,
+              event_date: updatedEvent.event_date,
+              event_end_date: updatedEvent.event_end_date,
+              start_time: selectedSlot.start_time,
+              end_time: selectedSlot.end_time,
+              event_type: updatedEvent.event_type,
+              primary_contact_name: updatedEvent.primary_contact_name,
+              primary_contact_number: updatedEvent.primary_contact_number,
+              secondary_contact_name: updatedEvent.secondary_contact_name,
+              secondary_contact_number: updatedEvent.secondary_contact_number,
+              ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
+                         (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
+                         []) as string[],
+              men_count: updatedEvent.men_count,
+              ladies_count: updatedEvent.ladies_count,
+              external_calendar_id: updatedEvent.external_calendar_id
+            },
+            eventForms,
+            null
           );
-
-          const calendarEventData = {
-            id: updatedEvent.id,
-            event_name: updatedEvent.title,
-            event_start_date: updatedEvent.event_date || '',
-            event_end_date: updatedEvent.event_end_date || updatedEvent.event_date || '',
-            start_time: selectedSlot.start_time,
-            end_time: selectedSlot.end_time,
-            event_type: updatedEvent.event_type || '',
-            estimated_guests: totalGuests,
-            total_guests: totalGuests,
-            primary_contact_name: updatedEvent.primary_contact_name,
-            primary_contact_number: updatedEvent.primary_contact_number,
-            secondary_contact_name: updatedEvent.secondary_contact_name,
-            secondary_contact_number: updatedEvent.secondary_contact_number,
-            ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
-                       (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
-                       []) as string[],
-            event_forms: eventForms,
-            customers: null,
-            external_calendar_id: updatedEvent.external_calendar_id
-          };
 
           await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
         }
@@ -601,31 +600,30 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
             .single();
           
           if (updatedEvent && currentTenant?.id) {
-            const totalGuests = eventForms.reduce((sum, form) => 
-              sum + (form.men_count || 0) + (form.ladies_count || 0), 0
+            // Use centralized calendar event data preparation
+            const calendarEventData = prepareCalendarEventData(
+              {
+                id: updatedEvent.id,
+                title: updatedEvent.title,
+                event_date: updatedEvent.event_date,
+                event_end_date: updatedEvent.event_end_date,
+                start_time: updatedEvent.start_time,
+                end_time: updatedEvent.end_time,
+                event_type: updatedEvent.event_type,
+                primary_contact_name: updatedEvent.primary_contact_name,
+                primary_contact_number: updatedEvent.primary_contact_number,
+                secondary_contact_name: updatedEvent.secondary_contact_name,
+                secondary_contact_number: updatedEvent.secondary_contact_number,
+                ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
+                           (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
+                           []) as string[],
+                men_count: updatedEvent.men_count,
+                ladies_count: updatedEvent.ladies_count,
+                external_calendar_id: updatedEvent.external_calendar_id
+              },
+              eventForms,
+              null
             );
-
-            const calendarEventData = {
-              id: updatedEvent.id,
-              event_name: updatedEvent.title,
-              event_start_date: updatedEvent.event_date || '',
-              event_end_date: updatedEvent.event_end_date || updatedEvent.event_date || '',
-              start_time: updatedEvent.start_time || '09:00',
-              end_time: updatedEvent.end_time || '17:00',
-              event_type: updatedEvent.event_type || '',
-              estimated_guests: totalGuests,
-              total_guests: totalGuests,
-              primary_contact_name: updatedEvent.primary_contact_name,
-              primary_contact_number: updatedEvent.primary_contact_number,
-              secondary_contact_name: updatedEvent.secondary_contact_name,
-              secondary_contact_number: updatedEvent.secondary_contact_number,
-              ethnicity: (Array.isArray(updatedEvent.ethnicity) ? updatedEvent.ethnicity : 
-                         (updatedEvent.ethnicity && typeof updatedEvent.ethnicity === 'string') ? [updatedEvent.ethnicity] : 
-                         []) as string[],
-              event_forms: eventForms,
-              customers: null,
-              external_calendar_id: updatedEvent.external_calendar_id
-            };
 
             await autoSyncEvent(calendarEventData, !updatedEvent.external_calendar_id, false);
           }
