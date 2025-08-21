@@ -19,6 +19,7 @@ interface Event {
   event_end_date?: string;
   start_time?: string;
   end_time?: string;
+  status?: string;
   men_count?: number;
   ladies_count?: number;
   total_guest_price_gbp?: number;
@@ -66,6 +67,11 @@ export const EventsTable: React.FC<EventsTableProps> = ({
   };
 
   const getEventStatus = (event: Event) => {
+    // Check if event is cancelled first
+    if (event.status === 'cancelled') {
+      return { label: 'Cancelled', variant: 'destructive' as const };
+    }
+    
     const eventDate = event.event_date ? new Date(event.event_date) : null;
     const today = new Date();
     const { isFullyPaid } = calculateFinancials(event);
@@ -106,11 +112,15 @@ export const EventsTable: React.FC<EventsTableProps> = ({
             const customerName = event.customers?.name || event.primary_contact_name || 'Unknown';
             const contactInfo = event.customers?.email || event.customers?.phone || event.primary_contact_number;
             
+            const isCancelled = event.status === 'cancelled';
+            
             return (
-              <TableRow key={event.id} className="hover:bg-accent/50">
+              <TableRow key={event.id} className={`hover:bg-accent/50 ${isCancelled ? 'opacity-60' : ''}`}>
                 <TableCell>
                   <div>
-                    <div className="font-medium text-foreground">{event.title}</div>
+                    <div className={`font-medium ${isCancelled ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                      {event.title}
+                    </div>
                     {event.event_end_date && event.event_end_date !== event.event_date && (
                       <div className="text-xs text-muted-foreground">Multi-day event</div>
                     )}

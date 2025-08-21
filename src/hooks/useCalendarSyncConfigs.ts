@@ -1,0 +1,207 @@
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCallback } from 'react';
+
+interface CalendarSyncConfig {
+  id: string;
+  tenant_id: string;
+  event_type_config_id: string;
+  form_id: string;
+  selected_fields: string[];
+  show_pricing_fields_only: boolean;
+  field_display_format: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface EventTypeConfig {
+  id: string;
+  event_type: string;
+  display_name: string;
+}
+
+interface FormTemplate {
+  id: string;
+  name: string;
+}
+
+export const useCalendarSyncConfigs = () => {
+  const { currentTenant } = useAuth();
+
+  const { data: configs, isLoading, ...rest } = useSupabaseQuery(
+    ['calendar-sync-configs', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      // First fetch calendar sync configs
+      const { data: configsData, error: configsError } = await supabase
+        .from('calendar_sync_configs')
+        .select(`
+          id,
+          tenant_id,
+          event_type_config_id,
+          form_id,
+          selected_fields,
+          show_pricing_fields_only,
+          field_display_format,
+          is_active,
+          created_at,
+          updated_at
+        `)
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true);
+
+      if (configsError) {
+        console.error('Error fetching calendar sync configs:', configsError);
+        throw configsError;
+      }
+      
+      if (!configsData || configsData.length === 0) {
+        console.log('No configs found');
+        return [];
+      }
+
+      // Get unique event type and form IDs
+      const eventTypeIds = [...new Set(configsData.map(c => c.event_type_config_id))];
+      const formIds = [...new Set(configsData.map(c => c.form_id))];
+
+      // Fetch event type configs
+      const { data: eventTypeData } = await supabase
+        .from('event_type_configs')
+        .select('id, event_type, display_name')
+        .in('id', eventTypeIds);
+
+      // Fetch forms
+      const { data: formsData } = await supabase
+        .from('forms')
+        .select('id, name')
+        .in('id', formIds);
+
+      // Manually join the data
+      const transformedData = configsData.map(config => ({
+        ...config,
+        event_type_config: eventTypeData?.find(et => et.id === config.event_type_config_id),
+        form: formsData?.find(f => f.id === config.form_id)
+      }));
+      
+      console.log('Fetched configs successfully:', transformedData);
+      return transformedData;
+    }
+  );
+
+  const { data: eventTypes } = useSupabaseQuery(
+    ['event-type-configs', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('event_type_configs')
+        .select('id, event_type, display_name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .order('sort_order');
+
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
+  const { data: forms } = useSupabaseQuery(
+    ['forms', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('forms')
+        .select('id, name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      return data || [];
+    }
+  );
+
+  const saveConfigMutation = useSupabaseMutation(
+    async ({ 
+      eventTypeConfigId, 
+      formId, 
+      selectedFields, 
+      showPricingFieldsOnly 
+    }: { 
+      eventTypeConfigId: string; 
+      formId: string; 
+      selectedFields: string[]; 
+      showPricingFieldsOnly: boolean; 
+    }) => {
+      if (!currentTenant?.id) throw new Error('No tenant');
+
+      // First delete existing config for this event type and form
+      await supabase
+        .from('calendar_sync_configs')
+        .delete()
+        .eq('tenant_id', currentTenant.id)
+        .eq('event_type_config_id', eventTypeConfigId)
+        .eq('form_id', formId);
+
+      // Then insert new config
+      const { data, error } = await supabase
+        .from('calendar_sync_configs')
+        .insert({
+          tenant_id: currentTenant.id,
+          event_type_config_id: eventTypeConfigId,
+          form_id: formId,
+          selected_fields: selectedFields,
+          show_pricing_fields_only: showPricingFieldsOnly,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    {
+      successMessage: 'Calendar sync configuration saved',
+      invalidateQueries: [['calendar-sync-configs', currentTenant?.id]]
+    }
+  );
+
+  const deleteConfigMutation = useSupabaseMutation(
+    async (configId: string) => {
+      const { error } = await supabase
+        .from('calendar_sync_configs')
+        .update({ is_active: false })
+        .eq('id', configId);
+
+      if (error) throw error;
+    },
+    {
+      successMessage: 'Configuration deleted',
+      invalidateQueries: [['calendar-sync-configs', currentTenant?.id]]
+    }
+  );
+
+  const getConfigForEventType = useCallback((eventTypeConfigId: string, formId: string): CalendarSyncConfig | undefined => {
+    return configs?.find(config => 
+      config.event_type_config_id === eventTypeConfigId && 
+      config.form_id === formId &&
+      config.is_active
+    );
+  }, [configs]);
+
+  return {
+    configs,
+    eventTypes,
+    forms,
+    isLoading,
+    saveConfig: saveConfigMutation.mutate,
+    deleteConfig: deleteConfigMutation.mutate,
+    isSaving: saveConfigMutation.isPending,
+    getConfigForEventType,
+    ...rest
+  };
+};

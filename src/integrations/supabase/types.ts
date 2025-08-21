@@ -296,6 +296,45 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_sync_configs: {
+        Row: {
+          created_at: string
+          event_type_config_id: string
+          field_display_format: Json | null
+          form_id: string
+          id: string
+          is_active: boolean
+          selected_fields: string[]
+          show_pricing_fields_only: boolean
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_type_config_id: string
+          field_display_format?: Json | null
+          form_id: string
+          id?: string
+          is_active?: boolean
+          selected_fields?: string[]
+          show_pricing_fields_only?: boolean
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_type_config_id?: string
+          field_display_format?: Json | null
+          form_id?: string
+          id?: string
+          is_active?: boolean
+          selected_fields?: string[]
+          show_pricing_fields_only?: boolean
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       calendar_sync_logs: {
         Row: {
           created_at: string
@@ -1055,6 +1094,7 @@ export type Database = {
           secondary_contact_name: string | null
           secondary_contact_number: string | null
           start_time: string | null
+          status: string
           tenant_id: string
           title: string
           total_guest_price_gbp: number | null
@@ -1085,6 +1125,7 @@ export type Database = {
           secondary_contact_name?: string | null
           secondary_contact_number?: string | null
           start_time?: string | null
+          status?: string
           tenant_id: string
           title: string
           total_guest_price_gbp?: number | null
@@ -1115,6 +1156,7 @@ export type Database = {
           secondary_contact_name?: string | null
           secondary_contact_number?: string | null
           start_time?: string | null
+          status?: string
           tenant_id?: string
           title?: string
           total_guest_price_gbp?: number | null
@@ -2875,6 +2917,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      bulk_clear_external_calendar_ids: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: number
+      }
+      bulk_update_external_calendar_ids: {
+        Args: { p_updates: Json }
+        Returns: number
+      }
       calculate_event_form_total: {
         Args: { p_event_form_id: string }
         Returns: number
@@ -2911,13 +2961,35 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      clear_google_calendar_from_date: {
+        Args: { p_from_date: string; p_integration_id: string }
+        Returns: undefined
+      }
       create_default_guest_section: {
         Args: { p_form_template_id: string; p_tenant_id: string }
         Returns: string
       }
+      delete_all_from_date: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: number
+      }
       email_has_used_trial: {
         Args: { email_address: string }
         Returns: boolean
+      }
+      get_all_events_for_sync: {
+        Args: { p_from_date: string; p_tenant_id: string }
+        Returns: {
+          end_time: string
+          event_date: string
+          event_end_date: string
+          event_forms: Json[]
+          id: string
+          primary_contact_name: string
+          primary_contact_number: string
+          start_time: string
+          title: string
+        }[]
       }
       get_current_tenant_id: {
         Args: Record<PropertyKey, never>
@@ -2943,6 +3015,34 @@ export type Database = {
           session_type: string
         }[]
       }
+      get_events_with_form_data: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: {
+          end_time: string
+          ethnicity: Json
+          event_date: string
+          event_end_date: string
+          event_forms: Json
+          event_type: string
+          external_calendar_id: string
+          id: string
+          ladies_count: number
+          men_count: number
+          primary_contact_name: string
+          primary_contact_number: string
+          secondary_contact_name: string
+          secondary_contact_number: string
+          start_time: string
+          title: string
+        }[]
+      }
+      get_field_mappings: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          field_id: string
+          field_name: string
+        }[]
+      }
       get_new_tenant_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2950,6 +3050,15 @@ export type Database = {
       get_next_tab_order: {
         Args: { p_event_id: string; p_tenant_id: string }
         Returns: number
+      }
+      get_reconciliation_stats: {
+        Args: { p_from_date?: string; p_tenant_id: string }
+        Returns: {
+          events_with_external_id: number
+          events_without_external_id: number
+          percentage_synced: number
+          total_events: number
+        }[]
       }
       get_tenant_dashboard_stats: {
         Args: { p_tenant_id: string }
@@ -2981,6 +3090,15 @@ export type Database = {
       is_super_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      log_reconciliation_operation: {
+        Args: {
+          p_operation_data: Json
+          p_operation_type: string
+          p_result_data: Json
+          p_tenant_id: string
+        }
+        Returns: string
       }
       log_security_event: {
         Args: {

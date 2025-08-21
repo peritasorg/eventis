@@ -1,9 +1,9 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { TemplateUpload } from '@/components/settings/TemplateUpload';
-import { FileText, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { TemplateUpload } from "@/components/settings/TemplateUpload";
+import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const TemplateSettings = () => {
   const navigate = useNavigate();
@@ -32,10 +32,10 @@ export const TemplateSettings = () => {
         </div>
         <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
           <FileText className="h-8 w-8" />
-          Document Templates
+          Document Templates & Calendar Sync
         </h1>
         <p className="text-muted-foreground">
-          Upload and manage Word document templates for generating professional invoices and quotes
+          Upload and manage Word document templates for generating professional invoices and quotes, plus configure Google Calendar sync
         </p>
       </div>
 
@@ -63,10 +63,14 @@ export const TemplateSettings = () => {
             <CardContent>
               <TemplateUpload templateType="specification" />
             </CardContent>
-          </Card>
-        </div>
-        
-        <Card>
+        </Card>
+      </div>
+
+      {/* Calendar Sync Settings */}
+      <CalendarSyncSettings />
+
+      {/* Template Guidelines */}
+      <Card>
           <CardHeader>
             <CardTitle>Template Guidelines</CardTitle>
             <CardDescription>

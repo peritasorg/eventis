@@ -29,6 +29,8 @@ import { generateQuotePDF, generateInvoicePDF } from '@/utils/pdfGenerator';
 import { QuoteInvoicePreview } from './QuoteInvoicePreview';
 import { TimeDisplay } from './TimeDisplay';
 import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
+import { prepareCalendarEventData } from '@/utils/calendarEventData';
+import { CalendarSyncPreview } from './CalendarSyncPreview';
 
 interface EventData {
   id: string;
@@ -47,6 +49,7 @@ interface EventData {
   primary_contact_number: string | null;
   secondary_contact_name: string | null;
   secondary_contact_number: string | null;
+  status?: string;
   men_count: number;
    ladies_count: number;
    total_guest_price_gbp: number;
@@ -72,12 +75,13 @@ export const EventRecord: React.FC = () => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showCalendarPreview, setShowCalendarPreview] = useState(false);
 
    // Get event type configs
    const { data: eventTypeConfigs } = useEventTypeConfigs();
    
-   // Calendar auto-sync hook
-   const { autoSyncEvent } = useCalendarAutoSync();
+  // Calendar auto-sync hook
+  const { autoSyncEvent, syncEventToCalendar, deleteEventFromCalendar } = useCalendarAutoSync();
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -193,43 +197,29 @@ export const EventRecord: React.FC = () => {
          setLastSaved(new Date());
          setIsDirty(false);
          
-         // Auto-sync to calendar if core event data changed
-         if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title)) {
-           const currentEventData = { ...eventData, ...savedData };
-           const currentTotalGuests = (currentEventData.men_count || 0) + (currentEventData.ladies_count || 0);
-           
-           // Prepare calendar event data
-           const calendarEventData = {
-             id: currentEventData.id,
-             event_name: currentEventData.title,
-             event_start_date: currentEventData.event_date || '',
-             event_end_date: currentEventData.event_end_date || currentEventData.event_date || '',
-             start_time: currentEventData.start_time || '09:00',
-             end_time: currentEventData.end_time || '17:00',
-             event_type: currentEventData.event_type || '',
-             estimated_guests: currentTotalGuests,
-             total_guests: currentTotalGuests,
-             primary_contact_name: currentEventData.primary_contact_name,
-             primary_contact_number: currentEventData.primary_contact_number,
-             secondary_contact_name: currentEventData.secondary_contact_name,
-             secondary_contact_number: currentEventData.secondary_contact_number,
-             ethnicity: currentEventData.ethnicity,
-             event_forms: eventForms,
-              customers: eventData.customer_id ? {
-                name: eventData.primary_contact_name || 'Unknown',
-                email: null,
-                phone: eventData.primary_contact_number
-              } : {
-                name: eventData.primary_contact_name || 'Unknown',
-                email: null,
-                phone: eventData.primary_contact_number
-              },
-             external_calendar_id: currentEventData.external_calendar_id
-           };
-           
-           // Auto-sync without showing toasts (silent background operation)
-           await autoSyncEvent(calendarEventData, !currentEventData.external_calendar_id, false);
-         }
+          // Auto-sync to calendar if core event data changed
+          if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
+                           savedData.primary_contact_name || savedData.primary_contact_number ||
+                           savedData.secondary_contact_name || savedData.secondary_contact_number ||
+                           savedData.ethnicity)) {
+            const currentEventData = { ...eventData, ...savedData };
+            
+            // Use centralized calendar event data preparation with tenant and event type
+            const calendarEventData = await prepareCalendarEventData(
+              currentEventData,
+              eventForms,
+              selectedCustomer || null,
+              currentTenant.id,
+              currentEventData.event_type // Pass event type for config lookup
+            );
+            
+             // Auto-sync with user feedback for important changes
+             try {
+               await autoSyncEvent(calendarEventData, true);
+             } catch (syncError) {
+               console.error('Auto calendar sync failed:', syncError);
+             }
+          }
        },
       onError: (error) => {
         toast.error('Failed to save changes: ' + error.message);
@@ -257,6 +247,83 @@ export const EventRecord: React.FC = () => {
       },
       onError: (error) => {
         toast.error('Failed to delete event: ' + error.message);
+      }
+    }
+  );
+
+  // Cancel event mutation
+  const cancelEventMutation = useSupabaseMutation(
+    async () => {
+      if (!eventId || !currentTenant?.id || !eventData) throw new Error('Missing event or tenant ID');
+      
+      // Delete from Google Calendar if it exists there
+      if (eventData.external_calendar_id) {
+        const calendarEventData = await prepareCalendarEventData(
+          eventData,
+          eventForms,
+          selectedCustomer || null,
+          currentTenant.id,
+          eventData.event_type
+        );
+        
+        try {
+          await deleteEventFromCalendar(calendarEventData, false);
+        } catch (error) {
+          console.error('Failed to delete from calendar:', error);
+        }
+      }
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ 
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Event cancelled successfully');
+        // Update local state
+        if (eventData) {
+          setEventData({ ...eventData, status: 'cancelled' });
+        }
+      },
+      onError: (error) => {
+        toast.error('Failed to cancel event: ' + error.message);
+      }
+    }
+  );
+
+  // Uncancel (reactivate) event mutation
+  const uncancelEventMutation = useSupabaseMutation(
+    async () => {
+      if (!eventId || !currentTenant?.id) throw new Error('Missing event or tenant ID');
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ 
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', eventId)
+        .eq('tenant_id', currentTenant.id);
+      
+      if (error) throw error;
+    },
+    {
+      onSuccess: () => {
+        toast.success('Event reactivated successfully');
+        // Update local state
+        if (eventData) {
+          setEventData({ ...eventData, status: 'active' });
+        }
+      },
+      onError: (error) => {
+        toast.error('Failed to reactivate event: ' + error.message);
       }
     }
   );
@@ -451,29 +518,27 @@ export const EventRecord: React.FC = () => {
     }
   };
 
-  // Calendar sync function
-  const syncToCalendar = async () => {
+  // Calendar sync function - now shows preview first
+  const showCalendarSyncPreview = async () => {
     if (!eventData || !currentTenant) return;
     
     try {
       setIsSyncing(true);
       
-      const { data: integration, error: integrationError } = await supabase
-        .from('calendar_integrations')
-        .select('id, provider, calendar_id, is_active')
+      // Refresh event data from database to get latest external_calendar_id
+      const { data: freshEventData, error: fetchError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventData.id)
         .eq('tenant_id', currentTenant.id)
-        .eq('is_active', true)
         .single();
-
-      if (integrationError || !integration) {
-        toast.error('No active calendar integration found. Please configure calendar sync in settings.');
-        return;
-      }
+      
+      if (fetchError) throw fetchError;
 
       // Enhanced validation for multi-session events
-      let startTime = eventData.start_time;
-      let endTime = eventData.end_time;
-      let eventEndDate = eventData.event_end_date || eventData.event_date;
+      let startTime = freshEventData.start_time;
+      let endTime = freshEventData.end_time;
+      let eventEndDate = freshEventData.event_end_date || freshEventData.event_date;
 
       // Check for "All Day" multi-session events that lack start/end times
       if (!startTime || !endTime) {
@@ -502,61 +567,104 @@ export const EventRecord: React.FC = () => {
         console.log('Extracted times from forms:', { startTime, endTime, formsCount: formsWithTimes.length });
       }
 
-      if (!eventData.event_date || !startTime || !eventData.title) {
+      if (!freshEventData.event_date || !startTime || !freshEventData.title) {
         toast.error('Event must have a name, date, and time to sync to calendar');
         return;
       }
 
-      // Use the eventForms data that's already loaded for comprehensive form data
-      const allEventForms = eventForms;
-
-      const calendarEventData = {
-        id: eventData.id,
-        event_name: eventData.title,
-        event_start_date: eventData.event_date,
-        event_end_date: eventEndDate,
-        start_time: startTime,
-        end_time: endTime,
-        event_type: eventData.event_type,
-        estimated_guests: totalGuests,
-        total_guests: totalGuests,
-        primary_contact_name: eventData.primary_contact_name,
-        primary_contact_number: eventData.primary_contact_number,
-        secondary_contact_name: eventData.secondary_contact_name,
-        secondary_contact_number: eventData.secondary_contact_number,
-        ethnicity: eventData.ethnicity,
-        event_forms: allEventForms,
-        customers: selectedCustomer ? {
-          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
-          email: selectedCustomer.email,
-          phone: selectedCustomer.phone || eventData.primary_contact_number
-        } : {
-          name: eventData.primary_contact_name || 'Unknown',
-          email: null,
-          phone: eventData.primary_contact_number
-        }
-      };
-      
-      const { data, error } = await supabase.functions.invoke('calendar-sync', {
-        body: {
-          action: 'create',
-          eventId: eventData.id,
-          integrationId: integration.id,
-          eventData: calendarEventData
-        }
+      // Update eventData with fresh data for preview
+      setEventData(prev => {
+        if (!prev) return prev;
+        return { 
+          ...prev, 
+          title: freshEventData.title,
+          event_date: freshEventData.event_date,
+          event_end_date: freshEventData.event_end_date,
+          start_time: freshEventData.start_time,
+          end_time: freshEventData.end_time,
+          event_type: freshEventData.event_type,
+          primary_contact_name: freshEventData.primary_contact_name,
+          primary_contact_number: freshEventData.primary_contact_number,
+          secondary_contact_name: freshEventData.secondary_contact_name,
+          secondary_contact_number: freshEventData.secondary_contact_number,
+          ethnicity: Array.isArray(freshEventData.ethnicity) ? (freshEventData.ethnicity as string[]) : freshEventData.ethnicity ? [(freshEventData.ethnicity as string)] : [],
+          men_count: freshEventData.men_count,
+          ladies_count: freshEventData.ladies_count,
+          external_calendar_id: freshEventData.external_calendar_id
+        };
       });
 
-      if (error) {
-        console.error('Calendar sync error:', error);
-        throw new Error(error.message || 'Calendar sync failed');
+      // Show the preview dialog
+      setShowCalendarPreview(true);
+    } catch (error) {
+      console.error('Error preparing calendar preview:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to prepare calendar preview');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Handle actual sync from preview dialog
+  const handleCalendarSync = async (editedData: {
+    title: string;
+    startDateTime: string;
+    endDateTime: string;
+    description: string;
+    action: 'create' | 'update';
+  }) => {
+    if (!eventData || !currentTenant) return;
+    
+    try {
+      // Parse edited datetime strings
+      const startDate = editedData.startDateTime.split('T')[0];
+      const startTime = editedData.startDateTime.split('T')[1];
+      const endDate = editedData.endDateTime.split('T')[0];
+      const endTime = editedData.endDateTime.split('T')[1];
+
+      // Create calendar event data using the edited information
+      const calendarEventData = {
+        id: eventData.id,
+        event_name: editedData.title,
+        event_start_date: startDate,
+        event_date: startDate,
+        event_end_date: endDate,
+        start_time: startTime,
+        end_time: endTime,
+        event_type: eventData.event_type || '',
+        primary_contact_name: eventData.primary_contact_name || '',
+        primary_contact_number: eventData.primary_contact_number || '',
+        secondary_contact_name: eventData.secondary_contact_name || '',
+        secondary_contact_number: eventData.secondary_contact_number || '',
+        men_count: eventData.men_count || 0,
+        ladies_count: eventData.ladies_count || 0,
+        estimated_guests: (eventData.men_count || 0) + (eventData.ladies_count || 0),
+        ethnicity: Array.isArray(eventData.ethnicity) ? eventData.ethnicity : eventData.ethnicity ? [eventData.ethnicity] : [],
+        external_calendar_id: eventData.external_calendar_id,
+        // Override description with edited version
+        description: editedData.description,
+        tenant_id: currentTenant.id
+      };
+
+      // Use the calendar auto-sync hook for consistency
+      const result = await syncEventToCalendar(calendarEventData, editedData.action);
+
+      if (!result.success) {
+        throw new Error(result.reason || 'Calendar sync failed');
       }
+
+      // Update local state with external ID if returned
+      setEventData(prev => {
+        if (!prev) return prev;
+        return { 
+          ...prev, 
+          external_calendar_id: result.externalId || prev.external_calendar_id 
+        };
+      });
       
-      toast.success('Event synced to calendar successfully');
+      toast.success(`Event ${editedData.action === 'create' ? 'created in' : 'updated in'} calendar successfully`);
     } catch (error) {
       console.error('Error syncing to calendar:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to sync to calendar');
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -593,6 +701,11 @@ export const EventRecord: React.FC = () => {
                 {eventData.event_date && daysLeft !== null && (
                   <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm">
                     {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
+                  </Badge>
+                )}
+                {eventData.status === 'cancelled' && (
+                  <Badge variant="destructive" className="text-sm">
+                    CANCELLED
                   </Badge>
                 )}
               </div>
@@ -646,12 +759,59 @@ export const EventRecord: React.FC = () => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={syncToCalendar}
-              disabled={isSyncing}
+              onClick={showCalendarSyncPreview}
+              disabled={isSyncing || eventData.status === 'cancelled'}
             >
               <CalendarSyncIcon className="h-4 w-4 mr-2" />
               {isSyncing ? 'Syncing...' : 'Sync to Calendar'}
             </Button>
+
+            {/* Cancel/Uncancel Button */}
+            {eventData.status === 'cancelled' ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">
+                    Reactivate Event
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reactivate Event</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to reactivate this event? It will appear in the calendar view again and can be synced to your calendar.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => uncancelEventMutation.mutate({})}>
+                      Reactivate Event
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-amber-600 border-amber-600 hover:bg-amber-50">
+                    Cancel Event
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel Event</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to cancel this event? This will remove it from your calendar view and delete it from Google Calendar. You can reactivate it later if needed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancelEventMutation.mutate({})}>
+                      Cancel Event
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
           
           <AlertDialog>
@@ -1190,6 +1350,43 @@ export const EventRecord: React.FC = () => {
         tenantId={currentTenant?.id || ''}
         eventForms={eventForms || []}
       />
+
+      {/* Calendar Sync Preview Dialog */}
+      {eventData && currentTenant && (
+        <CalendarSyncPreview
+          isOpen={showCalendarPreview}
+          onClose={() => setShowCalendarPreview(false)}
+          onSync={handleCalendarSync}
+          eventData={{
+            id: eventData.id,
+            title: eventData.title,
+            event_date: eventData.event_date || '',
+            event_end_date: eventData.event_end_date,
+            start_time: eventData.start_time,
+            end_time: eventData.end_time,
+            event_type: eventData.event_type || '',
+            primary_contact_name: eventData.primary_contact_name,
+            primary_contact_number: eventData.primary_contact_number,
+            secondary_contact_name: eventData.secondary_contact_name,
+            secondary_contact_number: eventData.secondary_contact_number,
+            men_count: eventData.men_count,
+            ladies_count: eventData.ladies_count,
+            guest_mixture: 'Mixed', // Add default guest mixture
+            external_calendar_id: eventData.external_calendar_id
+          }}
+          eventForms={eventForms?.map(form => ({
+            id: form.id,
+            form_label: form.form_label,
+            start_time: form.start_time,
+            end_time: form.end_time,
+            men_count: form.men_count,
+            ladies_count: form.ladies_count,
+            form_responses: form.form_responses || {},
+            form_id: form.form_id
+          })) || []}
+          tenantId={currentTenant.id}
+        />
+      )}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -165,7 +166,7 @@ export const useEventTypeFormMappings = (eventTypeConfigId?: string) => {
 export const useEventTypeFormMappingsForCreation = () => {
   const { currentTenant } = useAuth();
 
-  const getFormMappingsForEventType = async (eventType: string) => {
+  const getFormMappingsForEventType = useCallback(async (eventType: string) => {
     if (!currentTenant?.id || !eventType) return [];
 
     console.log('Looking for form mappings for event type:', eventType, 'tenant:', currentTenant.id);
@@ -224,7 +225,7 @@ export const useEventTypeFormMappingsForCreation = () => {
 
     console.log('Final form mappings result:', result);
     return result;
-  };
+  }, [currentTenant?.id]);
 
   return { getFormMappingsForEventType };
 };

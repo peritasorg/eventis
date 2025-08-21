@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEventTypeFormMappingsForCreation } from '@/hooks/useEventTypeFormMappings';
+import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
 
 interface CreateEventDialogProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
   const { getFormMappingsForEventType } = useEventTypeFormMappingsForCreation();
+  const { autoSyncEvent } = useCalendarAutoSync();
 
   // Fetch event types for dropdown
   const { data: eventTypes } = useSupabaseQuery(
@@ -124,6 +126,35 @@ export const CreateEventDialog: React.FC<CreateEventDialogProps> = ({
           console.error('Error auto-assigning forms:', formError);
           // Don't fail the event creation if form assignment fails
         }
+      }
+
+      // Auto-sync to Google Calendar
+      const calendarEventData = {
+        id: data.id,
+        event_name: eventData.title, // Use event_name for calendar sync
+        event_start_date: eventData.event_date,
+        event_end_date: eventData.event_end_date || eventData.event_date,
+        start_time: '09:00', // Default start time
+        end_time: '17:00',   // Default end time
+        event_type: eventData.event_type || 'Event',
+        estimated_guests: 0, // Will be updated when guest counts are added
+        total_guests: 0,
+        primary_contact_name: '',
+        primary_contact_number: '',
+        secondary_contact_name: '',
+        secondary_contact_number: '',
+        ethnicity: [],
+        event_forms: [],
+        customers: null,
+        external_calendar_id: undefined
+      };
+
+      // Sync to calendar (this is a new event, so isNewEvent = true)
+      try {
+        await autoSyncEvent(calendarEventData, true);
+      } catch (syncError) {
+        console.error('Calendar sync error:', syncError);
+        // Don't fail event creation if calendar sync fails
       }
 
       toast.success('Event created successfully');

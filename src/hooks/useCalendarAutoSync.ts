@@ -99,9 +99,14 @@ export const useCalendarAutoSync = () => {
         eventData
       };
 
+      // For update action, we need the external event ID
+      if (action === 'update' && eventData.external_calendar_id) {
+        requestBody.externalId = eventData.external_calendar_id;
+      }
+
       // For delete action, we need the external event ID
       if (action === 'delete') {
-        requestBody.externalEventId = eventData.external_calendar_id;
+        requestBody.externalId = eventData.external_calendar_id;
       }
 
       const { data, error } = await supabase.functions.invoke('calendar-sync', {
@@ -113,20 +118,52 @@ export const useCalendarAutoSync = () => {
         return { success: false, reason: 'sync_error', error: error.message };
       }
 
+      console.log('Calendar sync response:', data);
+
       // For successful create operations, store the external calendar ID
-      if (action === 'create' && data?.success && data?.externalId) {
+      if (action === 'create' && data?.success && data?.data?.success && data?.data?.externalId) {
+        console.log('Storing external calendar ID:', data.data.externalId);
         try {
-          await supabase
+          const { error: updateError } = await supabase
             .from('events')
-            .update({ external_calendar_id: data.externalId })
+            .update({ external_calendar_id: data.data.externalId })
             .eq('id', eventData.id)
             .eq('tenant_id', currentTenant.id);
+          
+          if (updateError) {
+            console.error('Error updating external calendar ID:', updateError);
+          } else {
+            console.log('Successfully stored external calendar ID');
+          }
         } catch (updateError) {
           console.error('Error updating external calendar ID:', updateError);
         }
       }
 
-      return { success: true, externalId: data?.externalId };
+      // For successful update operations, ensure the external ID is stored if somehow missing
+      if (action === 'update' && data?.success && data?.data?.success) {
+        // If we got a new external ID (fallback to create scenario), store it
+        if (data?.data?.externalId && data.data.externalId !== eventData.external_calendar_id) {
+          console.log('Update operation returned new external calendar ID (fallback to create):', data.data.externalId);
+          try {
+            const { error: updateError } = await supabase
+              .from('events')
+              .update({ external_calendar_id: data.data.externalId })
+              .eq('id', eventData.id)
+              .eq('tenant_id', currentTenant.id);
+            
+            if (updateError) {
+              console.error('Error updating external calendar ID on update fallback:', updateError);
+            } else {
+              console.log('Successfully stored new external calendar ID on update fallback');
+            }
+          } catch (updateError) {
+            console.error('Error updating external calendar ID on update fallback:', updateError);
+          }
+        }
+      }
+
+      return { success: true, externalId: data?.data?.externalId };
     } catch (error) {
       console.error('Error in calendar sync:', error);
       return { success: false, reason: 'sync_error', error: error instanceof Error ? error.message : 'Unknown error' };
@@ -135,12 +172,11 @@ export const useCalendarAutoSync = () => {
 
   const autoSyncEvent = async (
     eventData: CalendarEventData,
-    isNewEvent: boolean = false,
     showToasts: boolean = true
   ) => {
     try {
-      // Determine action based on whether this is a new event or update
-      const action = isNewEvent ? 'create' : 'update';
+      // Determine action based on external_calendar_id - bulletproof logic
+      const action = eventData.external_calendar_id ? 'update' : 'create';
       
       const result = await syncEventToCalendar(eventData, action);
       
