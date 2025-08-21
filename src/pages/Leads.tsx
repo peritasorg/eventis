@@ -48,6 +48,7 @@ export const Leads = () => {
   const [searchTerm, setSearchTerm] = useState("");
   
   const [selectedEventType, setSelectedEventType] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [activeView, setActiveView] = useState<"table" | "calendar">("table");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -82,7 +83,14 @@ export const Leads = () => {
                          lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.phone?.includes(searchTerm);
     const matchesEventType = selectedEventType === "all" || lead.event_type === selectedEventType;
-    return matchesSearch && matchesEventType;
+    
+    // Filter by conversion status
+    const isConverted = lead.conversion_date || (lead as any).customers?.length > 0;
+    const matchesStatus = selectedStatus === "all" || 
+                         (selectedStatus === "converted" && isConverted) ||
+                         (selectedStatus === "active" && !isConverted);
+    
+    return matchesSearch && matchesEventType && matchesStatus;
   });
 
   const getStatusColor = (status: string) => {
@@ -369,6 +377,16 @@ export const Leads = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="converted">Converted</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
@@ -548,27 +566,29 @@ export const Leads = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Lead</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this lead? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleSingleDelete(lead.id)}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {!(lead.conversion_date || (lead as any).customers?.length > 0) && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this lead? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleSingleDelete(lead.id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
