@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { LeadForm } from '@/components/leads/LeadForm';
-import { ModernCalendarView } from '@/components/leads/ModernCalendarView';
+import { LeadsCalendarView } from '@/components/leads/LeadsCalendarView';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -177,14 +177,34 @@ export const Leads = () => {
     
     setIsLoading(true);
     try {
+      // Check if any of the selected leads have linked customers
+      const { data: linkedCustomers, error: checkError } = await supabase
+        .from('customers')
+        .select('lead_id')
+        .in('lead_id', selectedLeadIds);
+
+      if (checkError) throw checkError;
+
+      const leadsWithCustomers = linkedCustomers?.map(c => c.lead_id) || [];
+      const leadsToDelete = selectedLeadIds.filter(id => !leadsWithCustomers.includes(id));
+
+      if (leadsWithCustomers.length > 0) {
+        toast.error(`Cannot delete ${leadsWithCustomers.length} lead(s) that have been converted to customers. Only deleting unconverted leads.`);
+      }
+
+      if (leadsToDelete.length === 0) {
+        toast.error('No leads can be deleted. All selected leads have been converted to customers.');
+        return;
+      }
+
       const { error } = await supabase
         .from('leads')
         .delete()
-        .in('id', selectedLeadIds);
+        .in('id', leadsToDelete);
 
       if (error) throw error;
 
-      toast.success(`Successfully deleted ${selectedLeadIds.length} lead(s)`);
+      toast.success(`Successfully deleted ${leadsToDelete.length} lead(s)`);
       setSelectedLeadIds([]);
       setIsAllSelected(false);
       refetch();
@@ -199,6 +219,21 @@ export const Leads = () => {
   const handleSingleDelete = async (leadId: string) => {
     setIsLoading(true);
     try {
+      // First check if there are customers linked to this lead
+      const { data: linkedCustomers, error: checkError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('lead_id', leadId);
+
+      if (checkError) throw checkError;
+
+      if (linkedCustomers && linkedCustomers.length > 0) {
+        // If there are linked customers, show a more specific error
+        toast.error('Cannot delete lead: This lead has been converted to a customer. You can only delete leads that haven\'t been converted yet.');
+        return;
+      }
+
+      // If no linked customers, proceed with deletion
       const { error } = await supabase
         .from('leads')
         .delete()
@@ -542,7 +577,7 @@ export const Leads = () => {
         </TabsContent>
 
         <TabsContent value="calendar">
-          <ModernCalendarView 
+          <LeadsCalendarView 
             leads={leads} 
             eventTypeConfigs={eventTypeConfigs}
             onLeadClick={handleCalendarLeadClick}
