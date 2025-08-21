@@ -30,6 +30,7 @@ import { QuoteInvoicePreview } from './QuoteInvoicePreview';
 import { TimeDisplay } from './TimeDisplay';
 import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
 import { prepareCalendarEventData } from '@/utils/calendarEventData';
+import { CalendarSyncPreview } from './CalendarSyncPreview';
 
 interface EventData {
   id: string;
@@ -73,6 +74,7 @@ export const EventRecord: React.FC = () => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showCalendarPreview, setShowCalendarPreview] = useState(false);
 
    // Get event type configs
    const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -438,8 +440,8 @@ export const EventRecord: React.FC = () => {
     }
   };
 
-  // Calendar sync function
-  const syncToCalendar = async () => {
+  // Calendar sync function - now shows preview first
+  const showCalendarSyncPreview = async () => {
     if (!eventData || !currentTenant) return;
     
     try {
@@ -492,41 +494,7 @@ export const EventRecord: React.FC = () => {
         return;
       }
 
-      // Use centralized calendar event data preparation with fresh data
-      const calendarEventData = await prepareCalendarEventData(
-        {
-          id: freshEventData.id,
-          title: freshEventData.title,
-          event_date: freshEventData.event_date,
-          event_end_date: eventEndDate,
-          start_time: startTime,
-          end_time: endTime,
-          event_type: freshEventData.event_type,
-          primary_contact_name: freshEventData.primary_contact_name,
-          primary_contact_number: freshEventData.primary_contact_number,
-          secondary_contact_name: freshEventData.secondary_contact_name,
-          secondary_contact_number: freshEventData.secondary_contact_number,
-          ethnicity: Array.isArray(freshEventData.ethnicity) ? (freshEventData.ethnicity as string[]) : freshEventData.ethnicity ? [(freshEventData.ethnicity as string)] : [],
-          men_count: freshEventData.men_count,
-          ladies_count: freshEventData.ladies_count,
-          external_calendar_id: freshEventData.external_calendar_id, // Use fresh external_calendar_id
-        },
-        eventForms,
-        selectedCustomer || null
-      );
-
-      // Determine if this should be an update or create based on external_calendar_id
-      const action = freshEventData.external_calendar_id ? 'update' : 'create';
-      console.log(`Manual sync: ${action} action, external_calendar_id: ${freshEventData.external_calendar_id}`);
-
-      // Use the calendar auto-sync hook for consistency
-      const result = await syncEventToCalendar(calendarEventData, action);
-
-      if (!result.success) {
-        throw new Error(result.reason || 'Calendar sync failed');
-      }
-
-      // Update local state with fresh data and external ID if returned
+      // Update eventData with fresh data for preview
       setEventData(prev => {
         if (!prev) return prev;
         return { 
@@ -544,16 +512,81 @@ export const EventRecord: React.FC = () => {
           ethnicity: Array.isArray(freshEventData.ethnicity) ? (freshEventData.ethnicity as string[]) : freshEventData.ethnicity ? [(freshEventData.ethnicity as string)] : [],
           men_count: freshEventData.men_count,
           ladies_count: freshEventData.ladies_count,
-          external_calendar_id: result.externalId || freshEventData.external_calendar_id 
+          external_calendar_id: freshEventData.external_calendar_id
+        };
+      });
+
+      // Show the preview dialog
+      setShowCalendarPreview(true);
+    } catch (error) {
+      console.error('Error preparing calendar preview:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to prepare calendar preview');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Handle actual sync from preview dialog
+  const handleCalendarSync = async (editedData: {
+    title: string;
+    startDateTime: string;
+    endDateTime: string;
+    description: string;
+    action: 'create' | 'update';
+  }) => {
+    if (!eventData || !currentTenant) return;
+    
+    try {
+      // Parse edited datetime strings
+      const startDate = editedData.startDateTime.split('T')[0];
+      const startTime = editedData.startDateTime.split('T')[1];
+      const endDate = editedData.endDateTime.split('T')[0];
+      const endTime = editedData.endDateTime.split('T')[1];
+
+      // Create calendar event data using the edited information
+      const calendarEventData = {
+        id: eventData.id,
+        event_name: editedData.title,
+        event_start_date: startDate,
+        event_date: startDate,
+        event_end_date: endDate,
+        start_time: startTime,
+        end_time: endTime,
+        event_type: eventData.event_type || '',
+        primary_contact_name: eventData.primary_contact_name || '',
+        primary_contact_number: eventData.primary_contact_number || '',
+        secondary_contact_name: eventData.secondary_contact_name || '',
+        secondary_contact_number: eventData.secondary_contact_number || '',
+        men_count: eventData.men_count || 0,
+        ladies_count: eventData.ladies_count || 0,
+        estimated_guests: (eventData.men_count || 0) + (eventData.ladies_count || 0),
+        ethnicity: Array.isArray(eventData.ethnicity) ? eventData.ethnicity : eventData.ethnicity ? [eventData.ethnicity] : [],
+        external_calendar_id: eventData.external_calendar_id,
+        // Override description with edited version
+        description: editedData.description,
+        tenant_id: currentTenant.id
+      };
+
+      // Use the calendar auto-sync hook for consistency
+      const result = await syncEventToCalendar(calendarEventData, editedData.action);
+
+      if (!result.success) {
+        throw new Error(result.reason || 'Calendar sync failed');
+      }
+
+      // Update local state with external ID if returned
+      setEventData(prev => {
+        if (!prev) return prev;
+        return { 
+          ...prev, 
+          external_calendar_id: result.externalId || prev.external_calendar_id 
         };
       });
       
-      toast.success(`Event ${action === 'create' ? 'created in' : 'updated in'} calendar successfully`);
+      toast.success(`Event ${editedData.action === 'create' ? 'created in' : 'updated in'} calendar successfully`);
     } catch (error) {
       console.error('Error syncing to calendar:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to sync to calendar');
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -643,7 +676,7 @@ export const EventRecord: React.FC = () => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={syncToCalendar}
+              onClick={showCalendarSyncPreview}
               disabled={isSyncing}
             >
               <CalendarSyncIcon className="h-4 w-4 mr-2" />
@@ -1187,6 +1220,43 @@ export const EventRecord: React.FC = () => {
         tenantId={currentTenant?.id || ''}
         eventForms={eventForms || []}
       />
+
+      {/* Calendar Sync Preview Dialog */}
+      {eventData && currentTenant && (
+        <CalendarSyncPreview
+          isOpen={showCalendarPreview}
+          onClose={() => setShowCalendarPreview(false)}
+          onSync={handleCalendarSync}
+          eventData={{
+            id: eventData.id,
+            title: eventData.title,
+            event_date: eventData.event_date || '',
+            event_end_date: eventData.event_end_date,
+            start_time: eventData.start_time,
+            end_time: eventData.end_time,
+            event_type: eventData.event_type || '',
+            primary_contact_name: eventData.primary_contact_name,
+            primary_contact_number: eventData.primary_contact_number,
+            secondary_contact_name: eventData.secondary_contact_name,
+            secondary_contact_number: eventData.secondary_contact_number,
+            men_count: eventData.men_count,
+            ladies_count: eventData.ladies_count,
+            guest_mixture: 'Mixed', // Add default guest mixture
+            external_calendar_id: eventData.external_calendar_id
+          }}
+          eventForms={eventForms?.map(form => ({
+            id: form.id,
+            form_label: form.form_label,
+            start_time: form.start_time,
+            end_time: form.end_time,
+            men_count: form.men_count,
+            ladies_count: form.ladies_count,
+            form_responses: form.form_responses || {},
+            form_id: form.form_id
+          })) || []}
+          tenantId={currentTenant.id}
+        />
+      )}
     </div>
   );
 };
