@@ -95,12 +95,38 @@ export const Customers = () => {
 
   const deleteCustomerMutation = useSupabaseMutation(
     async (customerId: string) => {
+      // First, get the customer to find the associated lead_id
+      const { data: customer, error: fetchError } = await supabase
+        .from('customers')
+        .select('lead_id')
+        .eq('id', customerId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Deactivate the customer
       const { error } = await supabase
         .from('customers')
         .update({ active: false })
         .eq('id', customerId);
       
       if (error) throw error;
+
+      // If there's an associated lead, clear its conversion_date so it can be converted again
+      if (customer.lead_id) {
+        const { error: leadError } = await supabase
+          .from('leads')
+          .update({ 
+            conversion_date: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', customer.lead_id);
+
+        if (leadError) {
+          console.error('Error clearing lead conversion date:', leadError);
+          // Don't throw here as the customer was already deleted successfully
+        }
+      }
     },
     {
       onSuccess: () => {
