@@ -141,22 +141,25 @@ export const useCalendarAutoSync = () => {
       }
 
       // For successful update operations, ensure the external ID is stored if somehow missing
-      if (action === 'update' && data?.success && data?.data?.success && data?.data?.externalId && !eventData.external_calendar_id) {
-        console.log('Update succeeded, storing external calendar ID that was missing:', data.data.externalId);
-        try {
-          const { error: updateError } = await supabase
-            .from('events')
-            .update({ external_calendar_id: data.data.externalId })
-            .eq('id', eventData.id)
-            .eq('tenant_id', currentTenant.id);
-          
-          if (updateError) {
-            console.error('Error updating external calendar ID on update:', updateError);
-          } else {
-            console.log('Successfully stored external calendar ID on update');
+      if (action === 'update' && data?.success && data?.data?.success) {
+        // If we got a new external ID (fallback to create scenario), store it
+        if (data?.data?.externalId && data.data.externalId !== eventData.external_calendar_id) {
+          console.log('Update operation returned new external calendar ID (fallback to create):', data.data.externalId);
+          try {
+            const { error: updateError } = await supabase
+              .from('events')
+              .update({ external_calendar_id: data.data.externalId })
+              .eq('id', eventData.id)
+              .eq('tenant_id', currentTenant.id);
+            
+            if (updateError) {
+              console.error('Error updating external calendar ID on update fallback:', updateError);
+            } else {
+              console.log('Successfully stored new external calendar ID on update fallback');
+            }
+          } catch (updateError) {
+            console.error('Error updating external calendar ID on update fallback:', updateError);
           }
-        } catch (updateError) {
-          console.error('Error updating external calendar ID on update:', updateError);
         }
       }
 

@@ -182,7 +182,7 @@ class CalendarService {
     }
   }
 
-  async updateEvent(eventData: EventData, externalId: string): Promise<{ success: boolean; error?: string }> {
+  async updateEvent(eventData: EventData, externalId: string): Promise<{ success: boolean; error?: string; externalId?: string }> {
     try {
       const accessToken = await this.refreshTokenIfNeeded();
       const calendarEvent = await this.formatEventForCalendar(eventData);
@@ -194,6 +194,18 @@ class CalendarService {
       }
     } catch (error) {
       console.error('Update event error:', error);
+      
+      // If 404 error (event not found), try creating a new event instead
+      if (error.message.includes('404') || error.message.includes('Not Found')) {
+        console.log('Event not found in calendar, creating new event instead...');
+        try {
+          return await this.createEvent(eventData);
+        } catch (createError) {
+          console.error('Failed to create event after 404:', createError);
+          return { success: false, error: createError.message };
+        }
+      }
+      
       return { success: false, error: error.message };
     }
   }
@@ -332,7 +344,8 @@ class CalendarService {
       throw new Error(`Google Calendar API error: ${errorText}`);
     }
 
-    return { success: true };
+    const updatedEvent = await response.json();
+    return { success: true, externalId: updatedEvent.id };
   }
 
   private async deleteGoogleEvent(externalId: string, accessToken: string) {
@@ -432,7 +445,8 @@ class CalendarService {
       throw new Error(`Outlook Calendar API error: ${errorText}`);
     }
 
-    return { success: true };
+    const updatedEvent = await response.json();
+    return { success: true, externalId: updatedEvent.id };
   }
 
   private async deleteOutlookEvent(externalId: string, accessToken: string) {
