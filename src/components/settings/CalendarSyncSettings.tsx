@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calendar, Settings, Eye } from 'lucide-react';
+import { Calendar, Settings, Eye, Loader2 } from 'lucide-react';
 import { useCalendarSyncConfigs } from '@/hooks/useCalendarSyncConfigs';
 import { useFormFields } from '@/hooks/useFormFields';
 import { useEventTypeFormMappingsForCreation } from '@/hooks/useEventTypeFormMappings';
@@ -31,16 +31,18 @@ export const CalendarSyncSettings = () => {
     showPricingFieldsOnly: boolean;
   }>>({});
   const [showPreview, setShowPreview] = useState(false);
+  const [isLoadingConfigs, setIsLoadingConfigs] = useState(false);
 
   // Load assigned forms when event type is selected
-  useEffect(() => {
-    const loadAssignedForms = async () => {
-      if (!selectedEventType) {
-        setAssignedForms([]);
-        setFormConfigs({});
-        return;
-      }
+  const loadAssignedForms = useCallback(async () => {
+    if (!selectedEventType) {
+      setAssignedForms([]);
+      setFormConfigs({});
+      return;
+    }
 
+    setIsLoadingConfigs(true);
+    try {
       const eventTypeConfig = eventTypes?.find(et => et.id === selectedEventType);
       if (!eventTypeConfig) return;
 
@@ -59,45 +61,56 @@ export const CalendarSyncSettings = () => {
         }
       }
       setFormConfigs(configs);
-    };
-
-    loadAssignedForms();
+    } finally {
+      setIsLoadingConfigs(false);
+    }
   }, [selectedEventType, eventTypes, getFormMappingsForEventType, getConfigForEventType]);
 
-  const availableFields = useMemo(() => {
-    // Get fields from the hook properly
+  useEffect(() => {
+    loadAssignedForms();
+  }, [loadAssignedForms]);
+
+  // Get form-specific fields based on assigned forms
+  const getFormSpecificFields = useCallback((formId: string) => {
     const fieldsData = formFields?.formFields || [];
     
-    // Filter fields for display
+    // For now, return all available fields since we don't have form-field associations
+    // TODO: Filter by actual form-field relationships when available
     const fieldsForForm = fieldsData.filter(field => 
       field.field_type !== 'section_header' && 
-      field.field_type !== 'spacer'
+      field.field_type !== 'spacer' &&
+      field.is_active
     );
     
     return fieldsForForm;
   }, [formFields]);
 
-  const handleFieldToggle = (formId: string, fieldId: string, checked: boolean) => {
-    setFormConfigs(prev => ({
-      ...prev,
-      [formId]: {
-        ...prev[formId],
-        selectedFields: checked 
-          ? [...(prev[formId]?.selectedFields || []), fieldId]
-          : (prev[formId]?.selectedFields || []).filter(id => id !== fieldId)
-      }
-    }));
-  };
+  const handleFieldToggle = useCallback((formId: string, fieldId: string, checked: boolean) => {
+    setFormConfigs(prev => {
+      const currentFormConfig = prev[formId] || { selectedFields: [], showPricingFieldsOnly: false };
+      const updatedFields = checked 
+        ? [...currentFormConfig.selectedFields.filter(id => id !== fieldId), fieldId]
+        : currentFormConfig.selectedFields.filter(id => id !== fieldId);
+      
+      return {
+        ...prev,
+        [formId]: {
+          ...currentFormConfig,
+          selectedFields: updatedFields
+        }
+      };
+    });
+  }, []);
 
-  const handlePricingOnlyToggle = (formId: string, checked: boolean) => {
+  const handlePricingOnlyToggle = useCallback((formId: string, checked: boolean) => {
     setFormConfigs(prev => ({
       ...prev,
       [formId]: {
-        ...prev[formId],
+        ...(prev[formId] || { selectedFields: [] }),
         showPricingFieldsOnly: checked
       }
     }));
-  };
+  }, []);
 
   const handleSave = async () => {
     if (!selectedEventType || assignedForms.length === 0) return;
@@ -132,7 +145,8 @@ export const CalendarSyncSettings = () => {
       if (!mapping.forms?.id) return;
       
       const config = formConfigs[mapping.forms.id];
-      const selectedFieldObjs = availableFields.filter(field => 
+      const formFields = getFormSpecificFields(mapping.forms.id);
+      const selectedFieldObjs = formFields.filter(field => 
         config?.selectedFields.includes(field.id)
       );
 
@@ -226,23 +240,30 @@ export const CalendarSyncSettings = () => {
                         </Label>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Select Fields to Include in Calendar Description</Label>
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-4 border rounded">
-                          {availableFields.map(field => (
-                            <div key={field.id} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`${form.id}-${field.id}`}
-                                checked={config.selectedFields.includes(field.id)}
-                                onCheckedChange={(checked) => handleFieldToggle(form.id, field.id, !!checked)}
-                              />
-                              <Label htmlFor={`${form.id}-${field.id}`} className="text-sm">
-                                {field.name} ({field.field_type})
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                       <div className="space-y-2">
+                         <Label>Select Fields to Include in Calendar Description</Label>
+                         {isLoadingConfigs ? (
+                           <div className="flex items-center justify-center p-8">
+                             <Loader2 className="h-4 w-4 animate-spin" />
+                             <span className="ml-2">Loading field configurations...</span>
+                           </div>
+                         ) : (
+                           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-4 border rounded">
+                             {getFormSpecificFields(form.id).map(field => (
+                               <div key={`${form.id}-${field.id}`} className="flex items-center space-x-2">
+                                 <Checkbox
+                                   id={`${form.id}-${field.id}`}
+                                   checked={config.selectedFields.includes(field.id)}
+                                   onCheckedChange={(checked) => handleFieldToggle(form.id, field.id, !!checked)}
+                                 />
+                                 <Label htmlFor={`${form.id}-${field.id}`} className="text-sm">
+                                   {field.name} ({field.field_type})
+                                 </Label>
+                               </div>
+                             ))}
+                           </div>
+                         )}
+                       </div>
                     </CardContent>
                   </Card>
                 );

@@ -1,6 +1,7 @@
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCallback } from 'react';
 
 interface CalendarSyncConfig {
   id: string;
@@ -143,13 +144,13 @@ export const useCalendarSyncConfigs = () => {
     }
   );
 
-  const getConfigForEventType = (eventTypeConfigId: string, formId: string): CalendarSyncConfig | undefined => {
+  const getConfigForEventType = useCallback((eventTypeConfigId: string, formId: string): CalendarSyncConfig | undefined => {
     return configs?.find(config => 
       config.event_type_config_id === eventTypeConfigId && 
       config.form_id === formId &&
       config.is_active
     );
-  };
+  }, [configs]);
 
   return {
     configs,
