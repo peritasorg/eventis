@@ -156,30 +156,42 @@ export const EventRecord: React.FC = () => {
       
       if (convertedError) throw convertedError;
       
-      // Combine and normalize the data
-      const allCustomers = [
-        ...(newCustomers || []).map(c => ({
+      // Combine and normalize the data - ensure unique IDs
+      const customerMap = new Map();
+      
+      // Add new_customers first
+      (newCustomers || []).forEach(c => {
+        customerMap.set(c.id, {
           id: c.id,
           first_name: c.first_name,
           last_name: c.last_name,
           email: c.email,
           phone: c.phone,
-          full_name: `${c.first_name} ${c.last_name}`,
+          full_name: `${c.first_name} ${c.last_name}`.trim(),
           source: 'new_customers'
-        })),
-        ...(convertedCustomers || []).map(c => ({
-          id: c.id,
-          first_name: c.name?.split(' ')[0] || '',
-          last_name: c.name?.split(' ').slice(1).join(' ') || '',
-          email: c.email,
-          phone: c.phone,
-          full_name: c.name || '',
-          source: 'customers'
-        }))
-      ];
+        });
+      });
       
-      // Sort by full name
-      return allCustomers.sort((a, b) => a.full_name.localeCompare(b.full_name));
+      // Add converted customers (don't overwrite if ID already exists)
+      (convertedCustomers || []).forEach(c => {
+        if (!customerMap.has(c.id)) {
+          const nameParts = (c.name || '').split(' ');
+          customerMap.set(c.id, {
+            id: c.id,
+            first_name: nameParts[0] || '',
+            last_name: nameParts.slice(1).join(' ') || '',
+            email: c.email,
+            phone: c.phone,
+            full_name: c.name || '',
+            source: 'customers'
+          });
+        }
+      });
+      
+      // Convert map to array and sort by full name
+      return Array.from(customerMap.values()).sort((a, b) => 
+        a.full_name.localeCompare(b.full_name)
+      );
     }
   );
 
@@ -1060,7 +1072,7 @@ export const EventRecord: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-2 relative">
+                    <div className="space-y-2">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -1077,36 +1089,38 @@ export const EventRecord: React.FC = () => {
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
-                      </div>
-                      {customerSearchQuery && (
-                        <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto border rounded-md bg-background shadow-lg">
-                          {filteredCustomers.length > 0 ? (
-                            filteredCustomers.map((customer) => (
-                              <div
-                                key={customer.id}
-                                className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0 bg-background"
-                                onClick={() => {
-                                  handleFieldChange('customer_id', customer.id);
-                                  setCustomerSearchQuery('');
-                                }}
-                              >
-                                <div className="font-medium">
-                                  {customer.full_name}
-                                </div>
-                                {customer.email && (
-                                  <div className="text-sm text-muted-foreground">
-                                    {customer.email}
+                        
+                        {/* Dropdown Results */}
+                        {customerSearchQuery.trim() && (
+                          <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto border rounded-md bg-card shadow-lg">
+                            {filteredCustomers.length > 0 ? (
+                              filteredCustomers.map((customer) => (
+                                <div
+                                  key={`customer-${customer.id}`}
+                                  className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
+                                  onClick={() => {
+                                    handleFieldChange('customer_id', customer.id);
+                                    setCustomerSearchQuery('');
+                                  }}
+                                >
+                                  <div className="font-medium text-foreground">
+                                    {customer.full_name}
                                   </div>
-                                )}
+                                  {customer.email && (
+                                    <div className="text-sm text-muted-foreground">
+                                      {customer.email}
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="p-3 text-sm text-muted-foreground">
+                                No customers found matching "{customerSearchQuery}"
                               </div>
-                            ))
-                          ) : (
-                            <div className="p-3 text-sm text-muted-foreground bg-background">
-                              No customers found matching "{customerSearchQuery}"
-                            </div>
-                          )}
-                        </div>
-                      )}
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
