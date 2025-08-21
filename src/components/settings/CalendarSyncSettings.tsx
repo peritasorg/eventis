@@ -64,11 +64,13 @@ export const CalendarSyncSettings = () => {
     } finally {
       setIsLoadingConfigs(false);
     }
-  }, [selectedEventType, eventTypes, getFormMappingsForEventType, getConfigForEventType]);
+  }, [selectedEventType, eventTypes?.length]);
 
   useEffect(() => {
-    loadAssignedForms();
-  }, [loadAssignedForms]);
+    if (selectedEventType) {
+      loadAssignedForms();
+    }
+  }, [selectedEventType, eventTypes]);
 
   // Get form-specific fields based on assigned forms
   const getFormSpecificFields = useCallback((formId: string) => {
