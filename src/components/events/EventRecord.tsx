@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search, FileText, Receipt, Calendar as CalendarSyncIcon, History } from 'lucide-react';
+import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search, FileText, Receipt, Calendar as CalendarSyncIcon, History, Plus, Eye } from 'lucide-react';
 import { CommunicationsTimeline } from './CommunicationsTimeline';
 import { PaymentTimeline } from './PaymentTimeline';
 import { format } from 'date-fns';
@@ -31,6 +31,8 @@ import { TimeDisplay } from './TimeDisplay';
 import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
 import { prepareCalendarEventData } from '@/utils/calendarEventData';
 import { CalendarSyncPreview } from './CalendarSyncPreview';
+import { QuickCreateCustomerDialog } from '../customers/QuickCreateCustomerDialog';
+import { QuickViewCustomerDialog } from '../customers/QuickViewCustomerDialog';
 
 interface EventData {
   id: string;
@@ -76,6 +78,9 @@ export const EventRecord: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showCalendarPreview, setShowCalendarPreview] = useState(false);
+  const [showQuickCreateCustomer, setShowQuickCreateCustomer] = useState(false);
+  const [showQuickViewCustomer, setShowQuickViewCustomer] = useState(false);
+  const [selectedCustomerForView, setSelectedCustomerForView] = useState<any>(null);
 
    // Get event type configs
    const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -128,20 +133,52 @@ export const EventRecord: React.FC = () => {
     }
   );
 
-  // Fetch customers for lookup
-  const { data: customers } = useSupabaseQuery(
-    ['new-customers', currentTenant?.id],
+  // Fetch customers for lookup - include both new_customers and converted leads
+  const { data: customers, refetch: refetchCustomers } = useSupabaseQuery(
+    ['all-customers', currentTenant?.id],
     async () => {
       if (!currentTenant?.id) return [];
       
-      const { data, error } = await supabase
+      // Fetch from new_customers table
+      const { data: newCustomers, error: newError } = await supabase
         .from('new_customers')
         .select('id, first_name, last_name, email, phone')
-        .eq('tenant_id', currentTenant.id)
-        .order('first_name', { ascending: true });
+        .eq('tenant_id', currentTenant.id);
       
-      if (error) throw error;
-      return data || [];
+      if (newError) throw newError;
+      
+      // Fetch from customers table (converted leads)
+      const { data: convertedCustomers, error: convertedError } = await supabase
+        .from('customers')
+        .select('id, name, email, phone')
+        .eq('tenant_id', currentTenant.id);
+      
+      if (convertedError) throw convertedError;
+      
+      // Combine and normalize the data
+      const allCustomers = [
+        ...(newCustomers || []).map(c => ({
+          id: c.id,
+          first_name: c.first_name,
+          last_name: c.last_name,
+          email: c.email,
+          phone: c.phone,
+          full_name: `${c.first_name} ${c.last_name}`,
+          source: 'new_customers'
+        })),
+        ...(convertedCustomers || []).map(c => ({
+          id: c.id,
+          first_name: c.name?.split(' ')[0] || '',
+          last_name: c.name?.split(' ').slice(1).join(' ') || '',
+          email: c.email,
+          phone: c.phone,
+          full_name: c.name || '',
+          source: 'customers'
+        }))
+      ];
+      
+      // Sort by full name
+      return allCustomers.sort((a, b) => a.full_name.localeCompare(b.full_name));
     }
   );
 
@@ -149,7 +186,7 @@ export const EventRecord: React.FC = () => {
   const filteredCustomers = customers?.filter(customer => {
     if (!customerSearchQuery) return true;
     const query = customerSearchQuery.toLowerCase();
-    const fullName = `${customer.first_name} ${customer.last_name}`.toLowerCase();
+    const fullName = customer.full_name.toLowerCase();
     const email = customer.email?.toLowerCase() || '';
     return fullName.includes(query) || email.includes(query);
   }) || [];
@@ -419,8 +456,18 @@ export const EventRecord: React.FC = () => {
   
   const handleCustomerClick = () => {
     if (selectedCustomer) {
-      navigate(`/customers/${selectedCustomer.id}`);
+      setSelectedCustomerForView(selectedCustomer);
+      setShowQuickViewCustomer(true);
     }
+  };
+
+  const handleCustomerCreated = (newCustomer: any) => {
+    // Update the event with the new customer
+    if (eventData) {
+      handleFieldChange('customer_id', newCustomer.id, 'toggle');
+    }
+    // Refresh the customers list
+    refetchCustomers();
   };
 
   // PDF Generation functions
@@ -443,8 +490,8 @@ export const EventRecord: React.FC = () => {
          deposit_amount: deductibleDeposit,
         form_responses: {},
         form_total: liveFormTotal,
-        customers: selectedCustomer ? {
-          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+                        customers: selectedCustomer ? {
+                          name: selectedCustomer.full_name,
           email: selectedCustomer.email || '',
           phone: selectedCustomer.phone || '',
         } : null
@@ -490,8 +537,8 @@ export const EventRecord: React.FC = () => {
         deposit_amount: deductibleDeposit,
         form_responses: {},
         form_total: liveFormTotal,
-        customers: selectedCustomer ? {
-          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+                        customers: selectedCustomer ? {
+                          name: selectedCustomer.full_name,
           email: selectedCustomer.email || '',
           phone: selectedCustomer.phone || '',
         } : null
@@ -980,7 +1027,7 @@ export const EventRecord: React.FC = () => {
                         <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <div className="min-w-0">
                           <div className="font-medium truncate">
-                            {selectedCustomer.first_name} {selectedCustomer.last_name}
+                            {selectedCustomer.full_name}
                           </div>
                           {selectedCustomer.email && (
                             <div className="text-sm text-muted-foreground truncate">
@@ -995,6 +1042,7 @@ export const EventRecord: React.FC = () => {
                           size="sm"
                           onClick={handleCustomerClick}
                         >
+                          <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
                         <Button
@@ -1017,8 +1065,16 @@ export const EventRecord: React.FC = () => {
                           placeholder="Search customers..."
                           value={customerSearchQuery}
                           onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                          className="pl-10"
+                          className="pl-10 pr-10"
                         />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="absolute right-1 top-1/2 transform -translate-y-1/2"
+                          onClick={() => setShowQuickCreateCustomer(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
                       </div>
                       {customerSearchQuery && (
                         <div className="max-h-48 overflow-y-auto border rounded-md bg-background">
@@ -1033,7 +1089,7 @@ export const EventRecord: React.FC = () => {
                                 }}
                               >
                                 <div className="font-medium">
-                                  {customer.first_name} {customer.last_name}
+                                  {customer.full_name}
                                 </div>
                                 {customer.email && (
                                   <div className="text-sm text-muted-foreground">
@@ -1330,8 +1386,8 @@ export const EventRecord: React.FC = () => {
         onClose={() => setShowPreview(false)}
         eventData={{
           ...eventData,
-          customers: selectedCustomer ? {
-            name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+            customers: selectedCustomer ? {
+              name: selectedCustomer.full_name,
             email: selectedCustomer.email || '',
             phone: selectedCustomer.phone || '',
           } : null
@@ -1387,6 +1443,20 @@ export const EventRecord: React.FC = () => {
           tenantId={currentTenant.id}
         />
       )}
+
+      {/* Quick Create Customer Dialog */}
+      <QuickCreateCustomerDialog
+        open={showQuickCreateCustomer}
+        onOpenChange={setShowQuickCreateCustomer}
+        onCustomerCreated={handleCustomerCreated}
+      />
+
+      {/* Quick View Customer Dialog */}
+      <QuickViewCustomerDialog
+        open={showQuickViewCustomer}
+        onOpenChange={setShowQuickViewCustomer}
+        customer={selectedCustomerForView}
+      />
     </div>
   );
 };
