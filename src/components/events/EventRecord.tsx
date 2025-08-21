@@ -202,7 +202,7 @@ export const EventRecord: React.FC = () => {
             const currentEventData = { ...eventData, ...savedData };
             
             // Use centralized calendar event data preparation
-            const calendarEventData = prepareCalendarEventData(
+            const calendarEventData = await prepareCalendarEventData(
               currentEventData,
               eventForms,
               selectedCustomer || null
@@ -491,7 +491,7 @@ export const EventRecord: React.FC = () => {
       }
 
       // Use centralized calendar event data preparation with fresh data
-      const calendarEventData = prepareCalendarEventData(
+      const calendarEventData = await prepareCalendarEventData(
         {
           id: freshEventData.id,
           title: freshEventData.title,

@@ -378,7 +378,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
         
         if (updatedEvent && currentTenant?.id) {
           // Use centralized calendar event data preparation
-          const calendarEventData = prepareCalendarEventData(
+          const calendarEventData = await prepareCalendarEventData(
             {
               id: updatedEvent.id,
               title: updatedEvent.title,
@@ -501,7 +501,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
         
         if (updatedEvent && currentTenant?.id) {
           // Use centralized calendar event data preparation
-          const calendarEventData = prepareCalendarEventData(
+          const calendarEventData = await prepareCalendarEventData(
             {
               id: updatedEvent.id,
               title: updatedEvent.title,
@@ -601,7 +601,7 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
           
           if (updatedEvent && currentTenant?.id) {
             // Use centralized calendar event data preparation
-            const calendarEventData = prepareCalendarEventData(
+            const calendarEventData = await prepareCalendarEventData(
               {
                 id: updatedEvent.id,
                 title: updatedEvent.title,
