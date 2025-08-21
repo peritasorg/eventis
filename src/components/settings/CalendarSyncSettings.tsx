@@ -36,7 +36,7 @@ export const CalendarSyncSettings = () => {
 
   // Load assigned forms when event type is selected
   const loadAssignedForms = useCallback(async () => {
-    if (!selectedEventType) {
+    if (!selectedEventType || !eventTypes?.length) {
       setAssignedForms([]);
       setFormConfigs({});
       setConfigsLoaded(false);
@@ -51,7 +51,7 @@ export const CalendarSyncSettings = () => {
       const mappings = await getFormMappingsForEventType(eventTypeConfig.event_type);
       setAssignedForms(mappings);
       
-      // Only load existing configs if we haven't loaded them yet or if user explicitly changed event type
+      // Only load existing configs if we haven't loaded them yet
       if (!configsLoaded) {
         const configs: Record<string, any> = {};
         for (const mapping of mappings) {
@@ -66,21 +66,23 @@ export const CalendarSyncSettings = () => {
         setFormConfigs(configs);
         setConfigsLoaded(true);
       }
+    } catch (error) {
+      console.error('Error loading assigned forms:', error);
     } finally {
       setIsLoadingConfigs(false);
     }
-  }, [selectedEventType, eventTypes, getFormMappingsForEventType, getConfigForEventType, configsLoaded]);
+  }, [selectedEventType, eventTypes?.length, configsLoaded]);
 
+  // Load forms when event type is selected and we haven't loaded configs yet
   useEffect(() => {
-    if (selectedEventType) {
+    if (selectedEventType && eventTypes?.length && !configsLoaded) {
       loadAssignedForms();
     }
-  }, [loadAssignedForms]);
+  }, [selectedEventType, eventTypes?.length, configsLoaded]);
 
   // Reset configs when event type changes
   useEffect(() => {
     setConfigsLoaded(false);
-    setFormConfigs({});
   }, [selectedEventType]);
 
   // Get form-specific fields based on assigned forms
