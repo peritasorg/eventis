@@ -170,16 +170,20 @@ export const CalendarSyncSettings = () => {
       preview += `Ladies Count: [Ladies Count]\n`;
       preview += `Guest Mix: [Guest Mix]\n\n`;
 
-      selectedFieldObjs.forEach(field => {
-        if (field.field_type.includes('toggle')) {
-          preview += `${field.name} - [Yes/No] - [Notes]`;
-        } else {
-          preview += `${field.name} - [Notes]`;
+      // Display fields in the order they were selected
+      config?.selectedFields.forEach(fieldId => {
+        const field = formFields.find(f => f.id === fieldId);
+        if (field) {
+          if (field.field_type.includes('toggle')) {
+            preview += `${field.name} - [Yes/No] - [Notes]`;
+          } else {
+            preview += `${field.name} - [Notes]`;
+          }
+          if (config?.showPricingFieldsOnly) {
+            preview += ` !!ONLY SHOW IF THERE IS A PRICE or NOTES value!!`;
+          }
+          preview += '\n';
         }
-        if (config?.showPricingFieldsOnly) {
-          preview += ` !!ONLY SHOW IF THERE IS A PRICE or NOTES value!!`;
-        }
-        preview += '\n';
       });
 
       if (index < assignedForms.length - 1) {
