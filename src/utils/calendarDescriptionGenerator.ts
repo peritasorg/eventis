@@ -65,17 +65,12 @@ export async function generateCalendarDescription(
 
   // Handle different event types
   if (eventData.event_type === 'All Day' && eventForms.length >= 2) {
-    // All Day events - combine Nikkah and Reception
-    const nikkahtFormId = await getFormIdByName(tenantId, 'Nikkah');
-    const receptionFormId = await getFormIdByName(tenantId, 'Reception');
-    
+    // All Day events - show both Nikkah and Reception
     const nikkahtForm = eventForms.find(form => 
-      form.form_label.toLowerCase().includes('nikkah') || 
-      form.form_id === nikkahtFormId
+      form.form_label.toLowerCase().includes('nikkah')
     );
     const receptionForm = eventForms.find(form => 
-      form.form_label.toLowerCase().includes('reception') || 
-      form.form_id === receptionFormId
+      form.form_label.toLowerCase().includes('reception')
     );
 
     if (nikkahtForm) {
@@ -83,9 +78,13 @@ export async function generateCalendarDescription(
         'Nikkah',
         nikkahtForm,
         tenantId,
-        eventTypeConfigId
+        eventTypeConfigId,
+        eventData.guest_mixture
       );
-      description += '\n------------------------------------------------------------\n\n';
+      
+      if (receptionForm) {
+        description += '\n------------------------------------------------------------\n\n';
+      }
     }
 
     if (receptionForm) {
@@ -93,17 +92,23 @@ export async function generateCalendarDescription(
         'Reception',
         receptionForm,
         tenantId,
-        eventTypeConfigId
+        eventTypeConfigId,
+        eventData.guest_mixture
       );
     }
   } else {
     // Single event type
     for (const form of eventForms) {
+      const sectionName = form.form_label.toLowerCase().includes('nikkah') ? 'Nikkah' :
+                         form.form_label.toLowerCase().includes('reception') ? 'Reception' :
+                         eventData.event_type || 'Event';
+      
       description += await generateSectionDescription(
-        eventData.event_type || 'Event',
+        sectionName,
         form,
         tenantId,
-        eventTypeConfigId
+        eventTypeConfigId,
+        eventData.guest_mixture
       );
     }
   }
@@ -115,23 +120,26 @@ async function generateSectionDescription(
   sectionName: string,
   form: EventForm,
   tenantId: string,
-  eventTypeConfigId?: string
+  eventTypeConfigId?: string,
+  guestMixture?: string
 ): Promise<string> {
   let section = '';
 
-  // Get time from form if available
+  // Get time from form if available, otherwise use a time placeholder
   const formStartTime = form.start_time ? formatTime(form.start_time) : '';
   const formEndTime = form.end_time ? formatTime(form.end_time) : '';
-  const timeDisplay = formStartTime && formEndTime ? `${formStartTime} - ${formEndTime}` : '';
+  const timeDisplay = formStartTime && formEndTime ? `${formStartTime} - ${formEndTime}` : 
+                     formStartTime ? formStartTime : '[Time Slot]';
 
-  section += `${sectionName}${timeDisplay ? ` - ${timeDisplay}` : ''}:\n`;
+  section += `${sectionName} - ${timeDisplay}:\n`;
   section += `Men Count: ${form.men_count || 0}\n`;
-  section += `Ladies Count: ${form.ladies_count || 0}\n\n`;
+  section += `Ladies Count: ${form.ladies_count || 0}\n`;
+  section += `Guest Mix: ${guestMixture || 'Mixed'}\n\n`;
 
   // Get calendar sync configuration for this form
   const config = await getCalendarSyncConfig(tenantId, eventTypeConfigId || '', form.form_id);
   
-  if (config) {
+  if (config && config.selected_fields?.length > 0) {
     // Use configured fields
     const formFields = await getFormFields(form.form_id, tenantId);
     const selectedFieldIds = config.selected_fields;
@@ -143,29 +151,31 @@ async function generateSectionDescription(
       const response = form.form_responses[fieldId];
       if (!response) continue;
 
+      // Apply conditional display logic
       const shouldShow = !config.show_pricing_fields_only || 
                         (response.price && parseFloat(response.price) > 0) || 
-                        (response.notes && response.notes.trim());
+                        (response.notes && response.notes.trim()) ||
+                        (response.enabled === true && field.field_type.includes('toggle'));
 
       if (shouldShow) {
         section += formatFieldForCalendar(field, response);
       }
     }
   } else {
-    // Fallback to showing all non-system fields with values
+    // Fallback: show all relevant fields with values
     const formFields = await getFormFields(form.form_id, tenantId);
     
     for (const [fieldId, response] of Object.entries(form.form_responses)) {
       const field = formFields.find(f => f.id === fieldId);
       if (!field || !response) continue;
 
-      // Skip system fields and empty responses
-      if (isSystemField(field.name) || !hasValue(response)) continue;
+      // Skip system fields
+      if (isSystemField(field.name)) continue;
 
-      // Only show if has pricing or notes (default behavior)
+      // Only show if has pricing, notes, or is enabled toggle
       const shouldShow = (response.price && parseFloat(response.price) > 0) || 
                         (response.notes && response.notes.trim()) ||
-                        (response.enabled === true && field.field_type === 'toggle');
+                        (response.enabled === true && field.field_type.includes('toggle'));
 
       if (shouldShow) {
         section += formatFieldForCalendar(field, response);
@@ -179,14 +189,19 @@ async function generateSectionDescription(
 function formatFieldForCalendar(field: FormField, response: any): string {
   let line = `${field.name}`;
 
-  if (field.field_type === 'toggle') {
-    line += ` - ${response.enabled ? 'Yes' : 'No'}`;
-    if (response.notes) {
-      line += ` - ${response.notes}`;
+  // Handle toggle fields specifically
+  if (field.field_type.includes('toggle')) {
+    const toggleValue = response.enabled ? 'Yes' : 'No';
+    line += ` - ${toggleValue}`;
+    
+    if (response.notes && response.notes.trim()) {
+      line += ` - ${response.notes.trim()}`;
     }
-  } else if (response.notes) {
-    line += ` - ${response.notes}`;
+  } else if (response.notes && response.notes.trim()) {
+    // For non-toggle fields, show notes if available
+    line += ` - ${response.notes.trim()}`;
   } else if (response.value) {
+    // Fallback to value if no notes
     line += ` - ${response.value}`;
   }
 
