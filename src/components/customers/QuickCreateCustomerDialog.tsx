@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { AddressSearchInput } from '@/components/ui/address-search-input';
 import { useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,8 +28,14 @@ export const QuickCreateCustomerDialog: React.FC<QuickCreateCustomerDialogProps>
     last_name: '',
     email: '',
     phone: '',
-    address: '',
-    postcode: '',
+    address: {
+      line1: '',
+      line2: '',
+      city: '',
+      county: '',
+      postcode: '',
+      country: 'United Kingdom'
+    } as any,
     notes: ''
   });
 
@@ -36,12 +43,27 @@ export const QuickCreateCustomerDialog: React.FC<QuickCreateCustomerDialogProps>
     async (customerData: typeof formData) => {
       if (!currentTenant?.id) throw new Error('No tenant ID');
       
+      // Flatten the address object and create proper customer record
+      const flattenedData = {
+        name: `${customerData.first_name} ${customerData.last_name}`.trim(),
+        email: customerData.email,
+        phone: customerData.phone,
+        address_line1: customerData.address?.line1 || '',
+        address_line2: customerData.address?.line2 || '',
+        city: customerData.address?.city || '',
+        postal_code: customerData.address?.postcode || '',
+        country: customerData.address?.country || 'United Kingdom',
+        notes: customerData.notes,
+        tenant_id: currentTenant.id,
+        customer_type: 'individual',
+        active: true,
+        marketing_consent: false,
+        vip_status: false
+      };
+      
       const { data, error } = await supabase
-        .from('new_customers')
-        .insert([{
-          ...customerData,
-          tenant_id: currentTenant.id
-        }])
+        .from('customers')
+        .insert([flattenedData])
         .select()
         .single();
         
@@ -58,8 +80,14 @@ export const QuickCreateCustomerDialog: React.FC<QuickCreateCustomerDialogProps>
           last_name: '',
           email: '',
           phone: '',
-          address: '',
-          postcode: '',
+          address: {
+            line1: '',
+            line2: '',
+            city: '',
+            county: '',
+            postcode: '',
+            country: 'United Kingdom'
+          } as any,
           notes: ''
         });
       },
@@ -129,23 +157,10 @@ export const QuickCreateCustomerDialog: React.FC<QuickCreateCustomerDialogProps>
             />
           </div>
           
-          <div>
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => handleInputChange('address', e.target.value)}
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="postcode">Postcode</Label>
-            <Input
-              id="postcode"
-              value={formData.postcode}
-              onChange={(e) => handleInputChange('postcode', e.target.value)}
-            />
-          </div>
+          <AddressSearchInput
+            value={formData.address}
+            onChange={(address) => setFormData(prev => ({ ...prev, address }))}
+          />
           
           <div>
             <Label htmlFor="notes">Notes</Label>

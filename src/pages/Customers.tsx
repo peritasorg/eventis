@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { AddressSearchInput } from '@/components/ui/address-search-input';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,9 +44,15 @@ export const Customers = () => {
     phone: '',
     company: '',
     customer_type: 'individual',
-    notes: '',
-    marketing_consent: false,
-    vip_status: false
+    address: {
+      line1: '',
+      line2: '',
+      city: '',
+      county: '',
+      postcode: '',
+      country: 'United Kingdom'
+    } as any,
+    notes: ''
   });
 
   const { data: customers = [], refetch } = useSupabaseQuery(
@@ -67,12 +74,23 @@ export const Customers = () => {
 
   const createCustomerMutation = useSupabaseMutation(
     async (customerData: any) => {
+      // Flatten the address object for the database
+      const flattenedData = {
+        ...customerData,
+        address_line1: customerData.address?.line1 || '',
+        address_line2: customerData.address?.line2 || '',
+        city: customerData.address?.city || '',
+        postal_code: customerData.address?.postcode || '',
+        country: customerData.address?.country || 'United Kingdom',
+        tenant_id: currentTenant?.id
+      };
+      
+      // Remove the nested address object
+      delete flattenedData.address;
+      
       const { data, error } = await supabase
         .from('customers')
-        .insert([{
-          ...customerData,
-          tenant_id: currentTenant?.id
-        }])
+        .insert([flattenedData])
         .select()
         .single();
       
@@ -147,9 +165,15 @@ export const Customers = () => {
       phone: '',
       company: '',
       customer_type: 'individual',
-      notes: '',
-      marketing_consent: false,
-      vip_status: false
+      address: {
+        line1: '',
+        line2: '',
+        city: '',
+        county: '',
+        postcode: '',
+        country: 'United Kingdom'
+      } as any,
+      notes: ''
     });
   };
 
@@ -247,6 +271,10 @@ export const Customers = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <AddressSearchInput
+                value={formData.address}
+                onChange={(address) => setFormData({...formData, address})}
+              />
               <div>
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
@@ -256,24 +284,6 @@ export const Customers = () => {
                   placeholder="Additional notes about the customer"
                   rows={3}
                 />
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="marketing_consent"
-                  checked={formData.marketing_consent}
-                  onChange={(e) => setFormData({...formData, marketing_consent: e.target.checked})}
-                />
-                <Label htmlFor="marketing_consent">Marketing consent</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="vip_status"
-                  checked={formData.vip_status}
-                  onChange={(e) => setFormData({...formData, vip_status: e.target.checked})}
-                />
-                <Label htmlFor="vip_status">VIP status</Label>
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
@@ -355,12 +365,7 @@ export const Customers = () => {
                 <TableCell>{customer.total_events || 0}</TableCell>
                 <TableCell>£{(customer.total_spent || 0).toLocaleString()}</TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
-                    <Badge variant="outline">Active</Badge>
-                    {customer.vip_status && (
-                      <Badge className="bg-yellow-100 text-yellow-800">VIP</Badge>
-                    )}
-                  </div>
+                  <Badge variant="outline">Active</Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
