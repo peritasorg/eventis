@@ -49,11 +49,15 @@ export const CalendarSyncSettings = () => {
       const mappings = await getFormMappingsForEventType(eventTypeConfig.event_type);
       setAssignedForms(mappings);
       
-      // Load existing configurations for this event type
+      // Load existing configurations for this event type using configs data directly
       const newFormConfigs: Record<string, any> = {};
       for (const mapping of mappings) {
         if (mapping.forms?.id) {
-          const existingConfig = getConfigForEventType(selectedEventType, mapping.forms.id);
+          const existingConfig = configs?.find(config => 
+            config.event_type_config_id === selectedEventType && 
+            config.form_id === mapping.forms.id &&
+            config.is_active
+          );
           newFormConfigs[mapping.forms.id] = {
             selectedFields: existingConfig?.selected_fields || [],
             showPricingFieldsOnly: existingConfig?.show_pricing_fields_only || false
@@ -66,9 +70,9 @@ export const CalendarSyncSettings = () => {
     } finally {
       setIsLoadingConfigs(false);
     }
-  }, [selectedEventType, eventTypes?.length, getConfigForEventType, getFormMappingsForEventType]);
+  }, [selectedEventType, eventTypes?.length, configs, getFormMappingsForEventType]);
 
-  // Load forms when event type is selected
+  // Load forms when event type is selected (only on event type change, not config changes)
   useEffect(() => {
     if (selectedEventType && eventTypes?.length) {
       loadAssignedForms();
@@ -144,10 +148,7 @@ export const CalendarSyncSettings = () => {
 
       await Promise.all(savePromises);
       
-      // Reload the configurations to refresh the Current Configurations section
-      setTimeout(() => {
-        loadAssignedForms();
-      }, 500);
+      // Configs will automatically refresh via query invalidation
       
     } catch (error) {
       console.error('Error saving config:', error);
