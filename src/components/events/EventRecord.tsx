@@ -256,10 +256,16 @@ export const EventRecord: React.FC = () => {
       
       console.log('💾 Saving event data:', { eventId, data, tenantId: currentTenant.id });
       
+      // Extract only event table columns, exclude joined data like 'customers'
+      const {
+        customers, // Exclude joined customer data
+        ...eventUpdateData
+      } = data as any;
+      
       const { data: updatedData, error } = await supabase
         .from('events')
         .update({
-          ...data,
+          ...eventUpdateData,
           updated_at: new Date().toISOString()
         })
         .eq('id', eventId)
