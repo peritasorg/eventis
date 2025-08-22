@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,14 @@ export const NewEventDetailWithTabs: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [hasOverviewChanges, setHasOverviewChanges] = useState(false);
   const [hasFormChanges, setHasFormChanges] = useState(false);
+  const eventRecordSaveRef = useRef<(() => Promise<void>) | null>(null);
 
   // Update combined unsaved changes state
   useEffect(() => {
-    setHasUnsavedChanges(hasOverviewChanges || hasFormChanges);
+    console.log('Parent: hasOverviewChanges =', hasOverviewChanges, 'hasFormChanges =', hasFormChanges);
+    const hasChanges = hasOverviewChanges || hasFormChanges;
+    console.log('Parent: setting hasUnsavedChanges =', hasChanges);
+    setHasUnsavedChanges(hasChanges);
   }, [hasOverviewChanges, hasFormChanges]);
 
   const {
@@ -31,16 +35,24 @@ export const NewEventDetailWithTabs: React.FC = () => {
   } = useSaveConfirmation({
     hasUnsavedChanges,
     onSave: async () => {
-      // Trigger save on all forms - this would need to be implemented
-      // For now, just proceed with navigation
+      console.log('Parent: onSave called, eventRecordSaveRef.current =', eventRecordSaveRef.current);
+      if (eventRecordSaveRef.current) {
+        await eventRecordSaveRef.current();
+      }
       setHasUnsavedChanges(false);
+      setHasOverviewChanges(false);
+      setHasFormChanges(false);
     },
     onDiscard: () => {
+      console.log('Parent: onDiscard called');
       setHasUnsavedChanges(false);
+      setHasOverviewChanges(false);
+      setHasFormChanges(false);
     }
   });
 
   const handleBackToEvents = () => {
+    console.log('Parent: handleBackToEvents called, hasUnsavedChanges =', hasUnsavedChanges);
     handleNavigationAttempt(() => navigate('/events'));
   };
 
@@ -77,7 +89,10 @@ export const NewEventDetailWithTabs: React.FC = () => {
         </TabsList>
         
         <TabsContent value="overview">
-          <EventRecord onUnsavedChanges={setHasOverviewChanges} />
+          <EventRecord 
+            onUnsavedChanges={setHasOverviewChanges}
+            onSave={eventRecordSaveRef}
+          />
         </TabsContent>
         
         {eventForms?.length === 0 && (

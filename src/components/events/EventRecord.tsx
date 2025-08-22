@@ -17,8 +17,6 @@ import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard
 import { CommunicationsTimeline } from './CommunicationsTimeline';
 import { PaymentTimeline } from './PaymentTimeline';
 import { FormSaveButton } from './FormSaveButton';
-import { SaveConfirmationDialog } from './SaveConfirmationDialog';
-import { useSaveConfirmation } from '@/hooks/useSaveConfirmation';
 import { useSecureNavigation } from '@/hooks/useSecureNavigation';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,9 +68,10 @@ interface EventData {
 
 interface EventRecordProps {
   onUnsavedChanges?: (hasChanges: boolean) => void;
+  onSave?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
-export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges }) => {
+export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSave }) => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
@@ -98,22 +97,9 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges }) =>
 
   // Notify parent about unsaved changes
   useEffect(() => {
+    console.log('EventRecord isDirty changed:', isDirty);
     onUnsavedChanges?.(isDirty);
   }, [isDirty, onUnsavedChanges]);
-
-  // Navigation protection - intercept attempts to leave with unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return 'You have unsaved changes. Are you sure you want to leave?';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isDirty]);
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -465,17 +451,20 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges }) =>
     }
   }, [eventData, isDirty, saveEventMutation]);
 
-  // Save confirmation setup
-  const saveConfirmation = useSaveConfirmation({
-    hasUnsavedChanges: isDirty,
-    onSave: handleManualSave,
-    onDiscard: () => {
-      if (event) {
-        setEventData(event);
-        setIsDirty(false);
-      }
+  // Discard function for parent to use
+  const handleDiscard = useCallback(() => {
+    if (event) {
+      setEventData(event);
+      setIsDirty(false);
     }
-  });
+  }, [event]);
+
+  // Expose save function to parent  
+  useEffect(() => {
+    if (onSave) {
+      onSave.current = handleManualSave;
+    }
+  }, [handleManualSave, onSave]);
 
   // Handle field changes without auto-save
   const handleFieldChange = useCallback((field: keyof EventData, value: any) => {
@@ -976,7 +965,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges }) =>
             </AlertDialogContent>
           </AlertDialog>
           
-            <Button variant="ghost" size="sm" onClick={() => saveConfirmation.handleNavigationAttempt(() => secureNavigate('/events'))}>
+            <Button variant="ghost" size="sm" onClick={() => secureNavigate('/events')}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -1537,15 +1526,6 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges }) =>
         customer={selectedCustomerForView}
       />
 
-      {/* Save Confirmation Dialog */}
-      <SaveConfirmationDialog
-        open={saveConfirmation.showDialog}
-        onOpenChange={saveConfirmation.handleCancel}
-        onSaveAndContinue={saveConfirmation.handleSaveAndContinue}
-        onDiscardAndContinue={saveConfirmation.handleDiscardAndContinue}
-        title="Unsaved Changes"
-        description="You have unsaved changes in this event. What would you like to do?"
-      />
     </div>
   );
 };
