@@ -121,9 +121,9 @@ export const Sidebar = () => {
         {!isCollapsed && (
           <>
             <img 
-              src="/lovable-uploads/49c7bf41-965b-4ca2-94c4-d45ad86250e9.png" 
+              src="/lovable-uploads/4503c477-cf89-4d4d-84ef-e832a880c76a.png" 
               alt="Eventis" 
-              className="h-8 w-auto flex-shrink-0"
+              className="h-10 w-auto flex-shrink-0"
             />
           </>
         )}
