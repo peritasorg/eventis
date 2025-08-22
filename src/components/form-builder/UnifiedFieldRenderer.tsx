@@ -14,7 +14,7 @@ interface FieldResponse {
   price?: number;
   notes?: string;
   enabled?: boolean;
-  selectedOption?: string;
+  selectedOption?: string | string[];
 }
 
 interface UnifiedFieldRendererProps {
@@ -46,8 +46,17 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
     } else if (field.field_type === 'per_person_price_notes') {
       return (response.quantity || 0) * (response.price || 0);
     } else if (field.field_type === 'dropdown_options_price_notes' && response.selectedOption) {
-      const selectedDropdownOption = field.dropdown_options?.find(opt => opt.value === response.selectedOption);
-      return selectedDropdownOption?.price || 0;
+      if (Array.isArray(response.selectedOption)) {
+        // Multi-select: sum all selected option prices
+        return response.selectedOption.reduce((sum, value) => {
+          const option = field.dropdown_options?.find(opt => opt.value === value);
+          return sum + (option?.price || 0);
+        }, 0);
+      } else {
+        // Single-select: find the selected option price
+        const selectedDropdownOption = field.dropdown_options?.find(opt => opt.value === response.selectedOption);
+        return selectedDropdownOption?.price || 0;
+      }
     }
     return 0;
   };
@@ -385,10 +394,8 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
         );
 
       case 'dropdown_options':
-        // Support for multi-select on specific field types like ethnicity, dining chairs
-        const isMultiSelect = field.name.toLowerCase().includes('ethnicity') || 
-                             field.name.toLowerCase().includes('dining') ||
-                             field.name.toLowerCase().includes('chairs');
+        // Use the is_multiselect field configuration
+        const isMultiSelect = field.is_multiselect || false;
         
         if (isMultiSelect) {
           const selectedValues = Array.isArray(response.selectedOption) 
@@ -452,7 +459,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
             </div>
 
             <Select 
-              value={response.selectedOption || ''} 
+              value={typeof response.selectedOption === 'string' ? response.selectedOption : ''} 
               onValueChange={(value) => updateResponse({ selectedOption: value })}
               disabled={readOnly}
             >
@@ -471,7 +478,91 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
         );
 
       case 'dropdown_options_price_notes':
-        const selectedDropdownOption = field.dropdown_options?.find(opt => opt.value === response.selectedOption);
+        const isPricingMultiSelect = field.is_multiselect || false;
+        
+        if (isPricingMultiSelect) {
+          const selectedValues = Array.isArray(response.selectedOption) 
+            ? response.selectedOption 
+            : response.selectedOption ? [response.selectedOption] : [];
+          
+          const totalPrice = selectedValues.reduce((sum, value) => {
+            const option = field.dropdown_options?.find(opt => opt.value === value);
+            return sum + (option?.price || 0);
+          }, 0);
+          
+          return (
+            <>
+              <div>
+                <Label className="text-sm font-medium">{field.name}</Label>
+                {field.help_text && (
+                  <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+                )}
+                
+                <div className="mt-2 space-y-2">
+                  {field.dropdown_options?.filter(option => option.value.trim() !== '').map((option) => (
+                    <div key={option.value} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`${field.id}-${option.value}`}
+                          checked={selectedValues.includes(option.value)}
+                          onChange={(e) => {
+                            let newSelected;
+                            if (e.target.checked) {
+                              newSelected = [...selectedValues, option.value];
+                            } else {
+                              newSelected = selectedValues.filter(v => v !== option.value);
+                            }
+                            updateResponse({ 
+                              selectedOption: newSelected,
+                              price: newSelected.reduce((sum, value) => {
+                                const opt = field.dropdown_options?.find(o => o.value === value);
+                                return sum + (opt?.price || 0);
+                              }, 0)
+                            });
+                          }}
+                          disabled={readOnly}
+                          className="rounded border-gray-300"
+                        />
+                        <label 
+                          htmlFor={`${field.id}-${option.value}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {option.label}
+                        </label>
+                      </div>
+                      {option.price ? (
+                        <span className="text-sm text-muted-foreground">£{option.price.toFixed(2)}</span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+                
+                {selectedValues.length > 0 && (
+                  <div className="mt-2 p-2 bg-muted rounded-md">
+                    <div className="text-xs text-muted-foreground">Total: £{totalPrice.toFixed(2)}</div>
+                  </div>
+                )}
+              </div>
+              {field.has_notes && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
+                  <Textarea
+                    value={response.notes || ''}
+                    onChange={(e) => updateResponse({ notes: e.target.value })}
+                    placeholder={field.placeholder_text || 'Additional requirements...'}
+                    rows={2}
+                    disabled={readOnly}
+                    className="mt-1"
+                  />
+                </div>
+              )}
+            </>
+          );
+        }
+        
+        // Single-select pricing dropdown
+        const selectedDropdownOption = field.dropdown_options?.find(opt => opt.value === (typeof response.selectedOption === 'string' ? response.selectedOption : ''));
         const dropdownPrice = selectedDropdownOption?.price || 0;
         
         return (
@@ -485,7 +576,7 @@ export const UnifiedFieldRenderer: React.FC<UnifiedFieldRendererProps> = ({
                 <div>
                   <Label className="text-xs text-muted-foreground">Selection</Label>
                   <Select 
-                    value={response.selectedOption || ''} 
+                    value={typeof response.selectedOption === 'string' ? response.selectedOption : ''} 
                     onValueChange={(value) => {
                       const selectedOpt = field.dropdown_options?.find(opt => opt.value === value);
                       updateResponse({ 

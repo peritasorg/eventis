@@ -36,7 +36,8 @@ export const FieldEdit = () => {
     help_text: '',
     dropdown_options: [],
     appears_on_quote: false,
-    appears_on_invoice: false
+    appears_on_invoice: false,
+    is_multiselect: false
   });
 
   const [showPreview, setShowPreview] = useState(true);
@@ -328,6 +329,18 @@ export const FieldEdit = () => {
                       <Plus className="h-4 w-4 mr-2" />
                       Add Option
                     </Button>
+                  </div>
+
+                  {/* Multi-select toggle */}
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="is_multiselect"
+                      checked={formData.is_multiselect || false}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_multiselect: checked }))}
+                    />
+                    <Label htmlFor="is_multiselect" className="text-sm">
+                      Allow multiple selections
+                    </Label>
                   </div>
 
                   <DragDropContext onDragEnd={handleDragEnd}>

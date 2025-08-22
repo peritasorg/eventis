@@ -21,9 +21,10 @@ import { prepareCalendarEventData } from '@/utils/calendarEventData';
 interface EventFormTabProps {
   eventId: string;
   eventFormId?: string; // Optional - if provided, shows single form, otherwise shows form manager
+  onUnsavedChanges?: (hasChanges: boolean) => void;
 }
 
-export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId }) => {
+export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId, onUnsavedChanges }) => {
   const { eventForms, isLoading, createEventForm, updateEventForm, deleteEventForm, isCreating } = useEventForms(eventId);
   const { forms } = useForms();
   const { formFields } = useFormFields();
@@ -212,25 +213,38 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       return updatedGuestData;
     });
 
-    // Initialize selected time slots
+    // Initialize selected time slots - always check for matching slots when timing data changes
     setSelectedTimeSlots(prev => {
       const updatedTimeSlots = { ...prev };
       
       eventForms.forEach(eventForm => {
-        if (!prev[eventForm.id] && eventForm.start_time && eventForm.end_time) {
+        if (eventForm.start_time && eventForm.end_time) {
           const timeSlots = getTimeSlotsForForm(eventForm);
           const matchingSlot = timeSlots?.find(slot => 
             slot.start_time === eventForm.start_time && slot.end_time === eventForm.end_time
           );
           if (matchingSlot) {
             updatedTimeSlots[eventForm.id] = matchingSlot.id;
+          } else {
+            // Clear selection if no matching slot found
+            updatedTimeSlots[eventForm.id] = "";
           }
+        } else {
+          // Clear selection if no times set
+          updatedTimeSlots[eventForm.id] = "";
         }
       });
       
       return updatedTimeSlots;
     });
-  }, [eventForms.length, eventForms.map(ef => ef.id).join(',')]);
+  }, [
+    eventForms.length, 
+    eventForms.map(ef => ef.id).join(','),
+    eventForms.map(ef => `${ef.start_time}-${ef.end_time}`).join(','), // Include timing data
+    eventTypeFormMappings?.length, // Include dependencies for getTimeSlotsForForm
+    globalTimeSlots?.length,
+    eventTypeConfigs?.length
+  ]);
 
   // FIXED: Perfect form total calculation with proper state selection
   const calculateFormTotal = (eventForm: EventForm, useLocalGuestData = false) => {
@@ -416,6 +430,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       setIsSaving(prev => ({ ...prev, [eventFormId]: false }));
     }
   }, [eventForms, formResponses, localGuestData, eventId, queryClient, calculateFormTotal, autoSyncEvent, currentTenant]);
+
+  // Notify parent about unsaved changes
+  useEffect(() => {
+    const hasAnyUnsavedChanges = Object.values(unsavedChanges).some(hasChanges => hasChanges);
+    onUnsavedChanges?.(hasAnyUnsavedChanges);
+  }, [unsavedChanges, onUnsavedChanges]);
 
   const handleAddForm = async () => {
     if (!selectedFormId) {
@@ -676,7 +696,17 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                     value={selectedTimeSlots[eventForm.id] || ""}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select time slot" />
+                      <SelectValue 
+                        placeholder="Select time slot"
+                      >
+                        {selectedTimeSlots[eventForm.id] ? 
+                          (() => {
+                            const selectedSlot = getTimeSlotsForForm(eventForm)?.find(slot => slot.id === selectedTimeSlots[eventForm.id]);
+                            return selectedSlot ? `${selectedSlot.label} (${selectedSlot.start_time} - ${selectedSlot.end_time})` : "Select time slot";
+                          })()
+                          : "Select time slot"
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {getTimeSlotsForForm(eventForm)?.map((slot) => (

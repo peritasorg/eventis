@@ -13,9 +13,11 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search, FileText, Receipt, Calendar as CalendarSyncIcon, History } from 'lucide-react';
+import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search, FileText, Receipt, Calendar as CalendarSyncIcon, History, Plus, Eye } from 'lucide-react';
 import { CommunicationsTimeline } from './CommunicationsTimeline';
 import { PaymentTimeline } from './PaymentTimeline';
+import { FormSaveButton } from './FormSaveButton';
+import { useSecureNavigation } from '@/hooks/useSecureNavigation';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +33,8 @@ import { TimeDisplay } from './TimeDisplay';
 import { useCalendarAutoSync } from '@/hooks/useCalendarAutoSync';
 import { prepareCalendarEventData } from '@/utils/calendarEventData';
 import { CalendarSyncPreview } from './CalendarSyncPreview';
+import { QuickCreateCustomerDialog } from '../customers/QuickCreateCustomerDialog';
+import { QuickViewCustomerDialog } from '../customers/QuickViewCustomerDialog';
 
 interface EventData {
   id: string;
@@ -62,26 +66,40 @@ interface EventData {
   updated_at: string;
 }
 
-export const EventRecord: React.FC = () => {
+interface EventRecordProps {
+  onUnsavedChanges?: (hasChanges: boolean) => void;
+  onSave?: React.MutableRefObject<(() => Promise<void>) | null>;
+}
+
+export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSave }) => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
+  const { secureNavigate } = useSecureNavigation();
   
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
-  const [saveTimeoutId, setSaveTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showCalendarPreview, setShowCalendarPreview] = useState(false);
+  const [showQuickCreateCustomer, setShowQuickCreateCustomer] = useState(false);
+  const [showQuickViewCustomer, setShowQuickViewCustomer] = useState(false);
+  const [selectedCustomerForView, setSelectedCustomerForView] = useState<any>(null);
 
    // Get event type configs
    const { data: eventTypeConfigs } = useEventTypeConfigs();
    
   // Calendar auto-sync hook
   const { autoSyncEvent, syncEventToCalendar, deleteEventFromCalendar } = useCalendarAutoSync();
+
+  // Notify parent about unsaved changes
+  useEffect(() => {
+    console.log('EventRecord isDirty changed:', isDirty);
+    onUnsavedChanges?.(isDirty);
+  }, [isDirty, onUnsavedChanges]);
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -128,30 +146,81 @@ export const EventRecord: React.FC = () => {
     }
   );
 
-  // Fetch customers for lookup
-  const { data: customers } = useSupabaseQuery(
-    ['new-customers', currentTenant?.id],
+  // Fetch customers for lookup - include both new_customers and converted leads
+  const { data: customers, refetch: refetchCustomers } = useSupabaseQuery(
+    ['all-customers', currentTenant?.id],
     async () => {
       if (!currentTenant?.id) return [];
       
-      const { data, error } = await supabase
+      // Fetch from new_customers table
+      const { data: newCustomers, error: newError } = await supabase
         .from('new_customers')
         .select('id, first_name, last_name, email, phone')
-        .eq('tenant_id', currentTenant.id)
-        .order('first_name', { ascending: true });
+        .eq('tenant_id', currentTenant.id);
       
-      if (error) throw error;
-      return data || [];
+      if (newError) throw newError;
+      
+      // Fetch from customers table (converted leads)
+      const { data: convertedCustomers, error: convertedError } = await supabase
+        .from('customers')
+        .select('id, name, email, phone')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true);
+      
+      if (convertedError) throw convertedError;
+      
+      // Combine and normalize the data - ensure unique IDs
+      const customerMap = new Map();
+      
+      // Add new_customers first
+      (newCustomers || []).forEach(c => {
+        customerMap.set(c.id, {
+          id: c.id,
+          first_name: c.first_name,
+          last_name: c.last_name,
+          email: c.email,
+          phone: c.phone,
+          full_name: `${c.first_name} ${c.last_name}`.trim(),
+          source: 'new_customers'
+        });
+      });
+      
+      // Add converted customers (don't overwrite if ID already exists)
+      (convertedCustomers || []).forEach(c => {
+        if (!customerMap.has(c.id)) {
+          const nameParts = (c.name || '').split(' ');
+          customerMap.set(c.id, {
+            id: c.id,
+            first_name: nameParts[0] || '',
+            last_name: nameParts.slice(1).join(' ') || '',
+            email: c.email,
+            phone: c.phone,
+            full_name: c.name || '',
+            source: 'customers'
+          });
+        }
+      });
+      
+      // Convert map to array and sort by full name
+      return Array.from(customerMap.values()).sort((a, b) => 
+        a.full_name.localeCompare(b.full_name)
+      );
     }
   );
 
   // Filter customers based on search query
   const filteredCustomers = customers?.filter(customer => {
-    if (!customerSearchQuery) return true;
-    const query = customerSearchQuery.toLowerCase();
-    const fullName = `${customer.first_name} ${customer.last_name}`.toLowerCase();
-    const email = customer.email?.toLowerCase() || '';
-    return fullName.includes(query) || email.includes(query);
+    if (!customerSearchQuery.trim()) return false; // Only show results when actively searching
+    const query = customerSearchQuery.toLowerCase().trim();
+    const fullName = (customer.full_name || '').toLowerCase();
+    const email = (customer.email || '').toLowerCase();
+    const phone = (customer.phone || '').toLowerCase();
+    
+    return fullName.includes(query) || 
+           email.includes(query) || 
+           phone.includes(query) ||
+           customer.first_name?.toLowerCase().includes(query) ||
+           customer.last_name?.toLowerCase().includes(query);
   }) || [];
 
   // Get live form totals and individual form data
@@ -175,53 +244,82 @@ export const EventRecord: React.FC = () => {
     }
   );
 
-  // Auto-save mutation
+  // Manual save mutation
   const saveEventMutation = useSupabaseMutation(
     async (data: Partial<EventData>) => {
       if (!eventId || !currentTenant?.id) throw new Error('Missing event or tenant ID');
       
-      const { error } = await supabase
+      console.log('💾 Saving event data:', { eventId, data, tenantId: currentTenant.id });
+      
+      // Extract only event table columns, exclude joined data like 'customers'
+      const {
+        customers, // Exclude joined customer data
+        ...eventUpdateData
+      } = data as any;
+      
+      const { data: updatedData, error } = await supabase
         .from('events')
         .update({
-          ...data,
+          ...eventUpdateData,
           updated_at: new Date().toISOString()
         })
         .eq('id', eventId)
-        .eq('tenant_id', currentTenant.id);
+        .eq('tenant_id', currentTenant.id)
+        .select()
+        .single();
       
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('❌ Event save error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Event saved successfully:', updatedData);
+      return updatedData;
     },
-     {
-       onSuccess: async (savedData) => {
-         setLastSaved(new Date());
-         setIsDirty(false);
-         
-          // Auto-sync to calendar if core event data changed
-          if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
-                           savedData.primary_contact_name || savedData.primary_contact_number ||
-                           savedData.secondary_contact_name || savedData.secondary_contact_number ||
-                           savedData.ethnicity)) {
-            const currentEventData = { ...eventData, ...savedData };
-            
-            // Use centralized calendar event data preparation with tenant and event type
-            const calendarEventData = await prepareCalendarEventData(
-              currentEventData,
-              eventForms,
-              selectedCustomer || null,
-              currentTenant.id,
-              currentEventData.event_type // Pass event type for config lookup
-            );
-            
-             // Auto-sync with user feedback for important changes
-             try {
-               await autoSyncEvent(calendarEventData, true);
-             } catch (syncError) {
-               console.error('Auto calendar sync failed:', syncError);
-             }
+    {
+      onSuccess: async (savedData) => {
+        setLastSaved(new Date());
+        setIsDirty(false);
+        
+        console.log('🎉 Save success - savedData:', savedData);
+        
+        // Update local eventData state with saved values
+        if (eventData && savedData) {
+          const updatedEventData = { ...eventData, ...savedData };
+          setEventData(updatedEventData);
+          console.log('🔄 Updated local state with saved data:', { 
+            before: eventData, 
+            saved: savedData, 
+            after: updatedEventData 
+          });
+        }
+        
+        toast.success('Event saved successfully');
+        
+        // Auto-sync to calendar if core event data changed
+        if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
+                         savedData.primary_contact_name || savedData.primary_contact_number ||
+                         savedData.secondary_contact_name || savedData.secondary_contact_number ||
+                         savedData.ethnicity)) {
+          const currentEventData = { ...eventData, ...savedData };
+          
+          const calendarEventData = await prepareCalendarEventData(
+            currentEventData,
+            eventForms,
+            selectedCustomer || null,
+            currentTenant.id,
+            currentEventData.event_type
+          );
+          
+          try {
+            await autoSyncEvent(calendarEventData, true);
+          } catch (syncError) {
+            console.error('Auto calendar sync failed:', syncError);
           }
-       },
+        }
+      },
       onError: (error) => {
+        console.error('❌ Failed to save event:', error);
         toast.error('Failed to save changes: ' + error.message);
       }
     }
@@ -243,7 +341,7 @@ export const EventRecord: React.FC = () => {
     {
       onSuccess: () => {
         toast.success('Event deleted successfully');
-        navigate('/events');
+        secureNavigate('/events');
       },
       onError: (error) => {
         toast.error('Failed to delete event: ' + error.message);
@@ -342,27 +440,44 @@ export const EventRecord: React.FC = () => {
     }
   }, [event]);
 
-  // Smart auto-save with different delays based on field type
-  const debouncedSave = useCallback((data: Partial<EventData>, fieldType: 'text' | 'toggle' | 'number' = 'text') => {
-    if (saveTimeoutId) {
-      clearTimeout(saveTimeoutId);
+  // Manual save function
+  const handleManualSave = useCallback(async () => {
+    if (!eventData || !isDirty) return;
+    
+    try {
+      await saveEventMutation.mutateAsync(eventData);
+    } catch (error) {
+      console.error('Manual save failed:', error);
+    }
+  }, [eventData, isDirty, saveEventMutation]);
+
+  // Discard function for parent to use
+  const handleDiscard = useCallback(() => {
+    if (event) {
+      setEventData(event);
+      setIsDirty(false);
+    }
+  }, [event]);
+
+  // Expose save function to parent  
+  useEffect(() => {
+    if (onSave) {
+      onSave.current = handleManualSave;
+    }
+  }, [handleManualSave, onSave]);
+
+  // Handle field changes without auto-save
+  const handleFieldChange = useCallback((field: keyof EventData, value: any) => {
+    if (!eventData) return;
+    
+    // Prevent empty strings from overriding existing values for contact fields
+    const contactFields = ['primary_contact_name', 'primary_contact_number', 'secondary_contact_name', 'secondary_contact_number'];
+    if (contactFields.includes(field as string) && value === '' && eventData[field]) {
+      console.log('⚠️ Preventing empty string override for contact field:', { field, currentValue: eventData[field] });
+      return;
     }
     
-    let delay = 500; // default
-    if (fieldType === 'text') delay = 2000; // typing fields
-    if (fieldType === 'number') delay = 1000; // price/quantity fields
-    if (fieldType === 'toggle') delay = 0; // immediate for toggles/selects
-    
-    const timeoutId = setTimeout(() => {
-      saveEventMutation.mutate(data);
-    }, delay);
-    
-    setSaveTimeoutId(timeoutId);
-  }, [saveTimeoutId, saveEventMutation]);
-
-  // Handle field changes with smart auto-save
-  const handleFieldChange = useCallback((field: keyof EventData, value: any, fieldType: 'text' | 'toggle' | 'number' = 'text') => {
-    if (!eventData) return;
+    console.log('📝 Field change:', { field, value, previousValue: eventData[field] });
     
     // Track date changes
     if (field === 'event_date' && eventData.event_date !== value) {
@@ -379,18 +494,12 @@ export const EventRecord: React.FC = () => {
       const updatedData = { ...eventData, ...updates };
       setEventData(updatedData);
       setIsDirty(true);
-      
-      // Save both fields for date changes (immediate for dates)
-      debouncedSave(updates, 'toggle');
     } else {
       const updatedData = { ...eventData, [field]: value };
       setEventData(updatedData);
       setIsDirty(true);
-      
-      // Trigger smart auto-save based on field type
-      debouncedSave({ [field]: value }, fieldType);
     }
-  }, [eventData, debouncedSave]);
+  }, [eventData]);
 
   // Calculate derived values
   const totalGuests = (eventData?.men_count || 0) + (eventData?.ladies_count || 0);
@@ -419,8 +528,18 @@ export const EventRecord: React.FC = () => {
   
   const handleCustomerClick = () => {
     if (selectedCustomer) {
-      navigate(`/customers/${selectedCustomer.id}`);
+      setSelectedCustomerForView(selectedCustomer);
+      setShowQuickViewCustomer(true);
     }
+  };
+
+  const handleCustomerCreated = (newCustomer: any) => {
+    // Update the event with the new customer
+    if (eventData) {
+      handleFieldChange('customer_id', newCustomer.id);
+    }
+    // Refresh the customers list
+    refetchCustomers();
   };
 
   // PDF Generation functions
@@ -443,8 +562,8 @@ export const EventRecord: React.FC = () => {
          deposit_amount: deductibleDeposit,
         form_responses: {},
         form_total: liveFormTotal,
-        customers: selectedCustomer ? {
-          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+                        customers: selectedCustomer ? {
+                          name: selectedCustomer.full_name,
           email: selectedCustomer.email || '',
           phone: selectedCustomer.phone || '',
         } : null
@@ -490,8 +609,8 @@ export const EventRecord: React.FC = () => {
         deposit_amount: deductibleDeposit,
         form_responses: {},
         form_total: liveFormTotal,
-        customers: selectedCustomer ? {
-          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+                        customers: selectedCustomer ? {
+                          name: selectedCustomer.full_name,
           email: selectedCustomer.email || '',
           phone: selectedCustomer.phone || '',
         } : null
@@ -735,17 +854,23 @@ export const EventRecord: React.FC = () => {
         <div className="flex items-center gap-3">
           {lastSaved && (
             <Badge variant="secondary" className="text-xs">
-              Auto-saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
+              Last saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
             </Badge>
           )}
           {isDirty && (
-            <Badge variant="outline" className="text-xs">
-              Saving...
+            <Badge variant="outline" className="text-xs text-amber-600">
+              Unsaved changes
             </Badge>
           )}
           
           {/* Action Buttons */}
           <div className="flex gap-2">
+            <FormSaveButton
+              hasUnsavedChanges={isDirty}
+              onSave={handleManualSave}
+              isLoading={saveEventMutation.isPending}
+            />
+            
             <Button 
               variant="outline" 
               size="sm"
@@ -840,7 +965,7 @@ export const EventRecord: React.FC = () => {
             </AlertDialogContent>
           </AlertDialog>
           
-            <Button variant="ghost" size="sm" onClick={() => navigate('/events')}>
+            <Button variant="ghost" size="sm" onClick={() => secureNavigate('/events')}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -926,11 +1051,6 @@ export const EventRecord: React.FC = () => {
                         </TooltipProvider>
                       )}
                     </div>
-                    {daysLeft !== null && (
-                      <Badge variant={daysLeft < 7 ? "destructive" : "secondary"}>
-                        {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
-                      </Badge>
-                    )}
                   </div>
                 </div>
               </div>
@@ -974,83 +1094,87 @@ export const EventRecord: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Customer *</Label>
-                  {selectedCustomer ? (
-                    <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">
-                            {selectedCustomer.first_name} {selectedCustomer.last_name}
-                          </div>
-                          {selectedCustomer.email && (
-                            <div className="text-sm text-muted-foreground truncate">
-                              {selectedCustomer.email}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-1 flex-shrink-0">
+                  <div className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder={selectedCustomer ? selectedCustomer.full_name : "Search customers..."}
+                        value={customerSearchQuery}
+                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                        onFocus={() => setCustomerSearchQuery('')}
+                        className="pl-10 pr-20"
+                      />
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                        {selectedCustomer && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              handleFieldChange('customer_id', null);
+                              setCustomerSearchQuery('');
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
                         <Button
-                          variant="outline"
                           size="sm"
-                          onClick={handleCustomerClick}
-                        >
-                          View
-                        </Button>
-                        <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            handleFieldChange('customer_id', null);
-                            setCustomerSearchQuery('');
-                          }}
+                          onClick={() => setShowQuickCreateCustomer(true)}
+                          className="h-6 w-6 p-0"
                         >
-                          Change
+                          <Plus className="h-3 w-3" />
                         </Button>
+                        {selectedCustomer && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleCustomerClick}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search customers..."
-                          value={customerSearchQuery}
-                          onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                      {customerSearchQuery && (
-                        <div className="max-h-48 overflow-y-auto border rounded-md bg-background">
-                          {filteredCustomers.length > 0 ? (
-                            filteredCustomers.map((customer) => (
-                              <div
-                                key={customer.id}
-                                className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
-                                onClick={() => {
-                                  handleFieldChange('customer_id', customer.id);
-                                  setCustomerSearchQuery('');
-                                }}
-                              >
-                                <div className="font-medium">
-                                  {customer.first_name} {customer.last_name}
-                                </div>
-                                {customer.email && (
-                                  <div className="text-sm text-muted-foreground">
-                                    {customer.email}
-                                  </div>
-                                )}
+                    
+                    {/* Dropdown Results */}
+                    {customerSearchQuery.trim() && (
+                      <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto border rounded-md bg-card shadow-lg">
+                        {filteredCustomers.length > 0 ? (
+                          filteredCustomers.map((customer) => (
+                            <div
+                              key={`customer-${customer.id}`}
+                              className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
+                              onClick={() => {
+                                handleFieldChange('customer_id', customer.id);
+                                setCustomerSearchQuery('');
+                              }}
+                            >
+                              <div className="font-medium text-foreground">
+                                {customer.full_name}
                               </div>
-                            ))
-                          ) : (
-                            <div className="p-3 text-sm text-muted-foreground">
-                              No customers found
+                              {customer.email && (
+                                <div className="text-sm text-muted-foreground">
+                                  {customer.email}
+                                </div>
+                              )}
+                              {customer.phone && (
+                                <div className="text-sm text-muted-foreground">
+                                  {customer.phone}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                          ))
+                        ) : (
+                          <div className="p-3 text-sm text-muted-foreground">
+                            No customers found matching "{customerSearchQuery}"
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -1144,7 +1268,7 @@ export const EventRecord: React.FC = () => {
                       type="number"
                       min="0"
                       value={eventData.men_count || 0}
-                      onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0, 'number')}
+                      onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0)}
                     />
                   </div>
                   
@@ -1155,7 +1279,7 @@ export const EventRecord: React.FC = () => {
                       type="number"
                       min="0"
                       value={eventData.ladies_count || 0}
-                      onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0, 'number')}
+                      onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0)}
                     />
                   </div>
 
@@ -1330,8 +1454,8 @@ export const EventRecord: React.FC = () => {
         onClose={() => setShowPreview(false)}
         eventData={{
           ...eventData,
-          customers: selectedCustomer ? {
-            name: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+            customers: selectedCustomer ? {
+              name: selectedCustomer.full_name,
             email: selectedCustomer.email || '',
             phone: selectedCustomer.phone || '',
           } : null
@@ -1387,6 +1511,21 @@ export const EventRecord: React.FC = () => {
           tenantId={currentTenant.id}
         />
       )}
+
+      {/* Quick Create Customer Dialog */}
+      <QuickCreateCustomerDialog
+        open={showQuickCreateCustomer}
+        onOpenChange={setShowQuickCreateCustomer}
+        onCustomerCreated={handleCustomerCreated}
+      />
+
+      {/* Quick View Customer Dialog */}
+      <QuickViewCustomerDialog
+        open={showQuickViewCustomer}
+        onOpenChange={setShowQuickViewCustomer}
+        customer={selectedCustomerForView}
+      />
+
     </div>
   );
 };

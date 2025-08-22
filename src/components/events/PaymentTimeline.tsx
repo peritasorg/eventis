@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,30 +18,60 @@ interface PaymentTimelineProps {
   eventId: string;
 }
 
+// Enhanced Payment interface with strict typing
+interface Payment {
+  id: string;
+  event_id: string;
+  tenant_id: string;
+  payment_date: string;
+  amount_gbp: number;
+  payment_note: string | null;
+  created_at: string;
+}
+
+// Simplified validation - just ensure we have basic payment structure
+const validatePayment = (payment: any): payment is Payment => {
+  return (
+    payment &&
+    typeof payment === 'object' &&
+    typeof payment.amount_gbp === 'number'
+  );
+};
+
 export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => {
   const { currentTenant } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [amount, setAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+  const [validatedPayments, setValidatedPayments] = useState<Payment[]>([]);
 
-  // Fetch payments
-  const { data: payments, refetch } = useSupabaseQuery(
+  // Simplified fetch without over-validation
+  const { data: rawPayments, refetch, isLoading, error } = useSupabaseQuery(
     ['event_payments', eventId],
     async () => {
-      if (!eventId || !currentTenant?.id) return [];
+      if (!eventId || !currentTenant?.id) {
+        return [];
+      }
       
       const { data, error } = await supabase
         .from('event_payments')
         .select('*')
         .eq('event_id', eventId)
-        .order('payment_date', { ascending: false })
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
+        .eq('tenant_id', currentTenant.id)
+        .order('payment_date', { ascending: false });
+
+      if (error) {
+        console.error('❌ Database error:', error);
+        throw error;
+      }
+
       return data || [];
     }
   );
+
+  // Use payments directly from query
+  const payments = rawPayments || [];
 
   // Add payment mutation
   const addPaymentMutation = useSupabaseMutation(
@@ -55,11 +85,15 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         throw new Error('Please enter a valid amount');
       }
       
-      // Ensure proper date format
       const formattedDate = new Date(paymentDate).toISOString().split('T')[0];
+      console.log('💾 Inserting payment:', { 
+        event_id: eventId, 
+        payment_date: formattedDate, 
+        amount_gbp: amountGbp,
+        original_date: paymentDate
+      });
       
-      // Insert payment
-      const { error: paymentError } = await supabase
+      const { data: insertedPayment, error: paymentError } = await supabase
         .from('event_payments')
         .insert({
           event_id: eventId,
@@ -67,9 +101,16 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
           payment_date: formattedDate,
           amount_gbp: amountGbp,
           payment_note: paymentNote.trim() || null
-        });
+        })
+        .select()
+        .single();
       
-      if (paymentError) throw paymentError;
+      if (paymentError) {
+        console.error('❌ Payment insert error:', paymentError);
+        throw paymentError;
+      }
+      
+      console.log('✅ Payment inserted successfully:', insertedPayment);
 
       // Also add to communications timeline
       const { error: commError } = await supabase
@@ -85,13 +126,15 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
       if (commError) throw commError;
     },
     {
-      onSuccess: () => {
+      onSuccess: async () => {
         toast.success('Payment recorded successfully');
         setAmount('');
         setPaymentNote('');
         setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
         setIsDialogOpen(false);
-        refetch();
+        
+        await refetch();
+        console.log('🔄 Payment list refreshed after successful insert');
       },
       invalidateQueries: [['event_payments', eventId], ['event-form-totals', eventId]],
       onError: (error) => {
@@ -104,6 +147,11 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
   const deletePaymentMutation = useSupabaseMutation(
     async (paymentId: string) => {
       if (!currentTenant?.id) throw new Error('Missing tenant ID');
+      if (!paymentId || typeof paymentId !== 'string') {
+        throw new Error('Invalid payment ID');
+      }
+      
+      console.log('🗑️ Deleting payment:', paymentId);
       
       // First, get the payment details for logging
       const { data: payment } = await supabase
@@ -154,6 +202,26 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
   const formatCurrency = (amount: number) => `£${amount.toFixed(2)}`;
   
   const totalPaid = payments?.reduce((sum, payment) => sum + payment.amount_gbp, 0) || 0;
+
+  // Enhanced error handling and loading states
+  if (error) {
+    console.error('❌ Payment fetch error:', error);
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Payment Timeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-destructive">
+            <p>Error loading payments. Please refresh the page.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -215,58 +283,67 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         </div>
       </CardHeader>
       <CardContent>
-        {payments && payments.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>Loading payments...</p>
+          </div>
+        ) : payments && payments.length > 0 ? (
           <>
             <div className="space-y-3 mb-4">
-              {payments.map((payment) => (
-                <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="flex-shrink-0">
-                    <CreditCard className="h-4 w-4 mt-1 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">
-                        {payment.payment_date && !isNaN(new Date(payment.payment_date).getTime()) 
-                          ? format(new Date(payment.payment_date), 'dd/MM/yyyy')
-                          : 'Invalid date'
-                        }
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-green-600">
-                          {formatCurrency(payment.amount_gbp)}
-                        </span>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Payment</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => deletePaymentMutation.mutate(payment.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+              {payments.map((payment) => {
+                return (
+                  <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="flex-shrink-0">
+                      <CreditCard className="h-4 w-4 mt-1 text-green-600" />
                     </div>
-                    {payment.payment_note && (
-                      <p className="text-xs text-muted-foreground">{payment.payment_note}</p>
-                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">
+                          {payment.payment_date ? format(new Date(payment.payment_date), 'dd/MM/yyyy') : 'No date'}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-green-600">
+                            {formatCurrency(payment.amount_gbp)}
+                          </span>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => {
+                                    if (!payment.id) {
+                                      toast.error('Cannot delete payment: Invalid payment ID');
+                                      return;
+                                    }
+                                    deletePaymentMutation.mutate(payment.id);
+                                  }}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                      {payment.payment_note && (
+                        <p className="text-xs text-muted-foreground">{payment.payment_note}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="pt-3 border-t">
               <div className="flex justify-between items-center text-sm font-semibold">
