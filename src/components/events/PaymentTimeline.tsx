@@ -33,7 +33,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
       
       const { data, error } = await supabase
         .from('event_payments')
-        .select('*')
+        .select('id, event_id, tenant_id, payment_date, amount_gbp, payment_note, created_at')
         .eq('event_id', eventId)
         .order('payment_date', { ascending: false })
         .order('created_at', { ascending: false });
@@ -226,16 +226,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium">
-                        {(() => {
-                          if (!payment.payment_date) return 'No date';
-                          try {
-                            // Handle both ISO dates and date-only strings
-                            const date = new Date(payment.payment_date + (payment.payment_date.includes('T') ? '' : 'T00:00:00'));
-                            return !isNaN(date.getTime()) ? format(date, 'dd/MM/yyyy') : 'Invalid date';
-                          } catch {
-                            return 'Invalid date';
-                          }
-                        })()}
+                        {payment.payment_date ? format(new Date(payment.payment_date), 'dd/MM/yyyy') : 'No date'}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-green-600">
@@ -257,13 +248,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction 
-                                onClick={() => {
-                                  if (!payment.id) {
-                                    console.error('Payment ID is undefined:', payment);
-                                    return;
-                                  }
-                                  deletePaymentMutation.mutate(payment.id);
-                                }}
+                                onClick={() => deletePaymentMutation.mutate(payment.id)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
