@@ -225,9 +225,9 @@ export class WordTemplateGenerator {
     tenantId?: string
   ): Promise<void> {
     try {
-      // Fetch customer data if customer_id exists
+      // Always fetch current customer data if customer_id exists
       let enrichedEventData = { ...eventData };
-      if (eventData.customer_id && !eventData.customers) {
+      if (eventData.customer_id) {
         try {
           const { supabase } = await import('@/integrations/supabase/client');
           const { data: customerData } = await supabase
@@ -238,10 +238,17 @@ export class WordTemplateGenerator {
           
           if (customerData) {
             enrichedEventData.customers = customerData;
+          } else {
+            // Clear customer data if customer not found
+            enrichedEventData.customers = null;
           }
         } catch (error) {
           console.warn('Could not fetch customer data:', error);
+          enrichedEventData.customers = null;
         }
+      } else {
+        // Clear customer data if no customer_id
+        enrichedEventData.customers = null;
       }
 
       // Download the template
