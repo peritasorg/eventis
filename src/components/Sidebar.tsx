@@ -123,7 +123,7 @@ export const Sidebar = () => {
             <img 
               src="/lovable-uploads/4503c477-cf89-4d4d-84ef-e832a880c76a.png" 
               alt="Eventis" 
-              className="h-8 w-auto flex-shrink-0"
+              className="h-10 w-auto flex-shrink-0"
             />
           </>
         )}
