@@ -296,6 +296,13 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                                   onClick={() => {
                                     console.log('Payment object:', payment);
                                     console.log('Payment ID:', payment.id);
+                                    console.log('Payment ID type:', typeof payment.id);
+                                    
+                                    if (!payment.id) {
+                                      toast.error('Cannot delete payment: Invalid payment ID');
+                                      return;
+                                    }
+                                    
                                     deletePaymentMutation.mutate(payment.id);
                                   }}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
