@@ -1398,6 +1398,7 @@ export type Database = {
           help_text: string | null
           id: string
           is_active: boolean | null
+          is_multiselect: boolean
           name: string
           placeholder_text: string | null
           pricing_type: string | null
@@ -1416,6 +1417,7 @@ export type Database = {
           help_text?: string | null
           id?: string
           is_active?: boolean | null
+          is_multiselect?: boolean
           name: string
           placeholder_text?: string | null
           pricing_type?: string | null
@@ -1434,6 +1436,7 @@ export type Database = {
           help_text?: string | null
           id?: string
           is_active?: boolean | null
+          is_multiselect?: boolean
           name?: string
           placeholder_text?: string | null
           pricing_type?: string | null

@@ -26,6 +26,7 @@ export interface FormField {
   is_toggleable?: boolean;
   toggle_label?: string;
   default_enabled?: boolean;
+  is_multiselect?: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
