@@ -94,7 +94,7 @@ export class WordTemplateGenerator {
     return await data.arrayBuffer();
   }
 
-  private static async extractLineItems(eventForms: any[], tenantId: string, documentType: 'quote' | 'invoice'): Promise<LineItem[]> {
+  private static async extractLineItems(eventForms: any[], tenantId: string, documentType: 'quote' | 'invoice', eventData?: any): Promise<LineItem[]> {
     const lineItems: LineItem[] = [];
     
     // Add guest pricing line items first
@@ -106,9 +106,13 @@ export class WordTemplateGenerator {
         
         console.log(`Guest pricing for ${form.form_label}: ${guestCount} guests - Total: £${totalPrice}`);
         
+        // Remove " Form" suffix and handle empty labels
+        const cleanFormLabel = form.form_label?.replace(/ Form$/, '') || 
+          (eventData?.event_type ? eventData.event_type.charAt(0).toUpperCase() + eventData.event_type.slice(1) : 'Event');
+        
         lineItems.push({
           quantity: guestCount,
-          description: `${form.form_label} - Guest Pricing`,
+          description: `${cleanFormLabel} - Guest Pricing`,
           price: totalPrice, // Use the total price directly for Word document
           total: totalPrice // Use the actual total, not multiplied
         });
@@ -143,7 +147,7 @@ export class WordTemplateGenerator {
     documentType: 'quote' | 'invoice',
     tenantId: string
   ): Promise<TemplateData> {
-    const lineItems = await this.extractLineItems(eventForms, tenantId, documentType);
+    const lineItems = await this.extractLineItems(eventForms, tenantId, documentType, eventData);
     const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
     
     // Generate document number
@@ -180,7 +184,9 @@ export class WordTemplateGenerator {
       event_date: eventData.event_date ? new Date(eventData.event_date).toLocaleDateString('en-GB') : '',
       event_time: eventForms && eventForms.length > 1 
         ? eventForms.map(form => `${form.start_time || 'TBD'} - ${form.end_time || 'TBD'}`).join(' & ')
-        : `${eventData.start_time || 'TBD'} - ${eventData.end_time || 'TBD'}`,
+        : (eventForms && eventForms.length === 1 && (eventForms[0].start_time || eventForms[0].end_time))
+          ? `${eventForms[0].start_time || 'TBD'} - ${eventForms[0].end_time || 'TBD'}`
+          : `${eventData.start_time || 'TBD'} - ${eventData.end_time || 'TBD'}`,
       guest_count: eventForms && eventForms.length > 1
         ? eventForms.map(form => String((form.men_count || 0) + (form.ladies_count || 0))).join(' & ')
         : String((eventData.men_count || 0) + (eventData.ladies_count || 0)),

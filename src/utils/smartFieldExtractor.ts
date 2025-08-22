@@ -183,8 +183,9 @@ const extractFieldData = (
     const price = parseFloat(response.price || fieldConfig.default_price_gbp || '0');
     const quantity = parseInt(response.quantity || '1');
     
-    // Build description: form name + field name + notes if available
-    let description = formLabel ? `${formLabel} - ${label}` : label;
+    // Build description: form name + field name + notes if available (remove " Form" suffix)
+    const cleanFormLabel = formLabel?.replace(/ Form$/, '') || '';
+    let description = cleanFormLabel ? `${cleanFormLabel} - ${label}` : label;
     if (notes.trim()) {
       description += ` - ${notes.trim()}`;
     }
