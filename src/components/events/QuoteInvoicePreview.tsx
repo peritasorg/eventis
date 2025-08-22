@@ -139,13 +139,20 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
 
   const { subtotal, vatAmount, total } = calculateTotals();
 
-  // Format guest count for multiple forms  
+  // Format guest count with detailed breakdown
   const formatGuestCount = () => {
     if (!eventForms || eventForms.length === 0) return '0';
     
     if (eventForms.length === 1) {
       const form = eventForms[0];
-      return String((form.men_count || 0) + (form.ladies_count || 0));
+      const totalGuests = (form.men_count || 0) + (form.ladies_count || 0);
+      const menCount = form.men_count || 0;
+      const ladiesCount = form.ladies_count || 0;
+      
+      if (menCount > 0 && ladiesCount > 0) {
+        return `${totalGuests} (Men: ${menCount}, Ladies: ${ladiesCount})`;
+      }
+      return String(totalGuests);
     }
     
     // Multiple forms - show individual counts with " & " separator
@@ -346,7 +353,9 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
               <p><strong>Time:</strong> {
                 eventForms && eventForms.length > 1 
                   ? eventForms.map(form => `${form.start_time || 'TBD'} - ${form.end_time || 'TBD'}`).join(' & ')
-                  : `${eventData?.start_time || 'TBD'} - ${eventData?.end_time || 'TBD'}`
+                  : (eventForms && eventForms.length === 1 && (eventForms[0].start_time || eventForms[0].end_time))
+                    ? `${eventForms[0].start_time || 'TBD'} - ${eventForms[0].end_time || 'TBD'}`
+                    : `${eventData?.start_time || 'TBD'} - ${eventData?.end_time || 'TBD'}`
               }</p>
             </div>
           </div>
@@ -371,7 +380,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                   eventForm.guest_price_total > 0 && (
                     <div key={`event-form-${eventForm.id}`} className="p-2 grid grid-cols-3 gap-2 text-sm border-b">
                       <div>{(eventForm.men_count || 0) + (eventForm.ladies_count || 0)}</div>
-                      <div>{eventForm.form_label} - Guest Pricing</div>
+                      <div>{(eventForm.form_label?.replace(/ Form$/, '') || eventData?.event_type?.charAt(0).toUpperCase() + eventData?.event_type?.slice(1) || 'Event')} - Guest Pricing</div>
                       <div className="text-right">£{eventForm.guest_price_total.toFixed(2)}</div>
                     </div>
                   )
