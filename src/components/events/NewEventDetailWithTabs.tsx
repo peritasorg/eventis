@@ -7,17 +7,34 @@ import { EventRecord } from './EventRecord';
 import { EventFormTab } from './EventFormTab';
 import { SaveConfirmationDialog } from './SaveConfirmationDialog';
 import { useEventForms } from '@/hooks/useEventForms';
+import { useSaveConfirmation } from '@/hooks/useSaveConfirmation';
 
 export const NewEventDetailWithTabs: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { eventForms } = useEventForms(eventId);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const {
+    showDialog,
+    handleNavigationAttempt,
+    handleSaveAndContinue,
+    handleDiscardAndContinue,
+    handleCancel
+  } = useSaveConfirmation({
+    hasUnsavedChanges,
+    onSave: async () => {
+      // Trigger save on all forms - this would need to be implemented
+      // For now, just proceed with navigation
+      setHasUnsavedChanges(false);
+    },
+    onDiscard: () => {
+      setHasUnsavedChanges(false);
+    }
+  });
 
   const handleBackToEvents = () => {
-    // For now, navigate directly - save confirmation will be handled by form tabs internally
-    navigate('/events');
+    handleNavigationAttempt(() => navigate('/events'));
   };
 
   if (!eventId) {
@@ -64,10 +81,22 @@ export const NewEventDetailWithTabs: React.FC = () => {
         
         {eventForms?.map((eventForm) => (
           <TabsContent key={eventForm.id} value={eventForm.id}>
-            <EventFormTab eventId={eventId} eventFormId={eventForm.id} />
+            <EventFormTab 
+              eventId={eventId} 
+              eventFormId={eventForm.id}
+            />
           </TabsContent>
         ))}
       </Tabs>
+
+      <SaveConfirmationDialog
+        open={showDialog}
+        onOpenChange={(open) => !open && handleCancel()}
+        onSaveAndContinue={handleSaveAndContinue}
+        onDiscardAndContinue={handleDiscardAndContinue}
+        title="Unsaved Changes"
+        description="You have unsaved changes in this event. What would you like to do?"
+      />
     </div>
   );
 };

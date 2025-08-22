@@ -29,38 +29,13 @@ interface Payment {
   created_at: string;
 }
 
-// Data validation functions
+// Simplified validation - just ensure we have basic payment structure
 const validatePayment = (payment: any): payment is Payment => {
   return (
     payment &&
     typeof payment === 'object' &&
-    typeof payment.id === 'string' &&
-    payment.id.length > 0 &&
-    typeof payment.event_id === 'string' &&
-    typeof payment.tenant_id === 'string' &&
-    typeof payment.payment_date === 'string' &&
-    typeof payment.amount_gbp === 'number' &&
-    (payment.payment_note === null || typeof payment.payment_note === 'string') &&
-    typeof payment.created_at === 'string'
+    typeof payment.amount_gbp === 'number'
   );
-};
-
-const validatePaymentArray = (payments: any[]): Payment[] => {
-  if (!Array.isArray(payments)) {
-    console.error('❌ Expected payments array, got:', typeof payments);
-    return [];
-  }
-  
-  const validPayments = payments.filter((payment, index) => {
-    const isValid = validatePayment(payment);
-    if (!isValid) {
-      console.error(`❌ Invalid payment at index ${index}:`, payment);
-    }
-    return isValid;
-  });
-  
-  console.log(`✅ Validated ${validPayments.length}/${payments.length} payments`);
-  return validPayments;
 };
 
 export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => {
@@ -71,14 +46,11 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
   const [paymentNote, setPaymentNote] = useState('');
   const [validatedPayments, setValidatedPayments] = useState<Payment[]>([]);
 
-  // Enhanced fetch with proper React Query configuration and data validation
+  // Simplified fetch without over-validation
   const { data: rawPayments, refetch, isLoading, error } = useSupabaseQuery(
     ['event_payments', eventId],
     async () => {
-      console.log('🔄 Fetching payments for event:', eventId);
-      
       if (!eventId || !currentTenant?.id) {
-        console.log('⚠️ Missing eventId or tenant, returning empty array');
         return [];
       }
       
@@ -87,53 +59,19 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         .select('*')
         .eq('event_id', eventId)
         .eq('tenant_id', currentTenant.id)
-        .order('payment_date', { ascending: false })
-        .order('created_at', { ascending: false });
-      
+        .order('payment_date', { ascending: false });
+
       if (error) {
-        console.error('❌ Payment fetch error:', error);
+        console.error('❌ Database error:', error);
         throw error;
       }
-      
-      console.log('📄 Raw payments from database:', data);
+
       return data || [];
     }
   );
 
-  // Data validation and monitoring with useEffect
-  useEffect(() => {
-    if (rawPayments) {
-      console.log('🔍 Processing raw payments:', rawPayments);
-      
-      // Validate and process payments
-      const processed = validatePaymentArray(rawPayments);
-      
-      // Check for data corruption
-      if (processed.length !== rawPayments.length) {
-        console.warn(`⚠️ Data validation filtered out ${rawPayments.length - processed.length} invalid payments`);
-      }
-      
-      // Deep clone to prevent mutations
-      const clonedPayments = processed.map(payment => ({ ...payment }));
-      setValidatedPayments(clonedPayments);
-      
-      console.log('✅ Final validated payments:', clonedPayments);
-    } else {
-      console.log('📭 No payments data available');
-      setValidatedPayments([]);
-    }
-  }, [rawPayments]);
-
-  // Monitor payment data integrity
-  useEffect(() => {
-    if (validatedPayments.length > 0) {
-      const corruptedPayments = validatedPayments.filter(payment => !validatePayment(payment));
-      if (corruptedPayments.length > 0) {
-        console.error('🚨 DETECTED CORRUPTED PAYMENTS:', corruptedPayments);
-        toast.error('Data integrity issue detected. Please refresh the page.');
-      }
-    }
-  }, [validatedPayments]);
+  // Use payments directly from query
+  const payments = rawPayments || [];
 
   // Add payment mutation
   const addPaymentMutation = useSupabaseMutation(
@@ -263,7 +201,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
 
   const formatCurrency = (amount: number) => `£${amount.toFixed(2)}`;
   
-  const totalPaid = validatedPayments?.reduce((sum, payment) => sum + payment.amount_gbp, 0) || 0;
+  const totalPaid = payments?.reduce((sum, payment) => sum + payment.amount_gbp, 0) || 0;
 
   // Enhanced error handling and loading states
   if (error) {
@@ -349,16 +287,10 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
           <div className="text-center py-8 text-muted-foreground">
             <p>Loading payments...</p>
           </div>
-        ) : validatedPayments && validatedPayments.length > 0 ? (
+        ) : payments && payments.length > 0 ? (
           <>
             <div className="space-y-3 mb-4">
-              {validatedPayments.map((payment) => {
-                // Additional runtime validation for each payment
-                if (!validatePayment(payment)) {
-                  console.error('🚨 Corrupted payment detected during render:', payment);
-                  return null;
-                }
-                
+              {payments.map((payment) => {
                 return (
                   <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
                     <div className="flex-shrink-0">
@@ -390,15 +322,10 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction 
                                   onClick={() => {
-                                    console.log('🔍 Attempting to delete payment:', { id: payment.id, payment });
-                                    
-                                    if (!payment.id || typeof payment.id !== 'string' || payment.id.trim() === '') {
-                                      console.error('❌ Invalid payment ID for deletion:', payment.id);
+                                    if (!payment.id) {
                                       toast.error('Cannot delete payment: Invalid payment ID');
                                       return;
                                     }
-                                    
-                                    console.log('✅ Payment ID validated, proceeding with deletion:', payment.id);
                                     deletePaymentMutation.mutate(payment.id);
                                   }}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
