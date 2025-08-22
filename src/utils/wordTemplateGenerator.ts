@@ -122,14 +122,12 @@ export class WordTemplateGenerator {
       
       // Convert extracted fields to line items format
       populatedFields.forEach(field => {
-        if (field.price > 0) {
-          lineItems.push({
-            quantity: field.quantity,
-            description: field.description,
-            price: field.price,
-            total: field.quantity * field.price
-          });
-        }
+        lineItems.push({
+          quantity: field.quantity,
+          description: field.description,
+          price: field.price,
+          total: field.quantity * field.price
+        });
       });
     } catch (error) {
       console.error('Error extracting populated fields:', error);
