@@ -16,6 +16,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search, FileText, Receipt, Calendar as CalendarSyncIcon, History, Plus, Eye } from 'lucide-react';
 import { CommunicationsTimeline } from './CommunicationsTimeline';
 import { PaymentTimeline } from './PaymentTimeline';
+import { FormSaveButton } from './FormSaveButton';
+import { SaveConfirmationDialog } from './SaveConfirmationDialog';
+import { useSaveConfirmation } from '@/hooks/useSaveConfirmation';
+import { useSecureNavigation } from '@/hooks/useSecureNavigation';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,11 +72,11 @@ export const EventRecord: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
+  const { secureNavigate } = useSecureNavigation();
   
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
-  const [saveTimeoutId, setSaveTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -87,6 +91,20 @@ export const EventRecord: React.FC = () => {
    
   // Calendar auto-sync hook
   const { autoSyncEvent, syncEventToCalendar, deleteEventFromCalendar } = useCalendarAutoSync();
+
+  // Navigation protection - intercept attempts to leave with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // Fetch event data
   const { data: event, isLoading } = useSupabaseQuery(
@@ -231,7 +249,7 @@ export const EventRecord: React.FC = () => {
     }
   );
 
-  // Auto-save mutation
+  // Manual save mutation
   const saveEventMutation = useSupabaseMutation(
     async (data: Partial<EventData>) => {
       if (!eventId || !currentTenant?.id) throw new Error('Missing event or tenant ID');
@@ -257,64 +275,48 @@ export const EventRecord: React.FC = () => {
       console.log('✅ Event saved successfully:', updatedData);
       return updatedData;
     },
-     {
-       onSuccess: async (savedData) => {
-         setLastSaved(new Date());
-         setIsDirty(false);
-         
-         console.log('🎉 Save success - savedData:', savedData);
-         
-         // CRITICAL FIX: Update local eventData state with saved values
-         if (eventData && savedData) {
-           const updatedEventData = { ...eventData, ...savedData };
-           setEventData(updatedEventData);
-           console.log('🔄 Updated local state with saved data:', { 
-             before: eventData, 
-             saved: savedData, 
-             after: updatedEventData 
-           });
-         }
-         
-         toast.success('Event saved');
-         
-         // Verify the data was actually saved
-         setTimeout(async () => {
-           try {
-             const { data: verifyData } = await supabase
-               .from('events')
-               .select('primary_contact_name, primary_contact_number, secondary_contact_name, secondary_contact_number')
-               .eq('id', eventId)
-               .single();
-             console.log('🔍 Post-save verification:', verifyData);
-           } catch (err) {
-             console.error('❌ Verification failed:', err);
-           }
-         }, 1000);
-         
-          // Auto-sync to calendar if core event data changed
-          if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
-                           savedData.primary_contact_name || savedData.primary_contact_number ||
-                           savedData.secondary_contact_name || savedData.secondary_contact_number ||
-                           savedData.ethnicity)) {
-            const currentEventData = { ...eventData, ...savedData };
-            
-            // Use centralized calendar event data preparation with tenant and event type
-            const calendarEventData = await prepareCalendarEventData(
-              currentEventData,
-              eventForms,
-              selectedCustomer || null,
-              currentTenant.id,
-              currentEventData.event_type // Pass event type for config lookup
-            );
-            
-             // Auto-sync with user feedback for important changes
-             try {
-               await autoSyncEvent(calendarEventData, true);
-             } catch (syncError) {
-               console.error('Auto calendar sync failed:', syncError);
-             }
+    {
+      onSuccess: async (savedData) => {
+        setLastSaved(new Date());
+        setIsDirty(false);
+        
+        console.log('🎉 Save success - savedData:', savedData);
+        
+        // Update local eventData state with saved values
+        if (eventData && savedData) {
+          const updatedEventData = { ...eventData, ...savedData };
+          setEventData(updatedEventData);
+          console.log('🔄 Updated local state with saved data:', { 
+            before: eventData, 
+            saved: savedData, 
+            after: updatedEventData 
+          });
+        }
+        
+        toast.success('Event saved successfully');
+        
+        // Auto-sync to calendar if core event data changed
+        if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
+                         savedData.primary_contact_name || savedData.primary_contact_number ||
+                         savedData.secondary_contact_name || savedData.secondary_contact_number ||
+                         savedData.ethnicity)) {
+          const currentEventData = { ...eventData, ...savedData };
+          
+          const calendarEventData = await prepareCalendarEventData(
+            currentEventData,
+            eventForms,
+            selectedCustomer || null,
+            currentTenant.id,
+            currentEventData.event_type
+          );
+          
+          try {
+            await autoSyncEvent(calendarEventData, true);
+          } catch (syncError) {
+            console.error('Auto calendar sync failed:', syncError);
           }
-       },
+        }
+      },
       onError: (error) => {
         console.error('❌ Failed to save event:', error);
         toast.error('Failed to save changes: ' + error.message);
@@ -338,7 +340,7 @@ export const EventRecord: React.FC = () => {
     {
       onSuccess: () => {
         toast.success('Event deleted successfully');
-        navigate('/events');
+        secureNavigate('/events');
       },
       onError: (error) => {
         toast.error('Failed to delete event: ' + error.message);
@@ -437,40 +439,41 @@ export const EventRecord: React.FC = () => {
     }
   }, [event]);
 
-  // Smart auto-save with different delays based on field type
-  const debouncedSave = useCallback((data: Partial<EventData>, fieldType: 'text' | 'toggle' | 'number' | 'contact' = 'text') => {
-    if (saveTimeoutId) {
-      clearTimeout(saveTimeoutId);
+  // Manual save function
+  const handleManualSave = useCallback(async () => {
+    if (!eventData || !isDirty) return;
+    
+    try {
+      await saveEventMutation.mutateAsync(eventData);
+    } catch (error) {
+      console.error('Manual save failed:', error);
     }
-    
-    let delay = 500; // default
-    if (fieldType === 'text') delay = 2000; // typing fields
-    if (fieldType === 'contact') delay = 800; // faster for contact fields
-    if (fieldType === 'number') delay = 1000; // price/quantity fields
-    if (fieldType === 'toggle') delay = 0; // immediate for toggles/selects
-    
-    // Add comprehensive debugging
-    console.log('🔄 Preparing to save:', { data, fieldType, delay });
-    
-    const timeoutId = setTimeout(() => {
-      console.log('💾 Executing save mutation:', { data, fieldType });
-      saveEventMutation.mutate(data);
-    }, delay);
-    
-    setSaveTimeoutId(timeoutId);
-  }, [saveTimeoutId, saveEventMutation]);
+  }, [eventData, isDirty, saveEventMutation]);
 
-  // Handle field changes with smart auto-save
-  const handleFieldChange = useCallback((field: keyof EventData, value: any, fieldType: 'text' | 'toggle' | 'number' | 'contact' = 'text') => {
+  // Save confirmation setup
+  const saveConfirmation = useSaveConfirmation({
+    hasUnsavedChanges: isDirty,
+    onSave: handleManualSave,
+    onDiscard: () => {
+      if (event) {
+        setEventData(event);
+        setIsDirty(false);
+      }
+    }
+  });
+
+  // Handle field changes without auto-save
+  const handleFieldChange = useCallback((field: keyof EventData, value: any) => {
     if (!eventData) return;
     
     // Prevent empty strings from overriding existing values for contact fields
-    if (fieldType === 'contact' && value === '' && eventData[field]) {
+    const contactFields = ['primary_contact_name', 'primary_contact_number', 'secondary_contact_name', 'secondary_contact_number'];
+    if (contactFields.includes(field as string) && value === '' && eventData[field]) {
       console.log('⚠️ Preventing empty string override for contact field:', { field, currentValue: eventData[field] });
       return;
     }
     
-    console.log('📝 Field change:', { field, value, fieldType, previousValue: eventData[field] });
+    console.log('📝 Field change:', { field, value, previousValue: eventData[field] });
     
     // Track date changes
     if (field === 'event_date' && eventData.event_date !== value) {
@@ -487,18 +490,12 @@ export const EventRecord: React.FC = () => {
       const updatedData = { ...eventData, ...updates };
       setEventData(updatedData);
       setIsDirty(true);
-      
-      // Save both fields for date changes (immediate for dates)
-      debouncedSave(updates, 'toggle');
     } else {
       const updatedData = { ...eventData, [field]: value };
       setEventData(updatedData);
       setIsDirty(true);
-      
-      // Trigger smart auto-save based on field type
-      debouncedSave({ [field]: value }, fieldType);
     }
-  }, [eventData, debouncedSave]);
+  }, [eventData]);
 
   // Calculate derived values
   const totalGuests = (eventData?.men_count || 0) + (eventData?.ladies_count || 0);
@@ -535,7 +532,7 @@ export const EventRecord: React.FC = () => {
   const handleCustomerCreated = (newCustomer: any) => {
     // Update the event with the new customer
     if (eventData) {
-      handleFieldChange('customer_id', newCustomer.id, 'toggle');
+      handleFieldChange('customer_id', newCustomer.id);
     }
     // Refresh the customers list
     refetchCustomers();
@@ -853,17 +850,23 @@ export const EventRecord: React.FC = () => {
         <div className="flex items-center gap-3">
           {lastSaved && (
             <Badge variant="secondary" className="text-xs">
-              Auto-saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
+              Last saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
             </Badge>
           )}
           {isDirty && (
-            <Badge variant="outline" className="text-xs">
-              Saving...
+            <Badge variant="outline" className="text-xs text-amber-600">
+              Unsaved changes
             </Badge>
           )}
           
           {/* Action Buttons */}
           <div className="flex gap-2">
+            <FormSaveButton
+              hasUnsavedChanges={isDirty}
+              onSave={handleManualSave}
+              isLoading={saveEventMutation.isPending}
+            />
+            
             <Button 
               variant="outline" 
               size="sm"
@@ -958,7 +961,7 @@ export const EventRecord: React.FC = () => {
             </AlertDialogContent>
           </AlertDialog>
           
-            <Button variant="ghost" size="sm" onClick={() => navigate('/events')}>
+            <Button variant="ghost" size="sm" onClick={() => saveConfirmation.handleNavigationAttempt(() => secureNavigate('/events'))}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -1103,7 +1106,7 @@ export const EventRecord: React.FC = () => {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              handleFieldChange('customer_id', null, 'toggle');
+                              handleFieldChange('customer_id', null);
                               setCustomerSearchQuery('');
                             }}
                             className="h-6 w-6 p-0"
@@ -1141,7 +1144,7 @@ export const EventRecord: React.FC = () => {
                               key={`customer-${customer.id}`}
                               className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
                               onClick={() => {
-                                handleFieldChange('customer_id', customer.id, 'toggle');
+                                handleFieldChange('customer_id', customer.id);
                                 setCustomerSearchQuery('');
                               }}
                             >
@@ -1201,7 +1204,7 @@ export const EventRecord: React.FC = () => {
                   <Input
                     id="primary_contact_name"
                     value={eventData.primary_contact_name || ''}
-                    onChange={(e) => handleFieldChange('primary_contact_name', e.target.value || null, 'contact')}
+                    onChange={(e) => handleFieldChange('primary_contact_name', e.target.value || null)}
                     placeholder="Primary contact name"
                   />
                 </div>
@@ -1211,7 +1214,7 @@ export const EventRecord: React.FC = () => {
                   <Input
                     id="primary_contact_number"
                     value={eventData.primary_contact_number || ''}
-                    onChange={(e) => handleFieldChange('primary_contact_number', e.target.value || null, 'contact')}
+                    onChange={(e) => handleFieldChange('primary_contact_number', e.target.value || null)}
                     placeholder="Primary contact number"
                   />
                 </div>
@@ -1223,7 +1226,7 @@ export const EventRecord: React.FC = () => {
                   <Input
                     id="secondary_contact_name"
                     value={eventData.secondary_contact_name || ''}
-                    onChange={(e) => handleFieldChange('secondary_contact_name', e.target.value || null, 'contact')}
+                    onChange={(e) => handleFieldChange('secondary_contact_name', e.target.value || null)}
                     placeholder="Secondary contact name"
                   />
                 </div>
@@ -1233,7 +1236,7 @@ export const EventRecord: React.FC = () => {
                   <Input
                     id="secondary_contact_number"
                     value={eventData.secondary_contact_number || ''}
-                    onChange={(e) => handleFieldChange('secondary_contact_number', e.target.value || null, 'contact')}
+                    onChange={(e) => handleFieldChange('secondary_contact_number', e.target.value || null)}
                     placeholder="Secondary contact number"
                   />
                 </div>
@@ -1261,7 +1264,7 @@ export const EventRecord: React.FC = () => {
                       type="number"
                       min="0"
                       value={eventData.men_count || 0}
-                      onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0, 'number')}
+                      onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0)}
                     />
                   </div>
                   
@@ -1272,7 +1275,7 @@ export const EventRecord: React.FC = () => {
                       type="number"
                       min="0"
                       value={eventData.ladies_count || 0}
-                      onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0, 'number')}
+                      onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0)}
                     />
                   </div>
 
@@ -1517,6 +1520,16 @@ export const EventRecord: React.FC = () => {
         open={showQuickViewCustomer}
         onOpenChange={setShowQuickViewCustomer}
         customer={selectedCustomerForView}
+      />
+
+      {/* Save Confirmation Dialog */}
+      <SaveConfirmationDialog
+        open={saveConfirmation.showDialog}
+        onOpenChange={saveConfirmation.handleCancel}
+        onSaveAndContinue={saveConfirmation.handleSaveAndContinue}
+        onDiscardAndContinue={saveConfirmation.handleDiscardAndContinue}
+        title="Unsaved Changes"
+        description="You have unsaved changes in this event. What would you like to do?"
       />
     </div>
   );
