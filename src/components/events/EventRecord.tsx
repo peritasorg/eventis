@@ -1052,7 +1052,7 @@ export const EventRecord: React.FC = () => {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              handleFieldChange('customer_id', null);
+                              handleFieldChange('customer_id', null, 'toggle');
                               setCustomerSearchQuery('');
                             }}
                             className="h-6 w-6 p-0"
@@ -1090,7 +1090,7 @@ export const EventRecord: React.FC = () => {
                               key={`customer-${customer.id}`}
                               className="p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
                               onClick={() => {
-                                handleFieldChange('customer_id', customer.id);
+                                handleFieldChange('customer_id', customer.id, 'toggle');
                                 setCustomerSearchQuery('');
                               }}
                             >
