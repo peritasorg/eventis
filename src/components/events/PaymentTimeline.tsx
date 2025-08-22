@@ -257,7 +257,13 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction 
-                                onClick={() => deletePaymentMutation.mutate(payment.id)}
+                                onClick={() => {
+                                  if (!payment.id) {
+                                    console.error('Payment ID is undefined:', payment);
+                                    return;
+                                  }
+                                  deletePaymentMutation.mutate(payment.id);
+                                }}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}

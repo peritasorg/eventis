@@ -691,7 +691,15 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
                     <SelectTrigger>
                       <SelectValue 
                         placeholder="Select time slot"
-                      />
+                      >
+                        {selectedTimeSlots[eventForm.id] ? 
+                          (() => {
+                            const selectedSlot = getTimeSlotsForForm(eventForm)?.find(slot => slot.id === selectedTimeSlots[eventForm.id]);
+                            return selectedSlot ? `${selectedSlot.label} (${selectedSlot.start_time} - ${selectedSlot.end_time})` : "Select time slot";
+                          })()
+                          : "Select time slot"
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {getTimeSlotsForForm(eventForm)?.map((slot) => (
