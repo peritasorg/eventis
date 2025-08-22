@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,13 +35,11 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
   const [amount, setAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
 
-  // Fetch payments with proper type safety
+  // Fetch payments
   const { data: payments, refetch } = useSupabaseQuery(
     ['event_payments', eventId],
-    async (): Promise<Payment[]> => {
+    async () => {
       if (!eventId || !currentTenant?.id) return [];
-      
-      console.log('🔍 Fetching payments for event:', eventId);
       
       const { data, error } = await supabase
         .from('event_payments')
@@ -56,39 +54,9 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         throw error;
       }
       
-      console.log('💰 Raw payments data:', data);
-      
-      // Validate data integrity
-      const validatedPayments = (data || []).filter((payment): payment is Payment => {
-        const isValid = payment && 
-          typeof payment.id === 'string' && 
-          payment.id.length > 0 &&
-          typeof payment.amount_gbp === 'number';
-        
-        if (!isValid) {
-          console.warn('⚠️ Invalid payment data detected:', payment);
-        }
-        
-        return isValid;
-      });
-      
-      console.log('💰 Validated payments:', validatedPayments);
-      return validatedPayments;
+      return data || [];
     }
   );
-
-  // Monitor payments data changes to detect corruption
-  useEffect(() => {
-    if (payments) {
-      console.log('🔄 Payments data changed:', payments);
-      console.log('🔄 Payment data integrity check:', payments.map(p => ({
-        id: p.id,
-        hasValidId: typeof p.id === 'string' && p.id.length > 0,
-        hasValidAmount: typeof p.amount_gbp === 'number',
-        allKeys: Object.keys(p)
-      })));
-    }
-  }, [payments]);
 
   // Add payment mutation
   const addPaymentMutation = useSupabaseMutation(
@@ -283,99 +251,58 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         {payments && payments.length > 0 ? (
           <>
             <div className="space-y-3 mb-4">
-              {payments.map((payment, index) => {
-                // Extensive debugging for data corruption tracking
-                console.log(`🔍 Rendering payment ${index}:`, payment);
-                console.log(`🔍 Payment data integrity for ${index}:`, {
-                  hasValidId: typeof payment.id === 'string' && payment.id.length > 0,
-                  hasValidAmount: typeof payment.amount_gbp === 'number',
-                  hasValidDate: typeof payment.payment_date === 'string',
-                  allKeys: Object.keys(payment || {})
-                });
-                
-                // Skip invalid payments
-                if (!payment || typeof payment.id !== 'string' || !payment.id) {
-                  console.error('⚠️ Skipping invalid payment:', payment);
-                  return null;
-                }
-                
-                return (
-                  <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
-                    <div className="flex-shrink-0">
-                      <CreditCard className="h-4 w-4 mt-1 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">
-                          {(() => {
-                            if (!payment.payment_date) {
-                              console.log('⚠️ No payment date found for payment:', payment.id);
-                              return 'No date';
-                            }
-                            
-                            try {
-                              const formattedDate = format(new Date(payment.payment_date), 'dd/MM/yyyy');
-                              return formattedDate;
-                            } catch (error) {
-                              console.error('❌ Date formatting error:', error);
-                              return 'Invalid date';
-                            }
-                          })()}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-green-600">
-                            {formatCurrency(payment.amount_gbp)}
-                          </span>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Payment</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => {
-                                    console.log('🗑️ Delete payment clicked - payment object:', payment);
-                                    console.log('🗑️ Payment ID validation:', {
-                                      id: payment.id,
-                                      type: typeof payment.id,
-                                      length: payment.id?.length,
-                                      isValidString: typeof payment.id === 'string' && payment.id.length > 0
-                                    });
-                                    
-                                    if (!payment.id || typeof payment.id !== 'string' || payment.id.length === 0) {
-                                      console.error('❌ Invalid payment ID for deletion:', payment.id);
-                                      toast.error('Cannot delete payment: Invalid payment ID');
-                                      return;
-                                    }
-                                    
-                                    console.log('✅ Proceeding with deletion of payment:', payment.id);
-                                    deletePaymentMutation.mutate(payment.id);
-                                  }}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                      {payment.payment_note && (
-                        <p className="text-xs text-muted-foreground">{payment.payment_note}</p>
-                      )}
-                    </div>
+              {payments.map((payment) => (
+                <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
+                  <div className="flex-shrink-0">
+                    <CreditCard className="h-4 w-4 mt-1 text-green-600" />
                   </div>
-                );
-              })}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">
+                        {payment.payment_date ? format(new Date(payment.payment_date), 'dd/MM/yyyy') : 'No date'}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-green-600">
+                          {formatCurrency(payment.amount_gbp)}
+                        </span>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => {
+                                  if (!payment.id) {
+                                    toast.error('Cannot delete payment: Invalid payment ID');
+                                    return;
+                                  }
+                                  deletePaymentMutation.mutate(payment.id);
+                                }}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                    {payment.payment_note && (
+                      <p className="text-xs text-muted-foreground">{payment.payment_note}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="pt-3 border-t">
               <div className="flex justify-between items-center text-sm font-semibold">
