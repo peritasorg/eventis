@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ interface PaymentTimelineProps {
   eventId: string;
 }
 
+// Enhanced Payment interface with strict typing
 interface Payment {
   id: string;
   event_id: string;
@@ -28,22 +29,62 @@ interface Payment {
   created_at: string;
 }
 
+// Data validation functions
+const validatePayment = (payment: any): payment is Payment => {
+  return (
+    payment &&
+    typeof payment === 'object' &&
+    typeof payment.id === 'string' &&
+    payment.id.length > 0 &&
+    typeof payment.event_id === 'string' &&
+    typeof payment.tenant_id === 'string' &&
+    typeof payment.payment_date === 'string' &&
+    typeof payment.amount_gbp === 'number' &&
+    (payment.payment_note === null || typeof payment.payment_note === 'string') &&
+    typeof payment.created_at === 'string'
+  );
+};
+
+const validatePaymentArray = (payments: any[]): Payment[] => {
+  if (!Array.isArray(payments)) {
+    console.error('❌ Expected payments array, got:', typeof payments);
+    return [];
+  }
+  
+  const validPayments = payments.filter((payment, index) => {
+    const isValid = validatePayment(payment);
+    if (!isValid) {
+      console.error(`❌ Invalid payment at index ${index}:`, payment);
+    }
+    return isValid;
+  });
+  
+  console.log(`✅ Validated ${validPayments.length}/${payments.length} payments`);
+  return validPayments;
+};
+
 export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => {
   const { currentTenant } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [amount, setAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+  const [validatedPayments, setValidatedPayments] = useState<Payment[]>([]);
 
-  // Fetch payments
-  const { data: payments, refetch } = useSupabaseQuery(
+  // Enhanced fetch with proper React Query configuration and data validation
+  const { data: rawPayments, refetch, isLoading, error } = useSupabaseQuery(
     ['event_payments', eventId],
     async () => {
-      if (!eventId || !currentTenant?.id) return [];
+      console.log('🔄 Fetching payments for event:', eventId);
+      
+      if (!eventId || !currentTenant?.id) {
+        console.log('⚠️ Missing eventId or tenant, returning empty array');
+        return [];
+      }
       
       const { data, error } = await supabase
         .from('event_payments')
-        .select('id, event_id, tenant_id, payment_date, amount_gbp, payment_note, created_at')
+        .select('*')
         .eq('event_id', eventId)
         .eq('tenant_id', currentTenant.id)
         .order('payment_date', { ascending: false })
@@ -54,9 +95,45 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         throw error;
       }
       
+      console.log('📄 Raw payments from database:', data);
       return data || [];
     }
   );
+
+  // Data validation and monitoring with useEffect
+  useEffect(() => {
+    if (rawPayments) {
+      console.log('🔍 Processing raw payments:', rawPayments);
+      
+      // Validate and process payments
+      const processed = validatePaymentArray(rawPayments);
+      
+      // Check for data corruption
+      if (processed.length !== rawPayments.length) {
+        console.warn(`⚠️ Data validation filtered out ${rawPayments.length - processed.length} invalid payments`);
+      }
+      
+      // Deep clone to prevent mutations
+      const clonedPayments = processed.map(payment => ({ ...payment }));
+      setValidatedPayments(clonedPayments);
+      
+      console.log('✅ Final validated payments:', clonedPayments);
+    } else {
+      console.log('📭 No payments data available');
+      setValidatedPayments([]);
+    }
+  }, [rawPayments]);
+
+  // Monitor payment data integrity
+  useEffect(() => {
+    if (validatedPayments.length > 0) {
+      const corruptedPayments = validatedPayments.filter(payment => !validatePayment(payment));
+      if (corruptedPayments.length > 0) {
+        console.error('🚨 DETECTED CORRUPTED PAYMENTS:', corruptedPayments);
+        toast.error('Data integrity issue detected. Please refresh the page.');
+      }
+    }
+  }, [validatedPayments]);
 
   // Add payment mutation
   const addPaymentMutation = useSupabaseMutation(
@@ -186,7 +263,27 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
 
   const formatCurrency = (amount: number) => `£${amount.toFixed(2)}`;
   
-  const totalPaid = payments?.reduce((sum, payment) => sum + payment.amount_gbp, 0) || 0;
+  const totalPaid = validatedPayments?.reduce((sum, payment) => sum + payment.amount_gbp, 0) || 0;
+
+  // Enhanced error handling and loading states
+  if (error) {
+    console.error('❌ Payment fetch error:', error);
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Payment Timeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-destructive">
+            <p>Error loading payments. Please refresh the page.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -248,61 +345,78 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         </div>
       </CardHeader>
       <CardContent>
-        {payments && payments.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>Loading payments...</p>
+          </div>
+        ) : validatedPayments && validatedPayments.length > 0 ? (
           <>
             <div className="space-y-3 mb-4">
-              {payments.map((payment) => (
-                <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="flex-shrink-0">
-                    <CreditCard className="h-4 w-4 mt-1 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">
-                        {payment.payment_date ? format(new Date(payment.payment_date), 'dd/MM/yyyy') : 'No date'}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-green-600">
-                          {formatCurrency(payment.amount_gbp)}
-                        </span>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Payment</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => {
-                                  if (!payment.id) {
-                                    toast.error('Cannot delete payment: Invalid payment ID');
-                                    return;
-                                  }
-                                  deletePaymentMutation.mutate(payment.id);
-                                }}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+              {validatedPayments.map((payment) => {
+                // Additional runtime validation for each payment
+                if (!validatePayment(payment)) {
+                  console.error('🚨 Corrupted payment detected during render:', payment);
+                  return null;
+                }
+                
+                return (
+                  <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="flex-shrink-0">
+                      <CreditCard className="h-4 w-4 mt-1 text-green-600" />
                     </div>
-                    {payment.payment_note && (
-                      <p className="text-xs text-muted-foreground">{payment.payment_note}</p>
-                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">
+                          {payment.payment_date ? format(new Date(payment.payment_date), 'dd/MM/yyyy') : 'No date'}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-green-600">
+                            {formatCurrency(payment.amount_gbp)}
+                          </span>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => {
+                                    console.log('🔍 Attempting to delete payment:', { id: payment.id, payment });
+                                    
+                                    if (!payment.id || typeof payment.id !== 'string' || payment.id.trim() === '') {
+                                      console.error('❌ Invalid payment ID for deletion:', payment.id);
+                                      toast.error('Cannot delete payment: Invalid payment ID');
+                                      return;
+                                    }
+                                    
+                                    console.log('✅ Payment ID validated, proceeding with deletion:', payment.id);
+                                    deletePaymentMutation.mutate(payment.id);
+                                  }}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                      {payment.payment_note && (
+                        <p className="text-xs text-muted-foreground">{payment.payment_note}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="pt-3 border-t">
               <div className="flex justify-between items-center text-sm font-semibold">
