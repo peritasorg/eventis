@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,16 @@ interface PaymentTimelineProps {
   eventId: string;
 }
 
+interface Payment {
+  id: string;
+  event_id: string;
+  tenant_id: string;
+  payment_date: string;
+  amount_gbp: number;
+  payment_note: string | null;
+  created_at: string;
+}
+
 export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => {
   const { currentTenant } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -25,16 +35,19 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
   const [amount, setAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
 
-  // Fetch payments
+  // Fetch payments with proper type safety
   const { data: payments, refetch } = useSupabaseQuery(
     ['event_payments', eventId],
-    async () => {
+    async (): Promise<Payment[]> => {
       if (!eventId || !currentTenant?.id) return [];
+      
+      console.log('🔍 Fetching payments for event:', eventId);
       
       const { data, error } = await supabase
         .from('event_payments')
         .select('id, event_id, tenant_id, payment_date, amount_gbp, payment_note, created_at')
         .eq('event_id', eventId)
+        .eq('tenant_id', currentTenant.id)
         .order('payment_date', { ascending: false })
         .order('created_at', { ascending: false });
       
@@ -43,12 +56,39 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         throw error;
       }
       
-      console.log('💰 Fetched payments:', data);
-      console.log('💰 Payment dates debug:', data?.map(p => ({ id: p.id, payment_date: p.payment_date, type: typeof p.payment_date })));
+      console.log('💰 Raw payments data:', data);
       
-      return data || [];
+      // Validate data integrity
+      const validatedPayments = (data || []).filter((payment): payment is Payment => {
+        const isValid = payment && 
+          typeof payment.id === 'string' && 
+          payment.id.length > 0 &&
+          typeof payment.amount_gbp === 'number';
+        
+        if (!isValid) {
+          console.warn('⚠️ Invalid payment data detected:', payment);
+        }
+        
+        return isValid;
+      });
+      
+      console.log('💰 Validated payments:', validatedPayments);
+      return validatedPayments;
     }
   );
+
+  // Monitor payments data changes to detect corruption
+  useEffect(() => {
+    if (payments) {
+      console.log('🔄 Payments data changed:', payments);
+      console.log('🔄 Payment data integrity check:', payments.map(p => ({
+        id: p.id,
+        hasValidId: typeof p.id === 'string' && p.id.length > 0,
+        hasValidAmount: typeof p.amount_gbp === 'number',
+        allKeys: Object.keys(p)
+      })));
+    }
+  }, [payments]);
 
   // Add payment mutation
   const addPaymentMutation = useSupabaseMutation(
@@ -62,7 +102,6 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         throw new Error('Please enter a valid amount');
       }
       
-      // Ensure proper date format
       const formattedDate = new Date(paymentDate).toISOString().split('T')[0];
       console.log('💾 Inserting payment:', { 
         event_id: eventId, 
@@ -71,7 +110,6 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         original_date: paymentDate
       });
       
-      // Insert payment
       const { data: insertedPayment, error: paymentError } = await supabase
         .from('event_payments')
         .insert({
@@ -112,7 +150,6 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
         setIsDialogOpen(false);
         
-        // Force refetch and wait for it to complete
         await refetch();
         console.log('🔄 Payment list refreshed after successful insert');
       },
@@ -127,6 +164,11 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
   const deletePaymentMutation = useSupabaseMutation(
     async (paymentId: string) => {
       if (!currentTenant?.id) throw new Error('Missing tenant ID');
+      if (!paymentId || typeof paymentId !== 'string') {
+        throw new Error('Invalid payment ID');
+      }
+      
+      console.log('🗑️ Deleting payment:', paymentId);
       
       // First, get the payment details for logging
       const { data: payment } = await supabase
@@ -241,42 +283,49 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         {payments && payments.length > 0 ? (
           <>
             <div className="space-y-3 mb-4">
-              {payments.map((payment) => (
-                <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="flex-shrink-0">
-                    <CreditCard className="h-4 w-4 mt-1 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">
-                        {(() => {
-                          console.log('🗓️ Date debug:', { 
-                            payment_date: payment.payment_date, 
-                            type: typeof payment.payment_date,
-                            isNull: payment.payment_date === null,
-                            isUndefined: payment.payment_date === undefined,
-                            isEmpty: payment.payment_date === ''
-                          });
-                          
-                          if (!payment.payment_date) {
-                            console.log('⚠️ No payment date found for payment:', payment.id);
-                            return 'No date';
-                          }
-                          
-                          try {
-                            const formattedDate = format(new Date(payment.payment_date), 'dd/MM/yyyy');
-                            console.log('✅ Formatted date:', formattedDate);
-                            return formattedDate;
-                          } catch (error) {
-                            console.error('❌ Date formatting error:', error);
-                            return 'Invalid date';
-                          }
-                        })()}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-green-600">
-                          {formatCurrency(payment.amount_gbp)}
+              {payments.map((payment, index) => {
+                // Extensive debugging for data corruption tracking
+                console.log(`🔍 Rendering payment ${index}:`, payment);
+                console.log(`🔍 Payment data integrity for ${index}:`, {
+                  hasValidId: typeof payment.id === 'string' && payment.id.length > 0,
+                  hasValidAmount: typeof payment.amount_gbp === 'number',
+                  hasValidDate: typeof payment.payment_date === 'string',
+                  allKeys: Object.keys(payment || {})
+                });
+                
+                // Skip invalid payments
+                if (!payment || typeof payment.id !== 'string' || !payment.id) {
+                  console.error('⚠️ Skipping invalid payment:', payment);
+                  return null;
+                }
+                
+                return (
+                  <div key={payment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="flex-shrink-0">
+                      <CreditCard className="h-4 w-4 mt-1 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">
+                          {(() => {
+                            if (!payment.payment_date) {
+                              console.log('⚠️ No payment date found for payment:', payment.id);
+                              return 'No date';
+                            }
+                            
+                            try {
+                              const formattedDate = format(new Date(payment.payment_date), 'dd/MM/yyyy');
+                              return formattedDate;
+                            } catch (error) {
+                              console.error('❌ Date formatting error:', error);
+                              return 'Invalid date';
+                            }
+                          })()}
                         </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-green-600">
+                            {formatCurrency(payment.amount_gbp)}
+                          </span>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -294,15 +343,21 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction 
                                   onClick={() => {
-                                    console.log('Payment object:', payment);
-                                    console.log('Payment ID:', payment.id);
-                                    console.log('Payment ID type:', typeof payment.id);
+                                    console.log('🗑️ Delete payment clicked - payment object:', payment);
+                                    console.log('🗑️ Payment ID validation:', {
+                                      id: payment.id,
+                                      type: typeof payment.id,
+                                      length: payment.id?.length,
+                                      isValidString: typeof payment.id === 'string' && payment.id.length > 0
+                                    });
                                     
-                                    if (!payment.id) {
+                                    if (!payment.id || typeof payment.id !== 'string' || payment.id.length === 0) {
+                                      console.error('❌ Invalid payment ID for deletion:', payment.id);
                                       toast.error('Cannot delete payment: Invalid payment ID');
                                       return;
                                     }
                                     
+                                    console.log('✅ Proceeding with deletion of payment:', payment.id);
                                     deletePaymentMutation.mutate(payment.id);
                                   }}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -312,14 +367,15 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                        </div>
                       </div>
+                      {payment.payment_note && (
+                        <p className="text-xs text-muted-foreground">{payment.payment_note}</p>
+                      )}
                     </div>
-                    {payment.payment_note && (
-                      <p className="text-xs text-muted-foreground">{payment.payment_note}</p>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="pt-3 border-t">
               <div className="flex justify-between items-center text-sm font-semibold">
