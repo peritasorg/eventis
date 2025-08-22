@@ -68,7 +68,11 @@ interface EventData {
   updated_at: string;
 }
 
-export const EventRecord: React.FC = () => {
+interface EventRecordProps {
+  onUnsavedChanges?: (hasChanges: boolean) => void;
+}
+
+export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges }) => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useAuth();
@@ -91,6 +95,11 @@ export const EventRecord: React.FC = () => {
    
   // Calendar auto-sync hook
   const { autoSyncEvent, syncEventToCalendar, deleteEventFromCalendar } = useCalendarAutoSync();
+
+  // Notify parent about unsaved changes
+  useEffect(() => {
+    onUnsavedChanges?.(isDirty);
+  }, [isDirty, onUnsavedChanges]);
 
   // Navigation protection - intercept attempts to leave with unsaved changes
   useEffect(() => {

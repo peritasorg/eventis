@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,13 @@ export const NewEventDetailWithTabs: React.FC = () => {
   const navigate = useNavigate();
   const { eventForms } = useEventForms(eventId);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hasOverviewChanges, setHasOverviewChanges] = useState(false);
+  const [hasFormChanges, setHasFormChanges] = useState(false);
+
+  // Update combined unsaved changes state
+  useEffect(() => {
+    setHasUnsavedChanges(hasOverviewChanges || hasFormChanges);
+  }, [hasOverviewChanges, hasFormChanges]);
 
   const {
     showDialog,
@@ -70,14 +77,14 @@ export const NewEventDetailWithTabs: React.FC = () => {
         </TabsList>
         
         <TabsContent value="overview">
-          <EventRecord />
+          <EventRecord onUnsavedChanges={setHasOverviewChanges} />
         </TabsContent>
         
         {eventForms?.length === 0 && (
           <TabsContent value="forms">
             <EventFormTab 
               eventId={eventId} 
-              onUnsavedChanges={setHasUnsavedChanges}
+              onUnsavedChanges={setHasFormChanges}
             />
           </TabsContent>
         )}
@@ -87,7 +94,7 @@ export const NewEventDetailWithTabs: React.FC = () => {
             <EventFormTab 
               eventId={eventId} 
               eventFormId={eventForm.id}
-              onUnsavedChanges={setHasUnsavedChanges}
+              onUnsavedChanges={setHasFormChanges}
             />
           </TabsContent>
         ))}
