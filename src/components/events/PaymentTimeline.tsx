@@ -226,10 +226,16 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium">
-                        {payment.payment_date && !isNaN(new Date(payment.payment_date).getTime()) 
-                          ? format(new Date(payment.payment_date), 'dd/MM/yyyy')
-                          : 'Invalid date'
-                        }
+                        {(() => {
+                          if (!payment.payment_date) return 'No date';
+                          try {
+                            // Handle both ISO dates and date-only strings
+                            const date = new Date(payment.payment_date + (payment.payment_date.includes('T') ? '' : 'T00:00:00'));
+                            return !isNaN(date.getTime()) ? format(date, 'dd/MM/yyyy') : 'Invalid date';
+                          } catch {
+                            return 'Invalid date';
+                          }
+                        })()}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-green-600">

@@ -399,13 +399,14 @@ export const EventRecord: React.FC = () => {
   }, [event]);
 
   // Smart auto-save with different delays based on field type
-  const debouncedSave = useCallback((data: Partial<EventData>, fieldType: 'text' | 'toggle' | 'number' = 'text') => {
+  const debouncedSave = useCallback((data: Partial<EventData>, fieldType: 'text' | 'toggle' | 'number' | 'contact' = 'text') => {
     if (saveTimeoutId) {
       clearTimeout(saveTimeoutId);
     }
     
     let delay = 500; // default
     if (fieldType === 'text') delay = 2000; // typing fields
+    if (fieldType === 'contact') delay = 800; // faster for contact fields
     if (fieldType === 'number') delay = 1000; // price/quantity fields
     if (fieldType === 'toggle') delay = 0; // immediate for toggles/selects
     
@@ -417,7 +418,7 @@ export const EventRecord: React.FC = () => {
   }, [saveTimeoutId, saveEventMutation]);
 
   // Handle field changes with smart auto-save
-  const handleFieldChange = useCallback((field: keyof EventData, value: any, fieldType: 'text' | 'toggle' | 'number' = 'text') => {
+  const handleFieldChange = useCallback((field: keyof EventData, value: any, fieldType: 'text' | 'toggle' | 'number' | 'contact' = 'text') => {
     if (!eventData) return;
     
     // Track date changes
@@ -1149,7 +1150,7 @@ export const EventRecord: React.FC = () => {
                   <Input
                     id="primary_contact_name"
                     value={eventData.primary_contact_name || ''}
-                    onChange={(e) => handleFieldChange('primary_contact_name', e.target.value || null)}
+                    onChange={(e) => handleFieldChange('primary_contact_name', e.target.value || null, 'contact')}
                     placeholder="Primary contact name"
                   />
                 </div>
@@ -1159,7 +1160,7 @@ export const EventRecord: React.FC = () => {
                   <Input
                     id="primary_contact_number"
                     value={eventData.primary_contact_number || ''}
-                    onChange={(e) => handleFieldChange('primary_contact_number', e.target.value || null)}
+                    onChange={(e) => handleFieldChange('primary_contact_number', e.target.value || null, 'contact')}
                     placeholder="Primary contact number"
                   />
                 </div>
