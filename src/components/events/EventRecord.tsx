@@ -263,6 +263,18 @@ export const EventRecord: React.FC = () => {
          setIsDirty(false);
          
          console.log('🎉 Save success - savedData:', savedData);
+         
+         // CRITICAL FIX: Update local eventData state with saved values
+         if (eventData && savedData) {
+           const updatedEventData = { ...eventData, ...savedData };
+           setEventData(updatedEventData);
+           console.log('🔄 Updated local state with saved data:', { 
+             before: eventData, 
+             saved: savedData, 
+             after: updatedEventData 
+           });
+         }
+         
          toast.success('Event saved');
          
          // Verify the data was actually saved

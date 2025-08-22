@@ -105,13 +105,16 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
       if (commError) throw commError;
     },
     {
-      onSuccess: () => {
+      onSuccess: async () => {
         toast.success('Payment recorded successfully');
         setAmount('');
         setPaymentNote('');
         setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
         setIsDialogOpen(false);
-        refetch();
+        
+        // Force refetch and wait for it to complete
+        await refetch();
+        console.log('🔄 Payment list refreshed after successful insert');
       },
       invalidateQueries: [['event_payments', eventId], ['event-form-totals', eventId]],
       onError: (error) => {
