@@ -39,6 +39,7 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         .order('created_at', { ascending: false });
       
       if (error) throw error;
+      console.log('Fetched payments:', data);
       return data || [];
     }
   );
@@ -232,30 +233,34 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                         <span className="text-sm font-semibold text-green-600">
                           {formatCurrency(payment.amount_gbp)}
                         </span>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Payment</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => deletePaymentMutation.mutate(payment.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this payment of {formatCurrency(payment.amount_gbp)}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => {
+                                    console.log('Payment object:', payment);
+                                    console.log('Payment ID:', payment.id);
+                                    deletePaymentMutation.mutate(payment.id);
+                                  }}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {deletePaymentMutation.isPending ? 'Deleting...' : 'Delete'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                       </div>
                     </div>
                     {payment.payment_note && (
