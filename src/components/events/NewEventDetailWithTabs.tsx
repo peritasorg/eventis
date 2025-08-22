@@ -75,7 +75,10 @@ export const NewEventDetailWithTabs: React.FC = () => {
         
         {eventForms?.length === 0 && (
           <TabsContent value="forms">
-            <EventFormTab eventId={eventId} />
+            <EventFormTab 
+              eventId={eventId} 
+              onUnsavedChanges={setHasUnsavedChanges}
+            />
           </TabsContent>
         )}
         
@@ -84,6 +87,7 @@ export const NewEventDetailWithTabs: React.FC = () => {
             <EventFormTab 
               eventId={eventId} 
               eventFormId={eventForm.id}
+              onUnsavedChanges={setHasUnsavedChanges}
             />
           </TabsContent>
         ))}

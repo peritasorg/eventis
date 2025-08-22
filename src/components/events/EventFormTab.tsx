@@ -21,9 +21,10 @@ import { prepareCalendarEventData } from '@/utils/calendarEventData';
 interface EventFormTabProps {
   eventId: string;
   eventFormId?: string; // Optional - if provided, shows single form, otherwise shows form manager
+  onUnsavedChanges?: (hasChanges: boolean) => void;
 }
 
-export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId }) => {
+export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId, onUnsavedChanges }) => {
   const { eventForms, isLoading, createEventForm, updateEventForm, deleteEventForm, isCreating } = useEventForms(eventId);
   const { forms } = useForms();
   const { formFields } = useFormFields();
@@ -429,6 +430,12 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
       setIsSaving(prev => ({ ...prev, [eventFormId]: false }));
     }
   }, [eventForms, formResponses, localGuestData, eventId, queryClient, calculateFormTotal, autoSyncEvent, currentTenant]);
+
+  // Notify parent about unsaved changes
+  useEffect(() => {
+    const hasAnyUnsavedChanges = Object.values(unsavedChanges).some(hasChanges => hasChanges);
+    onUnsavedChanges?.(hasAnyUnsavedChanges);
+  }, [unsavedChanges, onUnsavedChanges]);
 
   const handleAddForm = async () => {
     if (!selectedFormId) {
