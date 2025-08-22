@@ -236,22 +236,48 @@ export const EventRecord: React.FC = () => {
     async (data: Partial<EventData>) => {
       if (!eventId || !currentTenant?.id) throw new Error('Missing event or tenant ID');
       
-      const { error } = await supabase
+      console.log('💾 Saving event data:', { eventId, data, tenantId: currentTenant.id });
+      
+      const { data: updatedData, error } = await supabase
         .from('events')
         .update({
           ...data,
           updated_at: new Date().toISOString()
         })
         .eq('id', eventId)
-        .eq('tenant_id', currentTenant.id);
+        .eq('tenant_id', currentTenant.id)
+        .select()
+        .single();
       
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('❌ Event save error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Event saved successfully:', updatedData);
+      return updatedData;
     },
      {
        onSuccess: async (savedData) => {
          setLastSaved(new Date());
          setIsDirty(false);
+         
+         console.log('🎉 Save success - savedData:', savedData);
+         toast.success('Event saved');
+         
+         // Verify the data was actually saved
+         setTimeout(async () => {
+           try {
+             const { data: verifyData } = await supabase
+               .from('events')
+               .select('primary_contact_name, primary_contact_number, secondary_contact_name, secondary_contact_number')
+               .eq('id', eventId)
+               .single();
+             console.log('🔍 Post-save verification:', verifyData);
+           } catch (err) {
+             console.error('❌ Verification failed:', err);
+           }
+         }, 1000);
          
           // Auto-sync to calendar if core event data changed
           if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
@@ -278,6 +304,7 @@ export const EventRecord: React.FC = () => {
           }
        },
       onError: (error) => {
+        console.error('❌ Failed to save event:', error);
         toast.error('Failed to save changes: ' + error.message);
       }
     }
@@ -410,7 +437,11 @@ export const EventRecord: React.FC = () => {
     if (fieldType === 'number') delay = 1000; // price/quantity fields
     if (fieldType === 'toggle') delay = 0; // immediate for toggles/selects
     
+    // Add comprehensive debugging
+    console.log('🔄 Preparing to save:', { data, fieldType, delay });
+    
     const timeoutId = setTimeout(() => {
+      console.log('💾 Executing save mutation:', { data, fieldType });
       saveEventMutation.mutate(data);
     }, delay);
     
@@ -420,6 +451,14 @@ export const EventRecord: React.FC = () => {
   // Handle field changes with smart auto-save
   const handleFieldChange = useCallback((field: keyof EventData, value: any, fieldType: 'text' | 'toggle' | 'number' | 'contact' = 'text') => {
     if (!eventData) return;
+    
+    // Prevent empty strings from overriding existing values for contact fields
+    if (fieldType === 'contact' && value === '' && eventData[field]) {
+      console.log('⚠️ Preventing empty string override for contact field:', { field, currentValue: eventData[field] });
+      return;
+    }
+    
+    console.log('📝 Field change:', { field, value, fieldType, previousValue: eventData[field] });
     
     // Track date changes
     if (field === 'event_date' && eventData.event_date !== value) {
@@ -1172,7 +1211,7 @@ export const EventRecord: React.FC = () => {
                   <Input
                     id="secondary_contact_name"
                     value={eventData.secondary_contact_name || ''}
-                    onChange={(e) => handleFieldChange('secondary_contact_name', e.target.value || null)}
+                    onChange={(e) => handleFieldChange('secondary_contact_name', e.target.value || null, 'contact')}
                     placeholder="Secondary contact name"
                   />
                 </div>
@@ -1182,7 +1221,7 @@ export const EventRecord: React.FC = () => {
                   <Input
                     id="secondary_contact_number"
                     value={eventData.secondary_contact_number || ''}
-                    onChange={(e) => handleFieldChange('secondary_contact_number', e.target.value || null)}
+                    onChange={(e) => handleFieldChange('secondary_contact_number', e.target.value || null, 'contact')}
                     placeholder="Secondary contact number"
                   />
                 </div>

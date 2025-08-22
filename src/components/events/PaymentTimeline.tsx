@@ -38,8 +38,14 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
         .order('payment_date', { ascending: false })
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      console.log('Fetched payments:', data);
+      if (error) {
+        console.error('❌ Payment fetch error:', error);
+        throw error;
+      }
+      
+      console.log('💰 Fetched payments:', data);
+      console.log('💰 Payment dates debug:', data?.map(p => ({ id: p.id, payment_date: p.payment_date, type: typeof p.payment_date })));
+      
       return data || [];
     }
   );
@@ -58,9 +64,15 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
       
       // Ensure proper date format
       const formattedDate = new Date(paymentDate).toISOString().split('T')[0];
+      console.log('💾 Inserting payment:', { 
+        event_id: eventId, 
+        payment_date: formattedDate, 
+        amount_gbp: amountGbp,
+        original_date: paymentDate
+      });
       
       // Insert payment
-      const { error: paymentError } = await supabase
+      const { data: insertedPayment, error: paymentError } = await supabase
         .from('event_payments')
         .insert({
           event_id: eventId,
@@ -68,9 +80,16 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
           payment_date: formattedDate,
           amount_gbp: amountGbp,
           payment_note: paymentNote.trim() || null
-        });
+        })
+        .select()
+        .single();
       
-      if (paymentError) throw paymentError;
+      if (paymentError) {
+        console.error('❌ Payment insert error:', paymentError);
+        throw paymentError;
+      }
+      
+      console.log('✅ Payment inserted successfully:', insertedPayment);
 
       // Also add to communications timeline
       const { error: commError } = await supabase
@@ -227,7 +246,29 @@ export const PaymentTimeline: React.FC<PaymentTimelineProps> = ({ eventId }) => 
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium">
-                        {payment.payment_date ? format(new Date(payment.payment_date), 'dd/MM/yyyy') : 'No date'}
+                        {(() => {
+                          console.log('🗓️ Date debug:', { 
+                            payment_date: payment.payment_date, 
+                            type: typeof payment.payment_date,
+                            isNull: payment.payment_date === null,
+                            isUndefined: payment.payment_date === undefined,
+                            isEmpty: payment.payment_date === ''
+                          });
+                          
+                          if (!payment.payment_date) {
+                            console.log('⚠️ No payment date found for payment:', payment.id);
+                            return 'No date';
+                          }
+                          
+                          try {
+                            const formattedDate = format(new Date(payment.payment_date), 'dd/MM/yyyy');
+                            console.log('✅ Formatted date:', formattedDate);
+                            return formattedDate;
+                          } catch (error) {
+                            console.error('❌ Date formatting error:', error);
+                            return 'Invalid date';
+                          }
+                        })()}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-green-600">
