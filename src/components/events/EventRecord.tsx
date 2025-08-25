@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -88,6 +88,9 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   const [showQuickCreateCustomer, setShowQuickCreateCustomer] = useState(false);
   const [showQuickViewCustomer, setShowQuickViewCustomer] = useState(false);
   const [selectedCustomerForView, setSelectedCustomerForView] = useState<any>(null);
+
+  // Track original event type for change detection
+  const originalEventTypeRef = useRef<string | null>(null);
 
    // Get event type configs
    const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -284,7 +287,8 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         console.log('🎉 Save success - savedData:', savedData);
         
         // Check if event type changed to trigger form sync
-        const eventTypeChanged = eventData && savedData.event_type && eventData.event_type !== savedData.event_type;
+        const eventTypeChanged = originalEventTypeRef.current !== null && 
+                                 originalEventTypeRef.current !== savedData.event_type;
         
         // Update local eventData state with saved values
         if (eventData && savedData) {
@@ -302,23 +306,18 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         // Sync forms with new event type if event type changed
         if (eventTypeChanged && eventId && savedData.event_type) {
           console.log('🔄 Event type changed, syncing forms:', {
-            oldType: eventData.event_type,
+            oldType: originalEventTypeRef.current,
             newType: savedData.event_type
           });
           
-          try {
-            await new Promise((resolve, reject) => {
-              syncEventFormsWithEventType({ 
-                eventId, 
-                eventType: savedData.event_type 
-              });
-              // Wait a moment for the mutation to complete
-              setTimeout(resolve, 100);
-            });
-          } catch (syncError) {
-            console.error('Form sync failed:', syncError);
-            toast.error('Failed to sync forms with new event type');
-          }
+          // Trigger the form sync
+          syncEventFormsWithEventType({ 
+            eventId, 
+            eventType: savedData.event_type 
+          });
+          
+          // Reset the original event type ref
+          originalEventTypeRef.current = null;
         }
         
         // Auto-sync to calendar if core event data changed
@@ -494,6 +493,11 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   // Handle field changes without auto-save
   const handleFieldChange = useCallback((field: keyof EventData, value: any) => {
     if (!eventData) return;
+    
+    // Store original event type on first change to event_type
+    if (field === 'event_type' && originalEventTypeRef.current === null) {
+      originalEventTypeRef.current = eventData.event_type || null;
+    }
     
     // Prevent empty strings from overriding existing values for contact fields
     const contactFields = ['primary_contact_name', 'primary_contact_number', 'secondary_contact_name', 'secondary_contact_number'];
