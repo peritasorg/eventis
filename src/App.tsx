@@ -35,6 +35,7 @@ import { Auth } from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Success } from "./pages/success";
 import { PDFEditor } from "./pages/PDFEditor";
+import { CustomerEdit } from "./pages/CustomerEdit";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -161,6 +162,14 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <AppLayout>
                         <CustomerProfilePage />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/customers/:customerId/edit" element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <CustomerEdit />
                       </AppLayout>
                     </ProtectedRoute>
                   } />
