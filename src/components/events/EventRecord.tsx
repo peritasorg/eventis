@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -88,6 +88,9 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   const [showQuickCreateCustomer, setShowQuickCreateCustomer] = useState(false);
   const [showQuickViewCustomer, setShowQuickViewCustomer] = useState(false);
   const [selectedCustomerForView, setSelectedCustomerForView] = useState<any>(null);
+
+  // Track original event type for change detection
+  const originalEventTypeRef = useRef<string | null>(null);
 
    // Get event type configs
    const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -225,7 +228,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
 
   // Get live form totals and individual form data
   const { liveFormTotal, formTotals, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
-  const { eventForms } = useEventForms(eventId);
+  const { eventForms, syncEventFormsWithEventType, isSyncing: isFormSyncing } = useEventForms(eventId);
 
   // Fetch payment timeline for remaining balance calculation
   const { data: payments } = useSupabaseQuery(
@@ -283,6 +286,10 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         
         console.log('🎉 Save success - savedData:', savedData);
         
+        // Check if event type changed to trigger form sync
+        const eventTypeChanged = originalEventTypeRef.current !== null && 
+                                 originalEventTypeRef.current !== savedData.event_type;
+        
         // Update local eventData state with saved values
         if (eventData && savedData) {
           const updatedEventData = { ...eventData, ...savedData };
@@ -295,6 +302,23 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         }
         
         toast.success('Event saved successfully');
+        
+        // Sync forms with new event type if event type changed
+        if (eventTypeChanged && eventId && savedData.event_type) {
+          console.log('🔄 Event type changed, syncing forms:', {
+            oldType: originalEventTypeRef.current,
+            newType: savedData.event_type
+          });
+          
+          // Trigger the form sync
+          syncEventFormsWithEventType({ 
+            eventId, 
+            eventType: savedData.event_type 
+          });
+          
+          // Reset the original event type ref
+          originalEventTypeRef.current = null;
+        }
         
         // Auto-sync to calendar if core event data changed
         if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
@@ -470,6 +494,11 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   const handleFieldChange = useCallback((field: keyof EventData, value: any) => {
     if (!eventData) return;
     
+    // Store original event type on first change to event_type
+    if (field === 'event_type' && originalEventTypeRef.current === null) {
+      originalEventTypeRef.current = eventData.event_type || null;
+    }
+    
     // Prevent empty strings from overriding existing values for contact fields
     const contactFields = ['primary_contact_name', 'primary_contact_number', 'secondary_contact_name', 'secondary_contact_number'];
     if (contactFields.includes(field as string) && value === '' && eventData[field]) {
@@ -507,11 +536,11 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   // CRITICAL FIX: Only include event-level guest pricing when there are NO forms (to prevent double-counting)
   const hasMultipleForms = (formTotals?.length || 0) > 0;
   const totalGuestPrice = hasMultipleForms ? 0 : (eventData?.total_guest_price_gbp || 0);
-  const totalEventValue = totalGuestPrice + liveFormTotal;
-   const refundableDeposit = eventData?.refundable_deposit_gbp || 0;
-   const deductibleDeposit = eventData?.deductible_deposit_gbp || 0;
-   const totalPaid = deductibleDeposit + (payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0);
-   const remainingBalanceGbp = totalEventValue - totalPaid; // Refundable deposit doesn't reduce balance
+  const refundableDeposit = eventData?.refundable_deposit_gbp || 0;
+  const deductibleDeposit = eventData?.deductible_deposit_gbp || 0;
+  const totalEventValue = totalGuestPrice + liveFormTotal - deductibleDeposit; // Subtract deductible deposit from total
+  const additionalPayments = payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0;
+  const remainingBalanceGbp = totalEventValue - additionalPayments; // Deductible deposit already subtracted from totalEventValue
   
   const daysLeft = eventData?.event_date 
     ? Math.floor((new Date(eventData.event_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -864,22 +893,22 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           )}
           
           {/* Action Buttons */}
-          <div className="flex gap-2">
-            <FormSaveButton
-              hasUnsavedChanges={isDirty}
-              onSave={handleManualSave}
-              isLoading={saveEventMutation.isPending}
-            />
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowPreview(true)}
-              className="flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Preview Quote/Invoice
-            </Button>
+              <div className="flex gap-2">
+                <FormSaveButton
+                  hasUnsavedChanges={isDirty}
+                  onSave={handleManualSave}
+                  isLoading={saveEventMutation.isPending || isFormSyncing}
+                />
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowPreview(true)}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Preview Quote/Invoice
+                </Button>
             
             <Button 
               variant="outline" 
@@ -1430,7 +1459,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Total Paid:</span>
-                  <span className="font-medium">{formatCurrency(totalPaid)}</span>
+                  <span className="font-medium">{formatCurrency(deductibleDeposit + additionalPayments)}</span>
                 </div>
                 <div className="flex justify-between items-center text-lg font-semibold border-t pt-2">
                   <span>Event Total:</span>

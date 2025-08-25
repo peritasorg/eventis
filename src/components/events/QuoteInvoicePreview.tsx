@@ -130,14 +130,25 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
       }
     });
     
-    // No VAT calculation - set to 0
-    const vatAmount = 0;
-    const total = subtotal;
+    // Get deposit amounts
+    const refundableDeposit = eventData?.refundable_deposit_gbp || 0;
+    const deductibleDeposit = eventData?.deductible_deposit_gbp || 0;
+    
+    // Calculate final total after deducting deductible deposit
+    const total = subtotal - deductibleDeposit;
 
-    return { subtotal, vatAmount, total, basePrice: 0, formTotal: subtotal };
+    return { 
+      subtotal, 
+      vatAmount: 0, 
+      total, 
+      basePrice: 0, 
+      formTotal: subtotal, 
+      refundableDeposit, 
+      deductibleDeposit 
+    };
   };
 
-  const { subtotal, vatAmount, total } = calculateTotals();
+  const { subtotal, vatAmount, total, refundableDeposit, deductibleDeposit } = calculateTotals();
 
   // Format guest count with detailed breakdown
   const formatGuestCount = () => {
@@ -411,8 +422,20 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
                 <span>Subtotal:</span>
                 <span>£{subtotal.toFixed(2)}</span>
               </div>
+              {refundableDeposit > 0 && (
+                <div className="flex justify-between">
+                  <span>Deposit Amount Paid (Refundable):</span>
+                  <span>£{refundableDeposit.toFixed(2)}</span>
+                </div>
+              )}
+              {deductibleDeposit > 0 && (
+                <div className="flex justify-between">
+                  <span>Deposit Amount Paid (Deductible):</span>
+                  <span>£{deductibleDeposit.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-base border-t pt-2">
-                <span>TOTAL:</span>
+                <span>Remaining Balance:</span>
                 <span>£{total.toFixed(2)}</span>
               </div>
             </div>

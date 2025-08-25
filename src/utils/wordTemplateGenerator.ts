@@ -21,6 +21,7 @@ interface TemplateData {
   // Customer info
   customer_name: string;
   customer_address: string;
+  customer_postcode: string;
   customer_phone: string;
   customer_email: string;
   
@@ -173,9 +174,9 @@ export class WordTemplateGenerator {
       customer_address: eventData.customers ? [
         eventData.customers.address_line1,
         eventData.customers.address_line2,
-        eventData.customers.city,
-        eventData.customers.postal_code
+        eventData.customers.city
       ].filter(Boolean).join(', ') || 'Customer Address' : 'Customer Address',
+      customer_postcode: eventData.customers?.postal_code || '',
       customer_phone: eventData.customers?.phone || eventData.primary_contact_number || '',
       customer_email: eventData.customers?.email || 'customer@email.com',
       
@@ -194,9 +195,9 @@ export class WordTemplateGenerator {
       // Financial info
       subtotal: subtotal,
       total: subtotal,
-      deductible_deposit_amount: parseFloat(eventData.deposit_amount_gbp) || 0,
+      deductible_deposit_amount: parseFloat(eventData.deductible_deposit_gbp) || 0,
       refundable_deposit_amount: parseFloat(eventData.refundable_deposit_gbp) || 0,
-      balance_due: subtotal - (parseFloat(eventData.deposit_amount_gbp) || 0), // Only deductible deposit reduces balance
+      balance_due: subtotal - (parseFloat(eventData.deductible_deposit_gbp) || 0), // Only deductible deposit reduces balance
       
       // Document info
       document_number: documentNumber,
