@@ -295,14 +295,143 @@ export const useEventForms = (eventId?: string) => {
     }
   );
 
+  // Synchronize event forms with event type
+  const syncEventFormsWithEventTypeMutation = useSupabaseMutation(
+    async ({ eventId, eventType }: { eventId: string; eventType: string }) => {
+      if (!currentTenant?.id || !eventType) {
+        throw new Error('Missing tenant ID or event type');
+      }
+
+      console.log('🔄 Syncing event forms with event type:', { eventId, eventType });
+
+      // Get current event forms
+      const { data: currentEventForms, error: currentFormsError } = await supabase
+        .from('event_forms')
+        .select('id, form_id, form_label, form_responses')
+        .eq('event_id', eventId)
+        .eq('tenant_id', currentTenant.id)
+        .eq('is_active', true);
+
+      if (currentFormsError) throw currentFormsError;
+
+      // Get expected forms for the new event type
+      const { data: eventTypeConfig, error: configError } = await supabase
+        .from('event_type_configs')
+        .select('id')
+        .eq('tenant_id', currentTenant.id)
+        .eq('event_type', eventType)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (configError) throw configError;
+      if (!eventTypeConfig) {
+        console.log('No event type config found for:', eventType);
+        return;
+      }
+
+      // Get expected form mappings
+      const { data: expectedMappings, error: mappingsError } = await supabase
+        .from('event_type_form_mappings')
+        .select('form_id, default_label, sort_order')
+        .eq('event_type_config_id', eventTypeConfig.id)
+        .eq('tenant_id', currentTenant.id)
+        .eq('auto_assign', true)
+        .order('sort_order');
+
+      if (mappingsError) throw mappingsError;
+
+      const expectedFormIds = expectedMappings?.map(m => m.form_id) || [];
+      const currentFormIds = currentEventForms?.map(ef => ef.form_id) || [];
+
+      console.log('📊 Form sync analysis:', {
+        currentFormIds,
+        expectedFormIds,
+        toRemove: currentFormIds.filter(id => !expectedFormIds.includes(id)),
+        toAdd: expectedFormIds.filter(id => !currentFormIds.includes(id))
+      });
+
+      // Remove forms that shouldn't be there
+      const formsToRemove = currentEventForms?.filter(ef => !expectedFormIds.includes(ef.form_id)) || [];
+      for (const formToRemove of formsToRemove) {
+        await supabase
+          .from('event_forms')
+          .update({ is_active: false })
+          .eq('id', formToRemove.id);
+      }
+
+      // Add forms that should be there
+      const formsToAdd = expectedMappings?.filter(mapping => !currentFormIds.includes(mapping.form_id)) || [];
+      for (const mappingToAdd of formsToAdd) {
+        // Get form structure for default responses
+        const { data: formStructureData } = await supabase
+          .from('forms')
+          .select('sections')
+          .eq('id', mappingToAdd.form_id)
+          .eq('tenant_id', currentTenant.id)
+          .single();
+
+        let defaultResponses = {};
+        if (formStructureData) {
+          const sections = typeof formStructureData.sections === 'string' 
+            ? JSON.parse(formStructureData.sections) 
+            : Array.isArray(formStructureData.sections) ? formStructureData.sections : [];
+          
+          const allFieldIds = sections.flatMap((section: any) => section.field_ids || []);
+          
+          if (allFieldIds.length > 0) {
+            const { data: fieldsData } = await supabase
+              .from('form_fields')
+              .select('*')
+              .in('id', allFieldIds)
+              .eq('tenant_id', currentTenant.id)
+              .eq('is_active', true);
+
+            fieldsData?.forEach(field => {
+              if (field.field_type === 'fixed_price_notes_toggle' || 
+                  field.field_type === 'fixed_price_quantity_notes_toggle') {
+                defaultResponses[field.id] = { enabled: false };
+              }
+            });
+          }
+        }
+
+        await supabase
+          .from('event_forms')
+          .insert({
+            tenant_id: currentTenant.id,
+            event_id: eventId,
+            form_id: mappingToAdd.form_id,
+            form_label: mappingToAdd.default_label || 'Form',
+            tab_order: mappingToAdd.sort_order || 1,
+            form_order: mappingToAdd.sort_order || 1,
+            form_responses: defaultResponses,
+            form_total: 0,
+            guest_count: 0,
+            guest_price_total: 0,
+            men_count: 0,
+            ladies_count: 0,
+            is_active: true
+          });
+      }
+
+      console.log('✅ Event forms synchronized with event type');
+    },
+    {
+      successMessage: 'Event forms synchronized successfully',
+      invalidateQueries: [['event-forms', eventId]]
+    }
+  );
+
   return {
     eventForms: eventForms || [],
     isLoading: eventFormsQuery.isLoading,
     createEventForm: createEventFormMutation.mutate,
     updateEventForm: updateEventFormMutation.mutate,
     deleteEventForm: deleteEventFormMutation.mutate,
+    syncEventFormsWithEventType: syncEventFormsWithEventTypeMutation.mutate,
     isCreating: createEventFormMutation.isPending,
     isUpdating: updateEventFormMutation.isPending,
-    isDeleting: deleteEventFormMutation.isPending
+    isDeleting: deleteEventFormMutation.isPending,
+    isSyncing: syncEventFormsWithEventTypeMutation.isPending
   };
 };

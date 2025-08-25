@@ -225,7 +225,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
 
   // Get live form totals and individual form data
   const { liveFormTotal, formTotals, isLoading: formTotalsLoading } = useEventFormTotals(eventId);
-  const { eventForms } = useEventForms(eventId);
+  const { eventForms, syncEventFormsWithEventType, isSyncing: isFormSyncing } = useEventForms(eventId);
 
   // Fetch payment timeline for remaining balance calculation
   const { data: payments } = useSupabaseQuery(
@@ -283,6 +283,9 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         
         console.log('🎉 Save success - savedData:', savedData);
         
+        // Check if event type changed to trigger form sync
+        const eventTypeChanged = eventData && savedData.event_type && eventData.event_type !== savedData.event_type;
+        
         // Update local eventData state with saved values
         if (eventData && savedData) {
           const updatedEventData = { ...eventData, ...savedData };
@@ -295,6 +298,28 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         }
         
         toast.success('Event saved successfully');
+        
+        // Sync forms with new event type if event type changed
+        if (eventTypeChanged && eventId && savedData.event_type) {
+          console.log('🔄 Event type changed, syncing forms:', {
+            oldType: eventData.event_type,
+            newType: savedData.event_type
+          });
+          
+          try {
+            await new Promise((resolve, reject) => {
+              syncEventFormsWithEventType({ 
+                eventId, 
+                eventType: savedData.event_type 
+              });
+              // Wait a moment for the mutation to complete
+              setTimeout(resolve, 100);
+            });
+          } catch (syncError) {
+            console.error('Form sync failed:', syncError);
+            toast.error('Failed to sync forms with new event type');
+          }
+        }
         
         // Auto-sync to calendar if core event data changed
         if (eventData && (savedData.event_date || savedData.start_time || savedData.end_time || savedData.title || 
@@ -864,22 +889,22 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           )}
           
           {/* Action Buttons */}
-          <div className="flex gap-2">
-            <FormSaveButton
-              hasUnsavedChanges={isDirty}
-              onSave={handleManualSave}
-              isLoading={saveEventMutation.isPending}
-            />
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowPreview(true)}
-              className="flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Preview Quote/Invoice
-            </Button>
+              <div className="flex gap-2">
+                <FormSaveButton
+                  hasUnsavedChanges={isDirty}
+                  onSave={handleManualSave}
+                  isLoading={saveEventMutation.isPending || isFormSyncing}
+                />
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowPreview(true)}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Preview Quote/Invoice
+                </Button>
             
             <Button 
               variant="outline" 
