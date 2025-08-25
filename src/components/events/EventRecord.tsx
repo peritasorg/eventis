@@ -507,11 +507,11 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   // CRITICAL FIX: Only include event-level guest pricing when there are NO forms (to prevent double-counting)
   const hasMultipleForms = (formTotals?.length || 0) > 0;
   const totalGuestPrice = hasMultipleForms ? 0 : (eventData?.total_guest_price_gbp || 0);
-  const totalEventValue = totalGuestPrice + liveFormTotal;
-   const refundableDeposit = eventData?.refundable_deposit_gbp || 0;
-   const deductibleDeposit = eventData?.deductible_deposit_gbp || 0;
-   const totalPaid = deductibleDeposit + (payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0);
-   const remainingBalanceGbp = totalEventValue - totalPaid; // Refundable deposit doesn't reduce balance
+  const refundableDeposit = eventData?.refundable_deposit_gbp || 0;
+  const deductibleDeposit = eventData?.deductible_deposit_gbp || 0;
+  const totalEventValue = totalGuestPrice + liveFormTotal - deductibleDeposit; // Subtract deductible deposit from total
+  const additionalPayments = payments?.reduce((sum, payment) => sum + (payment.amount_gbp || 0), 0) || 0;
+  const remainingBalanceGbp = totalEventValue - additionalPayments; // Deductible deposit already subtracted from totalEventValue
   
   const daysLeft = eventData?.event_date 
     ? Math.floor((new Date(eventData.event_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -1430,7 +1430,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Total Paid:</span>
-                  <span className="font-medium">{formatCurrency(totalPaid)}</span>
+                  <span className="font-medium">{formatCurrency(deductibleDeposit + additionalPayments)}</span>
                 </div>
                 <div className="flex justify-between items-center text-lg font-semibold border-t pt-2">
                   <span>Event Total:</span>

@@ -195,9 +195,9 @@ export class WordTemplateGenerator {
       // Financial info
       subtotal: subtotal,
       total: subtotal,
-      deductible_deposit_amount: parseFloat(eventData.deposit_amount_gbp) || 0,
+      deductible_deposit_amount: parseFloat(eventData.deductible_deposit_gbp) || 0,
       refundable_deposit_amount: parseFloat(eventData.refundable_deposit_gbp) || 0,
-      balance_due: subtotal - (parseFloat(eventData.deposit_amount_gbp) || 0), // Only deductible deposit reduces balance
+      balance_due: subtotal - (parseFloat(eventData.deductible_deposit_gbp) || 0), // Only deductible deposit reduces balance
       
       // Document info
       document_number: documentNumber,
