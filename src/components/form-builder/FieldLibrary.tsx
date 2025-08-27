@@ -76,24 +76,26 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
         </div>
       </div>
 
-      <Droppable droppableId="field-library" type="field" isDropDisabled={true}>
+      <Droppable droppableId="field-types" type="field-type" isDropDisabled={true}>
         {(provided) => (
           <div 
             ref={provided.innerRef}
             {...provided.droppableProps}
             className="flex-1 overflow-y-auto p-4 space-y-4"
           >
-            {Object.entries(filteredFields).map(([category, fields]) => (
-              <div key={category}>
-                <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                  {category === 'Text Fields' && <FileText className="h-4 w-4" />}
-                  {category === 'Counter Fields' && <Hash className="h-4 w-4" />}
-                  {category === 'Pricing Fields' && <Calculator className="h-4 w-4" />}
-                  {category}
-                </h4>
-                <div className="space-y-2">
-                  {fields.map((field, index) => (
-                    <Draggable key={field.id} draggableId={field.id} index={index}>
+            {(() => {
+              let globalIndex = 0;
+              return Object.entries(filteredFields).map(([category, fields]) => (
+                <div key={category}>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                    {category === 'Text Fields' && <FileText className="h-4 w-4" />}
+                    {category === 'Counter Fields' && <Hash className="h-4 w-4" />}
+                    {category === 'Pricing Fields' && <Calculator className="h-4 w-4" />}
+                    {category}
+                  </h4>
+                  <div className="space-y-2">
+                    {fields.map((field) => (
+                    <Draggable key={field.id} draggableId={field.id} index={globalIndex++}>
                       {(provided, snapshot) => (
                         <Card 
                           ref={provided.innerRef}
@@ -159,7 +161,8 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
                   ))}
                 </div>
               </div>
-            ))}
+            ));
+            })()}
             {provided.placeholder}
           </div>
         )}

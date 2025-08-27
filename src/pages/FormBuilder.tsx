@@ -91,10 +91,14 @@ export const FormBuilder = () => {
       source,
       destination
     } = result;
+    
+    console.log('🔄 Drag end:', { source: source.droppableId, destination: destination?.droppableId, type: result.type });
+    
     if (!destination) return;
 
     // Handle drag from library to section
     if (source.droppableId === 'field-types') {
+      console.log('📚 Dragging from field library');
       const draggedField = formFields.find(f => f.id === result.draggableId);
       if (!draggedField) return;
       
