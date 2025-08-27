@@ -94,7 +94,7 @@ export const FormCanvas: React.FC<FormCanvasProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <Droppable droppableId={`section-${section.id}`} type="field">
+            <Droppable droppableId={`section-${section.id}`} type="field-type">
               {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
