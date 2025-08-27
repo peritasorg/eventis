@@ -76,7 +76,7 @@ export const FieldLibrary: React.FC<FieldLibraryProps> = ({
         </div>
       </div>
 
-      <Droppable droppableId="field-library" type="field" isDropDisabled={true}>
+      <Droppable droppableId="field-types" type="field-type" isDropDisabled={true}>
         {(provided) => (
           <div 
             ref={provided.innerRef}
