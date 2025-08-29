@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { useCalendarState } from '@/contexts/CalendarStateContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Event {
   id: string;
@@ -46,6 +47,7 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
 }) => {
   const [monthsData, setMonthsData] = useState<Date[]>([]);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { currentTenant } = useAuth();
   const { getEventsForDate, getEventDisplayInfo } = useMultiDayEvents(events);
   const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -215,33 +217,35 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
   return (
     <TooltipProvider>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Events Calendar
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/events/settings')}
-                className="h-8 px-2"
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                Calendar Settings
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={scrollToToday}
-                className="text-xs px-2 h-8"
-              >
-                Today
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
+        {!isMobile && (
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Events Calendar
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/events/settings')}
+                  className="h-8 px-2"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  Calendar Settings
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={scrollToToday}
+                  className="text-xs px-2 h-8"
+                >
+                  Today
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+        )}
         <CardContent className="p-0">
           <div 
             ref={scrollContainerRef}
@@ -287,7 +291,7 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
                         <div
                           key={index}
                           className={`
-                            min-h-[120px] p-2 border rounded-lg cursor-pointer transition-all hover:shadow-md
+                            ${isMobile ? 'min-h-[100px]' : 'min-h-[120px]'} p-2 border rounded-lg cursor-pointer transition-all hover:shadow-md
                             ${isToday ? 'bg-primary/5 border-primary/20 ring-2 ring-primary/10' : 'bg-card border-border hover:bg-accent/50'}
                             ${!isCurrentMonth ? 'opacity-50' : ''}
                           `}

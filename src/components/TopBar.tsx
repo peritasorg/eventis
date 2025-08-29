@@ -6,10 +6,12 @@ import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useEventTypeConfigs, getEventColor } from '@/hooks/useEventTypeConfigs';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const TopBar = () => {
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [isTrialVisible, setIsTrialVisible] = React.useState(true);
   const { data: eventTypeConfigs = [] } = useEventTypeConfigs();
 
@@ -103,70 +105,74 @@ export const TopBar = () => {
   return (
     <div className="bg-white border-b border-gray-200 px-6 py-3">
       <div className="flex items-center justify-between">
-        {/* Unpaid Events Widget */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-orange-500" />
-            <span className="text-sm font-medium text-gray-700">Unpaid Events:</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            {unpaidEvents && unpaidEvents.length > 0 ? (
-              unpaidEvents.map((event) => {
-                const eventColors = getEventColor(event.event_type, event.event_date, eventTypeConfigs);
-                const eventDate = new Date(event.event_date);
-                const isToday = eventDate.toDateString() === new Date().toDateString();
-                const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
-                
-                let dateLabel = eventDate.toLocaleDateString('en-GB', { 
-                  month: 'short', 
-                  day: 'numeric' 
-                });
-                
-                if (isToday) dateLabel = 'Today';
-                else if (isTomorrow) dateLabel = 'Tomorrow';
+        {/* Unpaid Events Widget - Hidden on mobile */}
+        {!isMobile && (
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-orange-500" />
+              <span className="text-sm font-medium text-gray-700">Unpaid Events:</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              {unpaidEvents && unpaidEvents.length > 0 ? (
+                unpaidEvents.map((event) => {
+                  const eventColors = getEventColor(event.event_type, event.event_date, eventTypeConfigs);
+                  const eventDate = new Date(event.event_date);
+                  const isToday = eventDate.toDateString() === new Date().toDateString();
+                  const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                  
+                  let dateLabel = eventDate.toLocaleDateString('en-GB', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                  });
+                  
+                  if (isToday) dateLabel = 'Today';
+                  else if (isTomorrow) dateLabel = 'Tomorrow';
 
-                return (
-                  <button
-                    key={event.id}
-                    onClick={() => navigate(`/events/${event.id}`)}
-                    className="flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity border border-orange-200"
-                    style={{
-                      backgroundColor: warningSettings?.warning_color || '#F59E0B',
-                      color: '#FFFFFF',
-                    }}
-                  >
-                    <span className="truncate max-w-24">{event.title}</span>
-                    <span className="opacity-75">•</span>
-                    <span>{dateLabel}</span>
-                  </button>
-                );
-              })
-            ) : (
-              <span className="text-xs text-gray-400">No unpaid events</span>
-            )}
+                  return (
+                    <button
+                      key={event.id}
+                      onClick={() => navigate(`/events/${event.id}`)}
+                      className="flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity border border-orange-200"
+                      style={{
+                        backgroundColor: warningSettings?.warning_color || '#F59E0B',
+                        color: '#FFFFFF',
+                      }}
+                    >
+                      <span className="truncate max-w-24">{event.title}</span>
+                      <span className="opacity-75">•</span>
+                      <span>{dateLabel}</span>
+                    </button>
+                  );
+                })
+              ) : (
+                <span className="text-xs text-gray-400">No unpaid events</span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Trial Banner */}
+        {/* Trial Banner - Simplified on mobile */}
         {showTrialBanner && (
-          <div className="flex items-center space-x-3 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-            <span className="text-sm text-blue-800">
+          <div className={`flex items-center ${isMobile ? 'space-x-2 bg-blue-50 px-2 py-1 rounded border border-blue-200' : 'space-x-3 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200'}`}>
+            <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-blue-800`}>
               Trial: {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
             </span>
-            <Button 
-              variant="link" 
-              size="sm"
-              className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm"
-            >
-              Subscribe
-            </Button>
+            {!isMobile && (
+              <Button 
+                variant="link" 
+                size="sm"
+                className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm"
+              >
+                Subscribe
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsTrialVisible(false)}
-              className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
+              className={`${isMobile ? 'h-4 w-4' : 'h-6 w-6'} p-0 text-blue-600 hover:text-blue-800`}
             >
-              <X className="h-3 w-3" />
+              <X className={`${isMobile ? 'h-2 w-2' : 'h-3 w-3'}`} />
             </Button>
           </div>
         )}

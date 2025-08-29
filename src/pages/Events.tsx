@@ -12,10 +12,12 @@ import { CreateEventDialog } from '@/components/events/CreateEventDialog';
 import { useNavigate } from 'react-router-dom';
 import { AppControls } from '@/components/AppControls';
 import { CalendarStateProvider, useCalendarState } from '@/contexts/CalendarStateContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const Events = () => {
   const { currentTenant } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -101,17 +103,20 @@ export const Events = () => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Events</h1>
-              <p className="text-sm text-muted-foreground mt-1">Manage your event bookings and enquiries</p>
+              <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-semibold text-foreground`}>Events</h1>
+              {!isMobile && (
+                <p className="text-sm text-muted-foreground mt-1">Manage your event bookings and enquiries</p>
+              )}
             </div>
             <div className="flex items-center gap-3">
-              <AppControls />
+              {!isMobile && <AppControls />}
               <Button
                 onClick={() => setIsCreateEventOpen(true)}
                 className="bg-primary hover:bg-primary-hover text-primary-foreground"
+                size={isMobile ? "sm" : "default"}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                New Event
+                {isMobile ? "New" : "New Event"}
               </Button>
             </div>
           </div>
