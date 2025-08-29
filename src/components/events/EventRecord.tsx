@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CalendarIcon, X, Users, Phone, PoundSterling, MessageSquare, CreditCard, User, Trash2, Search, FileText, Receipt, Calendar as CalendarSyncIcon, History, Plus, Eye } from 'lucide-react';
-import { CommunicationsTimeline } from './CommunicationsTimeline';
+import { CommunicationTimeline } from './CommunicationTimeline';
 import { PaymentTimeline } from './PaymentTimeline';
 import { FormSaveButton } from './FormSaveButton';
 import { useSecureNavigation } from '@/hooks/useSecureNavigation';
@@ -35,6 +35,7 @@ import { prepareCalendarEventData } from '@/utils/calendarEventData';
 import { CalendarSyncPreview } from './CalendarSyncPreview';
 import { QuickCreateCustomerDialog } from '../customers/QuickCreateCustomerDialog';
 import { QuickViewCustomerDialog } from '../customers/QuickViewCustomerDialog';
+import { EditableBalance } from './EditableBalance';
 
 interface EventData {
   id: string;
@@ -1410,12 +1411,15 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>Remaining Balance</Label>
-                  <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                    {formatCurrency(remainingBalanceGbp)}
-                  </div>
-                </div>
+                <EditableBalance
+                  eventId={eventId}
+                  currentBalance={remainingBalanceGbp}
+                  eventTotal={totalEventValue}
+                  onBalanceUpdated={() => {
+                    // Refetch payment data to update the balance
+                    window.location.reload(); // Simple solution for now
+                  }}
+                />
               </div>
 
               <div className="pt-2 border-t space-y-2">
@@ -1470,7 +1474,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           </Card>
 
           {/* Communications Timeline */}
-          <CommunicationsTimeline eventId={eventId} />
+          <CommunicationTimeline eventId={eventId} />
 
           {/* Payment Timeline */}
           <PaymentTimeline eventId={eventId} />

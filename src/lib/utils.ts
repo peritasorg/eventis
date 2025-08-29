@@ -6,16 +6,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format a number with commas as thousand separators
+ * Format a number with commas as thousand separators and GBP currency symbol
  * @param num - The number to format
  * @param decimals - Number of decimal places (default: 2)
- * @returns Formatted string with commas
+ * @returns Formatted string with GBP currency symbol
  */
 export function formatCurrency(num: number, decimals: number = 2): string {
-  return num.toLocaleString('en-GB', { 
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
     minimumFractionDigits: decimals, 
     maximumFractionDigits: decimals 
-  })
+  }).format(num);
 }
 
 /**

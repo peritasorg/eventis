@@ -139,6 +139,42 @@ export type Database = {
           },
         ]
       }
+      balance_modifications: {
+        Row: {
+          created_at: string | null
+          edit_reason: string | null
+          event_id: string
+          id: string
+          modified_by: string | null
+          new_balance: number | null
+          original_balance: number | null
+          risk_acknowledged: boolean | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          edit_reason?: string | null
+          event_id: string
+          id?: string
+          modified_by?: string | null
+          new_balance?: number | null
+          original_balance?: number | null
+          risk_acknowledged?: boolean | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          edit_reason?: string | null
+          event_id?: string
+          id?: string
+          modified_by?: string | null
+          new_balance?: number | null
+          original_balance?: number | null
+          risk_acknowledged?: boolean | null
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       billing_events: {
         Row: {
           amount: number
@@ -476,10 +512,14 @@ export type Database = {
           communication_type: string
           created_at: string | null
           created_by: string | null
+          edit_reason: string | null
+          edited_at: string | null
+          edited_by: string | null
           event_id: string
           follow_up_date: string | null
           follow_up_required: boolean | null
           id: string
+          original_summary: string | null
           summary: string
           tenant_id: string
         }
@@ -487,10 +527,14 @@ export type Database = {
           communication_type: string
           created_at?: string | null
           created_by?: string | null
+          edit_reason?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
           event_id: string
           follow_up_date?: string | null
           follow_up_required?: boolean | null
           id?: string
+          original_summary?: string | null
           summary: string
           tenant_id: string
         }
@@ -498,10 +542,14 @@ export type Database = {
           communication_type?: string
           created_at?: string | null
           created_by?: string | null
+          edit_reason?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
           event_id?: string
           follow_up_date?: string | null
           follow_up_required?: boolean | null
           id?: string
+          original_summary?: string | null
           summary?: string
           tenant_id?: string
         }
