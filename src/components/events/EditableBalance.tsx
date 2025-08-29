@@ -71,13 +71,13 @@ export const EditableBalance: React.FC<EditableBalanceProps> = ({
     
     // Log in communication timeline
     const { error: commError } = await supabase
-      .from('communication_timeline')
+      .from('event_communications')
       .insert({
         tenant_id: currentTenant.id,
         event_id: eventId,
         communication_type: 'other',
-        summary: `Balance manually adjusted from ${formatCurrency(currentBalance)} to ${formatCurrency(newBalance)}. Reason: ${reason}`,
-        follow_up_required: false
+        note: `Balance manually adjusted from ${formatCurrency(currentBalance)} to ${formatCurrency(newBalance)}. Reason: ${reason}`,
+        communication_date: new Date().toISOString().split('T')[0]
       });
     
     if (commError) throw commError;

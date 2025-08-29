@@ -31,7 +31,7 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
     const {
       data,
       error
-    } = await supabase.from('communication_timeline').select('*').eq('event_id', eventId).eq('tenant_id', currentTenant.id).order('created_at', {
+    } = await supabase.from('event_communications').select('*').eq('event_id', eventId).eq('tenant_id', currentTenant.id).order('created_at', {
       ascending: false
     });
     if (error) {
@@ -44,7 +44,7 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
     const {
       data,
       error
-    } = await supabase.from('communication_timeline').insert([{
+    } = await supabase.from('event_communications').insert([{
       ...communicationData,
       tenant_id: currentTenant?.id,
       event_id: eventId
@@ -60,12 +60,12 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
   });
 
   const editCommunicationMutation = useSupabaseMutation(async (editData: any) => {
-    const { id, summary, edit_reason } = editData;
+    const { id, note, edit_reason } = editData;
     
     // Get the original communication and current user ID
     const { data: original, error: fetchError } = await supabase
-      .from('communication_timeline')
-      .select('summary')
+      .from('event_communications')
+      .select('note')
       .eq('id', id)
       .single();
     
@@ -76,9 +76,9 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
     const {
       data,
       error
-    } = await supabase.from('communication_timeline').update({
-      original_summary: original.summary,
-      summary: summary,
+    } = await supabase.from('event_communications').update({
+      original_note: original.note,
+      note: note,
       edited_at: new Date().toISOString(),
       edited_by: userData.user?.id,
       edit_reason: edit_reason
@@ -99,9 +99,8 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
     const formData = new FormData(e.currentTarget);
     const communicationData = {
       communication_type: formData.get('communication_type') as string,
-      summary: formData.get('summary') as string,
-      follow_up_required: formData.get('follow_up_required') === 'on',
-      follow_up_date: formData.get('follow_up_date') as string || null
+      note: formData.get('note') as string,
+      communication_date: formData.get('communication_date') as string || new Date().toISOString().split('T')[0]
     };
     addCommunicationMutation.mutate(communicationData);
   };
@@ -112,7 +111,7 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
     
     editCommunicationMutation.mutate({
       id: editingCommunication.id,
-      summary: formData.get('summary') as string,
+      note: formData.get('note') as string,
       edit_reason: formData.get('edit_reason') as string
     });
   };
@@ -161,18 +160,13 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
                 </div>
 
                 <div>
-                  <Label htmlFor="summary">Summary</Label>
-                  <Textarea id="summary" name="summary" placeholder="What was discussed..." required />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="follow_up_required" name="follow_up_required" className="rounded" />
-                  <Label htmlFor="follow_up_required">Follow-up required</Label>
+                  <Label htmlFor="note">Note</Label>
+                  <Textarea id="note" name="note" placeholder="What was discussed..." required />
                 </div>
 
                 <div>
-                  <Label htmlFor="follow_up_date">Follow-up Date</Label>
-                  <Input id="follow_up_date" name="follow_up_date" type="date" />
+                  <Label htmlFor="communication_date">Date</Label>
+                  <Input id="communication_date" name="communication_date" type="date" defaultValue={new Date().toISOString().split('T')[0]} />
                 </div>
 
                 <div className="flex justify-end space-x-2">
@@ -204,11 +198,11 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
                 </div>
 
                 <div>
-                  <Label htmlFor="edit_summary">Summary</Label>
+                  <Label htmlFor="edit_note">Note</Label>
                   <Textarea 
-                    id="edit_summary" 
-                    name="summary" 
-                    defaultValue={editingCommunication?.summary || ''} 
+                    id="edit_note" 
+                    name="note" 
+                    defaultValue={editingCommunication?.note || ''} 
                     placeholder="What was discussed..." 
                     required 
                   />
@@ -237,39 +231,35 @@ export const CommunicationTimeline: React.FC<CommunicationTimelineProps> = ({
                       <Icon className="h-4 w-4 text-blue-600" />
                     </div>
                      <div className="flex-1">
-                       <div className="flex items-center justify-between mb-1">
-                         <span className="font-medium capitalize">{comm.communication_type.replace('_', ' ')}</span>
-                         <div className="flex items-center gap-2">
-                           <span className="text-sm text-gray-500">
-                             {new Date(comm.created_at).toLocaleDateString('en-GB')}
-                           </span>
-                           <Button
-                             size="sm"
-                             variant="ghost"
-                             onClick={() => setEditingCommunication(comm)}
-                             className="h-6 w-6 p-0"
-                           >
-                             <Edit2 className="h-3 w-3" />
-                           </Button>
-                         </div>
-                       </div>
-                       <p className="text-sm text-gray-700 mb-2">{comm.summary}</p>
-                       {comm.edited_at && (
-                         <div className="flex items-center gap-1 text-xs text-amber-600 mb-1">
-                           <History className="h-3 w-3" />
-                           Edited {new Date(comm.edited_at).toLocaleDateString('en-GB')}
-                           {comm.edit_reason && ` - ${comm.edit_reason}`}
-                           {comm.original_summary && (
-                             <span className="ml-2 text-gray-500">
-                               (was: "{comm.original_summary.substring(0, 50)}{comm.original_summary.length > 50 ? '...' : ''}")
-                             </span>
-                           )}
-                         </div>
-                       )}
-                       {comm.follow_up_required && <div className="flex items-center gap-2 text-xs text-orange-600">
-                           <Calendar className="h-3 w-3" />
-                           Follow-up: {comm.follow_up_date ? new Date(comm.follow_up_date).toLocaleDateString('en-GB') : 'TBD'}
-                         </div>}
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium capitalize">{comm.communication_type?.replace('_', ' ') || 'Note'}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">
+                              {new Date(comm.communication_date || comm.created_at).toLocaleDateString('en-GB')}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingCommunication(comm)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-2">{comm.note}</p>
+                        {comm.edited_at && (
+                          <div className="flex items-center gap-1 text-xs text-amber-600 mb-1">
+                            <History className="h-3 w-3" />
+                            Edited {new Date(comm.edited_at).toLocaleDateString('en-GB')}
+                            {comm.edit_reason && ` - ${comm.edit_reason}`}
+                            {comm.original_note && (
+                              <span className="ml-2 text-gray-500">
+                                (was: "{comm.original_note.substring(0, 50)}{comm.original_note.length > 50 ? '...' : ''}")
+                              </span>
+                            )}
+                          </div>
+                        )}
                      </div>
                   </div>
                 </div>;
