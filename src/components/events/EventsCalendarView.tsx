@@ -91,8 +91,8 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
     const months = [];
     const today = new Date();
     
-    // Start from current month (not 3 months ago)
-    for (let i = 0; i < 12; i++) { // Generate 12 months starting from current month
+    // Start from 24 months ago (2 years) and generate 36 months total (2 years back + 1 current + 1 forward)
+    for (let i = -24; i < 12; i++) {
       const monthDate = new Date(today);
       monthDate.setMonth(today.getMonth() + i);
       months.push(monthDate);
@@ -125,18 +125,34 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     
-    // Load more months when near bottom
+    // Load more future months when near bottom
     if (scrollHeight - scrollTop <= clientHeight * 1.5 && !isLoading) {
       setIsLoading(true);
       setTimeout(() => {
         const lastMonth = monthsData[monthsData.length - 1];
         const newMonths = [];
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= 6; i++) {
           const newMonth = new Date(lastMonth);
           newMonth.setMonth(lastMonth.getMonth() + i);
           newMonths.push(newMonth);
         }
         setMonthsData(prev => [...prev, ...newMonths]);
+        setIsLoading(false);
+      }, 100);
+    }
+    
+    // Load more historical months when near top
+    if (scrollTop <= clientHeight * 0.5 && !isLoading) {
+      setIsLoading(true);
+      setTimeout(() => {
+        const firstMonth = monthsData[0];
+        const newMonths = [];
+        for (let i = 6; i >= 1; i--) {
+          const newMonth = new Date(firstMonth);
+          newMonth.setMonth(firstMonth.getMonth() - i);
+          newMonths.push(newMonth);
+        }
+        setMonthsData(prev => [...newMonths, ...prev]);
         setIsLoading(false);
       }, 100);
     }
