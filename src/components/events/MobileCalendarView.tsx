@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
+import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Event {
   id: string;
@@ -47,10 +51,33 @@ export const MobileCalendarView: React.FC<MobileCalendarViewProps> = ({
   onEventClick,
   onDateClick
 }) => {
+  const { currentTenant } = useAuth();
+  const { data: eventTypeConfigs } = useEventTypeConfigs();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isEventSheetOpen, setIsEventSheetOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch calendar warning settings
+  const { data: calendarWarningSettings } = useSupabaseQuery(
+    ['calendar_warning_settings', currentTenant?.id],
+    async () => {
+      if (!currentTenant?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('calendar_warning_settings')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching calendar warning settings:', error);
+        return null;
+      }
+      
+      return data;
+    }
+  );
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => 
@@ -66,13 +93,17 @@ export const MobileCalendarView: React.FC<MobileCalendarViewProps> = ({
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
     
-    // Get first day of week (start from Sunday)
+    // Get first day of week (start from Monday = 1, Sunday = 0)
     const calendarStart = new Date(monthStart);
-    calendarStart.setDate(monthStart.getDate() - monthStart.getDay());
+    const dayOfWeek = monthStart.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday becomes 6, Monday becomes 0
+    calendarStart.setDate(monthStart.getDate() - daysFromMonday);
     
     // Get last day of week
     const calendarEnd = new Date(monthEnd);
-    calendarEnd.setDate(monthEnd.getDate() + (6 - monthEnd.getDay()));
+    const endDayOfWeek = monthEnd.getDay();
+    const daysToSunday = endDayOfWeek === 0 ? 0 : 7 - endDayOfWeek; // Days until Sunday
+    calendarEnd.setDate(monthEnd.getDate() + daysToSunday);
     
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   };
@@ -99,16 +130,64 @@ export const MobileCalendarView: React.FC<MobileCalendarViewProps> = ({
     const totalPaid = event.event_payments?.reduce((sum, payment) => 
       sum + (payment.amount_gbp || 0), 0) || 0;
     const totalPrice = event.total_guest_price_gbp || 0;
-    const balance = totalPrice - totalPaid;
+    const depositAmount = event.deposit_amount_gbp || 0;
+    const formTotal = event.form_total_gbp || 0;
+    const subtotal = Math.max(totalPrice, formTotal);
+    const remainingBalance = subtotal - totalPaid;
     
-    return { totalPaid, totalPrice, balance };
+    return { 
+      totalPayments: totalPaid, 
+      subtotal,
+      depositAmount,
+      remainingBalance
+    };
+  };
+
+  const getEventWarningLevel = (event: Event, warningSettings: any) => {
+    if (!event.event_date || !warningSettings) return null;
+    
+    const eventDate = new Date(event.event_date);
+    const today = new Date();
+    const daysUntilEvent = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Calculate remaining balance
+    const financials = calculateEventFinancials(event);
+    const hasUnpaidBalance = financials.remainingBalance > 0;
+    
+    // Only show warnings if there's an unpaid balance AND event is approaching
+    if (!hasUnpaidBalance) return null;
+    
+    const warningThreshold = warningSettings?.warning_days_threshold || 7;
+    
+    if (daysUntilEvent <= warningThreshold && daysUntilEvent >= 0) {
+      return daysUntilEvent <= 3 ? 'urgent' : 'warning';
+    }
+    
+    return null;
+  };
+
+  const getEventTypeColor = (eventType: string | undefined) => {
+    // Default color if no event type or configuration
+    if (!eventType) return { backgroundColor: 'hsl(var(--primary))', textColor: 'hsl(var(--primary-foreground))' };
+    
+    // Look up event type configuration from database
+    const config = eventTypeConfigs?.find(c => c.event_type === eventType);
+    if (config) {
+      return {
+        backgroundColor: config.color,
+        textColor: config.text_color
+      };
+    }
+    
+    // Fallback to default primary color
+    return { backgroundColor: 'hsl(var(--primary))', textColor: 'hsl(var(--primary-foreground))' };
   };
 
   const calendarDays = generateCalendarDays();
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
-    <div className="fixed inset-0 top-[120px] bg-background overflow-hidden">
+    <div className="fixed inset-0 top-[120px] bottom-0 bg-background overflow-hidden flex flex-col">
       {/* Header */}
       <div className="bg-card border-b border-border p-4">
         <div className="flex items-center justify-between">
@@ -191,24 +270,49 @@ export const MobileCalendarView: React.FC<MobileCalendarViewProps> = ({
                   </div>
                   
                   <div className="space-y-1">
-                    {dayEvents.slice(0, 2).map((event) => (
-                      <div
-                        key={event.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedEvent(event);
-                          setIsEventSheetOpen(true);
-                        }}
-                        className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate cursor-pointer hover:bg-primary/20 transition-colors"
-                      >
-                        {event.start_time && (
-                          <span className="font-medium">
-                            {formatTime(event.start_time)}{' '}
-                          </span>
-                        )}
-                        {event.title}
-                      </div>
-                    ))}
+                    {dayEvents.slice(0, 2).map((event) => {
+                      const warningLevel = getEventWarningLevel(event, calendarWarningSettings);
+                      const eventColors = getEventTypeColor(event.event_type);
+                      
+                      // Apply warning colors if needed
+                      let eventStyle = eventColors;
+                      if (warningLevel === 'urgent') {
+                        eventStyle = { 
+                          backgroundColor: calendarWarningSettings?.warning_color || 'hsl(0 84% 60%)', 
+                          textColor: 'white' 
+                        };
+                      } else if (warningLevel === 'warning') {
+                        eventStyle = { 
+                          backgroundColor: calendarWarningSettings?.warning_color || 'hsl(45 93% 47%)', 
+                          textColor: 'white' 
+                        };
+                      }
+                      
+                      return (
+                        <div
+                          key={event.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick(event.id);
+                          }}
+                          className="text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-all relative"
+                          style={{
+                            backgroundColor: eventStyle.backgroundColor,
+                            color: eventStyle.textColor
+                          }}
+                        >
+                          {event.start_time && (
+                            <span className="font-medium">
+                              {formatTime(event.start_time)}{' '}
+                            </span>
+                          )}
+                          {event.title}
+                          {warningLevel && (
+                            <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></div>
+                          )}
+                        </div>
+                      );
+                    })}
                     
                     {dayEvents.length > 2 && (
                       <div 
@@ -216,8 +320,7 @@ export const MobileCalendarView: React.FC<MobileCalendarViewProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           // Show first remaining event for simplicity
-                          setSelectedEvent(dayEvents[2]);
-                          setIsEventSheetOpen(true);
+                          onEventClick(dayEvents[2].id);
                         }}
                       >
                         +{dayEvents.length - 2} more
@@ -319,21 +422,27 @@ export const MobileCalendarView: React.FC<MobileCalendarViewProps> = ({
                     <h4 className="font-medium mb-2">Financial Summary</h4>
                     <div className="space-y-1 text-sm">
                       {(() => {
-                        const { totalPaid, totalPrice, balance } = calculateEventFinancials(selectedEvent);
+                        const { totalPayments, subtotal, depositAmount, remainingBalance } = calculateEventFinancials(selectedEvent);
                         return (
                           <>
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Total Price:</span>
-                              <span>£{totalPrice.toFixed(2)}</span>
+                              <span className="text-muted-foreground">Subtotal:</span>
+                              <span>£{subtotal.toFixed(2)}</span>
                             </div>
+                            {depositAmount > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Deposit:</span>
+                                <span>£{depositAmount.toFixed(2)}</span>
+                              </div>
+                            )}
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Paid:</span>
-                              <span>£{totalPaid.toFixed(2)}</span>
+                              <span>£{totalPayments.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between font-medium">
                               <span>Balance:</span>
-                              <span className={balance > 0 ? 'text-destructive' : 'text-success'}>
-                                £{balance.toFixed(2)}
+                              <span className={remainingBalance > 0 ? 'text-orange-600' : 'text-green-600'}>
+                                £{remainingBalance.toFixed(2)}
                               </span>
                             </div>
                           </>
