@@ -139,6 +139,42 @@ export type Database = {
           },
         ]
       }
+      balance_modifications: {
+        Row: {
+          created_at: string | null
+          edit_reason: string | null
+          event_id: string
+          id: string
+          modified_by: string | null
+          new_balance: number | null
+          original_balance: number | null
+          risk_acknowledged: boolean | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          edit_reason?: string | null
+          event_id: string
+          id?: string
+          modified_by?: string | null
+          new_balance?: number | null
+          original_balance?: number | null
+          risk_acknowledged?: boolean | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          edit_reason?: string | null
+          event_id?: string
+          id?: string
+          modified_by?: string | null
+          new_balance?: number | null
+          original_balance?: number | null
+          risk_acknowledged?: boolean | null
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       billing_events: {
         Row: {
           amount: number
@@ -471,57 +507,6 @@ export type Database = {
         }
         Relationships: []
       }
-      communication_timeline: {
-        Row: {
-          communication_type: string
-          created_at: string | null
-          created_by: string | null
-          event_id: string
-          follow_up_date: string | null
-          follow_up_required: boolean | null
-          id: string
-          summary: string
-          tenant_id: string
-        }
-        Insert: {
-          communication_type: string
-          created_at?: string | null
-          created_by?: string | null
-          event_id: string
-          follow_up_date?: string | null
-          follow_up_required?: boolean | null
-          id?: string
-          summary: string
-          tenant_id: string
-        }
-        Update: {
-          communication_type?: string
-          created_at?: string | null
-          created_by?: string | null
-          event_id?: string
-          follow_up_date?: string | null
-          follow_up_required?: boolean | null
-          id?: string
-          summary?: string
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "communication_timeline_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "communication_timeline_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       customers: {
         Row: {
           accessibility_requirements: string | null
@@ -638,27 +623,39 @@ export type Database = {
           communication_date: string | null
           communication_type: string | null
           created_at: string | null
+          edit_reason: string | null
+          edited_at: string | null
+          edited_by: string | null
           event_id: string
           id: string
           note: string
+          original_note: string | null
           tenant_id: string
         }
         Insert: {
           communication_date?: string | null
           communication_type?: string | null
           created_at?: string | null
+          edit_reason?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
           event_id: string
           id?: string
           note: string
+          original_note?: string | null
           tenant_id: string
         }
         Update: {
           communication_date?: string | null
           communication_type?: string | null
           created_at?: string | null
+          edit_reason?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
           event_id?: string
           id?: string
           note?: string
+          original_note?: string | null
           tenant_id?: string
         }
         Relationships: [

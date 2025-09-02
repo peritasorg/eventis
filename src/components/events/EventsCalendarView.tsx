@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventTypeConfigs } from '@/hooks/useEventTypeConfigs';
 import { useCalendarState } from '@/contexts/CalendarStateContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Event {
   id: string;
@@ -46,6 +47,7 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
 }) => {
   const [monthsData, setMonthsData] = useState<Date[]>([]);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { currentTenant } = useAuth();
   const { getEventsForDate, getEventDisplayInfo } = useMultiDayEvents(events);
   const { data: eventTypeConfigs } = useEventTypeConfigs();
@@ -79,18 +81,18 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
     restoreCalendarState();
     generateMultipleMonths();
     
-    // Auto-scroll to today after a short delay to ensure months are rendered
+    // Auto-scroll to today after DOM is rendered - increased timeout for reliability
     setTimeout(() => {
       scrollToToday();
-    }, 100);
+    }, 300);
   }, []);
 
   const generateMultipleMonths = () => {
     const months = [];
     const today = new Date();
     
-    // Start from current month (not 3 months ago)
-    for (let i = 0; i < 12; i++) { // Generate 12 months starting from current month
+    // Start from 24 months ago (2 years) and generate 36 months total (2 years back + 1 current + 1 forward)
+    for (let i = -24; i < 12; i++) {
       const monthDate = new Date(today);
       monthDate.setMonth(today.getMonth() + i);
       months.push(monthDate);
@@ -123,18 +125,34 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     
-    // Load more months when near bottom
+    // Load more future months when near bottom
     if (scrollHeight - scrollTop <= clientHeight * 1.5 && !isLoading) {
       setIsLoading(true);
       setTimeout(() => {
         const lastMonth = monthsData[monthsData.length - 1];
         const newMonths = [];
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= 6; i++) {
           const newMonth = new Date(lastMonth);
           newMonth.setMonth(lastMonth.getMonth() + i);
           newMonths.push(newMonth);
         }
         setMonthsData(prev => [...prev, ...newMonths]);
+        setIsLoading(false);
+      }, 100);
+    }
+    
+    // Load more historical months when near top
+    if (scrollTop <= clientHeight * 0.5 && !isLoading) {
+      setIsLoading(true);
+      setTimeout(() => {
+        const firstMonth = monthsData[0];
+        const newMonths = [];
+        for (let i = 6; i >= 1; i--) {
+          const newMonth = new Date(firstMonth);
+          newMonth.setMonth(firstMonth.getMonth() - i);
+          newMonths.push(newMonth);
+        }
+        setMonthsData(prev => [...newMonths, ...prev]);
         setIsLoading(false);
       }, 100);
     }
@@ -152,11 +170,16 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
         const monthElements = scrollContainerRef.current.querySelectorAll('[data-month]');
         const todayElement = monthElements[todayMonthIndex];
         if (todayElement) {
-          todayElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          todayElement.scrollIntoView({ behavior: 'instant', block: 'start' });
         }
       } else {
-        // If today's month is not in the list, scroll to top (current month should be first)
-        scrollContainerRef.current.scrollTop = 0;
+        // Fallback: calculate approximate position for today's month
+        // Since we start 24 months ago, today should be around index 24
+        const estimatedTodayIndex = 24;
+        const monthElements = scrollContainerRef.current.querySelectorAll('[data-month]');
+        if (monthElements[estimatedTodayIndex]) {
+          monthElements[estimatedTodayIndex].scrollIntoView({ behavior: 'instant', block: 'start' });
+        }
       }
     }
   };
@@ -215,33 +238,35 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
   return (
     <TooltipProvider>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Events Calendar
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/events/settings')}
-                className="h-8 px-2"
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                Calendar Settings
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={scrollToToday}
-                className="text-xs px-2 h-8"
-              >
-                Today
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
+        {!isMobile && (
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Events Calendar
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/events/settings')}
+                  className="h-8 px-2"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  Calendar Settings
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={scrollToToday}
+                  className="text-xs px-2 h-8"
+                >
+                  Today
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+        )}
         <CardContent className="p-0">
           <div 
             ref={scrollContainerRef}
@@ -287,7 +312,7 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
                         <div
                           key={index}
                           className={`
-                            min-h-[120px] p-2 border rounded-lg cursor-pointer transition-all hover:shadow-md
+                            ${isMobile ? 'min-h-[100px]' : 'min-h-[120px]'} p-2 border rounded-lg cursor-pointer transition-all hover:shadow-md
                             ${isToday ? 'bg-primary/5 border-primary/20 ring-2 ring-primary/10' : 'bg-card border-border hover:bg-accent/50'}
                             ${!isCurrentMonth ? 'opacity-50' : ''}
                           `}
