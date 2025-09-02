@@ -81,10 +81,10 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
     restoreCalendarState();
     generateMultipleMonths();
     
-    // Auto-scroll to today after a short delay to ensure months are rendered
+    // Auto-scroll to today after DOM is rendered - increased timeout for reliability
     setTimeout(() => {
       scrollToToday();
-    }, 100);
+    }, 300);
   }, []);
 
   const generateMultipleMonths = () => {
@@ -170,11 +170,16 @@ export const EventsCalendarView: React.FC<EventsCalendarViewProps> = ({
         const monthElements = scrollContainerRef.current.querySelectorAll('[data-month]');
         const todayElement = monthElements[todayMonthIndex];
         if (todayElement) {
-          todayElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          todayElement.scrollIntoView({ behavior: 'instant', block: 'start' });
         }
       } else {
-        // If today's month is not in the list, scroll to top (current month should be first)
-        scrollContainerRef.current.scrollTop = 0;
+        // Fallback: calculate approximate position for today's month
+        // Since we start 24 months ago, today should be around index 24
+        const estimatedTodayIndex = 24;
+        const monthElements = scrollContainerRef.current.querySelectorAll('[data-month]');
+        if (monthElements[estimatedTodayIndex]) {
+          monthElements[estimatedTodayIndex].scrollIntoView({ behavior: 'instant', block: 'start' });
+        }
       }
     }
   };
