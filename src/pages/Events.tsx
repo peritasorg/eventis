@@ -101,7 +101,7 @@ export const Events = () => {
       <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-card border-b border-border">
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 hidden md:block">
           <div className="flex items-center justify-between">
             <div>
               <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-semibold text-foreground`}>Events</h1>
