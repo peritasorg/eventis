@@ -146,7 +146,8 @@ export class WordTemplateGenerator {
     tenantData: any, 
     eventForms: any[],
     documentType: 'quote' | 'invoice',
-    tenantId: string
+    tenantId: string,
+    currentBalance?: number
   ): Promise<TemplateData> {
     const lineItems = await this.extractLineItems(eventForms, tenantId, documentType, eventData);
     const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
@@ -197,7 +198,7 @@ export class WordTemplateGenerator {
       total: subtotal,
       deductible_deposit_amount: parseFloat(eventData.deductible_deposit_gbp) || 0,
       refundable_deposit_amount: parseFloat(eventData.refundable_deposit_gbp) || 0,
-      balance_due: subtotal - (parseFloat(eventData.deductible_deposit_gbp) || 0), // Only deductible deposit reduces balance
+      balance_due: currentBalance !== undefined ? currentBalance : subtotal - (parseFloat(eventData.deductible_deposit_gbp) || 0), // Use current balance if provided
       
       // Document info
       document_number: documentNumber,
@@ -223,7 +224,8 @@ export class WordTemplateGenerator {
     eventForms: any[],
     documentType: 'quote' | 'invoice',
     templateName: string = 'Invoice Template.docx',
-    tenantId?: string
+    tenantId?: string,
+    currentBalance?: number
   ): Promise<void> {
     try {
       // Always fetch current customer data if customer_id exists
@@ -259,7 +261,7 @@ export class WordTemplateGenerator {
       const zip = new PizZip(templateBuffer);
       
       // Map event data to template format
-      const templateData = await this.mapEventDataToTemplate(enrichedEventData, tenantData, eventForms, documentType, tenantId || '');
+      const templateData = await this.mapEventDataToTemplate(enrichedEventData, tenantData, eventForms, documentType, tenantId || '', currentBalance);
       
       // Enhanced template data for debugging and additional fields
       const enhancedTemplateData = {

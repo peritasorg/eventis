@@ -23,6 +23,7 @@ interface QuoteInvoicePreviewProps {
   tenantData: any;
   tenantId: string;
   eventForms: any[];
+  currentBalance?: number;
 }
 
 export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
@@ -31,7 +32,8 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
   eventData,
   tenantData,
   tenantId,
-  eventForms
+  eventForms,
+  currentBalance
 }) => {
   const [documentType, setDocumentType] = useState<'quote' | 'invoice'>('quote');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -134,8 +136,8 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
     const refundableDeposit = eventData?.refundable_deposit_gbp || 0;
     const deductibleDeposit = eventData?.deductible_deposit_gbp || 0;
     
-    // Calculate final total after deducting deductible deposit
-    const total = subtotal - deductibleDeposit;
+    // Use passed currentBalance if available, otherwise calculate
+    const total = currentBalance !== undefined ? currentBalance : subtotal - deductibleDeposit;
 
     return { 
       subtotal, 
@@ -205,7 +207,8 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
         eventForms || [], 
         type,
         `${tenantId}-template.docx`,
-        tenantId
+        tenantId,
+        currentBalance
       );
       
       toast.success(`${type === 'quote' ? 'Quote' : 'Invoice'} document downloaded!`);

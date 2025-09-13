@@ -1506,6 +1506,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         }}
         tenantId={currentTenant?.id || ''}
         eventForms={eventForms || []}
+        currentBalance={remainingBalanceGbp}
       />
 
       {/* Calendar Sync Preview Dialog */}
