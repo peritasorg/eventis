@@ -91,8 +91,8 @@ export const TopBar = () => {
     }
   );
 
-  // Trial banner logic
-  const showTrialBanner = currentTenant?.subscription_status === 'trial' && isTrialVisible;
+  // Trial banner logic - DISABLED
+  const showTrialBanner = false;
   
   let daysRemaining = 0;
   if (showTrialBanner) {
@@ -103,14 +103,14 @@ export const TopBar = () => {
   }
 
   return (
-    <div className="bg-card border-b border-border px-6 py-4">
+    <div className="bg-card border-b border-border px-6 py-2 sticky top-0 z-30">
       <div className="flex items-center justify-between">
         {/* Unpaid Events Widget - Hidden on mobile */}
         {!isMobile && (
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2">
-              <div className="p-1.5 rounded-md bg-warning/10">
-                <Calendar className="h-4 w-4 text-warning" />
+              <div className="p-1.5 rounded-md bg-orange-50">
+                <Calendar className="h-4 w-4 text-orange-600" />
               </div>
               <span className="text-sm font-medium text-foreground">Unpaid Events</span>
             </div>
@@ -134,7 +134,12 @@ export const TopBar = () => {
                     <button
                       key={event.id}
                       onClick={() => navigate(`/events/${event.id}`)}
-                      className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all duration-200 bg-warning text-warning-foreground shadow-sm"
+                      className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all duration-200 shadow-sm border"
+                      style={{
+                        backgroundColor: warningSettings?.warning_color || '#F59E0B',
+                        color: '#FFFFFF',
+                        borderColor: warningSettings?.warning_color ? `${warningSettings.warning_color}40` : '#F59E0B40',
+                      }}
                     >
                       <span className="truncate max-w-24">{event.title}</span>
                       <span className="opacity-60">•</span>
@@ -146,32 +151,6 @@ export const TopBar = () => {
                 <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg">No unpaid events</span>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Trial Banner - Simplified on mobile */}
-        {showTrialBanner && (
-          <div className={`flex items-center ${isMobile ? 'space-x-2 bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/20' : 'space-x-3 bg-primary/5 px-4 py-2.5 rounded-lg border border-primary/20'}`}>
-            <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-primary`}>
-              Trial: {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
-            </span>
-            {!isMobile && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="p-0 h-auto text-primary hover:text-primary/80 text-sm font-medium"
-              >
-                Subscribe
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsTrialVisible(false)}
-              className={`${isMobile ? 'h-4 w-4' : 'h-6 w-6'} p-0 text-primary/60 hover:text-primary rounded`}
-            >
-              <X className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
-            </Button>
           </div>
         )}
       </div>

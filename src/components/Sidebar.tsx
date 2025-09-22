@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Library } from 'lucide-react';
@@ -10,9 +9,9 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Leads & Appointments', href: '/leads', icon: UserPlus },
   { name: 'Event Calendar', href: '/events', icon: Calendar },
+  { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Form Builder', href: '/forms', icon: FileText, desktopOnly: true },
   { name: 'Form Fields', href: '/field-library', icon: Library, desktopOnly: true },
-  { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -89,10 +88,10 @@ export const Sidebar = () => {
   });
 
   const SidebarContent = () => (
-    <>
+    <div className="flex flex-col h-full">
       {/* Logo/Brand with collapse toggle */}
       <div className={cn(
-        "flex h-14 items-center border-b border-white/10 px-6 transition-all duration-200",
+        "flex h-14 items-center border-b border-white/10 px-6 transition-all duration-200 flex-shrink-0",
         isCollapsed ? "justify-center" : ""
       )}>
         {!isCollapsed && (
@@ -127,7 +126,7 @@ export const Sidebar = () => {
             <h3 className="text-xs font-medium text-white/60 uppercase tracking-wider">Company</h3>
           </div>
           <div className="space-y-1">
-            {filteredNavigation.slice(0, 3).map((item) => {
+            {filteredNavigation.slice(0, 4).map((item) => {
               const isActive = location.pathname === item.href;
               
               return (
@@ -163,7 +162,7 @@ export const Sidebar = () => {
             <h3 className="text-xs font-medium text-white/60 uppercase tracking-wider">Setup</h3>
           </div>
           <div className="space-y-1">
-            {filteredNavigation.slice(3, 6).map((item) => {
+            {filteredNavigation.slice(4, 6).map((item) => {
               const isActive = location.pathname === item.href;
               const isFormBuilder = item.href === '/form-builder';
               const shouldShowFormBuilder = !isFormBuilder || window.innerWidth >= 768;
@@ -257,7 +256,7 @@ export const Sidebar = () => {
       </nav>
 
       {/* Footer with User Info */}
-      <div className="border-t border-white/10 p-4">
+      <div className="border-t border-white/10 p-4 flex-shrink-0">
         {!isCollapsed && (
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
@@ -296,7 +295,7 @@ export const Sidebar = () => {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 
   return (
@@ -330,7 +329,7 @@ export const Sidebar = () => {
         </div>
         
         {/* Content */}
-        <div className="relative z-10">
+        <div className="relative z-10 flex flex-col h-full">
           <SidebarContent />
         </div>
       </div>
@@ -351,7 +350,7 @@ export const Sidebar = () => {
             </div>
             
             {/* Content */}
-            <div className="relative z-10">
+            <div className="relative z-10 flex flex-col h-full">
               <SidebarContent />
             </div>
           </div>
