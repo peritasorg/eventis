@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Maximize, Minimize, Library } from 'lucide-react';
+import { Calendar, Users, Settings, BarChart3, FileText, UserPlus, LogOut, Menu, X, Library } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,6 @@ export const Sidebar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -37,27 +35,6 @@ export const Sidebar = () => {
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (error) {
-      console.error('Fullscreen error:', error);
-    }
-  };
 
   const getSubscriptionStatus = () => {
     if (!currentTenant) return 'Loading...';
@@ -180,10 +157,10 @@ export const Sidebar = () => {
           </div>
         </div>
 
-        {/* CRM Section */}
+        {/* Setup Section */}
         <div className="mb-6">
           <div className="px-3 mb-3">
-            <h3 className="text-xs font-medium text-white/60 uppercase tracking-wider">CRM</h3>
+            <h3 className="text-xs font-medium text-white/60 uppercase tracking-wider">Setup</h3>
           </div>
           <div className="space-y-1">
             {filteredNavigation.slice(3, 6).map((item) => {
@@ -276,40 +253,6 @@ export const Sidebar = () => {
               );
             })}
           </div>
-        </div>
-
-        
-        <div className="mt-4 pt-4 border-t border-white/10">
-          <Link
-            to="#"
-            onClick={(e) => {
-              e.preventDefault();
-              toggleFullscreen();
-            }}
-            className={cn(
-              'group flex items-center text-sm rounded-md transition-all duration-200',
-              isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
-              'text-white/80 hover:bg-white/10 hover:text-white'
-            )}
-            title={isCollapsed ? (isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen') : undefined}
-          >
-            {isFullscreen ? (
-              <Minimize
-                className={cn(
-                  'h-4 w-4 transition-colors flex-shrink-0',
-                  isCollapsed ? '' : 'mr-3'
-                )}
-              />
-            ) : (
-              <Maximize
-                className={cn(
-                  'h-4 w-4 transition-colors flex-shrink-0',
-                  isCollapsed ? '' : 'mr-3'
-                )}
-              />
-            )}
-            {!isCollapsed && <span className="truncate text-sm">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>}
-          </Link>
         </div>
       </nav>
 
