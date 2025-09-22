@@ -180,7 +180,7 @@ export const Auth = () => {
       <div 
         className="min-h-screen flex items-center justify-center relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(233, 92%, 62%) 50%, hsl(242, 87%, 58%) 100%)'
+          background: 'linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(233, 92%, 62%) 50%, hsl(242, 87%, 58%) 70%, rgba(255, 255, 255, 0.9) 100%)'
         }}
       >
         <div className="text-center relative z-10">
@@ -195,7 +195,7 @@ export const Auth = () => {
     <div 
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
-        background: 'linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(233, 92%, 62%) 50%, hsl(242, 87%, 58%) 100%)'
+        background: 'linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(233, 92%, 62%) 50%, hsl(242, 87%, 58%) 70%, rgba(255, 255, 255, 0.9) 100%)'
       }}
     >
       {/* Floating Emojis */}
@@ -212,7 +212,7 @@ export const Auth = () => {
           />
         </div>
         
-        <Card className="bg-white/98 backdrop-blur-md border-0 shadow-2xl overflow-hidden ring-1 ring-white/20">
+        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl overflow-hidden">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Eventis</CardTitle>
             <CardDescription className="text-slate-600">
