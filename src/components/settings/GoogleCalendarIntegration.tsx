@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calendar, CheckCircle, AlertTriangle, ExternalLink, Loader2, Unlink } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar, CheckCircle, AlertTriangle, ExternalLink, Loader2, Unlink, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -18,18 +19,35 @@ interface CalendarIntegration {
   created_at: string;
 }
 
+interface GoogleCalendar {
+  id: string;
+  name: string;
+  primary: boolean;
+  accessRole: string;
+  backgroundColor?: string;
+}
+
 export const GoogleCalendarIntegration = () => {
   const { currentTenant } = useAuth();
   const [integration, setIntegration] = useState<CalendarIntegration | null>(null);
+  const [availableCalendars, setAvailableCalendars] = useState<GoogleCalendar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
+  const [isUpdatingCalendar, setIsUpdatingCalendar] = useState(false);
 
   useEffect(() => {
     if (currentTenant?.id) {
       fetchIntegration();
     }
   }, [currentTenant?.id]);
+
+  useEffect(() => {
+    if (integration) {
+      fetchAvailableCalendars();
+    }
+  }, [integration]);
 
   const fetchIntegration = async () => {
     if (!currentTenant?.id) return;
@@ -104,6 +122,62 @@ export const GoogleCalendarIntegration = () => {
     }
   };
 
+  const fetchAvailableCalendars = async () => {
+    if (!currentTenant?.id) return;
+    
+    setIsLoadingCalendars(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('google-oauth', {
+        body: { action: 'list-calendars' }
+      });
+
+      if (error) throw error;
+
+      if (data.calendars) {
+        setAvailableCalendars(data.calendars);
+      }
+    } catch (error: any) {
+      console.error('Error fetching available calendars:', error);
+      toast.error('Failed to load available calendars');
+    } finally {
+      setIsLoadingCalendars(false);
+    }
+  };
+
+  const handleCalendarChange = async (calendarId: string) => {
+    if (!integration) return;
+    
+    const selectedCalendar = availableCalendars.find(cal => cal.id === calendarId);
+    if (!selectedCalendar) return;
+
+    setIsUpdatingCalendar(true);
+    try {
+      const { error } = await supabase
+        .from('calendar_integrations')
+        .update({ 
+          calendar_id: selectedCalendar.id,
+          calendar_name: selectedCalendar.name 
+        })
+        .eq('id', integration.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setIntegration({
+        ...integration,
+        calendar_id: selectedCalendar.id,
+        calendar_name: selectedCalendar.name
+      });
+
+      toast.success('Calendar selection updated successfully');
+    } catch (error: any) {
+      console.error('Error updating calendar selection:', error);
+      toast.error('Failed to update calendar selection');
+    } finally {
+      setIsUpdatingCalendar(false);
+    }
+  };
+
   const disconnectGoogleCalendar = async () => {
     if (!integration) return;
     
@@ -117,6 +191,7 @@ export const GoogleCalendarIntegration = () => {
       if (error) throw error;
 
       setIntegration(null);
+      setAvailableCalendars([]);
       toast.success('Google Calendar disconnected successfully');
     } catch (error: any) {
       console.error('Error disconnecting Google Calendar:', error);
@@ -170,6 +245,59 @@ export const GoogleCalendarIntegration = () => {
                 <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
                   Active
                 </Badge>
+              </div>
+
+              {/* Calendar Selection */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Select Calendar</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchAvailableCalendars}
+                    disabled={isLoadingCalendars}
+                    className="h-8 px-2"
+                  >
+                    {isLoadingCalendars ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+                
+                <Select
+                  value={integration.calendar_id}
+                  onValueChange={handleCalendarChange}
+                  disabled={isUpdatingCalendar || isLoadingCalendars}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a calendar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCalendars.map((calendar) => (
+                      <SelectItem key={calendar.id} value={calendar.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full border"
+                            style={{ backgroundColor: calendar.backgroundColor || '#4285f4' }}
+                          />
+                          <span>{calendar.name}</span>
+                          {calendar.primary && (
+                            <Badge variant="outline" className="text-xs">Primary</Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {isUpdatingCalendar && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Updating calendar selection...
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">
