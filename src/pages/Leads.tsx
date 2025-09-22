@@ -282,11 +282,11 @@ export const Leads = () => {
   };
 
   return (
-    <div className="p-8 bg-background min-h-screen">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-6 lg:p-8 bg-background min-h-screen">
+      <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Leads & Appointments</h1>
-          <p className="text-muted-foreground">Manage your leads and scheduled appointments</p>
+          <h1 className="text-2xl lg:text-3xl font-semibold text-foreground mb-2">Leads & Appointments</h1>
+          <p className="text-muted-foreground text-sm lg:text-base">Manage your leads and scheduled appointments</p>
         </div>
         <Dialog open={isAddLeadOpen} onOpenChange={setIsAddLeadOpen}>
           <DialogTrigger asChild>
@@ -311,32 +311,38 @@ export const Leads = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+        <Card className="bg-card border-border shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Leads</CardTitle>
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{leads.length}</div>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-semibold text-foreground">{leads.length}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Appointments This Week</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+        <Card className="bg-card border-border shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Appointments This Week</CardTitle>
+            <div className="p-2 rounded-lg bg-status-progress/10">
+              <Calendar className="h-4 w-4 text-status-progress" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{appointmentsThisWeek}</div>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-semibold text-foreground">{appointmentsThisWeek}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New This Week</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+        <Card className="bg-card border-border shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">New This Week</CardTitle>
+            <div className="p-2 rounded-lg bg-status-done/10">
+              <Clock className="h-4 w-4 text-status-done" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="pt-0">
+            <div className="text-2xl font-semibold text-foreground">
               {leads.filter(l => {
                 const weekAgo = new Date();
                 weekAgo.setDate(weekAgo.getDate() - 7);
@@ -345,12 +351,15 @@ export const Leads = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+        <Card className="bg-card border-border shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Conversion Rate</CardTitle>
+            <div className="p-2 rounded-lg bg-status-todo/10">
+              <AlertCircle className="h-4 w-4 text-status-todo" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{conversionRate}%</div>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-semibold text-foreground">{conversionRate}%</div>
           </CardContent>
         </Card>
       </div>

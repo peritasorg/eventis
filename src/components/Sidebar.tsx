@@ -115,140 +115,142 @@ export const Sidebar = () => {
     <>
       {/* Logo/Brand with collapse toggle */}
       <div className={cn(
-        "flex h-16 items-center border-b border-sidebar-border/50 transition-all duration-200",
-        isCollapsed ? "px-3 justify-center" : "px-4 lg:px-6"
+        "flex h-16 items-center border-b border-sidebar-border px-6 transition-all duration-200",
+        isCollapsed ? "justify-center" : ""
       )}>
         {!isCollapsed && (
-          <>
+          <div className="flex items-center">
             <img 
               src="/lovable-uploads/4503c477-cf89-4d4d-84ef-e832a880c76a.png" 
               alt="Eventis" 
-              className="h-10 w-auto flex-shrink-0"
+              className="h-8 w-auto flex-shrink-0"
             />
-          </>
+          </div>
         )}
         
-        <div className="ml-auto flex items-center gap-2">
-          {/* Collapse Toggle */}
-          {!isMobile && (
+        {!isMobile && (
+          <div className={cn("ml-auto", isCollapsed && "ml-0")}>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8 p-0 rounded-lg"
+              className="text-sidebar-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8 p-0 rounded-md"
             >
               {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 lg:px-4 py-4 lg:py-6 overflow-y-auto">
-        {filteredNavigation.map((item) => {
-          const isActive = location.pathname === item.href;
-          const isFormBuilder = item.href === '/form-builder';
-          const shouldShowFormBuilder = !isFormBuilder || window.innerWidth >= 768;
-          
-          if (!shouldShowFormBuilder) {
-            return (
-              <div
-                key={item.name}
-                className={cn(
-                  "flex items-center text-sm font-medium text-gray-400 cursor-not-allowed opacity-50 transition-all duration-200",
-                  isCollapsed ? "px-3 py-2 justify-center" : "px-3 py-2"
-                )}
-                title="Form Builder is only available on tablet and desktop devices"
-              >
-                <item.icon className={cn(
-                  "h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0",
-                  isCollapsed ? "" : "mr-3"
-                )} />
-                {!isCollapsed && (
-                  <>
-                    <span className="truncate">{item.name}</span>
-                    <span className="ml-2 text-xs">(Desktop only)</span>
-                  </>
-                )}
-              </div>
-            );
-          }
+      <nav className="flex-1 px-4 py-6 overflow-y-auto">
+        <div className="space-y-1">
+          {filteredNavigation.map((item) => {
+            const isActive = location.pathname === item.href;
+            const isFormBuilder = item.href === '/form-builder';
+            const shouldShowFormBuilder = !isFormBuilder || window.innerWidth >= 768;
+            
+            if (!shouldShowFormBuilder) {
+              return (
+                <div
+                  key={item.name}
+                  className={cn(
+                    "flex items-center text-sm font-medium cursor-not-allowed opacity-40 transition-all duration-200 rounded-md",
+                    isCollapsed ? "px-3 py-2.5 justify-center" : "px-3 py-2.5"
+                  )}
+                  title="Form Builder is only available on tablet and desktop devices"
+                >
+                  <item.icon className={cn(
+                    "h-5 w-5 flex-shrink-0 text-sidebar-muted-foreground",
+                    isCollapsed ? "" : "mr-3"
+                  )} />
+                  {!isCollapsed && (
+                    <>
+                      <span className="truncate text-sidebar-muted-foreground">{item.name}</span>
+                      <span className="ml-2 text-xs text-sidebar-muted-foreground/60">(Desktop only)</span>
+                    </>
+                  )}
+                </div>
+              );
+            }
 
-          return (
-            <Link
-              key={item.name}
-              to={item.href}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={cn(
-                'group flex items-center text-sm font-medium rounded-lg transition-all duration-200',
-                isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
-                isActive
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-              )}
-              title={isCollapsed ? item.name : undefined}
-            >
-              <item.icon
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={cn(
-                  'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
+                  'group flex items-center text-sm font-medium rounded-md transition-all duration-200 relative',
+                  isCollapsed ? 'px-3 py-2.5 justify-center' : 'px-3 py-2.5',
+                  isActive
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                    : 'text-sidebar-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                )}
+                title={isCollapsed ? item.name : undefined}
+              >
+                <item.icon
+                  className={cn(
+                    'h-5 w-5 transition-colors flex-shrink-0',
+                    isCollapsed ? '' : 'mr-3',
+                    isActive ? 'text-sidebar-primary-foreground' : 'group-hover:text-sidebar-foreground'
+                  )}
+                />
+                {!isCollapsed && <span className="truncate font-medium">{item.name}</span>}
+              </Link>
+            );
+          })}
+        </div>
+
+        
+        <div className="mt-4 pt-4 border-t border-sidebar-border">
+          <Link
+            to="#"
+            onClick={(e) => {
+              e.preventDefault();
+              toggleFullscreen();
+            }}
+            className={cn(
+              'group flex items-center text-sm font-medium rounded-md transition-all duration-200',
+              isCollapsed ? 'px-3 py-2.5 justify-center' : 'px-3 py-2.5',
+              'text-sidebar-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
+            )}
+            title={isCollapsed ? (isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen') : undefined}
+          >
+            {isFullscreen ? (
+              <Minimize
+                className={cn(
+                  'h-5 w-5 transition-colors flex-shrink-0',
                   isCollapsed ? '' : 'mr-3',
-                  isActive ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
+                  'group-hover:text-sidebar-foreground'
                 )}
               />
-              {!isCollapsed && <span className="truncate">{item.name}</span>}
-            </Link>
-          );
-        })}
-
-        {/* Fullscreen Button in Navigation */}
-        <Link
-          to="#"
-          onClick={(e) => {
-            e.preventDefault();
-            toggleFullscreen();
-          }}
-          className={cn(
-            'group flex items-center text-sm font-medium rounded-lg transition-all duration-200',
-            isCollapsed ? 'px-3 py-2 justify-center' : 'px-3 py-2',
-            'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-          )}
-          title={isCollapsed ? (isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen') : undefined}
-        >
-          {isFullscreen ? (
-            <Minimize
-              className={cn(
-                'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
-                isCollapsed ? '' : 'mr-3',
-                'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
-              )}
-            />
-          ) : (
-            <Maximize
-              className={cn(
-                'h-4 w-4 lg:h-5 lg:w-5 transition-colors flex-shrink-0',
-                isCollapsed ? '' : 'mr-3',
-                'text-sidebar-foreground/60 group-hover:text-sidebar-foreground'
-              )}
-            />
-          )}
-          {!isCollapsed && <span className="truncate">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>}
-        </Link>
+            ) : (
+              <Maximize
+                className={cn(
+                  'h-5 w-5 transition-colors flex-shrink-0',
+                  isCollapsed ? '' : 'mr-3',
+                  'group-hover:text-sidebar-foreground'
+                )}
+              />
+            )}
+            {!isCollapsed && <span className="truncate font-medium">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>}
+          </Link>
+        </div>
       </nav>
 
       {/* Footer with User Info */}
-      <div className="border-t border-sidebar-border/50 p-3 lg:p-4">
-        {/* User Info */}
+      <div className="border-t border-sidebar-border p-4">
         {!isCollapsed && (
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-full bg-primary flex items-center justify-center text-xs lg:text-sm font-medium flex-shrink-0 text-primary-foreground">
+              <div className="h-9 w-9 rounded-lg bg-sidebar-primary flex items-center justify-center text-sm font-semibold flex-shrink-0 text-sidebar-primary-foreground">
                 {getUserInitial()}
               </div>
-              <div className="ml-2 lg:ml-3 min-w-0 flex-1">
-                <p className="text-xs lg:text-sm font-medium truncate text-sidebar-foreground" title={getBusinessName()}>
+              <div className="ml-3 min-w-0 flex-1">
+                <p className="text-sm font-medium truncate text-sidebar-foreground" title={getBusinessName()}>
                   {getBusinessName()}
                 </p>
-                <p className="text-xs text-sidebar-foreground/60 truncate" title={getSubscriptionStatus()}>
+                <p className="text-xs text-sidebar-muted-foreground truncate" title={getSubscriptionStatus()}>
                   {getSubscriptionStatus()}
                 </p>
               </div>
@@ -257,7 +259,19 @@ export const Sidebar = () => {
               variant="ghost"
               size="sm"
               onClick={signOut}
-              className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent flex-shrink-0 ml-2 h-8 w-8 p-0 rounded-lg"
+              className="text-sidebar-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent flex-shrink-0 ml-2 h-8 w-8 p-0 rounded-md"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        {isCollapsed && (
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="text-sidebar-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8 p-0 rounded-md"
             >
               <LogOut className="h-4 w-4" />
             </Button>

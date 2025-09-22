@@ -7,78 +7,78 @@
 
 @layer base {
   :root {
-    /* Premium workspace color scheme - inspired by modern financial interfaces */
+    /* Modern SaaS color scheme - clean and professional */
     --background: 0 0% 98%;
-    --foreground: 225 10% 12%;
+    --foreground: 220 9% 13%;
 
     --card: 0 0% 100%;
-    --card-foreground: 225 10% 12%;
+    --card-foreground: 220 9% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 225 10% 12%;
+    --popover-foreground: 220 9% 13%;
 
     /* Primary brand colors - modern blue */
-    --primary: 215 85% 55%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 215 85% 50%;
+    --primary-hover: 221 83% 48%;
 
-    /* Secondary colors - sophisticated grays */
-    --secondary: 215 14% 96%;
-    --secondary-foreground: 225 10% 12%;
+    /* Secondary colors - clean grays */
+    --secondary: 220 13% 95%;
+    --secondary-foreground: 220 9% 13%;
 
     /* Muted colors for subtle elements */
-    --muted: 215 17% 95%;
-    --muted-foreground: 225 8% 50%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
     /* Accent colors */
-    --accent: 215 14% 96%;
-    --accent-foreground: 225 10% 12%;
+    --accent: 220 13% 95%;
+    --accent-foreground: 220 9% 13%;
 
-    /* Status colors - inspired by Monday.com status badges */
-    --status-discovery: 217 91% 60%;
-    --status-discovery-foreground: 0 0% 100%;
-    --status-proposal: 197 92% 81%;
-    --status-proposal-foreground: 216 13% 15%;
-    --status-won: 142 76% 36%;
-    --status-won-foreground: 0 0% 100%;
-    --status-closed: 0 84% 60%;
-    --status-closed-foreground: 0 0% 100%;
+    /* Status colors - modern and clean */
+    --status-todo: 221 83% 53%;
+    --status-todo-foreground: 0 0% 100%;
+    --status-progress: 43 96% 56%;
+    --status-progress-foreground: 0 0% 0%;
+    --status-done: 142 71% 45%;
+    --status-done-foreground: 0 0% 100%;
 
     /* Success colors */
-    --success: 142 76% 36%;
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
     /* Warning colors */
     --warning: 43 96% 56%;
-    --warning-foreground: 216 13% 15%;
+    --warning-foreground: 0 0% 0%;
 
     /* Destructive colors */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     /* Border and input */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 202 100% 46%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 221 83% 53%;
 
     /* Border radius */
-    --radius: 6px;
+    --radius: 8px;
 
-    /* Sidebar colors */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 216 13% 15%;
-    --sidebar-primary: 202 100% 46%;
+    /* Modern dark sidebar colors */
+    --sidebar-background: 222 84% 5%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 11% 96%;
-    --sidebar-accent-foreground: 216 13% 15%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 202 100% 46%;
+    --sidebar-accent: 217 32% 17%;
+    --sidebar-accent-foreground: 213 31% 91%;
+    --sidebar-border: 217 32% 17%;
+    --sidebar-ring: 221 83% 53%;
+    --sidebar-muted: 223 47% 11%;
+    --sidebar-muted-foreground: 215 20% 65%;
 
-    /* Professional shadow system */
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px 0 rgb(0 0 0 / 0.02);
-    --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.04);
-    --shadow-lg: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
-    --shadow-elegant: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+    /* Modern shadow system */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+    --shadow-elegant: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px 0 rgb(0 0 0 / 0.06);
   }
 }
 
