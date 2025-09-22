@@ -180,7 +180,7 @@ export const Auth = () => {
       <div 
         className="min-h-screen flex items-center justify-center relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(233, 92%, 62%) 50%, hsl(242, 87%, 58%) 70%, rgba(255, 255, 255, 0.9) 100%)'
+          background: 'linear-gradient(180deg, hsl(218, 100%, 66%) 0%, hsl(220, 100%, 70%) 30%, hsl(222, 95%, 75%) 70%, rgba(255, 255, 255, 1) 100%)'
         }}
       >
         <div className="text-center relative z-10">
@@ -195,7 +195,7 @@ export const Auth = () => {
     <div 
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
-        background: 'linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(233, 92%, 62%) 50%, hsl(242, 87%, 58%) 70%, rgba(255, 255, 255, 0.9) 100%)'
+        background: 'linear-gradient(180deg, hsl(218, 100%, 66%) 0%, hsl(220, 100%, 70%) 30%, hsl(222, 95%, 75%) 70%, rgba(255, 255, 255, 1) 100%)'
       }}
     >
       {/* Floating Emojis */}
