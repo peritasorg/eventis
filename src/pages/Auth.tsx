@@ -14,36 +14,40 @@ import { toast } from 'sonner';
 const FloatingEmoji = ({ emoji, delay }: { emoji: string; delay: number }) => {
   const randomX = Math.random() * 100;
   const randomY = Math.random() * 100;
-  const randomDuration = 8 + Math.random() * 4; // 8-12 seconds
+  const randomDuration = 12 + Math.random() * 8; // 12-20 seconds for slower movement
   const randomDirection = Math.random() > 0.5 ? 1 : -1;
+  const randomRotation = Math.random() * 360;
   
   return (
     <div 
-      className="absolute text-4xl opacity-20 pointer-events-none"
+      className="absolute text-5xl pointer-events-none select-none"
       style={{
         left: `${randomX}%`,
         top: `${randomY}%`,
-        animation: `floatAround ${randomDuration}s linear infinite`,
+        animation: `floatAround ${randomDuration}s ease-in-out infinite`,
         animationDelay: `${delay}s`,
-        transform: `scale(${0.8 + Math.random() * 0.4})`, // Random size variation
+        transform: `scale(${0.6 + Math.random() * 0.8}) rotate(${randomRotation}deg)`,
+        filter: 'brightness(0) saturate(100%) invert(100%) sepia(100%) saturate(0%) hue-rotate(93deg) brightness(103%) contrast(103%)',
+        textShadow: '0 0 20px rgba(255, 255, 255, 0.3), 0 0 40px rgba(255, 255, 255, 0.2)',
+        opacity: 0.15 + Math.random() * 0.1, // Slight opacity variation
       }}
     >
       <style>{`
         @keyframes floatAround {
           0% {
-            transform: translate(0, 0) rotate(0deg);
+            transform: translate(0, 0) rotate(${randomRotation}deg) scale(${0.6 + Math.random() * 0.8});
           }
           25% {
-            transform: translate(${20 * randomDirection}px, -30px) rotate(90deg);
+            transform: translate(${30 * randomDirection}px, -40px) rotate(${randomRotation + 90}deg) scale(${0.8 + Math.random() * 0.4});
           }
           50% {
-            transform: translate(${40 * randomDirection}px, 10px) rotate(180deg);
+            transform: translate(${60 * randomDirection}px, 20px) rotate(${randomRotation + 180}deg) scale(${0.6 + Math.random() * 0.6});
           }
           75% {
-            transform: translate(${-10 * randomDirection}px, -20px) rotate(270deg);
+            transform: translate(${-20 * randomDirection}px, -30px) rotate(${randomRotation + 270}deg) scale(${0.7 + Math.random() * 0.5});
           }
           100% {
-            transform: translate(0, 0) rotate(360deg);
+            transform: translate(0, 0) rotate(${randomRotation + 360}deg) scale(${0.6 + Math.random() * 0.8});
           }
         }
       `}</style>
@@ -60,7 +64,7 @@ export const Auth = () => {
   const [searchParams] = useSearchParams();
   const verified = searchParams.get('verified') === 'true';
 
-  const eventEmojis = ['🏛️', '🏢', '🎉', '🍽️', '🥂', '💐', '🎪', '🏰', '⛪', '🕌'];
+  const eventEmojis = ['☁️', '🏛️', '🎈', '🎉', '🎊', '🥂', '💐', '🎪', '🏰', '⛪', '🕌', '🏢', '🍾', '🎭', '🎨'];
 
   // Show verification success message
   useEffect(() => {
@@ -173,20 +177,30 @@ export const Auth = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-emerald-900">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-emerald-400" />
-          <p className="text-gray-300">Loading...</p>
+      <div 
+        className="min-h-screen flex items-center justify-center relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(233, 92%, 62%) 50%, hsl(242, 87%, 58%) 100%)'
+        }}
+      >
+        <div className="text-center relative z-10">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-white" />
+          <p className="text-white/80">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-emerald-900 flex items-center justify-center p-4 relative overflow-hidden">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, hsl(221, 83%, 53%) 0%, hsl(233, 92%, 62%) 50%, hsl(242, 87%, 58%) 100%)'
+      }}
+    >
       {/* Floating Emojis */}
       {eventEmojis.map((emoji, index) => (
-        <FloatingEmoji key={index} emoji={emoji} delay={index * 0.5} />
+        <FloatingEmoji key={index} emoji={emoji} delay={index * 0.8} />
       ))}
       
       <div className="w-full max-w-md relative z-10">
@@ -194,11 +208,11 @@ export const Auth = () => {
           <img 
             src="/lovable-uploads/a1e4246b-792c-4cc3-a040-31c53413af0d.png" 
             alt="Eventis" 
-            className="h-24 w-auto"
+            className="h-24 w-auto filter brightness-0 invert drop-shadow-lg"
           />
         </div>
         
-        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl overflow-hidden">
+        <Card className="bg-white/98 backdrop-blur-md border-0 shadow-2xl overflow-hidden ring-1 ring-white/20">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Eventis</CardTitle>
             <CardDescription className="text-slate-600">
@@ -394,7 +408,7 @@ export const Auth = () => {
           </CardContent>
         </Card>
         
-        <div className="mt-6 text-center text-sm text-gray-300">
+        <div className="mt-6 text-center text-sm text-white/70">
           <p>By signing up, you agree to our Terms of Service and Privacy Policy</p>
         </div>
       </div>
