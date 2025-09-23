@@ -152,15 +152,6 @@ export const FormCanvas: React.FC<FormCanvasProps> = ({
                 </div>
               )}
             </Droppable>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 w-full"
-              onClick={() => {/* Add field logic */}}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Field
-            </Button>
           </CardContent>
         </Card>
       ))}
