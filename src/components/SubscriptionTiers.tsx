@@ -10,7 +10,7 @@ import { Check, Loader2 } from 'lucide-react';
 
 const tiers = [
   {
-    name: 'Professional',
+    name: 'Eventis Pro',
     price: 199,
     description: 'A perfect entry-level solution to streamline basic workflows.',
     subtitle: 'For less complex operations',
@@ -26,7 +26,7 @@ const tiers = [
     buttonColor: 'bg-black text-white hover:bg-gray-800'
   },
   {
-    name: 'Business',
+    name: 'Eventis Business',
     price: 249,
     description: 'Unlock advanced tools to drive team collaboration and boost productivity for your business',
     subtitle: 'For heavy operations',
@@ -42,22 +42,6 @@ const tiers = [
     bgColor: 'bg-slate-800',
     textColor: 'text-white',
     buttonColor: 'bg-white text-black hover:bg-gray-100'
-  },
-  {
-    name: 'BAH Plan',
-    price: 199,
-    description: 'Premium enterprise solution with advanced features and priority support',
-    subtitle: 'For premium operations',
-    category: 'Enterprise',
-    features: [
-      'Unlimited events.',
-      '24/7 phone support.',
-      'Complete financial suite.',
-      'Custom reports & dashboards.',
-      'API access and integrations.'
-    ],
-    bgColor: 'bg-green-100',
-    buttonColor: 'bg-black text-white hover:bg-gray-800'
   }
 ];
 
@@ -104,7 +88,7 @@ export const SubscriptionTiers = () => {
         <p className="text-gray-600 mt-2">Select the perfect plan for your banquet business</p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {tiers.map((tier) => (
           <Card key={tier.name} className={`relative ${tier.bgColor} border-0 ${tier.textColor || 'text-black'}`}>
             {tier.popular && (
@@ -115,49 +99,46 @@ export const SubscriptionTiers = () => {
             
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3 mb-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tier.name === 'Business' ? 'bg-white' : 'bg-white'}`}>
-                  {tier.name === 'Professional' && (
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tier.name === 'Eventis Business' ? 'bg-white' : 'bg-white'}`}>
+                  {tier.name === 'Eventis Pro' && (
                     <div className="w-6 h-6 bg-cyan-500 rounded-full"></div>
                   )}
-                  {tier.name === 'Business' && (
+                  {tier.name === 'Eventis Business' && (
                     <div className="w-6 h-6 bg-black rounded"></div>
-                  )}
-                  {tier.name === 'BAH Plan' && (
-                    <div className="w-6 h-6 bg-green-500 rounded transform rotate-45"></div>
                   )}
                 </div>
                 <div>
-                  <div className={`text-sm ${tier.name === 'Business' ? 'text-gray-300' : 'text-gray-600'}`}>
+                  <div className={`text-sm ${tier.name === 'Eventis Business' ? 'text-gray-300' : 'text-gray-600'}`}>
                     {tier.subtitle}
                   </div>
                   <CardTitle className="text-2xl font-bold">{tier.name}</CardTitle>
                 </div>
               </div>
               
-              <div className={`text-sm mb-2 ${tier.name === 'Business' ? 'text-gray-400' : 'text-gray-500'}`}>
+              <div className={`text-sm mb-2 ${tier.name === 'Eventis Business' ? 'text-gray-400' : 'text-gray-500'}`}>
                 {tier.category}
               </div>
               
-              <CardDescription className={`text-sm leading-relaxed ${tier.name === 'Business' ? 'text-gray-300' : 'text-gray-600'}`}>
+              <CardDescription className={`text-sm leading-relaxed ${tier.name === 'Eventis Business' ? 'text-gray-300' : 'text-gray-600'}`}>
                 {tier.description}
               </CardDescription>
               
               <div className="mt-6">
                 <span className="text-4xl font-bold">£{tier.price}</span>
-                <span className={`text-sm ml-1 ${tier.name === 'Business' ? 'text-gray-400' : 'text-gray-600'}`}>/month</span>
+                <span className={`text-sm ml-1 ${tier.name === 'Eventis Business' ? 'text-gray-400' : 'text-gray-600'}`}>/month</span>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-6">
               <div>
-                <h4 className={`font-semibold mb-4 ${tier.name === 'Business' ? 'text-white' : 'text-black'}`}>
+                <h4 className={`font-semibold mb-4 ${tier.name === 'Eventis Business' ? 'text-white' : 'text-black'}`}>
                   Features
                 </h4>
                 <ul className="space-y-3">
                   {tier.features.map((feature, index) => (
                     <li key={index} className="flex items-start gap-3">
-                      <Check className={`h-5 w-5 mt-0.5 flex-shrink-0 ${tier.name === 'Business' ? 'text-white' : 'text-green-600'}`} />
-                      <span className={`text-sm ${tier.name === 'Business' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <Check className={`h-5 w-5 mt-0.5 flex-shrink-0 ${tier.name === 'Eventis Business' ? 'text-white' : 'text-green-600'}`} />
+                      <span className={`text-sm ${tier.name === 'Eventis Business' ? 'text-gray-300' : 'text-gray-700'}`}>
                         {feature}
                       </span>
                     </li>
