@@ -507,7 +507,7 @@ export const QuoteInvoicePreview: React.FC<QuoteInvoicePreviewProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[100vw] max-h-[95vh] overflow-y-auto p-6">
+      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-6 rounded-none overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5" />
