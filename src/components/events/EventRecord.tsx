@@ -851,9 +851,9 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                     {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   {eventData.event_date && daysLeft !== null && (
-                    <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm px-3 py-1 rounded-full">
+                    <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm px-3 py-1 rounded-full whitespace-nowrap">
                       {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
                     </Badge>
                   )}
