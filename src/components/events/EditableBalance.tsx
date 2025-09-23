@@ -114,18 +114,12 @@ export const EditableBalance: React.FC<EditableBalanceProps> = ({
     <>
       <div className="space-y-2">
         <Label>Remaining Balance</Label>
-        <div className="flex items-center gap-2">
-          <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium flex-1">
-            {formatCurrency(currentBalance)}
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowEditDialog(true)}
-            className="h-10 px-3"
-          >
-            <Edit3 className="h-4 w-4" />
-          </Button>
+        <div 
+          className="h-12 flex items-center px-4 bg-muted rounded-md text-base font-medium cursor-pointer hover:bg-muted/80 transition-colors border border-transparent hover:border-border"
+          onClick={() => setShowEditDialog(true)}
+          title="Click to edit balance"
+        >
+          {formatCurrency(currentBalance)}
         </div>
       </div>
 

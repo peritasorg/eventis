@@ -834,83 +834,64 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="w-full space-y-8">
       {/* Header with Date Information */}
-      <div className="space-y-4 border-b pb-4">
-        {/* Current Event Date Display */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-primary" />
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold">Event Date:</span>
-                <Badge variant="secondary" className="text-base">
+      <div className="bg-gradient-to-r from-card via-card to-muted/5 rounded-2xl border shadow-sm p-4 space-y-4">
+        {/* Current Event Date Display and Action Buttons */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <CalendarIcon className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xl font-semibold text-foreground">Event Date:</span>
+                <Badge variant="secondary" className="text-base px-4 py-1 rounded-full">
                   {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
                 </Badge>
                 {eventData.event_date && daysLeft !== null && (
-                  <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm">
+                  <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm px-3 py-1 rounded-full">
                     {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
                   </Badge>
                 )}
                 {eventData.status === 'cancelled' && (
-                  <Badge variant="destructive" className="text-sm">
+                  <Badge variant="destructive" className="text-sm px-3 py-1 rounded-full">
                     CANCELLED
                   </Badge>
                 )}
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Date Change Warning */}
-        {eventData.original_event_date && eventData.date_changed_at && (
-          <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <History className="h-5 w-5 text-yellow-600" />
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-yellow-800 dark:text-yellow-200">Date Changed:</span>
-              <span className="text-yellow-700 dark:text-yellow-300">
-                was {format(new Date(eventData.original_event_date), 'PPP')} → now {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
-              </span>
-              <span className="text-yellow-600 dark:text-yellow-400">
-                on {format(new Date(eventData.date_changed_at), 'PPp')}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Event Record</h1>
-        <div className="flex items-center gap-3">
-          {lastSaved && (
-            <Badge variant="secondary" className="text-xs">
-              Last saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
-            </Badge>
-          )}
-          {isDirty && (
-            <Badge variant="outline" className="text-xs text-amber-600">
-              Unsaved changes
-            </Badge>
-          )}
           
           {/* Action Buttons */}
-              <div className="flex gap-2">
-                <FormSaveButton
-                  hasUnsavedChanges={isDirty}
-                  onSave={handleManualSave}
-                  isLoading={saveEventMutation.isPending || isFormSyncing}
-                />
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowPreview(true)}
-                  className="flex items-center gap-2"
-                >
-                  <FileText className="h-4 w-4" />
-                  Preview Quote/Invoice
-                </Button>
+          <div className="flex items-center gap-3">
+            {lastSaved && (
+              <Badge variant="secondary" className="text-xs">
+                Last saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
+              </Badge>
+            )}
+            {isDirty && (
+              <Badge variant="outline" className="text-xs text-amber-600">
+                Unsaved changes
+              </Badge>
+            )}
             
+            <FormSaveButton
+              hasUnsavedChanges={isDirty}
+              onSave={handleManualSave}
+              isLoading={saveEventMutation.isPending || isFormSyncing}
+            />
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowPreview(true)}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Preview Quote/Invoice
+            </Button>
+        
             <Button 
               variant="outline" 
               size="sm"
@@ -967,49 +948,72 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                 </AlertDialogContent>
               </AlertDialog>
             )}
-          </div>
           
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Event
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Event</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete this event? This action cannot be undone and will remove all associated data including forms, payments, and communications.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={() => deleteEventMutation.mutate({})}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Event
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this event? This action cannot be undone and will remove all associated data including forms, payments, and communications.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => deleteEventMutation.mutate({})}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
             <Button variant="ghost" size="sm" onClick={() => secureNavigate('/events')}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
+
+        {/* Date Change Warning */}
+        {eventData.original_event_date && eventData.date_changed_at && (
+          <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-yellow-50 to-yellow-50/50 dark:from-yellow-900/30 dark:to-yellow-900/10 border border-yellow-200/60 dark:border-yellow-800/60 rounded-xl backdrop-blur-sm">
+            <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/50 flex items-center justify-center">
+              <History className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium text-yellow-800 dark:text-yellow-200">Date Changed:</span>
+                <span className="text-yellow-700 dark:text-yellow-300">
+                  was {format(new Date(eventData.original_event_date), 'PPP')} → now {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
+                </span>
+              </div>
+              <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                Changed on {format(new Date(eventData.date_changed_at), 'PPp')}
+              </span>
+            </div>
+          </div>
+        )}
+
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Left Column - General & Contact */}
+        <div className="xl:col-span-2 space-y-8">
           {/* General Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>📋</span> General
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <span className="text-lg">📋</span>
+                </div>
+                General Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1225,10 +1229,13 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           </Card>
 
           {/* Contact Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5" /> Contact
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Phone className="h-5 w-5 text-blue-600" />
+                </div>
+                Contact Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1279,14 +1286,17 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           </Card>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-6">
+        {/* Right Column - Finances & Timelines */}
+        <div className="flex flex-col gap-8">
           {/* Guests Section - only show if there are NO forms (prevent double-counting) */}
           {!hasMultipleForms && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" /> Guests
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-purple-50/10 rounded-2xl">
+              <CardHeader className="pb-6">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-purple-600" />
+                  </div>
+                  Guest Information
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1325,158 +1335,182 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           )}
 
           {/* Finances Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PoundSterling className="h-5 w-5" /> Finances
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-emerald-50/10 rounded-2xl flex-grow">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <PoundSterling className="h-5 w-5 text-emerald-600" />
+                </div>
+                Financial Summary
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Only show event-level guest pricing when there are NO forms */}
-                {!hasMultipleForms && (
-                  <div className="space-y-2">
-                    <Label htmlFor="total_guest_price_gbp">Total Guest Price</Label>
+            <CardContent className="space-y-6 h-full flex flex-col">
+              {/* Pricing Section */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Only show event-level guest pricing when there are NO forms */}
+                  {!hasMultipleForms && (
+                    <div className="space-y-3">
+                      <Label htmlFor="total_guest_price_gbp" className="text-base font-medium">Total Guest Price</Label>
+                      <PriceInput
+                        value={eventData.total_guest_price_gbp || 0}
+                        onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
+                        placeholder="0.00"
+                        className="h-12"
+                      />
+                    </div>
+                  )}
+                  
+                  {hasMultipleForms && (
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Event-Level Guest Price</Label>
+                      <div className="h-12 flex items-center px-4 bg-muted rounded-md text-sm text-muted-foreground">
+                        Hidden - Using form-level pricing instead
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">Live Form Total</Label>
+                    <div className="h-12 flex items-center px-4 bg-muted rounded-md text-base font-medium">
+                      {formatCurrency(liveFormTotal)}
+                      {formTotalsLoading && <span className="ml-3 text-sm text-muted-foreground">Loading...</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="refundable_deposit_gbp" className="text-base font-medium">
+                      Refundable Deposit
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className="ml-2 text-sm text-muted-foreground cursor-help">(?)</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Money held as security, does not reduce remaining balance</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </Label>
                     <PriceInput
-                      value={eventData.total_guest_price_gbp || 0}
-                      onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
+                      value={eventData.refundable_deposit_gbp || 0}
+                      onChange={(value) => handleFieldChange('refundable_deposit_gbp', value)}
                       placeholder="0.00"
+                      className="h-12"
                     />
                   </div>
-                )}
+                  
+                  <div className="space-y-3">
+                    <Label htmlFor="deductible_deposit_gbp" className="text-base font-medium">
+                      Deductible Deposit
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className="ml-2 text-sm text-muted-foreground cursor-help">(?)</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Payment towards total cost, reduces remaining balance</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </Label>
+                    <PriceInput
+                      value={eventData.deductible_deposit_gbp || 0}
+                      onChange={(value) => handleFieldChange('deductible_deposit_gbp', value)}
+                      placeholder="0.00"
+                      className="h-12"
+                    />
+                  </div>
+                </div>
                 
-                {hasMultipleForms && (
-                  <div className="space-y-2">
-                    <Label>Event-Level Guest Price</Label>
-                    <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm text-muted-foreground">
-                      Hidden (using form-level pricing)
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">Total Deposits</Label>
+                    <div className="h-12 flex items-center px-4 bg-muted rounded-md text-base font-medium">
+                      {formatCurrency(refundableDeposit + deductibleDeposit)}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <EditableBalance
+                      eventId={eventId}
+                      currentBalance={remainingBalanceGbp}
+                      eventTotal={totalEventValue}
+                      onBalanceUpdated={() => {
+                        // Refetch payment data to update the balance
+                        window.location.reload(); // Simple solution for now
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Breakdown Section */}
+              <div className="flex-grow space-y-4 pt-4 border-t">
+                {formTotals && formTotals.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="text-base font-medium text-foreground">Form Breakdown</div>
+                    <div className="space-y-3">
+                      {formTotals.map((formTotal) => {
+                        // Find matching eventForm for guest data
+                        const eventForm = eventForms?.find(ef => ef.id === formTotal.id);
+                        
+                        return (
+                          <div key={formTotal.id} className="bg-muted/50 rounded-lg p-4 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium">{formTotal.form_label}</span>
+                                {eventForm?.guest_count && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {eventForm.guest_count} guests
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="font-semibold text-lg">
+                                {formatCurrency(formTotal.form_total)}
+                              </span>
+                            </div>
+                            {eventForm?.guest_price_total && eventForm.guest_price_total > 0 && (
+                              <div className="text-sm text-muted-foreground pl-1">
+                                Guest pricing: {formatCurrency(eventForm.guest_price_total)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
                 
-                <div className="space-y-2">
-                  <Label>Live Form Total</Label>
-                  <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                    {formatCurrency(liveFormTotal)}
-                    {formTotalsLoading && <span className="ml-2 text-xs text-muted-foreground">Loading...</span>}
+                {/* Summary Section */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex justify-between items-center text-base">
+                    <span>Combined Form Total:</span>
+                    <span className="font-semibold">{formatCurrency(liveFormTotal)}</span>
                   </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="refundable_deposit_gbp">
-                    Refundable Deposit
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="ml-1 text-xs text-muted-foreground cursor-help">(?)</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Money held as security, does not reduce remaining balance</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </Label>
-                  <PriceInput
-                    value={eventData.refundable_deposit_gbp || 0}
-                    onChange={(value) => handleFieldChange('refundable_deposit_gbp', value)}
-                    placeholder="0.00"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="deductible_deposit_gbp">
-                    Deductible Deposit
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="ml-1 text-xs text-muted-foreground cursor-help">(?)</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Payment towards total cost, reduces remaining balance</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </Label>
-                  <PriceInput
-                    value={eventData.deductible_deposit_gbp || 0}
-                    onChange={(value) => handleFieldChange('deductible_deposit_gbp', value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Total Deposits</Label>
-                  <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                    {formatCurrency(refundableDeposit + deductibleDeposit)}
+                  <div className="flex justify-between items-center text-base">
+                    <span>Total Paid:</span>
+                    <span className="font-semibold">{formatCurrency(deductibleDeposit + additionalPayments)}</span>
                   </div>
-                </div>
-                
-                <EditableBalance
-                  eventId={eventId}
-                  currentBalance={remainingBalanceGbp}
-                  eventTotal={totalEventValue}
-                  onBalanceUpdated={() => {
-                    // Refetch payment data to update the balance
-                    window.location.reload(); // Simple solution for now
-                  }}
-                />
-              </div>
-
-              <div className="pt-2 border-t space-y-2">
-                {/* Individual Form Breakdown */}
-                {formTotals && formTotals.length > 0 && (
-                  <div className="space-y-1 pb-2 border-b">
-                    <div className="text-sm font-medium text-muted-foreground mb-2">Form Breakdown:</div>
-                    {formTotals.map((formTotal) => {
-                      // Find matching eventForm for guest data
-                      const eventForm = eventForms?.find(ef => ef.id === formTotal.id);
-                      
-                      return (
-                        <div key={formTotal.id} className="flex justify-between items-center text-sm">
-                          <span className="flex items-center gap-2">
-                            {formTotal.form_label}
-                            {eventForm?.guest_count && (
-                              <Badge variant="secondary" className="text-xs">
-                                {eventForm.guest_count} guests
-                              </Badge>
-                            )}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {eventForm?.guest_price_total && eventForm.guest_price_total > 0 && (
-                              <span className="text-xs text-muted-foreground">
-                                Guest: {formatCurrency(eventForm.guest_price_total)}
-                              </span>
-                            )}
-                            <span className="font-medium">
-                              Form: {formatCurrency(formTotal.form_total)}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="flex justify-between items-center text-xl font-bold border-t pt-3 mt-4">
+                    <span>Event Total:</span>
+                    <span>{formatCurrency(totalEventValue)}</span>
                   </div>
-                )}
-                
-                <div className="flex justify-between items-center">
-                  <span>Combined Form Total:</span>
-                  <span className="font-medium">{formatCurrency(liveFormTotal)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Total Paid:</span>
-                  <span className="font-medium">{formatCurrency(deductibleDeposit + additionalPayments)}</span>
-                </div>
-                <div className="flex justify-between items-center text-lg font-semibold border-t pt-2">
-                  <span>Event Total:</span>
-                  <span>{formatCurrency(totalEventValue)}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Communications Timeline */}
-          <CommunicationTimeline eventId={eventId} />
+        </div>
+      </div>
 
-          {/* Payment Timeline */}
+      {/* Full Width Timelines Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
+        {/* Communications Timeline */}
+        <div className="lg:col-span-1">
+          <CommunicationTimeline eventId={eventId} />
+        </div>
+
+        {/* Payment Timeline */}
+        <div className="lg:col-span-1">
           <PaymentTimeline eventId={eventId} />
         </div>
       </div>

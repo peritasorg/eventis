@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEventTypeConfigs, getEventColor } from '@/hooks/useEventTypeConfigs';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const TopBar = () => {
   const { currentTenant } = useAuth();
@@ -91,8 +92,8 @@ export const TopBar = () => {
     }
   );
 
-  // Trial banner logic
-  const showTrialBanner = currentTenant?.subscription_status === 'trial' && isTrialVisible;
+  // Trial banner logic - DISABLED
+  const showTrialBanner = false;
   
   let daysRemaining = 0;
   if (showTrialBanner) {
@@ -103,80 +104,93 @@ export const TopBar = () => {
   }
 
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-3">
-      <div className="flex items-center justify-between">
-        {/* Unpaid Events Widget - Hidden on mobile */}
-        {!isMobile && (
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-orange-500" />
-              <span className="text-sm font-medium text-gray-700">Unpaid Events:</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              {unpaidEvents && unpaidEvents.length > 0 ? (
-                unpaidEvents.map((event) => {
-                  const eventColors = getEventColor(event.event_type, event.event_date, eventTypeConfigs);
-                  const eventDate = new Date(event.event_date);
-                  const isToday = eventDate.toDateString() === new Date().toDateString();
-                  const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
-                  
-                  let dateLabel = eventDate.toLocaleDateString('en-GB', { 
-                    month: 'short', 
-                    day: 'numeric' 
-                  });
-                  
-                  if (isToday) dateLabel = 'Today';
-                  else if (isTomorrow) dateLabel = 'Tomorrow';
+    <TooltipProvider>
+      <div className="bg-card border-b border-border px-6 py-2 sticky top-0 z-30">
+        <div className="flex items-center justify-between">
+          {/* Unpaid Events Widget - Hidden on mobile */}
+          {!isMobile && (
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-1.5 rounded-md bg-orange-50">
+                  <Calendar className="h-4 w-4 text-orange-600" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Unpaid Events</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {unpaidEvents && unpaidEvents.length > 0 ? (
+                  unpaidEvents.map((event) => {
+                    const eventColors = getEventColor(event.event_type, event.event_date, eventTypeConfigs);
+                    const eventDate = new Date(event.event_date);
+                    const isToday = eventDate.toDateString() === new Date().toDateString();
+                    const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                    
+                    let dateLabel = eventDate.toLocaleDateString('en-GB', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    });  
+                    
+                    if (isToday) dateLabel = 'Today';
+                    else if (isTomorrow) dateLabel = 'Tomorrow';
 
-                  return (
-                    <button
-                      key={event.id}
-                      onClick={() => navigate(`/events/${event.id}`)}
-                      className="flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity border border-orange-200"
-                      style={{
-                        backgroundColor: warningSettings?.warning_color || '#F59E0B',
-                        color: '#FFFFFF',
-                      }}
-                    >
-                      <span className="truncate max-w-24">{event.title}</span>
-                      <span className="opacity-75">•</span>
-                      <span>{dateLabel}</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <span className="text-xs text-gray-400">No unpaid events</span>
-              )}
-            </div>
-          </div>
-        )}
+                    // Calculate financial details for tooltip
+                    const subtotal = (event.total_guest_price_gbp || 0) + (event.form_total_gbp || 0);
+                    const depositAmount = event.deposit_amount_gbp || 0;
+                    const remainingBalance = subtotal - depositAmount;
 
-        {/* Trial Banner - Simplified on mobile */}
-        {showTrialBanner && (
-          <div className={`flex items-center ${isMobile ? 'space-x-2 bg-blue-50 px-2 py-1 rounded border border-blue-200' : 'space-x-3 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200'}`}>
-            <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-blue-800`}>
-              Trial: {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
-            </span>
-            {!isMobile && (
-              <Button 
-                variant="link" 
-                size="sm"
-                className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm"
-              >
-                Subscribe
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsTrialVisible(false)}
-              className={`${isMobile ? 'h-4 w-4' : 'h-6 w-6'} p-0 text-blue-600 hover:text-blue-800`}
-            >
-              <X className={`${isMobile ? 'h-2 w-2' : 'h-3 w-3'}`} />
-            </Button>
-          </div>
-        )}
+                    return (
+                      <Tooltip key={event.id}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => navigate(`/events/${event.id}`)}
+                            className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all duration-200 shadow-sm border"
+                            style={{
+                              backgroundColor: warningSettings?.warning_color || '#F59E0B',
+                              color: '#FFFFFF',
+                              borderColor: warningSettings?.warning_color ? `${warningSettings.warning_color}40` : '#F59E0B40',
+                            }}
+                          >
+                            <span className="truncate max-w-24">{event.title}</span>
+                            <span className="opacity-60">•</span>
+                            <span>{dateLabel}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-sm p-4 bg-card text-card-foreground border shadow-lg">
+                          <div className="space-y-3">
+                            <div className="font-semibold text-base">{event.title}</div>
+                            
+                            {/* Event Details */}
+                            <div className="text-sm space-y-1">
+                              <div><span className="font-medium text-muted-foreground">Date:</span> {eventDate.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                              {event.event_type && (
+                                <div><span className="font-medium text-muted-foreground">Type:</span> {event.event_type}</div>
+                              )}
+                            </div>
+                            
+                            {/* Financial Information */}
+                            {subtotal > 0 && (
+                              <div className="text-sm space-y-1 border-t pt-2">
+                                <div><span className="font-medium text-muted-foreground">Subtotal:</span> £{subtotal.toFixed(2)}</div>
+                                {depositAmount > 0 && (
+                                  <div><span className="font-medium text-muted-foreground">Deposit:</span> £{depositAmount.toFixed(2)}</div>
+                                )}
+                                <div className="font-medium text-destructive">
+                                  <span className="text-muted-foreground">Outstanding:</span> £{remainingBalance.toFixed(2)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg">No unpaid events</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };

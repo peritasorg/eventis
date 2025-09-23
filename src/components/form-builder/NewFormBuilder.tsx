@@ -161,10 +161,37 @@ export const NewFormBuilder: React.FC<NewFormBuilderProps> = ({ formId, onSave }
 
     const { source, destination } = result;
     
+    // Handle drag from field library to section
     if (source.droppableId === 'fields' && destination.droppableId.startsWith('section-')) {
       const sectionId = destination.droppableId.replace('section-', '');
       const fieldId = result.draggableId;
       addFieldToSection(fieldId, sectionId);
+      return;
+    }
+    
+    // Handle moving fields between sections
+    if (source.droppableId.startsWith('section-') && destination.droppableId.startsWith('section-')) {
+      const sourceSectionId = source.droppableId.replace('section-', '');
+      const destinationSectionId = destination.droppableId.replace('section-', '');
+      const fieldId = result.draggableId;
+      
+      // If moving between different sections, remove from source and add to destination
+      if (sourceSectionId !== destinationSectionId) {
+        removeFieldFromSection(fieldId, sourceSectionId);
+        addFieldToSection(fieldId, destinationSectionId);
+      }
+      // If reordering within the same section, handle the reordering
+      else {
+        setSections(sections.map(section => {
+          if (section.id === sourceSectionId) {
+            const newFieldIds = [...section.field_ids];
+            const [removed] = newFieldIds.splice(source.index, 1);
+            newFieldIds.splice(destination.index, 0, removed);
+            return { ...section, field_ids: newFieldIds };
+          }
+          return section;
+        }));
+      }
     }
   };
 
@@ -289,25 +316,59 @@ export const NewFormBuilder: React.FC<NewFormBuilderProps> = ({ formId, onSave }
                   </CardHeader>
                   <CardContent>
                     <Droppable droppableId={`section-${section.id}`}>
-                      {(provided) => (
-                        <div
-                          {...provided.droppableProps}
-                          ref={provided.innerRef}
-                          className="min-h-[100px] p-4 border-2 border-dashed border-muted-foreground/25 rounded-lg space-y-2"
-                        >
-                          {section.field_ids.length === 0 ? (
-                            <div className="text-center text-muted-foreground py-8">
-                              Drag fields here from the library
-                            </div>
-                          ) : (
-                            section.field_ids.map((fieldId) => {
-                              const field = getFieldById(fieldId);
-                              return field ? renderField(field, section.id) : null;
-                            })
-                          )}
-                          {provided.placeholder}
-                        </div>
-                      )}
+                     {(provided, snapshot) => (
+                       <div
+                         {...provided.droppableProps}
+                         ref={provided.innerRef}
+                         className={`min-h-[100px] p-4 border-2 border-dashed rounded-lg space-y-2 transition-colors ${
+                           snapshot.isDraggingOver 
+                             ? 'border-primary bg-primary/5' 
+                             : 'border-muted-foreground/25'
+                         }`}
+                       >
+                         {section.field_ids.length === 0 ? (
+                           <div className="text-center text-muted-foreground py-8">
+                             Drag fields here from the library
+                           </div>
+                         ) : (
+                           section.field_ids.map((fieldId, index) => {
+                             const field = getFieldById(fieldId);
+                             return field ? (
+                               <Draggable key={fieldId} draggableId={fieldId} index={index}>
+                                 {(provided, snapshot) => (
+                                   <div
+                                     ref={provided.innerRef}
+                                     {...provided.draggableProps}
+                                     {...provided.dragHandleProps}
+                                     className={`flex items-center justify-between p-3 bg-card rounded-lg border ${
+                                       snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-sm'
+                                     }`}
+                                   >
+                                     <div className="flex items-center gap-2">
+                                       <Grip className="h-4 w-4 text-muted-foreground" />
+                                       <div className="flex-1">
+                                         <div className="font-medium">{field.name}</div>
+                                         <div className="text-sm text-muted-foreground">
+                                           {field.field_type} {field.has_pricing && `• £${field.default_price_gbp || 0}`}
+                                         </div>
+                                       </div>
+                                     </div>
+                                     <Button
+                                       variant="ghost"
+                                       size="sm"
+                                       onClick={() => removeFieldFromSection(field.id, section.id)}
+                                     >
+                                       <Trash2 className="h-4 w-4" />
+                                     </Button>
+                                   </div>
+                                 )}
+                               </Draggable>
+                             ) : null;
+                           })
+                         )}
+                         {provided.placeholder}
+                       </div>
+                     )}
                     </Droppable>
                   </CardContent>
                 </Card>
