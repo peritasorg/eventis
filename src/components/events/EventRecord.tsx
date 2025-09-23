@@ -837,7 +837,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
     <div className="w-full space-y-8">
       {/* Header with Date Information */}
       <div className="bg-gradient-to-r from-card via-card to-muted/5 rounded-2xl border shadow-sm p-4 space-y-4">
-        {/* Current Event Date Display */}
+        {/* Current Event Date Display and Action Buttons */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
@@ -862,6 +862,123 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
               </div>
             </div>
           </div>
+          
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            {lastSaved && (
+              <Badge variant="secondary" className="text-xs">
+                Last saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
+              </Badge>
+            )}
+            {isDirty && (
+              <Badge variant="outline" className="text-xs text-amber-600">
+                Unsaved changes
+              </Badge>
+            )}
+            
+            <FormSaveButton
+              hasUnsavedChanges={isDirty}
+              onSave={handleManualSave}
+              isLoading={saveEventMutation.isPending || isFormSyncing}
+            />
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowPreview(true)}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Preview Quote/Invoice
+            </Button>
+        
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={showCalendarSyncPreview}
+              disabled={isSyncing || eventData.status === 'cancelled'}
+            >
+              <CalendarSyncIcon className="h-4 w-4 mr-2" />
+              {isSyncing ? 'Syncing...' : 'Sync to Calendar'}
+            </Button>
+
+            {/* Cancel/Uncancel Button */}
+            {eventData.status === 'cancelled' ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">
+                    Reactivate Event
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reactivate Event</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to reactivate this event? It will appear in the calendar view again and can be synced to your calendar.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => uncancelEventMutation.mutate({})}>
+                      Reactivate Event
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-amber-600 border-amber-600 hover:bg-amber-50">
+                    Cancel Event
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel Event</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to cancel this event? This will remove it from your calendar view and delete it from Google Calendar. You can reactivate it later if needed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancelEventMutation.mutate({})}>
+                      Cancel Event
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Event
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this event? This action cannot be undone and will remove all associated data including forms, payments, and communications.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => deleteEventMutation.mutate({})}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
+            <Button variant="ghost" size="sm" onClick={() => secureNavigate('/events')}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Date Change Warning */}
@@ -884,122 +1001,6 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3">
-          {lastSaved && (
-            <Badge variant="secondary" className="text-xs">
-              Last saved {Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000)}s ago
-            </Badge>
-          )}
-          {isDirty && (
-            <Badge variant="outline" className="text-xs text-amber-600">
-              Unsaved changes
-            </Badge>
-          )}
-          
-          <FormSaveButton
-            hasUnsavedChanges={isDirty}
-            onSave={handleManualSave}
-            isLoading={saveEventMutation.isPending || isFormSyncing}
-          />
-          
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setShowPreview(true)}
-            className="flex items-center gap-2"
-          >
-            <FileText className="h-4 w-4" />
-            Preview Quote/Invoice
-          </Button>
-      
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={showCalendarSyncPreview}
-            disabled={isSyncing || eventData.status === 'cancelled'}
-          >
-            <CalendarSyncIcon className="h-4 w-4 mr-2" />
-            {isSyncing ? 'Syncing...' : 'Sync to Calendar'}
-          </Button>
-
-          {/* Cancel/Uncancel Button */}
-          {eventData.status === 'cancelled' ? (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">
-                  Reactivate Event
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Reactivate Event</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to reactivate this event? It will appear in the calendar view again and can be synced to your calendar.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => uncancelEventMutation.mutate({})}>
-                    Reactivate Event
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          ) : (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-amber-600 border-amber-600 hover:bg-amber-50">
-                  Cancel Event
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Cancel Event</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to cancel this event? This will remove it from your calendar view and delete it from Google Calendar. You can reactivate it later if needed.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => cancelEventMutation.mutate({})}>
-                    Cancel Event
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Event
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Event</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete this event? This action cannot be undone and will remove all associated data including forms, payments, and communications.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={() => deleteEventMutation.mutate({})}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          
-          <Button variant="ghost" size="sm" onClick={() => secureNavigate('/events')}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
