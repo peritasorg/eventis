@@ -1012,9 +1012,10 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Column 1 - General Information */}
-        <div className="xl:col-span-1">
+      {/* Top Row - General Information and Financial Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* General Information */}
+        <div className="lg:col-span-1">
           <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl h-fit">
             <CardHeader className="pb-6">
               <CardTitle className="flex items-center gap-3 text-xl">
@@ -1237,111 +1238,8 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           </Card>
         </div>
 
-        {/* Column 2 - Contact Information */}
-        <div className="xl:col-span-1">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl h-fit">
-            <CardHeader className="pb-6">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <Phone className="h-5 w-5 text-blue-600" />
-                </div>
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="primary_contact_name">Primary Contact</Label>
-                  <Input
-                    id="primary_contact_name"
-                    value={eventData.primary_contact_name || ''}
-                    onChange={(e) => handleFieldChange('primary_contact_name', e.target.value || null)}
-                    placeholder="Primary contact name"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="primary_contact_number">Primary Number</Label>
-                  <Input
-                    id="primary_contact_number"
-                    value={eventData.primary_contact_number || ''}
-                    onChange={(e) => handleFieldChange('primary_contact_number', e.target.value || null)}
-                    placeholder="Primary contact number"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="secondary_contact_name">Secondary Contact</Label>
-                  <Input
-                    id="secondary_contact_name"
-                    value={eventData.secondary_contact_name || ''}
-                    onChange={(e) => handleFieldChange('secondary_contact_name', e.target.value || null)}
-                    placeholder="Secondary contact name"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="secondary_contact_number">Secondary Number</Label>
-                  <Input
-                    id="secondary_contact_number"
-                    value={eventData.secondary_contact_number || ''}
-                    onChange={(e) => handleFieldChange('secondary_contact_number', e.target.value || null)}
-                    placeholder="Secondary contact number"
-                  />
-                </div>
-              </div>
-
-              {/* Guest Count Section - moved here to match Financial Summary height */}
-              {!hasMultipleForms && (
-                <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-50/20 to-purple-100/10 dark:from-purple-950/20 dark:to-purple-900/10 rounded-xl mt-6">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Users className="h-5 w-5 text-purple-600" />
-                      Guest Count
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="men_count">Men Count</Label>
-                        <Input
-                          id="men_count"
-                          type="number"
-                          min="0"
-                          value={eventData.men_count || 0}
-                          onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="ladies_count">Ladies Count</Label>
-                        <Input
-                          id="ladies_count"
-                          type="number"
-                          min="0"
-                          value={eventData.ladies_count || 0}
-                          onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Total Guests</Label>
-                        <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                          {totalGuests}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Column 3 - Financial Summary */}
-        <div className="xl:col-span-1">
+        {/* Financial Summary */}
+        <div className="lg:col-span-1">
           <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-emerald-50/10 rounded-2xl h-fit">
             <CardHeader className="pb-6">
               <CardTitle className="flex items-center gap-3 text-xl">
@@ -1490,6 +1388,111 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                   <span>{formatCurrency(totalEventValue)}</span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Bottom Row - Contact Information (Half Width) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="lg:col-span-1">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl h-fit">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Phone className="h-5 w-5 text-blue-600" />
+                </div>
+                Contact Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="primary_contact_name">Primary Contact</Label>
+                  <Input
+                    id="primary_contact_name"
+                    value={eventData.primary_contact_name || ''}
+                    onChange={(e) => handleFieldChange('primary_contact_name', e.target.value || null)}
+                    placeholder="Primary contact name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="primary_contact_number">Primary Number</Label>
+                  <Input
+                    id="primary_contact_number"
+                    value={eventData.primary_contact_number || ''}
+                    onChange={(e) => handleFieldChange('primary_contact_number', e.target.value || null)}
+                    placeholder="Primary contact number"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="secondary_contact_name">Secondary Contact</Label>
+                  <Input
+                    id="secondary_contact_name"
+                    value={eventData.secondary_contact_name || ''}
+                    onChange={(e) => handleFieldChange('secondary_contact_name', e.target.value || null)}
+                    placeholder="Secondary contact name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="secondary_contact_number">Secondary Number</Label>
+                  <Input
+                    id="secondary_contact_number"
+                    value={eventData.secondary_contact_number || ''}
+                    onChange={(e) => handleFieldChange('secondary_contact_number', e.target.value || null)}
+                    placeholder="Secondary contact number"
+                  />
+                </div>
+              </div>
+
+              {/* Guest Count Section - moved here to match Financial Summary height */}
+              {!hasMultipleForms && (
+                <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-50/20 to-purple-100/10 dark:from-purple-950/20 dark:to-purple-900/10 rounded-xl mt-6">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Users className="h-5 w-5 text-purple-600" />
+                      Guest Count
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="men_count">Men Count</Label>
+                        <Input
+                          id="men_count"
+                          type="number"
+                          min="0"
+                          value={eventData.men_count || 0}
+                          onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0)}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="ladies_count">Ladies Count</Label>
+                        <Input
+                          id="ladies_count"
+                          type="number"
+                          min="0"
+                          value={eventData.ladies_count || 0}
+                          onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Total Guests</Label>
+                        <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
+                          {totalGuests}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
         </div>
