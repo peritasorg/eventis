@@ -1012,11 +1012,11 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         </div>
       </div>
 
-      {/* Top Row - General Information and Financial Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* General Information */}
-        <div className="lg:col-span-1">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl h-fit">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Left Column - General & Contact */}
+        <div className="xl:col-span-2 space-y-8">
+          {/* General Section */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl">
             <CardHeader className="pb-6">
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -1026,7 +1026,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">Title *</Label>
                   <Input
@@ -1098,7 +1098,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <TimeDisplay 
                   eventData={eventData}
                   eventForms={eventForms}
@@ -1134,7 +1134,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Customer *</Label>
                   <div className="relative">
@@ -1236,11 +1236,115 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
               </div>
             </CardContent>
           </Card>
+
+          {/* Contact Section */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Phone className="h-5 w-5 text-blue-600" />
+                </div>
+                Contact Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="primary_contact_name">Primary Contact</Label>
+                  <Input
+                    id="primary_contact_name"
+                    value={eventData.primary_contact_name || ''}
+                    onChange={(e) => handleFieldChange('primary_contact_name', e.target.value || null)}
+                    placeholder="Primary contact name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="primary_contact_number">Primary Number</Label>
+                  <Input
+                    id="primary_contact_number"
+                    value={eventData.primary_contact_number || ''}
+                    onChange={(e) => handleFieldChange('primary_contact_number', e.target.value || null)}
+                    placeholder="Primary contact number"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="secondary_contact_name">Secondary Contact</Label>
+                  <Input
+                    id="secondary_contact_name"
+                    value={eventData.secondary_contact_name || ''}
+                    onChange={(e) => handleFieldChange('secondary_contact_name', e.target.value || null)}
+                    placeholder="Secondary contact name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="secondary_contact_number">Secondary Number</Label>
+                  <Input
+                    id="secondary_contact_number"
+                    value={eventData.secondary_contact_number || ''}
+                    onChange={(e) => handleFieldChange('secondary_contact_number', e.target.value || null)}
+                    placeholder="Secondary contact number"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Financial Summary */}
-        <div className="lg:col-span-1">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-emerald-50/10 rounded-2xl h-fit">
+        {/* Right Column - Finances & Timelines */}
+        <div className="space-y-8">
+          {/* Guests Section - only show if there are NO forms (prevent double-counting) */}
+          {!hasMultipleForms && (
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-purple-50/10 rounded-2xl">
+              <CardHeader className="pb-6">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-purple-600" />
+                  </div>
+                  Guest Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="men_count">Men Count</Label>
+                    <Input
+                      id="men_count"
+                      type="number"
+                      min="0"
+                      value={eventData.men_count || 0}
+                      onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="ladies_count">Ladies Count</Label>
+                    <Input
+                      id="ladies_count"
+                      type="number"
+                      min="0"
+                      value={eventData.ladies_count || 0}
+                      onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Total Guests</Label>
+                    <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
+                      {totalGuests}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Finances Section */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-emerald-50/10 rounded-2xl">
             <CardHeader className="pb-6">
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
@@ -1250,7 +1354,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Only show event-level guest pricing when there are NO forms */}
                 {!hasMultipleForms && (
                   <div className="space-y-2">
@@ -1281,7 +1385,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="refundable_deposit_gbp">
                     Refundable Deposit
@@ -1321,7 +1425,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Total Deposits</Label>
                   <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
@@ -1390,111 +1494,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
 
-      {/* Bottom Row - Contact Information (Half Width) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div className="lg:col-span-1">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl h-fit">
-            <CardHeader className="pb-6">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <Phone className="h-5 w-5 text-blue-600" />
-                </div>
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="primary_contact_name">Primary Contact</Label>
-                  <Input
-                    id="primary_contact_name"
-                    value={eventData.primary_contact_name || ''}
-                    onChange={(e) => handleFieldChange('primary_contact_name', e.target.value || null)}
-                    placeholder="Primary contact name"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="primary_contact_number">Primary Number</Label>
-                  <Input
-                    id="primary_contact_number"
-                    value={eventData.primary_contact_number || ''}
-                    onChange={(e) => handleFieldChange('primary_contact_number', e.target.value || null)}
-                    placeholder="Primary contact number"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="secondary_contact_name">Secondary Contact</Label>
-                  <Input
-                    id="secondary_contact_name"
-                    value={eventData.secondary_contact_name || ''}
-                    onChange={(e) => handleFieldChange('secondary_contact_name', e.target.value || null)}
-                    placeholder="Secondary contact name"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="secondary_contact_number">Secondary Number</Label>
-                  <Input
-                    id="secondary_contact_number"
-                    value={eventData.secondary_contact_number || ''}
-                    onChange={(e) => handleFieldChange('secondary_contact_number', e.target.value || null)}
-                    placeholder="Secondary contact number"
-                  />
-                </div>
-              </div>
-
-              {/* Guest Count Section - moved here to match Financial Summary height */}
-              {!hasMultipleForms && (
-                <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-50/20 to-purple-100/10 dark:from-purple-950/20 dark:to-purple-900/10 rounded-xl mt-6">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Users className="h-5 w-5 text-purple-600" />
-                      Guest Count
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="men_count">Men Count</Label>
-                        <Input
-                          id="men_count"
-                          type="number"
-                          min="0"
-                          value={eventData.men_count || 0}
-                          onChange={(e) => handleFieldChange('men_count', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="ladies_count">Ladies Count</Label>
-                        <Input
-                          id="ladies_count"
-                          type="number"
-                          min="0"
-                          value={eventData.ladies_count || 0}
-                          onChange={(e) => handleFieldChange('ladies_count', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Total Guests</Label>
-                        <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                          {totalGuests}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
 
