@@ -259,9 +259,11 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     Object.entries(responses).forEach(([fieldId, response]) => {
       if (response.enabled === true && response.price) {
         const price = Number(response.price) || 0;
+        const quantity = Number(response.quantity) || 1;
         if (price > 0) {
-          console.log('Adding field price:', fieldId, price);
-          total += price;
+          const fieldTotal = price * quantity;
+          console.log('Adding field price:', fieldId, 'price:', price, 'quantity:', quantity, 'total:', fieldTotal);
+          total += fieldTotal;
         }
       }
     });
