@@ -76,47 +76,47 @@ export const NewEventDetailWithTabs: React.FC = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to Events
           </Button>
-          
-          <div className="flex justify-center flex-1 max-w-2xl mx-8">
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className={`inline-flex h-12 items-center justify-center rounded-xl bg-muted/50 backdrop-blur-sm p-1 text-muted-foreground shadow-sm border ${eventForms?.length > 0 ? `grid-cols-${Math.min(eventForms.length + 1, 4)}` : 'grid-cols-2'}`}>
-                <TabsTrigger value="overview" className="px-6 py-2 rounded-lg">Overview</TabsTrigger>
-                {eventForms?.length === 0 && <TabsTrigger value="forms" className="px-6 py-2 rounded-lg">Forms</TabsTrigger>}
-                {eventForms?.map((eventForm) => (
-                  <TabsTrigger key={eventForm.id} value={eventForm.id} className="px-6 py-2 rounded-lg">
-                    {eventForm.form_label || eventForm.forms?.name || `Form ${eventForm.form_order}`}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              
-              <TabsContent value="overview" className="mt-8">
-                <EventRecord 
-                  onUnsavedChanges={setHasOverviewChanges}
-                  onSave={eventRecordSaveRef}
-                />
-              </TabsContent>
-              
-              {eventForms?.length === 0 && (
-                <TabsContent value="forms" className="mt-8">
-                  <EventFormTab 
-                    eventId={eventId} 
-                    onUnsavedChanges={setHasFormChanges}
-                  />
-                </TabsContent>
-              )}
-              
-              {eventForms?.map((eventForm) => (
-                <TabsContent key={eventForm.id} value={eventForm.id} className="mt-8">
-                  <EventFormTab 
-                    eventId={eventId} 
-                    eventFormId={eventForm.id}
-                    onUnsavedChanges={setHasFormChanges}
-                  />
-                </TabsContent>
-              ))}
-            </Tabs>
-          </div>
         </div>
+
+        <Tabs defaultValue="overview" className="space-y-8">
+          <div className="flex justify-center">
+            <TabsList className={`inline-flex h-12 items-center justify-center rounded-xl bg-muted/50 backdrop-blur-sm p-1 text-muted-foreground shadow-sm border ${eventForms?.length > 0 ? `grid-cols-${Math.min(eventForms.length + 1, 4)}` : 'grid-cols-2'}`}>
+              <TabsTrigger value="overview" className="px-6 py-2 rounded-lg">Overview</TabsTrigger>
+              {eventForms?.length === 0 && <TabsTrigger value="forms" className="px-6 py-2 rounded-lg">Forms</TabsTrigger>}
+              {eventForms?.map((eventForm) => (
+                <TabsTrigger key={eventForm.id} value={eventForm.id} className="px-6 py-2 rounded-lg">
+                  {eventForm.form_label || eventForm.forms?.name || `Form ${eventForm.form_order}`}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        
+          <TabsContent value="overview" className="mt-8">
+            <EventRecord 
+              onUnsavedChanges={setHasOverviewChanges}
+              onSave={eventRecordSaveRef}
+            />
+          </TabsContent>
+          
+          {eventForms?.length === 0 && (
+            <TabsContent value="forms" className="mt-8">
+              <EventFormTab 
+                eventId={eventId} 
+                onUnsavedChanges={setHasFormChanges}
+              />
+            </TabsContent>
+          )}
+          
+          {eventForms?.map((eventForm) => (
+            <TabsContent key={eventForm.id} value={eventForm.id} className="mt-8">
+              <EventFormTab 
+                eventId={eventId} 
+                eventFormId={eventForm.id}
+                onUnsavedChanges={setHasFormChanges}
+              />
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
 
       <SaveConfirmationDialog
