@@ -259,6 +259,195 @@ export const OptimizedFieldRenderer: React.FC<OptimizedFieldRendererProps> = ({
           </div>
         );
 
+      case 'fixed_price_notes':
+        return (
+          <>
+            <div>
+              <Label className="text-sm font-medium">{field.name}</Label>
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+              )}
+              <div className="mt-2">
+                <Label className="text-xs text-muted-foreground">Price</Label>
+                <div className="flex items-center">
+                  <span className="text-xs mr-1">£</span>
+                  <PriceInput
+                    value={localValue.price}
+                    onChange={(value) => handleImmediateUpdate({ price: value })}
+                    placeholder="0.00"
+                    disabled={readOnly}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+            {field.has_notes && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
+                <Textarea
+                  value={localValue.notes}
+                  onChange={(e) => handleLocalChange('notes', e.target.value)}
+                  onBlur={() => handleBlur('notes')}
+                  placeholder={field.placeholder_text || 'Additional requirements...'}
+                  rows={2}
+                  disabled={readOnly}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </>
+        );
+
+      case 'fixed_price_quantity_notes':
+        return (
+          <>
+            <div>
+              <Label className="text-sm font-medium">{field.name}</Label>
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+              )}
+              <div className="grid grid-cols-2 gap-2 items-end mt-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Quantity</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={localValue.quantity}
+                    onChange={(e) => handleImmediateUpdate({ quantity: parseInt(e.target.value) || 1 })}
+                    placeholder="1"
+                    disabled={readOnly}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Unit Price</Label>
+                  <div className="flex items-center">
+                    <span className="text-xs mr-1">£</span>
+                    <PriceInput
+                      value={localValue.price}
+                      onChange={(value) => handleImmediateUpdate({ price: value })}
+                      placeholder="0.00"
+                      disabled={readOnly}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            {field.has_notes && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
+                <Input
+                  value={localValue.notes}
+                  onChange={(e) => handleLocalChange('notes', e.target.value)}
+                  onBlur={() => handleBlur('notes')}
+                  placeholder={field.placeholder_text || 'Additional requirements...'}
+                  disabled={readOnly}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </>
+        );
+
+      case 'per_person_price_notes':
+        const totalPrice = calculatePrice;
+        return (
+          <>
+            <div>
+              <Label className="text-sm font-medium">{field.name}</Label>
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+              )}
+              <div className="grid grid-cols-3 gap-2 items-end mt-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Quantity</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={localValue.quantity || ''}
+                    onChange={(e) => handleImmediateUpdate({ quantity: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    disabled={readOnly}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Unit Price</Label>
+                  <div className="flex items-center">
+                    <span className="text-xs mr-1">£</span>
+                    <PriceInput
+                      value={localValue.price}
+                      onChange={(value) => handleImmediateUpdate({ price: value })}
+                      placeholder="0.00"
+                      disabled={readOnly}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Total</Label>
+                  <div className="px-3 py-2 bg-muted rounded-md text-sm font-medium">
+                    £{totalPrice.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {field.has_notes && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
+                <Textarea
+                  value={localValue.notes}
+                  onChange={(e) => handleLocalChange('notes', e.target.value)}
+                  onBlur={() => handleBlur('notes')}
+                  placeholder={field.placeholder_text || 'Special requirements...'}
+                  rows={2}
+                  disabled={readOnly}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </>
+        );
+
+      case 'counter_notes':
+        return (
+          <>
+            <div>
+              <Label className="text-sm font-medium">{field.name}</Label>
+              {field.help_text && (
+                <p className="text-xs text-muted-foreground mt-1">{field.help_text}</p>
+              )}
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  type="number"
+                  min="0"
+                  value={localValue.value || ''}
+                  onChange={(e) => handleImmediateUpdate({ value: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
+                  disabled={readOnly}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">items</span>
+              </div>
+            </div>
+            {field.has_notes && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
+                <Textarea
+                  value={localValue.notes}
+                  onChange={(e) => handleLocalChange('notes', e.target.value)}
+                  onBlur={() => handleBlur('notes')}
+                  placeholder={field.placeholder_text || 'Additional notes...'}
+                  rows={2}
+                  disabled={readOnly}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </>
+        );
+
       case 'dropdown_options':
       case 'dropdown_options_price_notes':
         return (
