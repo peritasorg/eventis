@@ -67,19 +67,16 @@ export const NewEventDetailWithTabs: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-        <div className="flex items-center justify-between">
-          <Button 
-            variant="ghost" 
-            onClick={handleBackToEvents}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Events
-          </Button>
-        </div>
-
         <Tabs defaultValue="overview" className="space-y-8">
-          <div className="flex justify-center">
+          <div className="flex items-center justify-between">
+            <Button 
+              variant="ghost" 
+              onClick={handleBackToEvents}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors h-12"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Events
+            </Button>
             <TabsList className={`inline-flex h-12 items-center justify-center rounded-xl bg-muted/50 backdrop-blur-sm p-1 text-muted-foreground shadow-sm border ${eventForms?.length > 0 ? `grid-cols-${Math.min(eventForms.length + 1, 4)}` : 'grid-cols-2'}`}>
               <TabsTrigger value="overview" className="px-6 py-2 rounded-lg">Overview</TabsTrigger>
               {eventForms?.length === 0 && <TabsTrigger value="forms" className="px-6 py-2 rounded-lg">Forms</TabsTrigger>}
