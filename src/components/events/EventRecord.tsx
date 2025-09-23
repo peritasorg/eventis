@@ -844,25 +844,21 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <CalendarIcon className="h-6 w-6 text-primary" />
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl font-semibold text-foreground">Event Date:</span>
-                  <Badge variant="secondary" className="text-base px-4 py-1 rounded-full">
-                    {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xl font-semibold text-foreground">Event Date:</span>
+                <Badge variant="secondary" className="text-base px-4 py-1 rounded-full">
+                  {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
+                </Badge>
+                {eventData.event_date && daysLeft !== null && (
+                  <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm px-3 py-1 rounded-full">
+                    {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
                   </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  {eventData.event_date && daysLeft !== null && (
-                    <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm px-3 py-1 rounded-full">
-                      {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
-                    </Badge>
-                  )}
-                  {eventData.status === 'cancelled' && (
-                    <Badge variant="destructive" className="text-sm px-3 py-1 rounded-full">
-                      CANCELLED
-                    </Badge>
-                  )}
-                </div>
+                )}
+                {eventData.status === 'cancelled' && (
+                  <Badge variant="destructive" className="text-sm px-3 py-1 rounded-full">
+                    CANCELLED
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
