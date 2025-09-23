@@ -836,7 +836,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   return (
     <div className="w-full space-y-8">
       {/* Header with Date Information */}
-      <div className="bg-gradient-to-r from-card via-card to-muted/5 rounded-2xl border shadow-sm p-8 space-y-6">
+      <div className="bg-gradient-to-r from-card via-card to-muted/5 rounded-2xl border shadow-sm p-4 space-y-4">
         {/* Current Event Date Display */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-6">
