@@ -449,31 +449,32 @@ export const FieldEdit = () => {
           <CardContent>
             {showPreview && formData.name && (
               <div className="space-y-4">
-                <div className="p-4 border rounded-lg bg-muted/50">
-                  <div className="space-y-2">
-                    <Label>{formData.name}</Label>
-                    <div className="p-3 border rounded bg-white min-h-[40px] flex items-center">
-                      <span className="text-muted-foreground">
-                        {formData.placeholder_text || `${formData.field_type} field preview`}
-                      </span>
-                    </div>
-                    {formData.help_text && (
-                      <p className="text-sm text-muted-foreground">{formData.help_text}</p>
-                    )}
-                    {formData.has_pricing && (
-                      <div><strong>Default Price:</strong> £{(formData.default_price_gbp || 0).toFixed(2)}</div>
-                    )}
-                  </div>
+                <div className="text-sm text-muted-foreground mb-4">
+                  This preview shows exactly how this field will appear in event forms.
                 </div>
                 
-                <div className="text-sm text-muted-foreground space-y-2">
+                <UnifiedFieldRenderer
+                  field={formData as FormField}
+                  response={{
+                    value: formData.field_type === 'counter_notes' ? 0 : '',
+                    quantity: formData.field_type === 'per_person_price_notes' ? 0 : 1,
+                    price: formData.default_price_gbp || 0,
+                    notes: '',
+                    enabled: formData.field_type?.includes('toggle') ? false : true,
+                    selectedOption: ''
+                  }}
+                  onChange={() => {}} // Read-only preview
+                  readOnly={false} // Allow interaction in preview
+                  showInCard={true}
+                />
+                
+                <div className="text-sm text-muted-foreground space-y-2 pt-4 border-t">
                   <div><strong>Type:</strong> {fieldTypeOptions.find(opt => opt.value === formData.field_type)?.label}</div>
-                  {isPricingField && !isDropdownField && (
-                    <div><strong>Unit Price:</strong> £{(formData.default_price_gbp || 0).toFixed(2)}</div>
-                  )}
                   {isDropdownField && (
                     <div><strong>Options:</strong> {formData.dropdown_options?.length || 0} configured</div>
                   )}
+                  <div><strong>Appears on Quotes:</strong> {formData.appears_on_quote ? 'Yes' : 'No'}</div>
+                  <div><strong>Appears on Invoices:</strong> {formData.appears_on_invoice ? 'Yes' : 'No'}</div>
                 </div>
               </div>
             )}

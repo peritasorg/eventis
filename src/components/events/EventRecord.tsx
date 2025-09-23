@@ -1453,28 +1453,30 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                         // Find matching eventForm for guest data
                         const eventForm = eventForms?.find(ef => ef.id === formTotal.id);
                         
-                        return (
-                          <div key={formTotal.id} className="bg-muted/50 rounded-lg p-4 space-y-2">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-3">
-                                <span className="font-medium">{formTotal.form_label}</span>
-                                {eventForm?.guest_count && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {eventForm.guest_count} guests
-                                  </Badge>
-                                )}
-                              </div>
-                              <span className="font-semibold text-lg">
-                                {formatCurrency(formTotal.form_total)}
-                              </span>
-                            </div>
-                            {eventForm?.guest_price_total && eventForm.guest_price_total > 0 && (
-                              <div className="text-sm text-muted-foreground pl-1">
-                                Guest pricing: {formatCurrency(eventForm.guest_price_total)}
-                              </div>
-                            )}
-                          </div>
-                        );
+                         return (
+                           <div key={formTotal.id} className="bg-muted/50 rounded-lg p-4 space-y-2">
+                             <div className="flex justify-between items-center">
+                               <div className="flex flex-col gap-1">
+                                 <span className="font-medium">
+                                   {eventForm?.form_label || formTotal.form_label || 'Form'}
+                                 </span>
+                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                   {eventForm?.guest_count && eventForm.guest_count > 0 ? (
+                                     <span>{eventForm.guest_count} guests</span>
+                                   ) : (
+                                     <span>No guests specified</span>
+                                   )}
+                                   {eventForm?.men_count && eventForm.ladies_count && (
+                                     <span>({eventForm.men_count} men, {eventForm.ladies_count} ladies)</span>
+                                   )}
+                                 </div>
+                               </div>
+                               <span className="font-semibold text-lg">
+                                 {formatCurrency(Number(formTotal.form_total) || 0)}
+                               </span>
+                             </div>
+                           </div>
+                         );
                       })}
                     </div>
                   </div>

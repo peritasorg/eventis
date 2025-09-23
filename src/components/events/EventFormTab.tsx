@@ -255,14 +255,19 @@ export const EventFormTab: React.FC<EventFormTabProps> = ({ eventId, eventFormId
     
     console.log('Calculating total for form:', eventForm.form_label, 'Responses:', responses);
     
-    // Add form field prices (only when enabled and has price)
+    // Add form field prices - handle all field types properly
     Object.entries(responses).forEach(([fieldId, response]) => {
-      if (response.enabled === true && response.price) {
-        const price = Number(response.price) || 0;
-        if (price > 0) {
-          console.log('Adding field price:', fieldId, price);
-          total += price;
-        }
+      const price = Number(response.price) || 0;
+      const quantity = Number(response.quantity) || 1;
+      
+      // Check if field is enabled (for toggle fields) or if it has valid data
+      const isEnabled = response.enabled !== false; // Default to enabled if not specified
+      const hasValue = response.value || response.selectedOption || price > 0;
+      
+      if (isEnabled && hasValue && price > 0) {
+        const fieldTotal = price * quantity;
+        console.log('Adding field total:', fieldId, 'price:', price, 'quantity:', quantity, 'total:', fieldTotal);
+        total += fieldTotal;
       }
     });
     

@@ -42,11 +42,10 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // Actual Stripe Price IDs from production dashboard
+    // Updated Stripe Price IDs for Eventis plans
     const tierPriceIds = {
-      'Professional': 'price_1RdTvuDjPYkyTVvULZ9k6ZP5',
-      'Business': 'price_1RdTwvDjPYkyTVvULDFYVMYf', 
-      'BAH Plan': 'price_1Rv1S7DjPYkyTVvUiuAxCGxd'
+      'Eventis Pro': 'price_1SAVRKS03j3gIR6R9nVJ4Gpv',
+      'Eventis Business': 'price_1SAVRwS03j3gIR6Rsl1S1f28'
     };
 
     const priceId = tierPriceIds[tier as keyof typeof tierPriceIds];
