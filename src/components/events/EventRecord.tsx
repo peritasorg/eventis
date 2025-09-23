@@ -1353,143 +1353,156 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                 Financial Summary
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Only show event-level guest pricing when there are NO forms */}
-                {!hasMultipleForms && (
-                  <div className="space-y-2">
-                    <Label htmlFor="total_guest_price_gbp">Total Guest Price</Label>
+            <CardContent className="space-y-6 h-full flex flex-col">
+              {/* Pricing Section */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Only show event-level guest pricing when there are NO forms */}
+                  {!hasMultipleForms && (
+                    <div className="space-y-3">
+                      <Label htmlFor="total_guest_price_gbp" className="text-base font-medium">Total Guest Price</Label>
+                      <PriceInput
+                        value={eventData.total_guest_price_gbp || 0}
+                        onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
+                        placeholder="0.00"
+                        className="h-12"
+                      />
+                    </div>
+                  )}
+                  
+                  {hasMultipleForms && (
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Event-Level Guest Price</Label>
+                      <div className="h-12 flex items-center px-4 bg-muted rounded-md text-sm text-muted-foreground">
+                        Hidden - Using form-level pricing instead
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">Live Form Total</Label>
+                    <div className="h-12 flex items-center px-4 bg-muted rounded-md text-base font-medium">
+                      {formatCurrency(liveFormTotal)}
+                      {formTotalsLoading && <span className="ml-3 text-sm text-muted-foreground">Loading...</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="refundable_deposit_gbp" className="text-base font-medium">
+                      Refundable Deposit
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className="ml-2 text-sm text-muted-foreground cursor-help">(?)</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Money held as security, does not reduce remaining balance</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </Label>
                     <PriceInput
-                      value={eventData.total_guest_price_gbp || 0}
-                      onChange={(value) => handleFieldChange('total_guest_price_gbp', value)}
+                      value={eventData.refundable_deposit_gbp || 0}
+                      onChange={(value) => handleFieldChange('refundable_deposit_gbp', value)}
                       placeholder="0.00"
+                      className="h-12"
                     />
                   </div>
-                )}
+                  
+                  <div className="space-y-3">
+                    <Label htmlFor="deductible_deposit_gbp" className="text-base font-medium">
+                      Deductible Deposit
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className="ml-2 text-sm text-muted-foreground cursor-help">(?)</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Payment towards total cost, reduces remaining balance</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </Label>
+                    <PriceInput
+                      value={eventData.deductible_deposit_gbp || 0}
+                      onChange={(value) => handleFieldChange('deductible_deposit_gbp', value)}
+                      placeholder="0.00"
+                      className="h-12"
+                    />
+                  </div>
+                </div>
                 
-                {hasMultipleForms && (
-                  <div className="space-y-2">
-                    <Label>Event-Level Guest Price</Label>
-                    <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm text-muted-foreground">
-                      Hidden (using form-level pricing)
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">Total Deposits</Label>
+                    <div className="h-12 flex items-center px-4 bg-muted rounded-md text-base font-medium">
+                      {formatCurrency(refundableDeposit + deductibleDeposit)}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <EditableBalance
+                      eventId={eventId}
+                      currentBalance={remainingBalanceGbp}
+                      eventTotal={totalEventValue}
+                      onBalanceUpdated={() => {
+                        // Refetch payment data to update the balance
+                        window.location.reload(); // Simple solution for now
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Breakdown Section */}
+              <div className="flex-grow space-y-4 pt-4 border-t">
+                {formTotals && formTotals.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="text-base font-medium text-foreground">Form Breakdown</div>
+                    <div className="space-y-3">
+                      {formTotals.map((formTotal) => {
+                        // Find matching eventForm for guest data
+                        const eventForm = eventForms?.find(ef => ef.id === formTotal.id);
+                        
+                        return (
+                          <div key={formTotal.id} className="bg-muted/50 rounded-lg p-4 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium">{formTotal.form_label}</span>
+                                {eventForm?.guest_count && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {eventForm.guest_count} guests
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="font-semibold text-lg">
+                                {formatCurrency(formTotal.form_total)}
+                              </span>
+                            </div>
+                            {eventForm?.guest_price_total && eventForm.guest_price_total > 0 && (
+                              <div className="text-sm text-muted-foreground pl-1">
+                                Guest pricing: {formatCurrency(eventForm.guest_price_total)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
                 
-                <div className="space-y-2">
-                  <Label>Live Form Total</Label>
-                  <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                    {formatCurrency(liveFormTotal)}
-                    {formTotalsLoading && <span className="ml-2 text-xs text-muted-foreground">Loading...</span>}
+                {/* Summary Section */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex justify-between items-center text-base">
+                    <span>Combined Form Total:</span>
+                    <span className="font-semibold">{formatCurrency(liveFormTotal)}</span>
                   </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="refundable_deposit_gbp">
-                    Refundable Deposit
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="ml-1 text-xs text-muted-foreground cursor-help">(?)</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Money held as security, does not reduce remaining balance</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </Label>
-                  <PriceInput
-                    value={eventData.refundable_deposit_gbp || 0}
-                    onChange={(value) => handleFieldChange('refundable_deposit_gbp', value)}
-                    placeholder="0.00"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="deductible_deposit_gbp">
-                    Deductible Deposit
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="ml-1 text-xs text-muted-foreground cursor-help">(?)</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Payment towards total cost, reduces remaining balance</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </Label>
-                  <PriceInput
-                    value={eventData.deductible_deposit_gbp || 0}
-                    onChange={(value) => handleFieldChange('deductible_deposit_gbp', value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Total Deposits</Label>
-                  <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                    {formatCurrency(refundableDeposit + deductibleDeposit)}
+                  <div className="flex justify-between items-center text-base">
+                    <span>Total Paid:</span>
+                    <span className="font-semibold">{formatCurrency(deductibleDeposit + additionalPayments)}</span>
                   </div>
-                </div>
-                
-                <EditableBalance
-                  eventId={eventId}
-                  currentBalance={remainingBalanceGbp}
-                  eventTotal={totalEventValue}
-                  onBalanceUpdated={() => {
-                    // Refetch payment data to update the balance
-                    window.location.reload(); // Simple solution for now
-                  }}
-                />
-              </div>
-
-              <div className="pt-2 border-t space-y-2">
-                {/* Individual Form Breakdown */}
-                {formTotals && formTotals.length > 0 && (
-                  <div className="space-y-1 pb-2 border-b">
-                    <div className="text-sm font-medium text-muted-foreground mb-2">Form Breakdown:</div>
-                    {formTotals.map((formTotal) => {
-                      // Find matching eventForm for guest data
-                      const eventForm = eventForms?.find(ef => ef.id === formTotal.id);
-                      
-                      return (
-                        <div key={formTotal.id} className="flex justify-between items-center text-sm">
-                          <span className="flex items-center gap-2">
-                            {formTotal.form_label}
-                            {eventForm?.guest_count && (
-                              <Badge variant="secondary" className="text-xs">
-                                {eventForm.guest_count} guests
-                              </Badge>
-                            )}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {eventForm?.guest_price_total && eventForm.guest_price_total > 0 && (
-                              <span className="text-xs text-muted-foreground">
-                                Guest: {formatCurrency(eventForm.guest_price_total)}
-                              </span>
-                            )}
-                            <span className="font-medium">
-                              Form: {formatCurrency(formTotal.form_total)}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="flex justify-between items-center text-xl font-bold border-t pt-3 mt-4">
+                    <span>Event Total:</span>
+                    <span>{formatCurrency(totalEventValue)}</span>
                   </div>
-                )}
-                
-                <div className="flex justify-between items-center">
-                  <span>Combined Form Total:</span>
-                  <span className="font-medium">{formatCurrency(liveFormTotal)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Total Paid:</span>
-                  <span className="font-medium">{formatCurrency(deductibleDeposit + additionalPayments)}</span>
-                </div>
-                <div className="flex justify-between items-center text-lg font-semibold border-t pt-2">
-                  <span>Event Total:</span>
-                  <span>{formatCurrency(totalEventValue)}</span>
                 </div>
               </div>
             </CardContent>
