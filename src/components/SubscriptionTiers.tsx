@@ -83,12 +83,12 @@ export const SubscriptionTiers = () => {
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold">Choose Your Plan</h2>
-        <p className="text-gray-600 mt-2">Select the perfect plan for your banquet business</p>
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold">Choose Your Plan</h2>
+        <p className="text-muted-foreground mt-2">Select the perfect plan for your banquet business</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {tiers.map((tier) => (
           <Card key={tier.name} className={`relative ${tier.bgColor} border-0 ${tier.textColor || 'text-black'}`}>
             {tier.popular && (
@@ -172,8 +172,8 @@ export const SubscriptionTiers = () => {
       </div>
 
       {subscriptionData?.subscribed && (
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
+        <div className="text-center mt-8">
+          <p className="text-sm text-muted-foreground">
             Current subscription: <strong>{subscriptionData.subscription_tier}</strong>
             {subscriptionData.subscription_end && (
               <> • Renews on {new Date(subscriptionData.subscription_end).toLocaleDateString()}</>
