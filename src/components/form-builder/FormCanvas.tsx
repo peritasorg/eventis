@@ -119,11 +119,14 @@ export const FormCanvas: React.FC<FormCanvasProps> = ({
                               snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-sm'
                             }`}
                           >
-                            <div {...provided.dragHandleProps} className="text-gray-400 hover:text-gray-600">
+                            <div 
+                              {...provided.dragHandleProps} 
+                              className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded cursor-grab active:cursor-grabbing transition-colors"
+                            >
                               <GripVertical className="h-4 w-4" />
                             </div>
                             <span className="text-lg">{getFieldIcon(field.field_type)}</span>
-                            <div className="flex-1">
+                            <div className="flex-1 pointer-events-none">
                               <div className="font-medium">{field.name}</div>
                               <div className="text-sm text-muted-foreground">
                                 {field.field_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -134,7 +137,7 @@ export const FormCanvas: React.FC<FormCanvasProps> = ({
                               size="sm"
                               variant="ghost"
                               onClick={() => removeFieldFromSection(section.id, fieldId)}
-                              className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0 text-destructive hover:text-destructive pointer-events-auto"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
