@@ -2977,6 +2977,10 @@ export type Database = {
         Args: { email_address: string }
         Returns: boolean
       }
+      encrypt_token: {
+        Args: { plain_token: string }
+        Returns: string
+      }
       get_all_events_for_sync: {
         Args: { p_from_date: string; p_tenant_id: string }
         Returns: {
