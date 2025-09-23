@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEventTypeConfigs, getEventColor } from '@/hooks/useEventTypeConfigs';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const TopBar = () => {
   const { currentTenant } = useAuth();
@@ -103,57 +104,93 @@ export const TopBar = () => {
   }
 
   return (
-    <div className="bg-card border-b border-border px-6 py-2 sticky top-0 z-30">
-      <div className="flex items-center justify-between">
-        {/* Unpaid Events Widget - Hidden on mobile */}
-        {!isMobile && (
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <div className="p-1.5 rounded-md bg-orange-50">
-                <Calendar className="h-4 w-4 text-orange-600" />
+    <TooltipProvider>
+      <div className="bg-card border-b border-border px-6 py-2 sticky top-0 z-30">
+        <div className="flex items-center justify-between">
+          {/* Unpaid Events Widget - Hidden on mobile */}
+          {!isMobile && (
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-1.5 rounded-md bg-orange-50">
+                  <Calendar className="h-4 w-4 text-orange-600" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Unpaid Events</span>
               </div>
-              <span className="text-sm font-medium text-foreground">Unpaid Events</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              {unpaidEvents && unpaidEvents.length > 0 ? (
-                unpaidEvents.map((event) => {
-                  const eventColors = getEventColor(event.event_type, event.event_date, eventTypeConfigs);
-                  const eventDate = new Date(event.event_date);
-                  const isToday = eventDate.toDateString() === new Date().toDateString();
-                  const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
-                  
-                  let dateLabel = eventDate.toLocaleDateString('en-GB', { 
-                    month: 'short', 
-                    day: 'numeric' 
-                  });  
-                  
-                  if (isToday) dateLabel = 'Today';
-                  else if (isTomorrow) dateLabel = 'Tomorrow';
+              <div className="flex items-center space-x-2">
+                {unpaidEvents && unpaidEvents.length > 0 ? (
+                  unpaidEvents.map((event) => {
+                    const eventColors = getEventColor(event.event_type, event.event_date, eventTypeConfigs);
+                    const eventDate = new Date(event.event_date);
+                    const isToday = eventDate.toDateString() === new Date().toDateString();
+                    const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                    
+                    let dateLabel = eventDate.toLocaleDateString('en-GB', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    });  
+                    
+                    if (isToday) dateLabel = 'Today';
+                    else if (isTomorrow) dateLabel = 'Tomorrow';
 
-                  return (
-                    <button
-                      key={event.id}
-                      onClick={() => navigate(`/events/${event.id}`)}
-                      className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all duration-200 shadow-sm border"
-                      style={{
-                        backgroundColor: warningSettings?.warning_color || '#F59E0B',
-                        color: '#FFFFFF',
-                        borderColor: warningSettings?.warning_color ? `${warningSettings.warning_color}40` : '#F59E0B40',
-                      }}
-                    >
-                      <span className="truncate max-w-24">{event.title}</span>
-                      <span className="opacity-60">•</span>
-                      <span>{dateLabel}</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg">No unpaid events</span>
-              )}
+                    // Calculate financial details for tooltip
+                    const subtotal = (event.total_guest_price_gbp || 0) + (event.form_total_gbp || 0);
+                    const depositAmount = event.deposit_amount_gbp || 0;
+                    const remainingBalance = subtotal - depositAmount;
+
+                    return (
+                      <Tooltip key={event.id}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => navigate(`/events/${event.id}`)}
+                            className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all duration-200 shadow-sm border"
+                            style={{
+                              backgroundColor: warningSettings?.warning_color || '#F59E0B',
+                              color: '#FFFFFF',
+                              borderColor: warningSettings?.warning_color ? `${warningSettings.warning_color}40` : '#F59E0B40',
+                            }}
+                          >
+                            <span className="truncate max-w-24">{event.title}</span>
+                            <span className="opacity-60">•</span>
+                            <span>{dateLabel}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-sm p-4 bg-card text-card-foreground border shadow-lg">
+                          <div className="space-y-3">
+                            <div className="font-semibold text-base">{event.title}</div>
+                            
+                            {/* Event Details */}
+                            <div className="text-sm space-y-1">
+                              <div><span className="font-medium text-muted-foreground">Date:</span> {eventDate.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                              {event.event_type && (
+                                <div><span className="font-medium text-muted-foreground">Type:</span> {event.event_type}</div>
+                              )}
+                            </div>
+                            
+                            {/* Financial Information */}
+                            {subtotal > 0 && (
+                              <div className="text-sm space-y-1 border-t pt-2">
+                                <div><span className="font-medium text-muted-foreground">Subtotal:</span> £{subtotal.toFixed(2)}</div>
+                                {depositAmount > 0 && (
+                                  <div><span className="font-medium text-muted-foreground">Deposit:</span> £{depositAmount.toFixed(2)}</div>
+                                )}
+                                <div className="font-medium text-destructive">
+                                  <span className="text-muted-foreground">Outstanding:</span> £{remainingBalance.toFixed(2)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg">No unpaid events</span>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
