@@ -65,55 +65,59 @@ export const NewEventDetailWithTabs: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <Button 
-          variant="ghost" 
-          onClick={handleBackToEvents}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Events
-        </Button>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+        <div className="flex items-center justify-between">
+          <Button 
+            variant="ghost" 
+            onClick={handleBackToEvents}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Events
+          </Button>
+        </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className={`grid w-full ${eventForms?.length > 0 ? `grid-cols-${Math.min(eventForms.length + 1, 4)}` : 'grid-cols-2'}`}>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          {eventForms?.length === 0 && <TabsTrigger value="forms">Forms</TabsTrigger>}
+        <Tabs defaultValue="overview" className="space-y-8">
+          <div className="flex justify-center">
+            <TabsList className={`inline-flex h-12 items-center justify-center rounded-xl bg-muted/50 backdrop-blur-sm p-1 text-muted-foreground shadow-sm border ${eventForms?.length > 0 ? `grid-cols-${Math.min(eventForms.length + 1, 4)}` : 'grid-cols-2'}`}>
+              <TabsTrigger value="overview" className="px-6 py-2 rounded-lg">Overview</TabsTrigger>
+              {eventForms?.length === 0 && <TabsTrigger value="forms" className="px-6 py-2 rounded-lg">Forms</TabsTrigger>}
+              {eventForms?.map((eventForm) => (
+                <TabsTrigger key={eventForm.id} value={eventForm.id} className="px-6 py-2 rounded-lg">
+                  {eventForm.form_label || eventForm.forms?.name || `Form ${eventForm.form_order}`}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        
+          <TabsContent value="overview" className="mt-8">
+            <EventRecord 
+              onUnsavedChanges={setHasOverviewChanges}
+              onSave={eventRecordSaveRef}
+            />
+          </TabsContent>
+          
+          {eventForms?.length === 0 && (
+            <TabsContent value="forms" className="mt-8">
+              <EventFormTab 
+                eventId={eventId} 
+                onUnsavedChanges={setHasFormChanges}
+              />
+            </TabsContent>
+          )}
+          
           {eventForms?.map((eventForm) => (
-            <TabsTrigger key={eventForm.id} value={eventForm.id}>
-              {eventForm.form_label || eventForm.forms?.name || `Form ${eventForm.form_order}`}
-            </TabsTrigger>
+            <TabsContent key={eventForm.id} value={eventForm.id} className="mt-8">
+              <EventFormTab 
+                eventId={eventId} 
+                eventFormId={eventForm.id}
+                onUnsavedChanges={setHasFormChanges}
+              />
+            </TabsContent>
           ))}
-        </TabsList>
-        
-        <TabsContent value="overview">
-          <EventRecord 
-            onUnsavedChanges={setHasOverviewChanges}
-            onSave={eventRecordSaveRef}
-          />
-        </TabsContent>
-        
-        {eventForms?.length === 0 && (
-          <TabsContent value="forms">
-            <EventFormTab 
-              eventId={eventId} 
-              onUnsavedChanges={setHasFormChanges}
-            />
-          </TabsContent>
-        )}
-        
-        {eventForms?.map((eventForm) => (
-          <TabsContent key={eventForm.id} value={eventForm.id}>
-            <EventFormTab 
-              eventId={eventId} 
-              eventFormId={eventForm.id}
-              onUnsavedChanges={setHasFormChanges}
-            />
-          </TabsContent>
-        ))}
-      </Tabs>
+        </Tabs>
+      </div>
 
       <SaveConfirmationDialog
         open={showDialog}

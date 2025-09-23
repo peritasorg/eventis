@@ -834,29 +834,35 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="w-full space-y-8">
       {/* Header with Date Information */}
-      <div className="space-y-4 border-b pb-4">
+      <div className="bg-gradient-to-r from-card via-card to-muted/5 rounded-2xl border shadow-sm p-8 space-y-6">
         {/* Current Event Date Display */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-primary" />
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold">Event Date:</span>
-                <Badge variant="secondary" className="text-base">
-                  {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
-                </Badge>
-                {eventData.event_date && daysLeft !== null && (
-                  <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm">
-                    {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <CalendarIcon className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl font-semibold text-foreground">Event Date:</span>
+                  <Badge variant="secondary" className="text-base px-4 py-1 rounded-full">
+                    {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
                   </Badge>
-                )}
-                {eventData.status === 'cancelled' && (
-                  <Badge variant="destructive" className="text-sm">
-                    CANCELLED
-                  </Badge>
-                )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {eventData.event_date && daysLeft !== null && (
+                    <Badge variant={daysLeft <= 7 ? "destructive" : "outline"} className="text-sm px-3 py-1 rounded-full">
+                      {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Today' : `${Math.abs(daysLeft)} days ago`}
+                    </Badge>
+                  )}
+                  {eventData.status === 'cancelled' && (
+                    <Badge variant="destructive" className="text-sm px-3 py-1 rounded-full">
+                      CANCELLED
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -864,15 +870,19 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
 
         {/* Date Change Warning */}
         {eventData.original_event_date && eventData.date_changed_at && (
-          <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <History className="h-5 w-5 text-yellow-600" />
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-yellow-800 dark:text-yellow-200">Date Changed:</span>
-              <span className="text-yellow-700 dark:text-yellow-300">
-                was {format(new Date(eventData.original_event_date), 'PPP')} → now {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
-              </span>
-              <span className="text-yellow-600 dark:text-yellow-400">
-                on {format(new Date(eventData.date_changed_at), 'PPp')}
+          <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-yellow-50 to-yellow-50/50 dark:from-yellow-900/30 dark:to-yellow-900/10 border border-yellow-200/60 dark:border-yellow-800/60 rounded-xl backdrop-blur-sm">
+            <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/50 flex items-center justify-center">
+              <History className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium text-yellow-800 dark:text-yellow-200">Date Changed:</span>
+                <span className="text-yellow-700 dark:text-yellow-300">
+                  was {format(new Date(eventData.original_event_date), 'PPP')} → now {eventData.event_date ? format(new Date(eventData.event_date), 'PPP') : 'Not set'}
+                </span>
+              </div>
+              <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                Changed on {format(new Date(eventData.date_changed_at), 'PPp')}
               </span>
             </div>
           </div>
@@ -1002,14 +1012,17 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Left Column - General & Contact */}
+        <div className="xl:col-span-2 space-y-8">
           {/* General Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>📋</span> General
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <span className="text-lg">📋</span>
+                </div>
+                General Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1225,10 +1238,13 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           </Card>
 
           {/* Contact Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5" /> Contact
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-muted/10 rounded-2xl">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Phone className="h-5 w-5 text-blue-600" />
+                </div>
+                Contact Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1279,14 +1295,17 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           </Card>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-6">
+        {/* Right Column - Finances & Timelines */}
+        <div className="space-y-8">
           {/* Guests Section - only show if there are NO forms (prevent double-counting) */}
           {!hasMultipleForms && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" /> Guests
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-purple-50/10 rounded-2xl">
+              <CardHeader className="pb-6">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-purple-600" />
+                  </div>
+                  Guest Information
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1325,10 +1344,13 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           )}
 
           {/* Finances Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PoundSterling className="h-5 w-5" /> Finances
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-emerald-50/10 rounded-2xl">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <PoundSterling className="h-5 w-5 text-emerald-600" />
+                </div>
+                Financial Summary
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1473,10 +1495,18 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
             </CardContent>
           </Card>
 
-          {/* Communications Timeline */}
-          <CommunicationTimeline eventId={eventId} />
+        </div>
+      </div>
 
-          {/* Payment Timeline */}
+      {/* Full Width Timelines Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
+        {/* Communications Timeline */}
+        <div className="lg:col-span-1">
+          <CommunicationTimeline eventId={eventId} />
+        </div>
+
+        {/* Payment Timeline */}
+        <div className="lg:col-span-1">
           <PaymentTimeline eventId={eventId} />
         </div>
       </div>
