@@ -1296,7 +1296,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
         </div>
 
         {/* Right Column - Finances & Timelines */}
-        <div className="space-y-8">
+        <div className="flex flex-col gap-8">
           {/* Guests Section - only show if there are NO forms (prevent double-counting) */}
           {!hasMultipleForms && (
             <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-purple-50/10 rounded-2xl">
@@ -1344,7 +1344,7 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
           )}
 
           {/* Finances Section */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-emerald-50/10 rounded-2xl">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card via-card to-emerald-50/10 rounded-2xl flex-grow">
             <CardHeader className="pb-6">
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
