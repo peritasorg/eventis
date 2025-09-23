@@ -1457,7 +1457,9 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                            <div key={formTotal.id} className="bg-muted/50 rounded-lg p-4 space-y-2">
                              <div className="flex justify-between items-center">
                                <div className="flex items-center gap-3">
-                                 <span className="font-medium">{formTotal.form_label || 'Form'}</span>
+                                 <span className="font-medium">
+                                   {formTotal.form_label || eventForm?.form_label || 'Form'}
+                                 </span>
                                  {eventForm?.guest_count && eventForm.guest_count > 0 && (
                                    <Badge variant="secondary" className="text-xs">
                                      {eventForm.guest_count} guests
@@ -1468,28 +1470,10 @@ export const EventRecord: React.FC<EventRecordProps> = ({ onUnsavedChanges, onSa
                                  {formatCurrency(Number(formTotal.form_total) || 0)}
                                </span>
                              </div>
+                             {/* Only show guest count information, no price breakdowns */}
                              {eventForm?.guest_price_total && eventForm.guest_price_total > 0 && (
                                <div className="text-sm text-muted-foreground pl-1">
                                  Guest pricing: {formatCurrency(Number(eventForm.guest_price_total) || 0)}
-                               </div>
-                             )}
-                             {/* Show breakdown of form responses for debugging */}
-                             {formTotal.form_responses && Object.keys(formTotal.form_responses).length > 0 && (
-                               <div className="text-xs text-muted-foreground">
-                                 {Object.entries(formTotal.form_responses)
-                                   .filter(([_, response]: [string, any]) => response?.enabled === true && response?.price > 0)
-                                   .map(([fieldId, response]: [string, any]) => {
-                                     const price = Number(response.price) || 0;
-                                     const quantity = Number(response.quantity) || 1;
-                                     const total = price * quantity;
-                                     return (
-                                       <div key={fieldId} className="flex justify-between">
-                                         <span>Field total:</span>
-                                         <span>£{price.toFixed(2)} × {quantity} = £{total.toFixed(2)}</span>
-                                       </div>
-                                     );
-                                   })
-                                 }
                                </div>
                              )}
                            </div>
